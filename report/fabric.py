@@ -26,16 +26,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 15 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '15 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -44,12 +46,7 @@ import brcdapi.log as brcdapi_log
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.fonts as report_fonts
 import brcddb.app_data.alert_tables as al
-import brcddb.brcddb_zone as brcddb_zone
-import brcddb.app_data.alert_tables as al
 import brcddb.classes.util as brcddb_class_util
-
-# Common styles
-from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 
 sheet = None
 row = 1
@@ -76,7 +73,7 @@ def _setup_worksheet(wb, tc, sheet_i, sheet_name, sheet_title):
     """Creates a fabric detail worksheet for the Excel report.
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -140,7 +137,6 @@ def _fabric_summary(fabric_obj):
 
     # Add the switches
     font = report_fonts.font_type('std')
-    sl = fabric_obj.r_switch_objects()
     for switch_obj in fabric_obj.r_switch_objects():
         col = 1
         row += 1
@@ -332,7 +328,7 @@ def fabric_page(wb, tc, sheet_i, sheet_name, sheet_title, fabric_obj):
     """Creates the fabric summary page
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_i: Relative location for this worksheet
@@ -341,8 +337,8 @@ def fabric_page(wb, tc, sheet_i, sheet_name, sheet_title, fabric_obj):
     :type sheet_name: str
     :param sheet_title: Title for sheet
     :type sheet_title: str
-    :param fab_obj: Fabric object
-    :type fab_obj: FabricObj
+    :param fabric_obj: Fabric object
+    :type fabric_obj: FabricObj
     :rtype: None
     """
     # Validate the user input
@@ -352,14 +348,7 @@ def fabric_page(wb, tc, sheet_i, sheet_name, sheet_title, fabric_obj):
     elif brcddb_class_util.get_simple_class_type(fabric_obj) != 'FabricObj':
         err_msg.append('Wrong object type, ' + str(type(fabric_obj)) + 'Must be brcddb.classes.fabric.FabricObj.')
     if len(err_msg) > 0:
-        buf = ','.join(err_msg)
-        brcdapi_log.exception(buf, True)
-        try:
-            proj_obj = fabric_obj.r_project_obj()
-            proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_USER_ERROR, None, buf, None)
-            proj_obj.s_user_error_flag()
-        except:
-            pass
+        brcdapi_log.exception(err_msg, True)
         return
 
     # Set up the worksheet and add the fabric

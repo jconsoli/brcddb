@@ -27,18 +27,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
-import time
 import openpyxl.utils.cell as xl
 import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
@@ -58,19 +59,24 @@ import brcddb.report.fonts as report_fonts
 def l_switch_name_case(login_obj):
     return brcddb_switch.best_switch_name(login_obj.r_switch_obj(), False)
 
+
 def l_switch_name_and_wwn_case(login_obj):
     return brcddb_switch.best_switch_name(login_obj.r_switch_obj(), True)
+
 
 def l_switch_wwn_case(login_obj):
     switch_obj = login_obj.r_switch_obj()
     return '' if switch_obj is None else switch_obj.r_obj_key()
 
+
 def l_port_number_case(login_obj):
     port_obj = login_obj.r_port_obj()
     return '' if port_obj is None else port_obj.r_obj_key()
 
+
 def l_alias_case(login_obj):
     return '\n'.join(login_obj.r_fabric_obj().r_alias_for_wwn(login_obj.r_obj_key()))
+
 
 def l_zones_def_case(login_obj):
     # You can have an alias that includes a WWN + the same WWN as a WWN in the zone in which case this would return
@@ -78,8 +84,10 @@ def l_zones_def_case(login_obj):
     # good enough
     return '\n'.join(login_obj.r_fabric_obj().r_zones_for_wwn(login_obj.r_obj_key()))
 
+
 def l_zones_eff_case(login_obj):
     return '\n'.join(login_obj.r_fabric_obj().r_eff_zones_for_wwn(login_obj.r_obj_key()))
+
 
 def l_fdmi_node_case(login_obj, k):
     # Remember, it's the base WWN we want for the node (hba), not the login WWN
@@ -89,6 +97,7 @@ def l_fdmi_node_case(login_obj, k):
         return '' if buf is None else buf
     except:
         return ''
+
 
 def l_fdmi_port_case(login_obj, k):
     try:
@@ -103,9 +112,11 @@ def l_fdmi_port_case(login_obj, k):
     except:
         return ''
 
+
 def l_port_name_case(login_obj):
     port_name = login_obj.r_get('port-name')  # There isn't anything in here if it's AMP
     return login_obj.r_obj_key() if port_name is None else login_obj.r_get('port-name')
+
 
 def l_comment_case(login_obj):
     a_list = report_utils.combined_login_alert_objects(login_obj)
@@ -132,11 +143,12 @@ fdmi_case = {
     '_FDMI_PORT': l_fdmi_port_case,
 }
 
+
 def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, display, login_display_tbl, s=True):
     """Creates a login detail worksheet for the Excel report.
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -166,16 +178,7 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, display, login_
         err_msg.append('display not defined.')
     if len(err_msg) > 0:
         err_msg.append('Failed to create login_page().')
-        buf = ', '.join(err_msg)
-        brcdapi_log.exception(buf, True)
-        proj_obj = None
-        if isinstance(l_list, (list, tuple)):
-            for login_obj in l_list:
-                proj_obj = login_obj.r_project_obj()
-                if proj_obj is not None:
-                    proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_USER_ERROR, None, buf, None)
-                    proj_obj.s_user_error_flag()
-                    break
+        brcdapi_log.exception(err_msg, True)
         return
 
     # Create the worksheet, add the headers, and set up the column widths
@@ -275,4 +278,3 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, display, login_
                 sheet[cell] = '' if login_obj.r_get(k) is None else str(login_obj.r_get(k))
             col += 1
         row += 1
-        col = 1

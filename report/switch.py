@@ -26,16 +26,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -46,10 +48,6 @@ import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.utils as report_utils
 import brcddb.report.fonts as report_fonts
 import brcddb.app_data.alert_tables as al
-
-# Common styles
-from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
-
 
 sheet = None
 row = 1
@@ -69,19 +67,24 @@ hdr['Setting'] = 29
 def s_switch_name_case(switch_obj, k=None):
     return brcddb_switch.best_switch_name(switch_obj, False)
 
+
 def s_switch_name_and_wwn_case(switch_obj, k=None):
     return brcddb_switch.best_switch_name(switch_obj, True)
 
+
 def s_switch_wwn_case(switch_obj, k=None):
     return switch_obj.r_obj_key()
+
 
 def s_switch_did_case(switch_obj, k):
     did = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
     return '0x00' if did is None else '0x' + f'{did:X}' + ' (' + str(did) + ')'
 
+
 def s_switch_list_case(switch_obj, k):
     sl = switch_obj.r_get(k)
     return None if sl is None else '\n'.join(sl)
+
 
 def s_switch_trunk_case(switch_obj, k):  # Not used yet
     rl = []
@@ -94,9 +97,11 @@ def s_switch_trunk_case(switch_obj, k):  # Not used yet
         rl.append('From ' + ps_name + ' to ' + obj.get('neighbor-switch-name') + ' ' + pd_name)
     return '\n'.join(rl)
 
+
 def s_switch_area_mode_case(switch_obj, k):
     x = switch_obj.r_get(k)
     return str(x) + ' (' + brcddb_switch.area_mode[x] + ')' if x in brcddb_switch.area_mode else str(x) + '(Unknown)'
+
 
 def s_switch_model_case(switch_obj, k):
     oem = brcddb_switch.SWITCH_BRAND.Brocade  # Custom OEM index not yet available as of 8.2.1b
@@ -106,17 +111,11 @@ def s_switch_model_case(switch_obj, k):
     else:
         return str(x) + ' (' + brcddb_switch.model_oem(x, oem)  + ', ' + brcddb_switch.model_broadcom(x) + ')'
 
+
 def s_switch_up_time_case(switch_obj, k):
     x = switch_obj.r_get(k)
     return int(x / 86400 + 0.5) if isinstance(x, int) else 'Unknown'
 
-def s_flag_case(switch_obj, k):
-    if k in brcddb_common.switch_flags:
-        return '\u221A' if switch_obj.r_flags() & brcddb_common.switch_flags[k].get(1) else None
-    elif k in brcddb_common.switch_bool_flags:
-        return '\u221A' if switch_obj.r_flags() & brcddb_common.switch_bool_flags[k] else None
-    else:
-        return 'Unkown flag'
 
 def s_operational_status_case(switch_obj, k):
     try:
@@ -126,6 +125,7 @@ def s_operational_status_case(switch_obj, k):
             return brcddb_common.switch_conversion_tbl['enabled-state'][switch_obj.r_get('enabled-state')]
         except:
             return ''
+
 
 def s_maps_active_policy_name(switch_obj, k):
     try:
@@ -159,7 +159,7 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title):
     """Creates a switch detail worksheet for the Excel report.
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -312,7 +312,7 @@ def _add_switch(switch_obj, display):
 def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list, display):
     """Creates a switch detail worksheet for the Excel report.
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -332,25 +332,14 @@ def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list, display):
     if s_list is None:
         err_msg.append('s_list was not defined.')
     elif not isinstance(s_list, (list, tuple)):
-        err_msg.append('s_list was type ' + str(type(p_list)) + '. Must be a list or tuple.')
+        err_msg.append('s_list was type ' + str(type(s_list)) + '. Must be a list or tuple.')
     if display is None:
         err_msg.append('display not defined.')
     if len(err_msg) > 0:
-        buf = ','.join(err_msg)
-        brcdapi_log.exception(buf, True)
-        try:
-            for switch_obj in s_list:
-                proj_obj = switch_obj.r_project_obj()
-                proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_USER_ERROR, None, buf, None)
-                proj_obj.s_user_error_flag()
-                break
-        except:
-            pass
+        brcdapi_log.exception(err_msg, True)
         return
 
     # Set up the worksheed and add each switch
     _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title)
     for switch_obj in s_list:
         _add_switch(switch_obj, display)
-
-

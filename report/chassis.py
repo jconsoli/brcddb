@@ -26,20 +26,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import collections
 import openpyxl.utils.cell as xl
-import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_chassis as brcddb_chassis
@@ -84,7 +85,7 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
     """Creates a chassis detail worksheet for the Excel report.
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -118,7 +119,6 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
     sheet.freeze_panes = sheet['A2']
 
     # Add the headers and set the column widths
-    border = report_fonts.border_type('thin')
     col = 1
     row += 2
     sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
@@ -130,6 +130,7 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
         sheet.column_dimensions[xl.get_column_letter(col)].width = v
         if 'col_only' not in k:
             cell = xl.get_column_letter(col) + str(row)
+            sheet[cell].border = report_fonts.border_type('thin')
             sheet[cell].font = report_fonts.font_type('bold')
             sheet[cell] = k
         col += 1
@@ -188,10 +189,13 @@ def _maps_dashboard(chassis_obj):
 #
 ###################################################################
 
+
 def cfru_blade_id_case(v):
     return brcddb_chassis.blade_name(v) + ' (' + str(v) + ')'
 
+
 chassis_key_case = {}  # This is consistent with all  other reports. I just don't have anything chassis custom
+
 
 chassis_fru_key_case = {
     'blade-id': cfru_blade_id_case,
@@ -370,7 +374,7 @@ def chassis_page(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj, display)
     """Creates a chassis detail worksheet for the Excel report.
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -394,14 +398,7 @@ def chassis_page(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj, display)
     if display is None:
         err_msg.append('display not defined.')
     if len(err_msg) > 0:
-        buf = ','.join(err_msg)
-        brcdapi_log.exception(buf, True)
-        try:
-            proj_obj = chassis_obj.r_project_obj()
-            proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_USER_ERROR, None, buf, None)
-            proj_obj.s_user_error_flag()
-        except:
-            pass
+        brcdapi_log.exception(err_msg, True)
         return
 
     # Create the worksheet and add the chassis information

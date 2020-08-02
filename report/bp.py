@@ -26,24 +26,27 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import openpyxl.utils.cell as xl
-import brcddb.brcddb_common as brcddb_common
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.fonts as report_fonts
 import brcddb.classes.alert as al
+import brcdapi.log as brcdapi_log
+import brcddb.brcddb_port as brcddb_port
 
 
 def _add_alerts(obj, type, sev, area_1, area_2):
@@ -60,59 +63,60 @@ def _add_alerts(obj, type, sev, area_1, area_2):
 #        Best practice case statements in bp_page()
 #
 ###################################################################
-def type_case(al):
+def type_case(a_list):
     """Returns the type value
 
-    :param al: List of alert parameters as returned from _add_alerts()
-    :type al: list
+    :param a_list: List of alert parameters as returned from _add_alerts()
+    :type a_list: list
     :return: Value for element 0 (Type)
     :rtype: str
     """
-    return al[0]
+    return a_list[0]
 
 
-def sev_case(al):
+def sev_case(a_list):
     """Returns the type value
 
-    :param al: List of alert parameters as returned from _add_alerts()
-    :type al: list
+    :param a_list: List of alert parameters as returned from _add_alerts()
+    :type a_list: list
     :return: Value for element 1 (Sev)
     :rtype: str
     """
-    return al[1]
+    return a_list[1]
 
 
-def area_1_case(al):
+def area_1_case(a_list):
     """Returns the type value
 
-    :param al: List of alert parameters as returned from _add_alerts()
-    :type al: list
+    :param a_list: List of alert parameters as returned from _add_alerts()
+    :type a_list: list
     :return: Value for element 2 (Area_1)
     :rtype: str
     """
-    return al[2]
+    return a_list[2]
 
 
-def area_2_case(al):
+def area_2_case(a_list):
     """Returns the type value
 
-    :param al: List of alert parameters as returned from _add_alerts()
-    :type al: list
+    :param a_list: List of alert parameters as returned from _add_alerts()
+    :type a_list: list
     :return: Value for element 3 (Area_2)
     :rtype: str
     """
-    return al[3]
+    return a_list[3]
 
 
-def desc_case(al):
+def desc_case(a_list):
     """Returns the type value
 
-    :param al: List of alert parameters as returned from _add_alerts()
-    :type al: list
+    :param a_list: List of alert parameters as returned from _add_alerts()
+    :type a_list: list
     :return: Value for element 4 (Type)
     :rtype: str
     """
-    return al[4]
+    return a_list[4]
+
 
 bp_case = {
     '_TYPE': type_case,
@@ -127,7 +131,7 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
     """Creates a best practice violation worksheet for the Excel report.
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -152,14 +156,7 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
     if display is None:
         err_msg.append('display not defined.')
     if len(err_msg) > 0:
-        buf = ','.join(err_msg)
-        brcdapi_log.exception(buf, True)
-        try:
-            proj_obj = obj.r_project_obj()
-            proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_USER_ERROR, None, buf, None)
-            proj_obj.s_user_error_flag()
-        except:
-            pass
+        brcdapi_log.exception(err_msg, True)
         return
 
     # Create the worksheet, add the headers, and set up the column widths
@@ -199,19 +196,9 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
             if 'd' in display_tbl[k]:
                 sheet[cell] = display_tbl[k]['d']
             else:
-                # See if it's a flag
-                try:
-                    # These are the boolean types intoduced in 8.2.1
-                    sheet[cell] = brcddb_common.port_flag_friendly[brcddb_common.port_bool_flags[k]]
-                except:
-                    try:
-                        # These are the old 1 or 0 flag types pre-FOS 8.2.1
-                        sheet[cell] = brcddb_common.port_flag_friendly[brcddb_common.key_to_port_flags[k]]
-                    except:
-                        # This happens when a new key is introduced before brcddb_common has been updated
-                        sheet[cell] = k
+                sheet[cell] = k  # This happens when a new key is introduced before the display tables have been updated
         else:
-            sheet[cell] = k
+            sheet[cell] = k  # This happens when a new key is introduced before the display tables have been updated
         col += 1
 
     # Get a list of fabric objects and initialize alert_list
@@ -261,10 +248,10 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
     for switch_obj in switch_list:
         tl = []
         for sev in (al.ALERT_SEV.ERROR, al.ALERT_SEV.WARN):  # Display errors first
-            tl.extend(_add_alerts(tobj, 'Switch', sev, brcddb_switch.best_switch_name(switch_obj), ''))
+            tl.extend(_add_alerts(switch_obj, 'Switch', sev, brcddb_switch.best_switch_name(switch_obj), ''))
             for tobj in switch_obj.r_port_objects():
-                tl.extend(_add_alerts(tobj, 'Port', sev, brcddb_switch.best_switch_name(switch_obj), tobj.r_obj_key()))
-        if len(tl)> 0:
+                tl.extend(_add_alerts(tobj, 'Port', sev, brcddb_port.best_port_name(tobj), tobj.r_obj_key()))
+        if len(tl) > 0:
             alert_list.append([''])
             alert_list.append(['Switch: ' + brcddb_switch.best_switch_name(switch_obj, True)])
             alert_list.extend(tl)

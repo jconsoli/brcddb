@@ -27,16 +27,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import time
 import collections
@@ -55,7 +57,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
     """Creates a dashboard worksheet for the Excel report.
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -79,7 +81,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
     hdr['Switch'] = 22
     hdr['Port'] = 7
     hdr['Type'] = 8
-    hdr['Description'] = 117  - (hdr['Count'] + hdr['Switch'] + hdr['Switch'] + hdr['Port'] + hdr['Type'])
+    hdr['Description'] = 117 - (hdr['Count'] + hdr['Switch'] + hdr['Switch'] + hdr['Port'] + hdr['Type'])
 
     # Create the worksheet, add the title, and set up the column widths
     sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
@@ -111,6 +113,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
     for statistic in content.keys():
         db = content.get(statistic)
         col = 1
+
         # The individual dashboard title
         sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=max_col)
         for i in range(col, max_col+1):
@@ -122,14 +125,15 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
         sheet[cell] = db.get('title')
         col = 1
         row += 1
+
         # Now the individual dashboard headers
-        cell = xl.get_column_letter(col) + str(row)
         for k in hdr.keys():
             cell = xl.get_column_letter(col) + str(row)
             sheet[cell].border = border
             sheet[cell].font = report_fonts.font_type('bold')
             sheet[cell] = k
             col += 1
+
         # Now add the dashboard content
         port_list = db.get('port_list')
         if len(port_list) == 0:
@@ -150,7 +154,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
             sheet[cell].font = font
             sheet[cell].alignment = alignment
             sheet[cell] = brcddb_fabric.best_fab_name(port_obj.r_switch_obj().r_fabric_obj())
-            col +=1
+            col += 1
 
             # Switch
             cell = xl.get_column_letter(col) + str(row)
@@ -158,7 +162,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
             sheet[cell].font = font
             sheet[cell].alignment = alignment
             sheet[cell] = brcddb_switch.best_switch_name(port_obj.r_switch_obj())
-            col +=1
+            col += 1
 
             # Port
             cell = xl.get_column_letter(col) + str(row)
@@ -166,7 +170,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
             sheet[cell].font = font
             sheet[cell].alignment = alignment
             sheet[cell] = port_obj.r_obj_key()
-            col +=1
+            col += 1
 
             # Port Type
             cell = xl.get_column_letter(col) + str(row)
@@ -174,7 +178,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
             sheet[cell].font = font
             sheet[cell].alignment = alignment
             sheet[cell] = port_obj.c_login_type()
-            col +=1
+            col += 1
 
             # Description - Try FDMI first, then name server
             cell = xl.get_column_letter(col) + str(row)
@@ -185,36 +189,43 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
             row += 1
         row += 1
 
-
 ##################################################################
 #
 #        Port case statements in port_page()
 #
 ###################################################################
 
+
 def p_switch_name_case(port_obj, k, wwn):
     return brcddb_switch.best_switch_name(port_obj.r_switch_obj(), False)
+
 
 def p_switch_name_and_wwn_case(port_obj, k, wwn):
     return brcddb_switch.best_switch_name(port_obj.r_switch_obj(), True)
 
+
 def p_switch_wwn_case(port_obj, k, wwn):
     return port_obj.r_switch_key()
+
 
 def p_port_number_case(port_obj, k, wwn):
     return '\'' + port_obj.r_obj_key()  # Add ' in front of it to make sure Excel doesn't treat it like a date
 
+
 def p_port_desc_case(port_obj, k, wwn):
     return brcddb_port.port_best_desc(port_obj)
+
 
 def p_port_maps_group_case(port_obj, k, wwn):
     maps_groups = port_obj.r_get('_maps_fc_port_group')
     maps_groups.extend(port_obj.r_get('_maps_sfp_group'))
     return ', '.join(maps_groups)
 
+
 def p_time_generated_case(port_obj, k, wwn):
     x = port_obj.r_get('fibrechannel-statistics/time-generated')
     return None if x is None else time.ctime(float(x))
+
 
 def p_los_tov_mode_case(port_obj, k, wwn):
     los = port_obj.r_get('fibrechannel/los-tov-mode-enabled')
@@ -223,8 +234,10 @@ def p_los_tov_mode_case(port_obj, k, wwn):
     v = brcddb_common.port_conversion_tbl['fibrechannel/los-tov-mode-enabled'][los]
     return 'Unknown: ' + str(los) if v is None else v
 
+
 def p_alias_case(port_obj, k, wwn):
     return '\n'.join(port_obj.r_fabric_obj().r_alias_for_wwn(wwn))
+
 
 def p_comment_case(port_obj, k, wwn):
     if k is '_PORT_COMMENTS':  # It's for the port itself
@@ -232,8 +245,10 @@ def p_comment_case(port_obj, k, wwn):
     else:  # It's an NPIV login
         return report_utils.combined_login_alerts(port_obj.r_fabric_obj().r_login_obj(wwn), wwn)
 
+
 def p_login_wwn_case(port_obj, k, wwn):
     return wwn
+
 
 def p_login_addr_case(port_obj, k, wwn):
     if wwn is None:
@@ -245,20 +260,24 @@ def p_login_addr_case(port_obj, k, wwn):
                               ', port ' + port_obj.r_obj_key(), True)
         return 'Unknown'
 
+
 def p_zones_def_case(port_obj, k, wwn):
     # You can have an alias that includes a WWN + the same WWN as a WWN in the zone in which case this would return
     # the same zone twice. As a practical matter, I've never seen it done and nothing breaks in the code so this is
     # good enough
     return '\n'.join(port_obj.r_fabric_obj().r_zones_for_wwn(wwn))
 
+
 def zones_eff_case(port_obj, k, wwn):
     return '\n'.join(port_obj.r_fabric_obj().r_eff_zones_for_wwn(wwn))
+
 
 def p_name_server_node_case(port_obj, k, wwn):
     try:
         return port_obj.r_fabric_obj().r_login_obj(wwn).r_get('brocade-name-server/node-symbolic-name')
     except:
         return
+
 
 def p_name_server_port_case(port_obj, k, wwn):
     try:
@@ -269,12 +288,14 @@ def p_name_server_port_case(port_obj, k, wwn):
     except:
         return
 
+
 def p_fdmi_node_case(port_obj, k, wwn):
     try:
         buf = port_obj.r_fabric_obj().r_fdmi_node_obj(wwn).r_get('brocade-fdmi/node-symbolic-name')
     except:
         buf = ''
     return '' if buf is None else buf
+
 
 def p_fdmi_port_case(port_obj, k, wwn):
     try:
@@ -283,15 +304,6 @@ def p_fdmi_port_case(port_obj, k, wwn):
         buf = ''
     return '' if buf is None else buf
 
-def p_name_server_key_case(port_obj, k, wwn):
-    try:
-        login_obj = port_obj.r_fabric_obj().r_login_obj(wwn)
-        if k in brcddb_common.key_to_login_flags:
-            return '\u221A' if brcddb_common_key_to_login_flags[k] & login_obj.r_flags() else ''
-        else:
-            return login_obj.r_get(k)
-    except:
-        return ''
 
 def p_media_uptime_case(port_obj, k, wwn):
     try:
@@ -299,11 +311,13 @@ def p_media_uptime_case(port_obj, k, wwn):
     except:
         return None
 
+
 def p_media_distance_case(port_obj, k, wwn):
     try:
         return ', '.join(brcddb_util.get_key_val(port_obj, 'media-rdp/media-distance/distance'))
     except:
         return None
+
 
 def p_media_speed_case(port_obj, k, wwn):
     if port_obj.r_get('media-rdp/media-speed-capability/speed') is None:
@@ -311,24 +325,23 @@ def p_media_speed_case(port_obj, k, wwn):
     else:
         return ', '.join([str(i) for i in port_obj.r_get('media-rdp/media-speed-capability/speed')])
 
+
 def p_media_rspeed_case(port_obj, k, wwn):
     if port_obj.r_get('media-rdp/remote-media-speed-capability/speed') is None:
         return None
     else:
         return ', '.join([str(i) for i in port_obj.r_get('media-rdp/media-speed-capability/speed')])
 
-def p_operational_status_case(port_obj, k, wwn):
-    try:
-        return brcddb_common.port_conversion_tbl['fibrechannel/operational-status'] \
-               [port_obj.r_get('fibrechannel/operational-status')]
-    except:
-        return ''
 
-def p_is_enabled_state_case(port_obj, k, wwn):
-    if brcddb_common.port_flag_enabled & port_obj.r_flags():
-        return '\u221A'
-    else:
-        return ''
+def p_operational_status_case(port_obj, k, wwn):
+    os = port_obj.r_get('fibrechannel/operational-status')
+    if os is not None:
+        try:
+            return brcddb_common.port_conversion_tbl['fibrechannel/operational-status'][os]
+        except:
+            pass
+    return ''
+
 
 def p_port_type_case(port_obj, k, wwn):
     try:
@@ -336,8 +349,10 @@ def p_port_type_case(port_obj, k, wwn):
     except:
         return None
 
+
 def p_port_speed_case(port_obj, k, wwn):
     return port_obj.c_login_speed()
+
 
 port_case = {
     '_FABRIC_NAME': report_utils.fabric_name_case,
@@ -368,22 +383,14 @@ port_case = {
     '_FDMI_NODE': p_fdmi_node_case,
     '_FDMI_PORT': p_fdmi_port_case,
     'los-tov-mode-enabled': p_los_tov_mode_case,
-    'name-server-device-type': p_name_server_key_case,
-    'frame-redirection': p_name_server_key_case,
-    'lsan': p_name_server_key_case,
-    'port-properties': p_name_server_key_case,
-    'cascaded-ag': p_name_server_key_case,
-    'connected-through-ag': p_name_server_key_case,
-    'real-device-behind-ag': p_name_server_key_case,
-    'fcoe-device': p_name_server_key_case,
-    'slow-drain-device-quarantine': p_name_server_key_case,
 }
+
 
 def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, display, port_display_tbl, login_flag=False):
     """Creates a port detail worksheet for the Excel report.
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -409,7 +416,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, display, port_di
                     # To Do: Clean this up
 
     # Validate the user input
-    err_msg = []
+    err_msg = list()
     if p_list is None:
         err_msg.append('p_list was not defined.')
     elif not isinstance(p_list, (list, tuple)):
@@ -417,16 +424,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, display, port_di
     if display is None:
         err_msg.append('display not defined.')
     if len(err_msg) > 0:
-        buf = ','.join(err_msg)
-        brcdapi_log.exception(buf, True)
-        try:
-            for port_obj in p_list:
-                proj_obj = port_obj.r_project_obj()
-                proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_USER_ERROR, None, buf, None)
-                proj_obj.s_user_error_flag()
-                break
-        except:
-            pass
+        brcdapi_log.exception(err_msg, True)
         return None
 
     # Create the worksheet, add the headers, and set up the column widths
@@ -530,15 +528,12 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, display, port_di
                     cell = xl.get_column_letter(addl_row[k1]) + str(row)
                     sheet[cell].border = border
                     sheet[cell].font = font
+                    sheet[cell].alignment = report_fonts.align_type('wrap')
                     if k1 is '_PORT_COMMENTS':
-                        buf = port_case[k1](port_obj, '', login[i])
-                        sheet[cell].alignment = report_fonts.align_type('wrap')
                         sheet[cell] = port_case[k1](port_obj, '', login[i])
                     elif k1 in port_case:
-                        sheet[cell].alignment = report_fonts.align_type('wrap')
                         sheet[cell] = port_case[k1](port_obj, k1, login[i])
                     else:
-                        sheet[cell].alignment = report_fonts.align_type('wrap')
                         buf = port_obj.r_fabric_obj().r_get(k1)
                         buf = '' if buf is None else buf
                         sheet[cell] = buf

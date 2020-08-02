@@ -26,65 +26,25 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
-import datetime
-import time
-import calendar
 import collections
 import openpyxl.utils.cell as xl
-import brcddb.brcddb_common as brcddb_common
-import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.fonts as report_fonts
-import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_login as brcddb_login
-
-# Common styles
-from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
-
-def zone_font_type(obj):
-    """Determines the display font based on alerts associated with the zone only, no members, for a zone object.
-    :param obj: The zone object
-    :param obj: ZoneObj
-    :param mem: Zone member. If none, only determine font based on alerts for the zone itself
-    :type mem: str
-    """
-    font = report_fonts.font_type('std')
-    # Get a list of the relevant comment objects
-    for aObj in [a for a in obj.r_alert_objects() if not a.is_flag()]:
-        if aObj.is_error():
-            return report_fonts.font_type('error')
-        elif aObj.is_warn():
-            font = report_fonts.font_type('warn')
-    return font
-
-
-def mem_font_type(obj, mem):
-    """Determines the display font based on alerts associated with the zone only, no members, for a zone object.
-    :param obj: The zone object
-    :param obj: ZoneObj
-    :param mem: Zone member. If none, only determine font based on alerts for the zone itself
-    :type mem: str
-    """
-    font = report_fonts.font_type('std')
-    # Get a list of the relevant comment objects
-    for aObj in [a for a in obj.r_alert_objects() if a.is_flag() and a.p0() == mem]:
-        if aObj.is_error():
-            return report_fonts.font_type('error')
-        elif aObj.is_warn():
-            font = report_fonts.font_type('warn')
-    return font
-
+import brcddb.report.utils as report_utils
 
 ##################################################################
 #
@@ -92,43 +52,58 @@ def mem_font_type(obj, mem):
 #
 ##################################################################
 
+
 def zone_comment_case(obj):
     return '\n'.join([a.fmt_msg() for a in obj.r_alert_objects() if not a.is_flag()])
+
 
 def zone_zone_case(obj):
     return obj.r_obj_key()
 
+
 def zone_effective_case(obj):
     return '\u221A' if obj.r_is_effective() else ''
+
 
 def zone_peer_case(obj):
     return '\u221A' if obj.r_is_peer() else ''
 
+
 def zone_target_case(obj):
     return '\u221A' if obj.r_is_target_driven() else ''
+
 
 def zone_cfg_case(obj):
     return '\n'.join(obj.r_zone_configurations())
 
+
 def zone_member_case(obj):
     return len(obj.r_members()) + len(obj.r_pmembers())
 
-def zone_null_case(obj=None, mem=None, wwn=None, port_map=None):
+
+def zone_null_case(obj):
     return ''
+
 
 def zone_member_wwn_case(obj):
     members = list(obj.r_members())
     members.extend(list(obj.r_pmembers()))
-    fabObj = obj.r_fabric_obj()
+    fab_obj = obj.r_fabric_obj()
     i = 0
     for mem in members:
-        i += 1 if fabObj.r_alias_obj(mem) is None else len(fabObj.r_alias_obj(mem).r_members())
+        i += 1 if fab_obj.r_alias_obj(mem) is None else len(fab_obj.r_alias_obj(mem).r_members())
     return i
 
-def mem_member_case(obj, mem, wwn, portObj):
+
+def mem_null_case(obj, mem, wwn, port_obj):
+    return ''
+
+
+def mem_member_case(obj, mem, wwn, port_obj):
     return mem
 
-def mem_comment_case(obj, mem, wwn, portObj):
+
+def mem_comment_case(obj, mem, wwn, port_obj):
     # Get any comments for this WWN in the zone object
     al = [a.fmt_msg() for a in obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
     # If there is a login, add any comments associated with the login that are zoning specific
@@ -137,38 +112,44 @@ def mem_comment_case(obj, mem, wwn, portObj):
                       if a.is_flag() and a.p0() == mem]))
     return '\n'.join(al)
 
-def mem_principal_case(obj, mem, wwn, portObj):
+
+def mem_principal_case(obj, mem, wwn, port_obj):
     return '\u221A' if mem in obj.r_pmembers() else ''
 
-def mem_member_wwn_case(obj, mem, wwn, portObj):
+
+def mem_member_wwn_case(obj, mem, wwn, port_obj):
     return '' if wwn is None else '' if ',' in wwn else wwn
 
-def mem_switch_case(obj, mem, wwn, portObj):
-    return '' if portObj is None else brcddb_switch.best_switch_name(portObj.r_switch_obj())
 
-def mem_port_case(obj, mem, wwn, portObj):
-    return '' if portObj is None else portObj.r_obj_key()
+def mem_switch_case(obj, mem, wwn, port_obj):
+    return '' if port_obj is None else brcddb_switch.best_switch_name(port_obj.r_switch_obj())
 
-def mem_desc_case(obj, mem, wwn, portObj):
+
+def mem_port_case(obj, mem, wwn, port_obj):
+    return '' if port_obj is None else port_obj.r_obj_key()
+
+
+def mem_desc_case(obj, mem, wwn, port_obj):
     try:
-        t_wwn = portObj.r_get('fibrechannel/neighbor')[0] if ',' in wwn else wwn
+        t_wwn = port_obj.r_get('fibrechannel/neighbor')[0] if ',' in wwn else wwn
         return brcddb_login.login_best_port_desc(obj.r_fabric_obj().r_login_obj(t_wwn))
     except:
         return ''
 
-zone_hdr = {
+
+_zone_hdr = {
     # Key is the column header. Value is a dict as follows:
     #   'c' Column width
     #   'z' Case method to fill in the cell for basic zone information
     #   'm' Case method to fill the cell for member information
     #   'v' True - display centered in column. Headers vertical, Otherwise, use default wrap alignment
     'Comments': {'c': 30, 'z': zone_comment_case, 'm': mem_comment_case},
-    'Zone': {'c': 22, 'z': zone_zone_case, 'm': zone_null_case},
-    'Effectve': {'c': 5, 'v': True, 'z': zone_effective_case, 'm': zone_null_case},
-    'Peer': {'c': 5, 'v': True, 'z': zone_peer_case, 'm': zone_null_case},
-    'Target Driven': {'c': 5, 'v': True, 'z': zone_target_case, 'm': zone_null_case},
+    'Zone': {'c': 22, 'z': zone_zone_case, 'm': mem_null_case},
+    'Effectve': {'c': 5, 'v': True, 'z': zone_effective_case, 'm': mem_null_case},
+    'Peer': {'c': 5, 'v': True, 'z': zone_peer_case, 'm': mem_null_case},
+    'Target Driven': {'c': 5, 'v': True, 'z': zone_target_case, 'm': mem_null_case},
     'Principal': {'c': 5, 'v': True, 'z': zone_null_case, 'm': mem_principal_case},
-    'Configurations': {'c': 22, 'z': zone_cfg_case, 'm': zone_null_case},
+    'Configurations': {'c': 22, 'z': zone_cfg_case, 'm': mem_null_case},
     'Member': {'c': 22, 'z': zone_member_case, 'm': mem_member_case},
     'Member WWN': {'c':  22, 'z': zone_member_wwn_case, 'm': mem_member_wwn_case},
     'Switch': {'c': 22, 'z': zone_null_case, 'm': mem_switch_case},
@@ -177,17 +158,15 @@ zone_hdr = {
 }
 
 
-
-
-def zone_page(fabObj, tc, wb, sheet_name, sheet_i, sheet_title):
+def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     """Creates a zone detail worksheet for the Excel report.
 
-    :param fabObj: Fabric object
-    :type fabObj: brcddb.classes.fabric.FabricObj
+    :param fab_obj: Fabric object
+    :type fab_obj: brcddb.classes.fabric.FabricObj
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
     :param sheet_i: Sheet index where page is to be placed.
@@ -196,7 +175,7 @@ def zone_page(fabObj, tc, wb, sheet_name, sheet_i, sheet_title):
     :type sheet_title: str
     :rtype: None
     """
-    global zone_hdr
+    global _zone_hdr
 
     # Create the worksheet, add the headers, and set up the column widths
     sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
@@ -218,65 +197,78 @@ def zone_page(fabObj, tc, wb, sheet_name, sheet_i, sheet_title):
     sheet.freeze_panes = sheet['A4']
     font = report_fonts.font_type('hdr_2')
     border = report_fonts.border_type('thin')
-    for k in zone_hdr:
-        sheet.column_dimensions[xl.get_column_letter(col)].width = zone_hdr[k]['c']
+    for k in _zone_hdr:
+        sheet.column_dimensions[xl.get_column_letter(col)].width = _zone_hdr[k]['c']
         cell = xl.get_column_letter(col) + str(row)
         sheet[cell].font = font
         sheet[cell].border = border
-        sheet[cell].alignment = report_fonts.align_type('wrap_vert_center') if 'v' in zone_hdr[k] and zone_hdr[k]['v'] \
-            else report_fonts.align_type('wrap')
+        if 'v' in _zone_hdr[k] and _zone_hdr[k]['v']:
+            sheet[cell].alignment = report_fonts.align_type('wrap_vert_center')
+        else:
+            sheet[cell].alignment = report_fonts.align_type('wrap')
         sheet[cell] = k
         col += 1
 
     # Fill out all the zoning information
     row += 1
     col = 1
-    for zoneObj in fabObj.r_zone_objects():
+    for zone_obj in fab_obj.r_zone_objects():
         # The zone information
         fill = report_fonts.fill_type('lightblue')
-        for k in zone_hdr:
+        for k in _zone_hdr:
             cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = zone_font_type(zoneObj) if k == 'Comments' else report_fonts.font_type('bold')
+            if k == 'Comments':
+                sheet[cell].font = report_utils.font_type(zone_obj.r_alert_objects())
+            else:
+                sheet[cell].font = report_fonts.font_type('bold')
             sheet[cell].border = border
-            sheet[cell].alignment = report_fonts.align_type('wrap_center') if 'v' in zone_hdr[k] and zone_hdr[k]['v'] \
-                else report_fonts.align_type('wrap')
+            if 'v' in _zone_hdr[k] and _zone_hdr[k]['v']:
+                sheet[cell].alignment = report_fonts.align_type('wrap_vert_center')
+            else:
+                sheet[cell].alignment = report_fonts.align_type('wrap')
             sheet[cell].fill = fill
-            sheet[cell] = zone_hdr[k]['z'](zoneObj)
+            sheet[cell] = _zone_hdr[k]['z'](zone_obj)
             col += 1
         col = 1
         row += 1
 
         # The member information
-        mem_list = list(zoneObj.r_pmembers())
-        mem_list.extend(list(zoneObj.r_members()))
+        mem_list = list(zone_obj.r_pmembers())
+        mem_list.extend(list(zone_obj.r_members()))
         for mem in mem_list:
             wwn_list = []  # WWNs or d,i
-            if fabObj.r_alias_obj(mem) is None:
+            if fab_obj.r_alias_obj(mem) is None:
                 wwn_list.append(mem)
             else:
-                wwn_list.extend(fabObj.r_alias_obj(mem).r_members())
+                wwn_list.extend(fab_obj.r_alias_obj(mem).r_members())
             for wwn in wwn_list:
                 if ',' in wwn:  # It's a d,i zone
-                    portObj = fabObj.r_port_object_for_di(wwn)
+                    port_obj = fab_obj.r_port_object_for_di(wwn)
                 else:
-                    portObj = fabObj.r_port_obj(wwn)
-                if portObj is None:
+                    port_obj = fab_obj.r_port_obj(wwn)
+                if port_obj is None:
                     # Since brcddb_fabric.zone_analysis() already checked to see it's in another fabric, it would be
                     # much faster to check for the associated alert, but this was easier to code and time is not of the
                     # essence here.
-                    for fobj in fabObj.r_project_obj().r_fabric_objects():
-                        if fabObj.r_obj_key() != fobj.r_obj_key():
-                            portObj = fobj.r_port_obj(wwn)
-                            if portObj is not None:
+                    for fobj in fab_obj.r_project_obj().r_fabric_objects():
+                        if fab_obj.r_obj_key() != fobj.r_obj_key():
+                            port_obj = fobj.r_port_obj(wwn)
+                            if port_obj is not None:
                                 break
-                for k in zone_hdr:
+                for k in _zone_hdr:
                     cell = xl.get_column_letter(col) + str(row)
-                    sheet[cell].font = mem_font_type(zoneObj, wwn) if k is 'Comments'\
-                        else report_fonts.font_type('std')
+                    # Display font based on alerts associated with the zone only, not members, for a zone object
+                    if k == 'Comments':
+                        alerts = [a for a in zone_obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
+                        sheet[cell].font = report_utils.font_type(alerts)
+                    else:
+                        sheet[cell].font = report_fonts.font_type('std')
                     sheet[cell].border = border
-                    sheet[cell].alignment = report_fonts.align_type('wrap_center') if 'v' in zone_hdr[k] and \
-                                                    zone_hdr[k]['v'] else report_fonts.align_type('wrap')
-                    sheet[cell] = zone_hdr[k]['m'](zoneObj, mem, wwn, portObj)
+                    if 'v' in _zone_hdr[k] and _zone_hdr[k]['v']:
+                        sheet[cell].alignment = report_fonts.align_type('wrap_vert_center')
+                    else:
+                        sheet[cell].alignment = report_fonts.align_type('wrap')
+                    sheet[cell] = _zone_hdr[k]['m'](zone_obj, mem, wwn, port_obj)
                     col += 1
                 col = 1
                 row += 1
@@ -285,8 +277,10 @@ def zone_page(fabObj, tc, wb, sheet_name, sheet_i, sheet_title):
 def alias_comment_case(obj, mem):
     return '\n'.join([a.fmt_msg() for a in obj.r_alert_objects() if not a.is_flag()])
 
+
 def alais_name_case(obj, mem):
     return obj.r_obj_key()
+
 
 def alias_node_desc_case(obj, mem):
     try:
@@ -294,11 +288,14 @@ def alias_node_desc_case(obj, mem):
     except:
         return ''
 
+
 def alias_mem_member_case(obj, mem):
     return mem
 
+
 def alias_mem_null_case(obj, mem):
     return ''
+
 
 def alias_mem_switch_case(obj, mem):
     try:
@@ -306,11 +303,13 @@ def alias_mem_switch_case(obj, mem):
     except:
         return ''
 
+
 def alias_mem_port_case(obj, mem):
     try:
         return obj.r_fabric_obj().r_login_obj(mem).r_port_obj().r_obj_key()
     except:
         return ''
+
 
 def alias_mem_desc_case(obj, mem):
     try:
@@ -318,11 +317,14 @@ def alias_mem_desc_case(obj, mem):
     except:
         return ''
 
+
 def alias_used_in_zone_case(obj, mem):
     return ', '.join([zobj.r_obj_key() for zobj in obj.r_zone_objects()])
 
+
 def alias_member_case(obj, mem):
     return obj.r_members()[0] if len(obj.r_members()) > 0 else ''
+
 
 def alias_null_case(obj, mem):
     return ''
@@ -350,7 +352,7 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
     :param sheet_i: Sheet index where page is to be placed.
@@ -400,7 +402,10 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         col = 1
         for k in alias_hdr:
             cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = zone_font_type(alias_obj) if k == 'Comments' else report_fonts.font_type('std')
+            if k == 'Comments':
+                sheet[cell].font = report_utils.font_type(alias_obj.r_alert_objects())
+            else:
+                sheet[cell].font = report_fonts.font_type('std')
             sheet[cell].border = border
             sheet[cell].alignment = alignment
             sheet[cell] = alias_hdr[k]['v'](alias_obj, mem)

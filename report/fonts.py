@@ -28,21 +28,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | Fixed typo in align_type() exception case                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcdapi.log as brcdapi_log
 import openpyxl.styles as xl_styles
-import brcddb.brcddb_common as brcddb_common
-
 
 #################################################################
 #   Font Types                                                  #
@@ -126,7 +126,7 @@ font_tbl = {
     'hdr_1': h1_font,
     'hdr_2': h2_font,
     'bold': bold_font,
-    'italic':italic_font,
+    'italic': italic_font,
     'warn': warn_font,
     'error': error_font,
     'link': link_font,
@@ -204,6 +204,7 @@ align_tbl = {
     'wrap_right': wrap_right_alignment,
 }
 
+
 def font_type(x):
     """Returns the font definition tuple for the openpyxl libraries
     :param x: Font type listed in font_tbl
@@ -256,5 +257,5 @@ def align_type(x):
     if x in align_tbl:
         return align_tbl[x]
     else:
-        brcdapi_log.exception('Unknown border type: ' + x, True)
+        brcdapi_log.exception('Unknown align type: ' + x, True)
         return wrap_alignment

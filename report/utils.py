@@ -27,26 +27,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
-import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.util.util as brcddb_util
 import brcddb.report.fonts as report_fonts
-import openpyxl.styles as xl_styles
-
 
 #######################################################################
 #
@@ -54,14 +53,18 @@ import openpyxl.styles as xl_styles
 #
 #######################################################################
 
+
 def fabric_name_case(obj, k=None, wwn=None):
     return brcddb_fabric.best_fab_name(obj.r_fabric_obj(), False)
+
 
 def fabric_name_or_wwn_case(obj, k=None, wwn=None):
     return brcddb_fabric.best_fab_name(obj.r_fabric_obj(), True)
 
+
 def fabric_wwn_case(obj, k=None, wwn=None):
     return obj.r_fabric_key()
+
 
 def font_type(obj_list):
     """Determines the display font based on alerts.
@@ -111,7 +114,8 @@ def comments_for_alerts(gobj, k=None, wwn=None):
     obj = gobj if wwn is None else gobj.r_fabric_obj().r_login_obj(wwn)
     if obj is None:
         return ''
-    a_list = obj.r_alert_objects() if k is None else [alertObj for alertObj in obj.r_alert_objects() if alertObj.key() == k]
+    a_list = obj.r_alert_objects() if k is None else [alertObj for alertObj in obj.r_alert_objects() if
+                                                      alertObj.key() == k]
     return '\n'.join([alertObj.fmt_msg() for alertObj in a_list])
 
 
@@ -119,7 +123,7 @@ def combined_login_alert_objects(login_obj):
     """Combines login alert objects with FDMI HBA and FDMI port alerts objects
 
     :param login_obj: Login object
-    :type login_obj: list
+    :type : brcddb.classes.login.LoginObj
     :return: List of AlertObj
     :rtype: list
     """
@@ -137,9 +141,10 @@ def combined_login_alert_objects(login_obj):
                 a_list.extend(obj.r_alert_objects())
     return a_list
 
-def combined_login_alerts(login_obj, wwn):
-    """Converts alerts associated with a login object and the login and FDMI objects for lwwn to a human readable string.
 
+def combined_login_alerts(login_obj, wwn):
+    """Converts alerts associated with a login object and the login and FDMI objects for lwwn to a human readable string
+combined_login_alerts
     :param login_obj: Port object
     :type login_obj: brcddb.classes.port.PortObj
     :param wwn: Login wwn
@@ -151,18 +156,18 @@ def combined_login_alerts(login_obj, wwn):
     return '\n'.join([obj.fmt_msg() for obj in a_list]) if a_list is not None and len(a_list) > 0 else ''
 
 
-def combined_alert_objects(portObj, wwn):
+def combined_alert_objects(port_obj, wwn):
     """Combines alerts associated with a port object and the login and FDMI objects for wwn.
 
-    :param portObj: Port object
-    :type obj: brcddb.classes.port.PortObj
+    :param port_obj: Port object
+    :type port_obj: brcddb.classes.port.PortObj
     :param wwn: Login wwn
     :type wwn: str
     :return: List of AlertObj
     :rtype: list
     """
-    a_list = [obj for obj in portObj.r_alert_objects()]  # All port alerts
-    fab_obj = portObj.r_fabric_obj()
+    a_list = [obj for obj in port_obj.r_alert_objects()]  # All port alerts
+    fab_obj = port_obj.r_fabric_obj()
     if fab_obj is not None and wwn is not None:
         obj = fab_obj.r_login_obj(wwn)
         if obj is not None:
@@ -176,17 +181,17 @@ def combined_alert_objects(portObj, wwn):
     return a_list
 
 
-def combined_alerts(portObj, wwn):
+def combined_alerts(port_obj, wwn):
     """Converts alerts associated with a port object and the login and FDMI objects for lwwn to a human readable string.
 
-    :param portObj: Port object
-    :type obj: brcddb.classes.port.PortObj
+    :param port_obj: Port object
+    :type port_obj: brcddb.classes.port.PortObj
     :param wwn: Login wwn
     :type wwn: str
     :return: CSV list of alert message(s) associated with obj
     :rtype: str
     """
-    a_list = combined_alert_objects(portObj, wwn)
+    a_list = combined_alert_objects(port_obj, wwn)
     return '\n'.join([obj.fmt_msg() for obj in a_list]) if a_list is not None and len(a_list) > 0 else ''
 
 
@@ -203,9 +208,9 @@ def save_report(wb, file_name='Report.xlsx'):
     """Saves a workbook object as an Excel file.
 
     :param wb: Workbook object
-    :type wb: dict
-    :param sheet_name: Sheet (tab) name
-    :type sheet_name: str
+    :type wb: class
+    :param file_name: Report name
+    :type file_name: str
     """
     wb.save(file_name)
 
@@ -214,7 +219,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     """Creates a title page for the Excel report.
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1.
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -225,6 +230,8 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     :type sheet_title: str
     :param content: Caller defined content. List or tuple of dictionaries to add to the title page. See comments below
     :type content: list, tuple
+    :param col_width: List of column widths to set on sheet
+    :type col_width: list
     :rtype: None
     """
     # dict defined as noted below. Any unspecified item is ignored which means the default is whatever default is
@@ -283,8 +290,8 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
                     elif obj.get('disp') is None:
                         pass
                     else:
-                        brcdapi_log.exception('Unknown disp type, ' + str(type((obj.get('disp')))) + ', at row ' + row,
-                                              True)
+                        brcdapi_log.exception('Unknown disp type, ' + str(type((obj.get('disp')))) + ', at row ' +
+                                              str(row), True)
                 for buf in display:
                     cell = xl_util.get_column_letter(col) + str(row)
                     if 'hyper' in obj:
@@ -303,7 +310,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
                     if 'merge' in obj:
                         if isinstance(obj.get('merge'), int) and obj.get('merge') > 1:
                             sheet.merge_cells(start_row=row, start_column=col, end_row=row,
-                                              end_column=(col + obj.get('merge') - 1) )
+                                              end_column=(col + obj.get('merge') - 1))
                             col += obj.get('merge')
                         else:
                             brcdapi_log.exception('Merge must be an integer > 1. Type: ' + str(len(obj.get('merge'))),
@@ -317,11 +324,9 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
                     row += 1
                     col = 1
             else:
-                brcdapi_log.exception('Invalid type in content list, ' + str(type(obj)) + ', at row ' + str(row),
-                                      True)
+                brcdapi_log.exception('Invalid type in content list, ' + str(type(obj)) + ', at row ' + str(row), True)
     else:
-        brcdapi_log.exception('Invalid content type: ' + str(type(content)),
-                              True)
+        brcdapi_log.exception('Invalid content type: ' + str(type(content)), True)
 
 
 def col_to_num(cell):
@@ -345,26 +350,27 @@ def cell_match_val(sheet, val, col=None, row=None, num=1):
     """Finds the cell matching a value
 
     :param sheet: Sheet structure returned from wb.create_sheet()
-    :type sheet: sheet
+    :type sheet: class
+    :param val: Cell contents we're looking for
+    :type val: int, float, str
     :param col: List of columns letters to look in. If None, checks all columns on sheet.
-    :type cell: list, str, None
+    :type col: list, str, None
     :param row: Row number or list of row numbers to look in. If None, checks all rows on sheet.
     :type row: int, list, None
-    :param val: Cell contents we're looking for
-    :param val: int, float, str
     :param num: Number of instances to find
     :type num: int
     :return: List of cell references where value found. If num == 1: just one str is returned. None if not found
     :rtype: str, list, None
     """
-    if col == None:
+    if col is None:
         col_list = []
         for i in range(1, sheet.max_column):
             col_list.append(xl_util.get_column_letter(i))
     else:
         col_list = brcddb_util.convert_to_list(col)
 
-    class Found(Exception): pass
+    class Found(Exception):
+        pass
     ret = []
     try:
         for c in col_list:
@@ -591,8 +597,6 @@ def parse_sfp_file(file):
 
     :param file: Path and name of Excel Workbook with new SFP rules
     :type file: str
-    :param groups: List of groups defined on this switch - returned from 'brocade-maps/group'
-    :type groups: list
     :return: List of dictionaries. The key for each dictionary is the column header and the value is the cell value
     :rtype: list
     """
