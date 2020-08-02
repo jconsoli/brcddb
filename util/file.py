@@ -26,20 +26,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcdapi.log as brcdapi_log
 import json
-import brcddb.brcddb_common as brcddb_common
 from os import listdir
 from os.path import isfile, join
 
@@ -61,16 +62,15 @@ def write_dump(obj, file):
     except:
         brcdapi_log.log('Unable to open file: ' + file, True)
 
+
 def read_dump(file):
     """Reads in a file using json.load. Typical use is to read back in a project object file writen with write_dump and
     then convert back to a project object with plain_copy_to_brcddb_copy
     Python dict.
-    :param obj: Dictionary to write to file
-    :type obj: dict
     :param file: Name of file to write to
     :type file: str
-    :return obj:
-    :rtype: dict
+    :return:
+    :rtype: dict, None
     """
     brcdapi_log.log('CALL: brcddb_util.read_dump. File: ' + file)
     try:
@@ -114,4 +114,3 @@ def read_file(file):
             rl.append(mod_line)
     f.close()
     return rl
-

@@ -26,20 +26,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import re
-import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
+import brcddb.util.search as brcddb_search
 
 _DEBUG_FICON = True  # Intended for lab use only. Few, if any, will use this to zone a FICON switch
 _MAX_ZONE_NAME_LEN = 64
@@ -73,7 +75,7 @@ def port_obj_for_wwn(objx, wwn):
     # the E-Port is the neighbor port WWN, not the switch WWN. This is extremely inefficient but good enough. If you
     # find yourself in a situation where you need to look up a port object from a port WWN often, you should build a
     # table, similar to brcddb_project.build_xref(), for effecient look ups.
-    l = match(objx.r_port_objects(), 'wwn', wwn, ignore_case=True, stype='exact')
+    l = brcddb_search.match(objx.r_port_objects(), 'wwn', wwn, ignore_case=True, stype='exact')
     return l[0] if len(l) > 0 else None
 
 
@@ -96,7 +98,7 @@ def get_key_val(obj, keys):
             v = v.get(k)
         elif v is not None:
             brcdapi_log.exception('Object type, ' + str(type(v)) + ', for ' + k + ', in ' + keys +
-                                 ' not a dict or brcddb object ', True)
+                                  ' not a dict or brcddb object ', True)
     return v
 
 
@@ -161,12 +163,13 @@ def convert_to_list(obj):
     else:
         return [obj]
 
+
 def sort_ports(obj_list):
     """Sorts a list of port objects by switch, slot, then port number. Note that an ASCII sort doesn't work on s/p
     notation as desired
 
     :param obj_list: list of PortObj objects - see PortObj - in brcddb.classes.port.PortObj
-    :type port_list: list
+    :type obj_list: list
     :return return_list: Sorted list of port objects from obj_list
     :rtype: list
     """
@@ -210,7 +213,7 @@ def remove_duplicates(obj_list):
     :rtype: list
     """
     seen = set()
-    seen_add = seen.add # seen.add isn't changing so making it local makes the next line more effecient
+    seen_add = seen.add  # seen.add isn't changing so making it local makes the next line more effecient
     return [obj for obj in obj_list if not (obj in seen or seen_add(obj))]
 
 
@@ -311,6 +314,7 @@ def _fc_port(switch_obj, group):
         if port_obj is not None:
             port_obj.s_add_maps_fc_port_group(name)
 
+
 def _sfp(switch_obj, group):
     """Adds the MAPS group to the port
 
@@ -324,6 +328,7 @@ def _sfp(switch_obj, group):
         port_obj = switch_obj.r_port_obj(port)
         if port_obj is not None:
             port_obj.s_add_maps_sfp_group(name)
+
 
 # Case tables used by add_maps_groups()
 _maps_group_type = {
@@ -374,12 +379,14 @@ def has_alert(obj, al_num, key, p0, p1):
 
     :param obj: Object
     :type obj: Any object in brcddb.classes
+    :param al_num: Alert number
+    :type al_num: int
     :param key: Alert key
-    :type keys: str
+    :type key: str
     :param p0: Alert parameter p0
     :type p0: str
     :param p1: Alert parameter p1
-    :type p2: str
+    :type p1: str
     :return: True if alert already exists in object
     :rtype: bool
     """
@@ -641,6 +648,5 @@ def paren_content(buf, p_remove=False):
     if len(r_buf) > 2 and p_remove:
         r_buf.pop()
         r_buf.pop(0)
-
 
     return ''.join(r_buf), remainder

@@ -36,16 +36,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import copy
 import re
@@ -98,7 +100,7 @@ def _brcddb_obj_type(obj):
     """Converts a brcddb object to a simple str type
 
     :param obj: Object to convert to simple type
-    :type r_obj: brcddb.classes.*.*
+    :type obj: brcddb.classes.*.*
     :return: Simple object type (just the class name)
     :rtype: str
     """
@@ -322,7 +324,6 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     c = 0
     for k in b_obj.keys():  # Check existing
         new_ref = ref + '/' + k
-        x = 0
         b_obj_r = b_obj.get(k)
         new_r_obj = [] if isinstance(b_obj_r, (list, tuple)) else {}
         c_obj_r = c_obj.get(k)
@@ -413,7 +414,7 @@ _obj_type_action = {
     'ZoneCfgObj': _brcddb_compare,
     'ZoneObj': _brcddb_compare,
     'AliasObj': _brcddb_compare,
-#    'AlertObj': _null_compare,
+    # 'AlertObj': _null_compare,
     'dict': _dict_compare,
     'bool': _num_compare,
     'int': _num_compare,  # Just in case someone removes normalizing int to num
@@ -423,6 +424,7 @@ _obj_type_action = {
     'tuple': _list_compare,
     'num': _num_compare,
 }
+
 
 def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
     """Compares two dict, list, tuple, or brcddb.classes objects
@@ -484,9 +486,9 @@ def compare(b_obj, c_obj, control_tbl=None, brcddb_control_tbl=None):
     :type c_obj: brcddb.classes - chassis, fabric, login, port, project, switch, zone
     :param control_tbl: Determines what to check. See applications.compare_test.test_control_tbl() for an example
     :type control_tbl: dict, None
-    :param control_tbl: Same function as control_tbl but for brcddb class objects. See \
+    :param brcddb_control_tbl: Same function as control_tbl but for brcddb class objects. See \
         applications.compare_report._control_tbl() for an example
-    :type control_tbl: dict, None
+    :type brcddb_control_tbl: dict, None
     :return: Change counter - total number of changes found
     :rtype: int
     """

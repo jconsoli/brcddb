@@ -38,39 +38,45 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import re
 import fnmatch
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
-import brcddb.brcddb_common as brcddb_common
 
 
 # The case statements for numerical_test_case{} in test_threshold()
 def test_greater(v1, v2):
     return True if v1 > v2 else False
 
+
 def test_less(v1, v2):
     return True if v1 < v2 else False
+
 
 def test_equal(v1, v2):
     return True if v1 == v2 else False
 
+
 def test_greater_equal(v1, v2):
     return True if v1 >= v2 else False
 
+
 def test_lss_equal(v1, v2):
     return True if v1 <= v2 else False
+
 
 def test_not_equal(v1, v2):
     return True if v1 != v2 else False
@@ -94,11 +100,11 @@ def test_threshold(obj_list, key, test, val):
     :type obj_list: list
     :param key: Key for the value to be compared. To look in a substr, seperate keys with a '/'. All keys must be a \
         key to a dict or brcddb object
-    :type file: str, list, tuple
+    :type key: str, list, tuple
     :param test: Test condition: '>', '<', '==', '=', '>=', '<=', '!=', '!', 'not'
     :param val: Value to test counter against
     :type val: int
-    :return return_list: List of objects from obj_list that meet the filter criteria in the same order as obj_list
+    :return: List of objects from obj_list that meet the filter criteria in the same order as obj_list
     :rtype: list
     """
     return_list = []
@@ -195,7 +201,7 @@ def match(search_objects, search_key, search_term, ignore_case=False, stype='exa
         return return_list
     if isinstance(stype, str):
         if stype in ('regex-m', 'regex-s'):
-            regexObj = re.compile(search_term, re.IGNORECASE) if ignore_case else re.compile(search_term)
+            regex_obj = re.compile(search_term, re.IGNORECASE) if ignore_case else re.compile(search_term)
         elif stype not in ('wild', 'exact', 'bool'):
             brcdapi_log.exception('Invalid search type: ' + stype, True)
             return return_list
@@ -208,21 +214,21 @@ def match(search_objects, search_key, search_term, ignore_case=False, stype='exa
     obj_list = brcddb_util.convert_to_list(search_objects)
     for obj in obj_list:
         for sk in search_key_list:
-            subObj = brcddb_util.get_key_val(obj, sk)
-            if subObj is not None:
-                if isinstance(subObj, dict):
-                    if len(match(subObj, list(subObj.keys()), search_term, ignore_case, stype)) > 0:
+            sub_obj = brcddb_util.get_key_val(obj, sk)
+            if sub_obj is not None:
+                if isinstance(sub_obj, dict):
+                    if len(match(sub_obj, list(sub_obj.keys()), search_term, ignore_case, stype)) > 0:
                         return_list.append(obj)
-                elif isinstance(subObj, (str, list, tuple)):
-                    sl = brcddb_util.convert_to_list(subObj)
+                elif isinstance(sub_obj, (str, list, tuple)):
+                    sl = brcddb_util.convert_to_list(sub_obj)
                     for buf in sl:  # Any match within that list is a match
                         if isinstance(buf, str):
                             if stype == 'regex-m':
-                                if regexObj.match(buf):
+                                if regex_obj.match(buf):
                                     return_list.append(obj)
                                     break
                             elif stype == 'regex-s':
-                                if regexObj.search(buf):
+                                if regex_obj.search(buf):
                                     return_list.append(obj)
                                     break
                             elif stype == 'exact':
@@ -252,8 +258,8 @@ def match(search_objects, search_key, search_term, ignore_case=False, stype='exa
                             if len(match(buf, None, search_term, ignore_case, stype)) > 0:
                                 return_list.append(obj)
                                 break
-                elif isinstance(subObj, bool):
-                    if (search_term and subObj) or (not search_term and not subObj):
+                elif isinstance(sub_obj, bool):
+                    if (search_term and sub_obj) or (not search_term and not sub_obj):
                         return_list.append(obj)
                         break
 
@@ -320,6 +326,7 @@ def match_test(obj_list, test_obj, logic=None):
     o_list = []  # This is the NAND and OR list when 'nand' or 'or' logic is specified
 
     for t_obj in t_list:
+        m_list = []
         if len(w_list) == 0:
             break
         if 'l' in t_obj:

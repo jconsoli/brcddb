@@ -26,6 +26,8 @@ Overview::
     for someone to not have a RAS log event action with a MAPS threshold. I'll think that through a little more when the
     time comes.
 
+ToDo - Much of This is stubbed out because MAPS dashboards were incomplete and did not have a valid timestamp
+
 Version Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -36,34 +38,36 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
 import brcddb.app_data.alert_tables as al
-import brcddb.brcddb_common as brcddb_common
 
 
 def build_maps_alerts(proj_obj):
     """Looks through the MAPS alerts dashboard and adds an alert to the associated object.
 
     **WARNING:** As of 21 April 2019, there was not a reliable means of correlating MAPS alerts in the dashbaoard to a
-    specific object. This just parses the dashboard for some obvious ones. An RFE was submitted
+    specific object. An RFE was submitted
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
     """
     return
 
 # Case statements in _maps_category - To be modified once the RFE for dashboard alerts is complete
+
 
 _event_severity = {
     'critical': al.ALERT_NUM.MAPS_DASH_ERROR,
@@ -73,8 +77,10 @@ _event_severity = {
     'warning': al.ALERT_NUM.MAPS_DASH_WARN,
 }
 
+
 def _unknown_category(switch_obj, dash_obj):
     brcdapi_log.log('MAPS: Unknown dashboard category:\n' + str(dash_obj), False)
+
 
 def _port_category(switch_obj, dash_obj):
     p0 = dash_obj.get('name')
@@ -87,43 +93,44 @@ def _port_category(switch_obj, dash_obj):
         # I've stumbled across so many quirks in the MAPS dashboard, it wouldn't surprise me in a rule for a removed
         # port is still in the dashboard.
         try:
-            pid = buf.split(' ')[1].split(':')[0]
             port = switch_obj.r_port_obj_for_pid(buf.split(' ')[1].split(':')[0]).r_obj_key()
         except:
             return
     else:
-        brcdapi_log.exception('Unkonwn MAPS object: ' + buf, True)
+        brcdapi_log.exception('Unknown MAPS object: ' + buf, True)
+        return
     sev = dash_obj.get('event-severity') if dash_obj.get('event-severity') in _event_severity else 'default'
     al_num = _event_severity[sev]
     port_obj = switch_obj.r_port_obj(port)
     if not brcddb_util.has_alert(port_obj, al_num, None, p0, None):
         port_obj.s_add_alert(al.AlertTable.alertTbl, al_num, None, p0, None)
 
+
 def _switch_category(switch_obj, dash_obj):
     p0 = dash_obj.get('name')
-    object = brcddb_util.get_key_val(dash_obj, 'objects/object')[0]
     sev = dash_obj.get('event-severity') if dash_obj.get('event-severity') in _event_severity else 'default'
     al_num = _event_severity[sev]
     if not brcddb_util.has_alert(switch_obj, al_num, None, p0, None):
         switch_obj.s_add_alert(al.AlertTable.alertTbl, al_num, None, p0, None)
 
+
 def _fabric_category(switch_obj, dash_obj):
     p0 = dash_obj.get('name')
-    object = brcddb_util.get_key_val(dash_obj, 'objects/object')[0]
     sev = dash_obj.get('event-severity') if dash_obj.get('event-severity') in _event_severity else 'default'
     al_num = _event_severity[sev]
     fabric_obj = switch_obj.r_chassis_obj()
     if not brcddb_util.has_alert(fabric_obj, al_num, None, p0, None):
         fabric_obj.s_add_alert(al.AlertTable.alertTbl, al_num, None, p0, None)
 
+
 def _chassis_category(switch_obj, dash_obj):
     p0 = dash_obj.get('name')
-    object = brcddb_util.get_key_val(dash_obj, 'objects/object')[0]
     sev = dash_obj.get('event-severity') if dash_obj.get('event-severity') in _event_severity else 'default'
     al_num = _event_severity[sev]
     chassis_obj = switch_obj.r_chassis_obj()
     if not brcddb_util.has_alert(chassis_obj, al_num, None, p0, None):
         chassis_obj.s_add_alert(al.AlertTable.alertTbl, al_num, None, p0, None)
+
 
 # The Rest API Guide is wrong. 'Port Health', not 'port-health', is what is returned from the API. I took a guess at
 # the others. This table is used in maps_dashboard_alerts()

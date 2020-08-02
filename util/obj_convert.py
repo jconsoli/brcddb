@@ -32,16 +32,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcdapi.log as brcdapi_log
 import brcddb.classes.util as brcddb_class_util
@@ -58,7 +60,6 @@ def _zone_obj_list(fab_obj, zl):
     :return: List of zone objects, brcddb.classes.zone.ZoneObj, associated with the zone names in zl
     :rtype: list
     """
-    rl = []
     if fab_obj is None:
         return []
     return [fab_obj.r_zone_obj(zone) for zone in zl if fab_obj.r_zone_obj(zone) is not None]
@@ -330,14 +331,6 @@ def _alias_obj_for_chassis(obj):
     return rl
 
 
-def _alias_obj_for_project(obj):
-    """Returns a list of alias objects associated with a project. See _obj_self() for parameter detail."""
-    rl = []
-    for fab_obj in obj.r_fabric_objects():
-        rl.extend(fab_obj.r_alias_objects())
-    return [mem for mem in rl if mem is not None]
-
-
 def _chassis_obj_for_fabric(obj):
     """Returns a list of chassis objects associated with a fabric. See _obj_self() for parameter detail."""
     return [switch_obj.r_chassis_obj() for switch_obj in obj.r_switch_objects()]
@@ -447,11 +440,11 @@ def _zonecfg_obj_for_login(obj):
 
 
 def _alias_obj_for_project(obj):
-    """Returns a list of zone objects an FDMI node or port obj participates in. See _obj_self() for parameter detail."""
+    """Returns a list of alias objects associated with a project. See _obj_self() for parameter detail."""
     rl = []
     for fab_obj in obj.r_fabric_objects():
         rl.extend(fab_obj.r_alias_objects())
-    return rl
+    return [mem for mem in rl if mem is not None]
 
 
 def _zone_obj_for_project(obj):
@@ -561,14 +554,6 @@ def _fdmi_node_for_zonecfg(obj):
 
 
 def _fdmi_port_for_zonecfg(obj):
-    """Returns a list of FDMI port objects associated with a zonecfg. See _obj_self() for parameter detail."""
-    rl = []
-    for zone_obj in _zone_obj_list(obj.r_fabric_obj(), obj.r_members()):
-        rl.extend(_fdmi_port_for_zone(zone_obj))
-    return rl
-
-
-def _fdmi_port_for_zonecfg(obj):
     """Returns a list of FDMI port objects for a zonecfg. See _obj_self() for parameter detail."""
     rl = []
     for zone_obj in _zone_obj_list(obj.r_fabric_obj(), obj.r_members()):
@@ -593,7 +578,7 @@ def _empty_list(obj):
 # we're converting from and the second the object type we're converting to. For example, to get a list of port objects
 # from a switch object:
 # port_obj_list = _obj_convert_tbl['SwitchObj]['PortObj']
-_obj_convert_tbl= {
+_obj_convert_tbl = {
     'AlertObj': {
         'AlertObj': _obj_self,
         'AliasObj': _empty_list,

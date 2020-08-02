@@ -38,16 +38,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 3.0.0     | 19 Jul 2020   | Initial Launch - 3.x to be consistent with other library version convention       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import collections
 import brcddb.brcddb_common as brcddb_common
@@ -123,7 +125,14 @@ _ibm_type = {
     # Test
     'XTV': {'d': 'XTV', 't': 'Test'},  # Generic Switch. DCX, DCX-4S, 8510-8, 8510-4
     '3868': {'d': '3868', 't': 'Test'},  # Generic Switch. DCX, DCX-4S, 8510-8, 8510-4
-
+}
+_rnid_flag = {
+    0x00: 'Storage - Current',
+    0x10: 'Channel - Current',
+    0x20: 'Storage - Stale',
+    0x30: 'Channel - Stale',
+    0x40: 'Storage - Invalid',
+    0x50: 'Channel - Invalid',
 }
 
 
@@ -233,7 +242,7 @@ def css_to_tag(css_list):
     return str(hex(css)).split('x')[1].upper()
 
 
-def _css_chpid_to_tag(chpid):
+def css_chpid_to_tag(chpid):
     """Parses a CSS(x,y)chpid into the equivelent tag
 
     :param chpid: CSS and CHPID, something like: (CSS(0,1),50, 60) or ((CSS(0),50, 60),(CSS(1),50, 60))
@@ -268,6 +277,43 @@ def _css_chpid_to_tag(chpid):
     return [css_to_tag(v) + str(k).upper() for k, v in d.items()], r_buf
 
 
+def tag_to_css_list(tag):
+    """Converts a tag to a list of CSS bits
+
+    :param tag: Tag from RNID data
+    :type tag: str
+    :return: List of CSS
+    :rtype: list
+    """
+    try:
+        css = int(tag[0:2], 16)
+    except:
+        return []
+
+    css_list = []
+    i = 0x80
+    for x in range(0, 8):
+        if css & i:
+            css_list.append(x)
+        i >>= 1
+
+    return css_list
+
+
+def rnid_flag_to_text(rnid_flag, flag=False):
+    """Converts a tag to a list of CSS bits
+
+    :param rnid_flag: RNID data flag (from: brocade-ficon/rnid/flags)
+    :type rnid_flag: str, int
+    :param flag: If True, includes the actual flag in parenthesis
+    :return: List of CSS
+    :rtype: list
+    """
+    r_flag = int(rnid_flag, 16) if isinstance(rnid_flag, str) else rnid_flag
+    buf = _rnid_flag[r_flag] if r_flag in _rnid_flag else 'Unkonwn'
+    return buf + ' (' + hex(r_flag) + ')' if flag else buf
+
+
 def _parse_chpid(chpid):
     """Parses a CHPID macro
 
@@ -277,17 +323,20 @@ def _parse_chpid(chpid):
     :rtype tag: str
     :return partition: List of partitions sharing this CHPID
     :rtype partition: list
-    :return pcchid: PCHID
-    :rtype pcchid: str
+    :return pchid: PCHID
+    :rtype pchid: str
+    :return switch: Switch ID
+    :rtype switch: str
     """
-    tag = None
+    tag = ''
     partition = []
     pchid = ''
+    switch = ''
 
     # Sample CHPID macro: CHPID PATH=(CSS(0),50),SHARED,PARTITION=((SYJ3,SYJ4),(=)),SWITCH=F4,PCHID=168,TYPE=FC
     # Note that 'CHPID PATH=' is already stripped off so we just have: (CSS(0),4D),SHARED,PARTITION...
     try:
-        l, working_buf = _css_chpid_to_tag(chpid)
+        l, working_buf = css_chpid_to_tag(chpid)
         tag = l[0]
         # Tack on 'xxx=xxx' so don't have to be concerned with PARTITION being at the end. HCD would never do that but
         # there are still some old timers who generate the IOCP and import it back into HCD. I don't know if HCD
@@ -318,7 +367,7 @@ def _parse_chpid(chpid):
     except:
         brcdapi_log.exception('Unknown CHPID macro format:\n' + chpid, True)
 
-    return tag, partition, pchid
+    return tag, partition, pchid, switch
 
 
 def _parse_cntlunit(cntlunit):
@@ -376,7 +425,7 @@ def _parse_cntlunit(cntlunit):
 
             cntl_unit = cntl_macro.split(',')[0]
             # Get the tag - a 2 byte hex number where the CSS flags are the most significant byte followed by the CHPID
-            chpid_tag_list, working_buf = _css_chpid_to_tag(cntl_macro[cntl_macro.find('PATH=') + len('PATH='):])
+            chpid_tag_list, working_buf = css_chpid_to_tag(cntl_macro[cntl_macro.find('PATH=') + len('PATH='):])
             links, working_buf = brcddb_util.paren_content(cntl_macro[cntl_macro.find('LINK=') + len('LINK='):], True)
             d = collections.OrderedDict()
             for k in chpid_tag_list:
@@ -437,12 +486,13 @@ def parse_iocp(proj_obj, iocp):
         iocp_obj.s_add_cu(k, v)
 
     # Figure out what the paths are and add them to the IOCP object
-    path_d = {}
+    path_d = dict()
     for chpid in chpids:
-        tag, partition, pchid = _parse_chpid(chpid)
+        chpid_path = dict()
+        tag, chpid_path['partition'], chpid_path['pchid'], chpid_path['switch'] = _parse_chpid(chpid)
         link_addr = []
         cu = []
-        for k, v in control_units.items():
+        for k, v in control_units.items():  # k is the control unit number, v is a dict of the parsed CONTLUNIT macro
             path = v.get('path')
             if path is not None:  # I don't know why it would ever be None but just in case:
                 if tag in path:
@@ -450,4 +500,4 @@ def parse_iocp(proj_obj, iocp):
                         # Think of a control unit as a LUN. You can have multiple CUs behind the same address
                         link_addr.append(path[tag])
                     cu.append(k)
-        iocp_obj.s_add_path(tag, {'pchid': pchid, 'partition': partition, 'link': link_addr, 'cu': cu})
+        iocp_obj.s_add_path(tag, chpid_path)
