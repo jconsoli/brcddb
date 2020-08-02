@@ -39,27 +39,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
-from pprint import pformat
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.pyfos_auth as pyfos_auth
 import brcdapi.util as brcdapi_util
-import brcddb.brcddb_common as brcddb_common
-import brcddb.brcddb_project as brcddb_project
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_chassis as brcddb_chassis
-import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.app_data.alert_tables as al
 import brcddb.classes.util as brcddb_class_util
@@ -100,8 +98,10 @@ def _process_errors(session, uri, obj, wobj):
     proj_obj = wobj.r_project_obj()
     proj_obj.s_api_error_flag()
     error_table = {
-        'ProjectObj': {'p0': ip_addr, 'al_num': al.ALERT_NUM.PROJ_FAILED_LOGIN if '/rest/login' in uri \
-            else al.ALERT_NUM.PROJ_CHASSIS_API_ERROR},
+        'ProjectObj': {
+            'p0': ip_addr,
+            'al_num': al.ALERT_NUM.PROJ_FAILED_LOGIN if '/rest/login' in uri else al.ALERT_NUM.PROJ_CHASSIS_API_ERROR
+        },
         'ChassisObj': {'p0': brcddb_chassis.best_chassis_name(wobj), 'al_num': al.ALERT_NUM.PROJ_CHASSIS_API_ERROR},
         'SwitchObj': {'p0': brcddb_switch.best_switch_name(wobj), 'al_num': al.ALERT_NUM.PROJ_SWITCH_API_ERROR}
     }
@@ -207,8 +207,8 @@ def login(user_id, pw, ip_addr, https='none', proj_obj=None):
             continue
         kpi_list.append(name)
         try:  # I think 'object' will always be there, just empty when there are no objects. Try/Except just in case.
-            for object in mod_obj.get('objects').get('object'):
-                kpi_list.append(name + '/' + object)
+            for mod_object in mod_obj.get('objects').get('object'):
+                kpi_list.append(name + '/' + mod_object)
         except:
             pass
     session.update({'supported_uris': kpi_list})
@@ -241,11 +241,14 @@ def get_rest(session, uri, wobj=None, fid=None):
 def _port_case_fc(objx, port):
     return objx.s_add_port(port.get('name'))
 
+
 def _port_case_ge(objx, port):
     return objx.s_add_ge_port(port.get('name'))
 
+
 def _port_case_media(objx, port):
     return objx.s_add_port('/'.join(port.get('name').split('/')[1:]))  # Strip off the media type
+
 
 def _port_case_rnid(objx, port):
     # RNID data is matched to a port by the link address. A GET request for brocade-fibrechannel/fibrechannel must be
@@ -256,6 +259,7 @@ def _port_case_rnid(objx, port):
         if port_addr is not None and port_addr == fc_addr:
             return port_obj
     return None
+
 
 _port_case_case = {
     'fibrechannel-statistics': _port_case_fc,
@@ -275,6 +279,7 @@ _port_case_case = {
 #    :param uri: URI, less the prefix
 #    :type uri: str
 # All of the case methods add to brcddb.classes objects
+
 
 def _convert_ip_addr(obj):
     if isinstance(obj, dict):
@@ -344,7 +349,7 @@ def _update_brcddb_obj(objx, obj, uri):
         for k in obj:
             v1 = obj.get(k)
             if k in _ip_list:
-                d1.update({k: _convert_ip_addr(v1)})
+                d.update({k: _convert_ip_addr(v1)})
             else:
                 d.update({k: v1})
     except:
@@ -363,8 +368,10 @@ def _update_brcddb_obj(objx, obj, uri):
 def _null_case(objx, obj, uri):
     return
 
+
 def _fabric_case(objx, obj, uri):
     _update_brcddb_obj(objx.r_fabric_obj(), obj, uri)
+
 
 def _defined_zonecfg_case(objx, obj, uri):
     fab_obj = objx.r_fabric_obj()
@@ -392,7 +399,7 @@ def _effective_zonecfg_case(objx, obj, uri):
     if 'effective-configuration' in obj:  # None when there is no zone configuration enabled
         fab_obj = objx.r_fabric_obj()
         if fab_obj is None:
-            return  # This happens when the principal switch in the fabric is unkonwn.
+            return  # This happens when the principal switch in the fabric is unknown.
         dobj = obj.get('effective-configuration')
         if not isinstance(dobj, dict):
             return
@@ -411,12 +418,15 @@ def _effective_zonecfg_case(objx, obj, uri):
 def _add_switch_to_chassis_int(chassis_obj, switch, uri, switch_wwn):
     switch_obj = chassis_obj.s_add_switch(switch_wwn)
     _update_brcddb_obj_from_list(switch_obj, switch, uri)
+
+    # Add the ports
     try:
         for port in brcddb_util.convert_to_list(switch.get('port-member-list').get('port-member')):
             switch_obj.s_add_port(port)
     except:
         pass
-    return  # GE ports not yet implimented
+
+    # Add the GE ports
     try:
         for port in brcddb_util.convert_to_list(switch.get('ge-port-member-list').get('port-member')):
             switch_obj.s_add_ge_port(port)
@@ -478,6 +488,7 @@ def _fabric_switch_case(switch_obj, obj, uri):
             brcdapi_log.log('Bad switch WWN, , returned from ' + uri + ' for switch ' +
                             brcddb_switch.best_switch_name(switch_obj), True)
 
+
 def _switch_from_list_case(switch_obj, obj, uri):
     try:
         _update_brcddb_obj_from_list(switch_obj, brcddb_util.convert_to_list(obj.get(uri.split('/').pop()))[0], uri)
@@ -486,11 +497,13 @@ def _switch_from_list_case(switch_obj, obj, uri):
     except:
         pass
 
+
 def _fabric_ns_case(objx, obj, uri):
     fab_obj = objx.r_fabric_obj()
     for ns_obj in brcddb_util.convert_to_list(obj.get('fibrechannel-name-server')):
         login_obj = fab_obj.s_add_login(ns_obj.get('port-name'))
         _update_brcddb_obj(login_obj, ns_obj, uri)
+
 
 def _fabric_fdmi_hba_case(objx, obj, uri):
     fab_obj = objx.r_fabric_obj()
@@ -502,10 +515,12 @@ def _fabric_fdmi_hba_case(objx, obj, uri):
             pass
         _update_brcddb_obj(fab_obj.s_add_fdmi_node(obj.get('hba-id')), obj, uri)
 
+
 def _fabric_fdmi_port_case(objx, obj, uri):
     fab_obj = objx.r_fabric_obj()
     for obj in brcddb_util.convert_to_list(obj.get('port')):
         _update_brcddb_obj(fab_obj.s_add_fdmi_port(obj.get('port-name')), obj, uri)
+
 
 def _switch_port_case(objx, obj, uri):
     """Parses port data into the switch object
@@ -527,6 +542,7 @@ def _switch_port_case(objx, obj, uri):
             for k, v in port.items():
                 d.update({k: v})
 
+
 def _fru_blade_case(objx, obj, uri):
     global _ip_list
 
@@ -546,6 +562,7 @@ def _fru_blade_case(objx, obj, uri):
         else:  # Up to 9.0, there was nothing else in here but 'blade' so this is just future proofing
             new_obj.update({k: v})
     _update_brcddb_obj(objx, new_obj, uri)
+
 
 _custom_rest_methods = {  # Normally, all data returned from the API is stored in the object by calling the methods in
                 # _rest_methods. These methods are for non-standard handling of URIs.
@@ -627,10 +644,6 @@ def get_batch(session, proj_obj, kpi_list, fid=None):
         brcdapi_log.log(brcdapi_util.mask_ip_addr(session.get('ip_addr')) + 'Chassis not found.', True)
         return
 
-    # Filter out the KPIs we can actually execute. It's up to the caller to send a proper list. This is just protection
-    supported_kpi_l = session.get('supported_uris')  # Local for faster processing
-    kl = [kpi for kpi in brcddb_util.convert_to_list(kpi_list) if kpi in supported_kpi_l and \
-          brcdapi_util.uri_map[kpi]['area'] != brcdapi_util.NULL_OBJ]
     kl = brcddb_util.convert_to_list(kpi_list)
 
     # Get all the chassis data
