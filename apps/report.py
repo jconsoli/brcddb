@@ -26,22 +26,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | Added the IOCP Page                                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
-import argparse
 import collections
 import brcddb.app_data.report_tables as rt
-import brcddb.app_data.alert_tables as al
-import brcddb.app_data.bp_tables as bp
 import brcddb.brcddb_project as brcddb_project
 import brcdapi.log as brcdapi_log
 import brcddb.util.search as brcddb_search
@@ -54,9 +53,9 @@ import brcddb.report.switch as report_switch
 import brcddb.report.zone as report_zone
 import brcddb.report.login as report_login
 import brcddb.report.bp as report_bp
+import brcddb.report.iocp as report_iocp
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_fabric as brcddb_fabric
-import brcddb.util.maps as brcddb_maps
 
 _ADD_PROJ_DASHBOARD = True  # Set True to add the project dashboard page
 _ADD_CHASSIS = True  # Set True to add the chassis page
@@ -68,6 +67,7 @@ _ADD_ZONE_PAGE = True  # Set True to add the zone analysis page
 _ADD_ALIAS_PAGE = True  # Set True to add the alias detail page
 _ADD_LOGIN_PAGE = True  # Set True to add the login page
 _ADD_BP_SUMMARY = True  # Add a best practice (really an alert) summary page
+_ADD_IOCP_PAGE = True  # Add the IOCP
 
 _MAX_DB_SIZE = 10   # Set the top xx dashboard size
 
@@ -95,6 +95,8 @@ def proj_title_page(proj_obj, tc, wb, sheet_index, sheet_name, sheet_title, cont
     :type proj_obj: ProjectObj
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
+    :param wb: Workbook object
+    :type wb: dict
     :param sheet_index: Location for the title page. First sheet is 0
     :type sheet_index: int
     :param sheet_name: Sheet (tab) name
@@ -104,11 +106,10 @@ def proj_title_page(proj_obj, tc, wb, sheet_index, sheet_name, sheet_title, cont
     :param contents: List of objects {'s': sheet name, 'd': reference name (individual sheet titles)}
     :rtype: None
     """
-    t_content = []
-    t_content.append({'new_row': False, 'merge': 2, 'font': 'std', 'align': 'wrap', 'disp': 'Description'})
-    t_content.append({'font': 'std', 'align': 'wrap', 'disp': proj_obj.c_description()})
-    t_content.append({'new_row': False, 'merge': 2, 'font': 'std', 'align': 'wrap', 'disp': 'Data collected'})
-    t_content.append({'font': 'std', 'align': 'wrap', 'disp': proj_obj.r_date()})
+    t_content = [{'new_row': False, 'merge': 2, 'font': 'std', 'align': 'wrap', 'disp': 'Description'},
+                 {'font': 'std', 'align': 'wrap', 'disp': proj_obj.c_description()},
+                 {'new_row': False, 'merge': 2, 'font': 'std', 'align': 'wrap', 'disp': 'Data collected'},
+                 {'font': 'std', 'align': 'wrap', 'disp': proj_obj.r_date()}]
 
     # Add the table  of contents
     for obj in contents:
@@ -133,6 +134,8 @@ def dashboard(obj, tc, wb, sheet_index, sheet_name, title):
     :type obj: ProjectObj, SwitchObj, FabricObj
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
+    :param wb: Workbook object
+    :type wb: dict
     :param sheet_index: Location for the title page. First sheet is 0
     :type sheet_index: int
     :param sheet_name: Sheet (tab) name
@@ -141,23 +144,23 @@ def dashboard(obj, tc, wb, sheet_index, sheet_name, title):
     :type title: str
     :rtype: None
     """
-    dashboard = collections.OrderedDict()
-    dashboard['bad-eofs-received'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' Bad EOF', 'port_list': []}
-    dashboard['class-3-discards'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' C3 Discards', 'port_list': []}
-    dashboard['in-crc-errors'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' CRC With Good EOF', 'port_list': []}
-    dashboard['crc-errors'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' CRC', 'port_list': []}
-    dashboard['loss-of-signal'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' Loss of Signal', 'port_list': []}
-    dashboard['bb-credit-zero'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' BB Credit Zero', 'port_list': []}
+    dashboard_item = collections.OrderedDict()
+    dashboard_item['bad-eofs-received'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' Bad EOF', 'port_list': []}
+    dashboard_item['class-3-discards'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' C3 Discards', 'port_list': []}
+    dashboard_item['in-crc-errors'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' CRC With Good EOF', 'port_list': []}
+    dashboard_item['crc-errors'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' CRC', 'port_list': []}
+    dashboard_item['loss-of-signal'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' Loss of Signal', 'port_list': []}
+    dashboard_item['bb-credit-zero'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' BB Credit Zero', 'port_list': []}
     port_list = obj.r_port_objects()
-    for k in dashboard.keys():
-        db = dashboard.get(k)
+    for k in dashboard_item.keys():
+        db = dashboard_item.get(k)
         db_list = brcddb_search.test_threshold(port_list, 'fibrechannel-statistics/' + k, '>', 0)
         db_list = brcddb_util.sort_obj_num(db_list, 'fibrechannel-statistics/' + k, True)
         if len(db_list) > _MAX_DB_SIZE:
             del db_list[_MAX_DB_SIZE:]
         db['port_list'].extend(db_list)
     report_port.performance_dashboard(wb, tc, sheet_name=sheet_name, sheet_i=sheet_index, sheet_title=title,
-                                        content=dashboard)
+                                        content=dashboard_item)
 
 
 def report(proj_obj, outf):
@@ -213,7 +216,7 @@ def report(proj_obj, outf):
             sname = chassis_name.replace(' ', '_').replace(':', '').replace('-', '_')[:22] + '_' + str(sheet_index) + \
                     '_' + str(sheet_index)
             report_chassis.chassis_page(wb, tc_page, sname, sheet_index, 'Chassis Detail For: ' + chassis_name,
-                                       chassis_obj, rt.Chassis.chassis_display_tbl)
+                                        chassis_obj, rt.Chassis.chassis_display_tbl)
             tbl_contents.append({'s': sname, 'd': chassis_name})
             sheet_index += 1
 
@@ -256,7 +259,7 @@ def report(proj_obj, outf):
             for obj in port_pages:
                 sname = prefix + obj.get('s')
                 report_port.port_page(wb, tc_page, sname, sheet_index, fab_name + ' ' + obj.get('d'), port_list,
-                                         obj.get('t'), rt.Port.port_display_tbl, obj.get('l'))
+                                      obj.get('t'), rt.Port.port_display_tbl, obj.get('l'))
                 tbl_contents.append({'s': sname, 'd': obj.get('d')})
                 sheet_index += 1
 
@@ -284,6 +287,18 @@ def report(proj_obj, outf):
                                     rt.Login.login_tbl, rt.Login.login_display_tbl, True)
             tbl_contents.append({'s': sname, 'd': 'Logins'})
             sheet_index += 1
+
+    #  IOCP Page
+    if _ADD_IOCP_PAGE:
+        iocp_objects = proj_obj.r_iocp_objects()
+        if len(iocp_objects) > 0:
+            brcdapi_log.log('Adding the IOCP pages', True)
+            tbl_contents.append({'h': True, 'd': 'IOCPs'})
+            for iocp_obj in iocp_objects:
+                sname = iocp_obj.r_obj_key()
+                report_iocp.iocp_page(iocp_obj, tc_page, wb, sname, sheet_index, sname)
+                tbl_contents.append({'s': sname, 'd': sname})
+                sheet_index += 1
 
     # Add the Best Practice page
     if _ADD_BP_SUMMARY:
