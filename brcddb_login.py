@@ -29,16 +29,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 15 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '15 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 _MIN_SYMB_LEN = 10
 
@@ -55,7 +57,6 @@ def login_best_node_desc(login_obj):
     """
     if login_obj is None:
         return ''
-    buf = None
     maybe = None
     fab_obj = login_obj.r_fabric_obj()
     wwn = login_obj.r_obj_key()
@@ -94,7 +95,6 @@ def login_best_port_desc(login_obj):
     """
     if login_obj is None:
         return ''
-    buf = ''
     maybe = ''
     fab_obj = login_obj.r_fabric_obj()
     wwn = login_obj.r_obj_key()
@@ -113,7 +113,7 @@ def login_best_port_desc(login_obj):
     # Try the name server port data
     buf = login_obj.r_get('brocade-name-server/port-symbolic-name')
     if buf is not None:
-        if len(buf) < _MIN_SYMB_LEN and len(buf) > len(maybe):
+        if _MIN_SYMB_LEN > len(buf) > len(maybe):
             maybe = buf
         else:
             return buf

@@ -26,27 +26,26 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | Updated EOS matrix for Gen5 and AMP                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
-import brcdapi.log as brcdapi_log
 import brcddb.util.copy as brcddb_copy
 import brcddb.util.util as brcddb_util
-import brcddb.app_data.alert_tables as al
-import brcddb.brcddb_login as brcddb_login
-import brcddb.brcddb_common as brcddb_common
 
 # This is <model> in switch/fibrechannel-switch. Note that it is returned as a string (str) representing a floating
 # point numbers. Anything after the decimal point represents a version change. Only the integer portion is useful for
-# determing a switch type. Switch types used herein are the integer portion only so your code should do something like:
+# determining a switch type. Switch types used herein are the integer portion only so your code should do something
+#  like:
 # switch_type = int(float( <model> returned from switch/fibrechannel-switch))
 class SWITCH_TYPE:
     UNKNOWN     =   0
@@ -332,7 +331,7 @@ st_name = {
         SWITCH_BRAND.HPE : '4018',
         SWITCH_BRAND.EMC : '4018',
         SWITCH_BRAND.HDS : '4018'},
-    SWITCH_TYPE.S_4018 		: {
+    SWITCH_TYPE.S_7600 		: {
         SWITCH_BRAND.Brocade : '7600',
         SWITCH_BRAND.IBM : '',
         SWITCH_BRAND.HPE : '7600',
@@ -474,8 +473,8 @@ st_name = {
         SWITCH_BRAND.Brocade : '6510',
         SWITCH_BRAND.IBM : 'SAN48B-5',
         SWITCH_BRAND.HPE : 'SN6000B',
-        SWITCH_BRAND.EMC : 'DS-6510B'
-        ,SWITCH_BRAND.HDS : '6510'},
+        SWITCH_BRAND.EMC : 'DS-6510B',
+        SWITCH_BRAND.HDS : '6510'},
     SWITCH_TYPE.S_6746 		: {
         SWITCH_BRAND.Brocade : 'VDX 6746',
         SWITCH_BRAND.IBM : '',
@@ -670,7 +669,6 @@ st_type = {
     SWITCH_TYPE.S_X6_8		:	'8961-F08',
     SWITCH_TYPE.S_X6_4		:	'8961-F04',
 }
-
 
 st_speed = {
     SWITCH_TYPE.S_1000			:	1,
@@ -940,7 +938,7 @@ st_gen = {
     SWITCH_TYPE.S_7810	    :	'Gen6',
 }
 
-st_eos = {
+st_eos = {  # EOS date format is yyyy/mm/dd
     SWITCH_TYPE.S_1000		:	'1990/01/01',
     SWITCH_TYPE.S_2800		:	'2007/12/15',
     SWITCH_TYPE.S_2100_2400	:	'2007/12/15',
@@ -985,7 +983,7 @@ st_eos = {
     SWITCH_TYPE.S_5424		:	'1990/01/01',
     SWITCH_TYPE.S_8000		:	'2018/04/02',
     SWITCH_TYPE.S_DCX_4S	:	'2019/11/14',
-    SWITCH_TYPE.S_7800		:	'2021/07/21',
+    SWITCH_TYPE.S_7800		:	'2023/10/24',
     SWITCH_TYPE.S_5450		:	'1990/01/01',
     SWITCH_TYPE.S_5460		:	'1990/01/01',
     SWITCH_TYPE.S_8470		:	'1990/01/01',
@@ -995,13 +993,13 @@ st_eos = {
     SWITCH_TYPE.S_6720_60	:	'1990/01/01',
     SWITCH_TYPE.S_6730_76	:	'2020/05/24',
     SWITCH_TYPE.S_M8428		:	'1990/01/01',
-    SWITCH_TYPE.S_6510		:	'Current',
+    SWITCH_TYPE.S_6510		:	'2025/04/30',
     SWITCH_TYPE.S_6746		:	'Current',
     SWITCH_TYPE.S_6710		:	'2020/05/24',
     SWITCH_TYPE.S_6547		:	'1990/01/01',
     SWITCH_TYPE.S_6505		:	'Current',
-    SWITCH_TYPE.S_8510_8	:	'Current',
-    SWITCH_TYPE.S_8510_4	:	'Current',
+    SWITCH_TYPE.S_8510_8	:	'2025/04/30',
+    SWITCH_TYPE.S_8510_4	:	'2025/04/30',
     SWITCH_TYPE.S_5430		:	'2017/08/20',
     SWITCH_TYPE.S_5431		:	'2017/08/20',
     SWITCH_TYPE.S_6548		:	'Current',
@@ -1018,11 +1016,11 @@ st_eos = {
     SWITCH_TYPE.S_G630		:	'Current',
     SWITCH_TYPE.S_X6_8		:	'Current',
     SWITCH_TYPE.S_X6_4		:	'Current',
-    SWITCH_TYPE.S_AMP_2_0	:	'Current',
+    SWITCH_TYPE.S_AMP_2_0	:	'2024/10/31',
     SWITCH_TYPE.S_7810		:	'Current',
     SWITCH_TYPE.S_8770_4	:	'2014/05/09',
     SWITCH_TYPE.S_8770_8	:	'2014/05/09',
-	}
+}
 
 area_mode = {
     0: ' 10-bit addressing mode',
@@ -1031,96 +1029,96 @@ area_mode = {
 }
 
 
-def eos(switch_type):
+def eos(switch):
     """Returns the End of Support (EOS) date
 
-    :param switch_type: fibrechannel-switch/model
-    :type switch_type: str
+    :param switch: fibrechannel-switch/model
+    :type switch: str
     :return: EOS_date
     :rtype: str
     """
     try:
-        return st_eos[int(float(switch_type))]
+        return st_eos[int(float(switch))]
     except:
         return ''
 
 
-def gen(switch_type):
+def gen(switch):
     """Returns the gen type
 
-    :param switch_type: fibrechannel-switch/model
-    :type switch_type: str
+    :param switch: fibrechannel-switch/model
+    :type switch: str
     :return: Generation
     :rtype: str
     """
     try:
-        return st_gen[int(float(switch_type))]
+        return st_gen[int(float(switch))]
     except:
         return ''
 
 
-def slots(switch_type):
+def slots(switch):
     """Returns the number of slots for the switch
 
-    :param switch_type: fibrechannel-switch/model
-    :type switch_type: str
+    :param switch: fibrechannel-switch/model
+    :type switch: str
     :return: Num slots
     :rtype: int
     """
     try:
-        return st_slots[int(float(switch_type))]
+        return st_slots[int(float(switch))]
     except:
         return 0
 
 
-def ibm_machine_type(switch_type):
+def ibm_machine_type(switch):
     """Returns the IBM machine type for the switch
 
-    :param switch_type: fibrechannel-switch/model
-    :type switch_type: str
+    :param switch: fibrechannel-switch/model
+    :type switch: str
     :return: machine_type
     :rtype: str
     """
     try:
-        return st_type[int(float(switch_type))]
+        return st_type[int(float(switch))]
     except:
         return ''
 
 
-def sys_z_supported(switch_type):
+def sys_z_supported(switch):
     """Returns True if z systems supported
 
-    :param switch_type: fibrechannel-switch/model
-    :type switch_type: str
+    :param switch: fibrechannel-switch/model
+    :type switch: str
     :return: True if z Systems supported
     :rtype: bool
     """
     try:
-        return st_sys_z[int(float(switch_type))]
+        return st_sys_z[int(float(switch))]
     except:
         return False
 
 
-def switch_speed(switch_type):
+def switch_speed(switch):
     """Converts the switch type number to the max speed the switch is capable of
 
-    :param switch_type: fibrechannel-switch/model
-    :type switch_type: str
+    :param switch: fibrechannel-switch/model
+    :type switch: str
     :return: Maximum speed switch is capable of
     :rtype: int
     """
     try:
-        return st_speed[int(float(switch_type))]
+        return st_speed[int(float(switch))]
     except:
         return 0
 
 
-def model_oem(switch_type, oem):
+def model_oem(switch, oem):
     """Returns the OEM branded switch model type.
 
     Note: As of FOS 8.2.1b, the custom-index was not yet available
-    :param switch_type: fibrechannel-switch/model
-    :type switch_type: float, int, str
+    :param switch: fibrechannel-switch/model
+    :type switch: float, int, str
     :param oem: Custom index - I'm assuming this will be 'custom-index' in fibrechannel-switch
     :return: OEM branded witch model
     :rtype: str
@@ -1128,20 +1126,20 @@ def model_oem(switch_type, oem):
     global st_name
 
     try:
-        return st_name[int(switch_type)][oem]
+        return st_name[int(switch)][oem]
     except:
         return 'Unknown'
 
 
-def model_broadcom(switch_type):
+def model_broadcom(switch):
     """Returns the Broadcom  branded switch model type
 
-    :param switch_type: fibrechannel-switch/model
-    :type switch_type: str
+    :param switch: fibrechannel-switch/model
+    :type switch: str
     :return: Switch model
     :rtype: str
     """
-    return model_oem(switch_type, SWITCH_BRAND.Brocade)
+    return model_oem(switch, SWITCH_BRAND.Brocade)
 
 
 def add_rest_port_data(switch_obj, pobj, flag_obj=None, skip_list=[]):
@@ -1188,7 +1186,7 @@ def best_switch_name(switch_obj, wwn=False):
     :param wwn: If True, append (wwn) to the switch name
     :type wwn: bool
     :return: Switch name
-    :rtype: (str, None)
+    :rtype: str, None
     """
     if switch_obj is None:
         return 'Unknown'

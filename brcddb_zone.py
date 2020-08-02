@@ -28,16 +28,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.brcddb_common as brcddb_common
 
@@ -74,12 +76,12 @@ def is_alias_match(base_alias_obj, comp_alias_obj):
 
 
 def zone_compare(base_zone_obj, comp_zone_obj):
-    """Compares two aliases
+    """Compares two zones
 
-    :param base_zone_obj: Alias object to compare against
-    :type base_zone_obj: brcddb.classes.zone.AliasObj
+    :param base_zone_obj: Zone object to compare against
+    :type base_zone_obj: brcddb.classes.zone.ZoneObj
     :param comp_zone_obj: New alias object
-    :type comp_zone_obj: brcddb.classes.zone.AliasObj
+    :type comp_zone_obj: brcddb.classes.zone.ZoneObj
     :return type_flag: True if the zone type is the same, False if not
     :rtype type_flag: bool
     :return add_members: Members is comp_alias_obj that do not exist in base_alias_obj
@@ -103,10 +105,10 @@ def zone_compare(base_zone_obj, comp_zone_obj):
 def is_zone_match(base_zone_obj, comp_zone_obj):
     """Simple True/False comparison between two zones
 
-    :param base_zone_obj: Alias object to compare against
-    :type base_zone_obj: brcddb.classes.zone.AliasObj
+    :param base_zone_obj: Zone object to compare against
+    :type base_zone_obj: brcddb.classes.zone.ZoneObj
     :param comp_zone_obj: New alias object
-    :type comp_zone_obj: brcddb.classes.zone.AliasObj
+    :type comp_zone_obj: brcddb.classes.zone.ZoneObj
     :return: True if the zones are the same, otherwise False
     :rtype: bool
     """
@@ -148,8 +150,8 @@ def is_cfg_match(base_cfg_obj, comp_cfg_obj):
 def zone_type(zone_obj, num_flag=False):
     """Returns the zone type (User defined peer, Target driven peer, or Stnadard) in plain text
 
-    :param port_obj: Zone Object
-    :type port_obj: brcddb_classes.ZoneObj
+    :param zone_obj: Zone Object
+    :type zone_obj: brcddb_classes.ZoneObj
     :param num_flag: If True, append (type) where type is the numerical zone type returned from the API
     :type num_flag: bool
     :return: Port type

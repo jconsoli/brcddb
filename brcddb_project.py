@@ -28,20 +28,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.classes.project as project_class
 import brcddb.brcddb_fabric as brcddb_fabric
-import brcddb.brcddb_switch as brcddb_switch
 import brcdapi.log as brcdapi_log
 import brcddb.util.copy as brcddb_copy
 import brcddb.util.file as brcddb_file
@@ -60,17 +61,17 @@ def new(name, date):
     return project_class.ProjectObj(name, date)
 
 
-def dup_wwn(projObj):
+def dup_wwn(proj_obj):
     """Searches all fabrics in the project for duplicate WWNs.
-    :param projObj: Project object
-    :type projObj: ProjectObj
+    :param proj_obj: Project object
+    :type proj_obj: ProjectObj
     :return: List of login objects for the duplicate WWNS. None entry seperates multiple duplicates
     :rtype: list
     """
     dup_wwn = []
     dup_login = []
-    for fabObj in projObj.r_fabric_objects():
-        other_fab_list = projObj.r_fabric_objects()
+    for fabObj in proj_obj.r_fabric_objects():
+        other_fab_list = proj_obj.r_fabric_objects()
         other_fab_list.remove(fabObj)
 
         for wwn in fabObj.r_login_keys():
@@ -79,7 +80,7 @@ def dup_wwn(projObj):
                 if fobj.r_login_obj(wwn) is not None:
                     if wwn not in dup_wwn:
                         dup_wwn.append(wwn)
-                        projObj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_DUP_LOGIN, None, wwn)
+                        proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_DUP_LOGIN, None, wwn)
                     login_obj = fobj.r_login_obj(wwn)
                     if login_obj not in dup_login:
                         dup_login.append(login_obj)
@@ -107,9 +108,9 @@ def read_from(inf):
         brcdapi_log.log(inf + ' is not a valid project file.', True)
         return None
     # Make sure there is a valid Excel tab name
-    projObj = new(obj.get('_obj_key').replace(' ', '_').replace(':', '').replace('-', '_')[:32], obj.get('_date'))
-    brcddb_copy.plain_copy_to_brcddb(obj, projObj)
-    return projObj
+    proj_obj = new(obj.get('_obj_key').replace(' ', '_').replace(':', '').replace('-', '_')[:32], obj.get('_date'))
+    brcddb_copy.plain_copy_to_brcddb(obj, proj_obj)
+    return proj_obj
 
 
 def build_xref(proj_obj):

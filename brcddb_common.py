@@ -27,16 +27,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 
 #################################################################################
@@ -122,12 +124,6 @@ zonecfg_conversion_tbl = {
 #                                      Zone                                     #
 #################################################################################
 # obj._flags - read and set with obj.flags(), obj.and_flags(), and obj.or_flags
-# Individual flags read with (returns True of False)
-#   obj.is_effective()
-#   obj.is_peer()
-#   obj.is_wwn()
-#   obj.is_di()
-#   obj.is_mixed()
 # There are no zone flags returned from the Rest API. These only get set if brcddb_fabric.zone_analysis() is called
 zone_flag_effective    = 0b1 # This is the effective zone object
 zone_flag_wwn          = zone_flag_effective << 1 # If set, zone contains WWN zones

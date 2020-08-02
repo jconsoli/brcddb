@@ -35,19 +35,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
-import brcddb.util.copy as brcddb_copy
-import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
 
 _MIN_SYMB_LEN = 10
@@ -134,8 +134,8 @@ def chassis_type(chassis_obj, type_num=False):
     :rtype: str
     """
     for switch_obj in chassis_obj.r_switch_objects():  # Chassis type is embedded with the switch data
-        type = switch_obj.c_switch_model()
-        if type > 0:
-            buf = brcddb_switch.model_broadcom(type)
-            return buf + ' (' + str(type) + ')' if type_num else buf
+        switch_type = switch_obj.c_switch_model()
+        if switch_type > 0:
+            buf = brcddb_switch.model_broadcom(switch_type)
+            return buf + ' (' + str(switch_type) + ')' if type_num else buf
     return ''

@@ -39,24 +39,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.util.util as brcddb_util
 import brcddb.util.search as brcddb_search
 import brcdapi.log as brcdapi_log
-import brcdapi.util as brcdapi_util
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.app_data.alert_tables as al
-import brcddb.brcddb_common as brcddb_common
 import brcddb.app_data.bp_tables as bp_tables
 import brcddb.util.maps as brcddb_maps
 import collections
@@ -183,6 +183,7 @@ def _amp_in_switch_pair(s_switch_obj, dwwn, switch_pair):
 
 # Cases for bp_special(). For each case method:
 
+
 def _isl_num_links(obj, t_obj):
     """Check to see if the number of ISL in each trunk group is the same
 
@@ -231,8 +232,7 @@ def _isl_bw(obj, t_obj):
     r_list = []
     # Validate input
     if 'SwitchObj' not in str(type(obj)):
-        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + str(type(obj)),
-                             True)
+        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + str(type(obj)), True)
         return r_list
 
     proj_obj = obj.r_project_obj()
@@ -270,8 +270,7 @@ def _isl_fru(obj, t_obj):
     r_list = []
     # Validate input
     if 'SwitchObj' not in str(type(obj)):
-        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + str(type(obj)),
-                             True)
+        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + str(type(obj)), True)
         return r_list
 
     proj_obj = obj.r_project_obj()
@@ -344,7 +343,6 @@ def _fc16_48_haa_p8(obj, t_obj):
 
     # Get a list of ports we just figured out above that have an SFP matching S/N HAA*
     if len(temp_l) > 0:
-        port_regex = ','.join(temp_l)
         lt = [
             {'k': 'media-rdp/serial-number', 'v': 'HAA*', 't': 'wild'},
             {'k': 'fibrechannel/name', 'v': '[' + ','.join(temp_l) + ']/(8 | 32)', 't': 'regex-m'}
@@ -390,7 +388,7 @@ def _chassis_fru_check(obj, t_obj):
     # Temp Sensor
     for d in brcddb_util.convert_to_list(obj.r_get('brocade-fru/sensor')):
         v = str(d.get('state'))
-        if v.upper() != ('ABSENT'):
+        if v.upper() != 'ABSENT':
             if v.upper() != 'OK':
                 p0 = 'Temp Sensor ID: ' + str(d.get('id')) + \
                      str(d.get('slot-number')) if d.get('slot-number') is not None else ''
@@ -449,8 +447,8 @@ def _check_sfps(obj_list, t_obj):
 def _check_remote_sfps(obj_list, t_obj):
     """Checks remote SFP levels and adds appropriate alerts to port objects
 
-    :param obj: Port object
-    :type obj: brcddb.classes.PortObj
+    :param obj_list: List of port object
+    :type obj_list: brcddb.classes.PortObj
     :param t_obj: Individual test item from the test_list passed to best_practice(). Not used
     :type t_obj: dict
     """

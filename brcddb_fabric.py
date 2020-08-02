@@ -49,30 +49,30 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | Removed unused varriables. Added check for when an alias is used in a zone but    |
+    |           |               | the alias does not exists (ZONE_UNDEFINED_ALIAS)                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
-import brcddb.brcddb_zone as brcddb_zone
-import brcddb.app_data.alert_tables as al
 import brcddb.app_data.bp_tables as bt
-import brcddb.brcddb_switch as brcddb_switch
 import brcddb.util.search as brcddb_search
 import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_login as brcddb_login
 
 _MIN_SYMB_LEN = 10
 # _speed_to_gen converts the brocade-name-server/link-speed to a fibre channel generation bump.
-_speed_to_gen = {'1G': 0, '2G': 1, '4G': 2, '8G': 3, '16G': 4, '32G': 5, '64G': 6, '128G': 7,}
+_speed_to_gen = {'1G': 0, '2G': 1, '4G': 2, '8G': 3, '16G': 4, '32G': 5, '64G': 6, '128G': 7}
 special_login = {
     'SIM Port': al.ALERT_NUM.LOGIN_SIM,
     # Should never get 'I/O Analytics Port' because I check for AE-Port but rather than over think it...
@@ -124,7 +124,7 @@ def alias_analysis(fabric_obj):
         zone_list = a_obj.r_zone_objects()
         if len(zone_list) == 0:  # is the alias used?
             a_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_ALIAS_NOT_USED, None, None, None)
-        if len(alias_members) == 0: # Does the alias have any members?
+        if len(alias_members) == 0:  # Does the alias have any members?
             if len(zone_list) == 0:
                 a_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NULL_ALIAS, None, None, None)
             else:
@@ -272,9 +272,9 @@ def zone_analysis(fab_obj):
     * Maximum number of devices zoned to a device. See brcddb.app_data.bp_tables.MAX_ZONE_PARTICIPATION
 
     :param fab_obj: brcddb fabric object
-    :type fab_obj: FabricObj class
+    :type fab_obj: brcddb.classes.fabric.FabricObj
     """
-    # To Do: Break this up into multiple methods or review to shorten. This is way too long
+    # To-Do: Break this up into multiple methods or review to shorten. This is way too long
     _WWN_MEM = 0b1  # The member was entered as a WWN or d,i, not an alias
     _IN_DEFINED_ZONECFG = _WWN_MEM << 1  # Zone found in defined zone
     _ZONE_MISMATCH = _IN_DEFINED_ZONECFG << 1  # The effective zone does not match the defined zone
@@ -299,7 +299,15 @@ def zone_analysis(fab_obj):
                     mem_list = [zmem]
                 else:
                     flag &= ~_WWN_MEM
-                    mem_list = fab_obj.r_alias_obj(zmem).r_members()
+                    a_obj = fab_obj.r_alias_obj(zmem)
+                    if a_obj is None:
+                        zone_obj.s_add_alert(al.AlertTable.alertTbl,
+                                          al.ALERT_NUM.ZONE_UNDEFINED_ALIAS,
+                                          None, zmem,
+                                          zone_obj.r_obj_key())
+                        mem_list = []
+                    else:
+                        mem_list = a_obj.r_members()
                 for mem in mem_list:
                     if i == 0:
                         nmem_list.append(mem)
