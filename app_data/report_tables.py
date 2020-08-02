@@ -60,16 +60,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
+
 
 class Chassis:
     # Key - Custom key of key from any of the chassis related API responses. Value is the the column header. This table
@@ -96,8 +99,8 @@ class Chassis:
             'blade-type': 'Type',
             'fc-port-count': 'Port Count',
             'extension-enabled': 'Extension Enabled',
-#            'firmware-version': 'Firmware',
-#            'manufacturer': 'Manufacturer',
+            # 'firmware-version': 'Firmware',
+            # 'manufacturer': 'Manufacturer',
             'slot-number': 'Slot',
             'power-consumption': 'Power Consumed',
             'power-usage': 'Power Used',
@@ -221,12 +224,12 @@ class Switch:
         'brocade-ficon/switch-rnid/tag': 'RNID: Tag',
     }
 
+
 class Zone:
     zone_display_tbl = {
         'brocade-zone/effective-configuration/cfg-name': 'Effective Configuration',
         'brocade-zone/effective-configuration/db-avail': 'DB Avail Memory',
         'brocade-zone/effective-configuration/checksum': 'Checksum',
-        'brocade-zone/effective-configuration/db-chassis-wide-committed': 'Chassis Wide Committed',
         'brocade-zone/effective-configuration/db-committed': 'Fabric Committed',
         'brocade-zone/effective-configuration/cfg-action': 'Configuration Action',
         'brocade-zone/effective-configuration/db-max': 'DB Maximum Size',
@@ -244,6 +247,7 @@ class Zone:
         'brocade-zone/fabric-lock/client-interface': 'Client Interface',
         'brocade-zone/fabric-lock/client-application-name': 'Client Application Name',
     }
+
 
 class Security:
     security_display_tbl = {
@@ -348,7 +352,7 @@ class Port:
         'fibrechannel/port-health': {'v': True, 'c': 8, 'd': 'Port Health'},
         'fibrechannel/port-peer-beacon-enabled': {'v': True, 'c': 8, 'd': 'Port Peer Beacon Enabled'},
         # Flags
-        'fibrechannel/auto-negotiate': {'v': True, 'm': True, 'm': True, 'c': 5, 'd': 'Auto-Negotiate'},
+        'fibrechannel/auto-negotiate': {'v': True, 'm': True, 'c': 5, 'd': 'Auto-Negotiate'},
         'fibrechannel/compression-active': {'v': True, 'm': True, 'c': 5, 'd': 'Compression Active'},
         'fibrechannel/compression-configured': {'v': True, 'm': True, 'c': 5, 'd': 'Compression Enabled'},
         'fibrechannel/credit-recovery-active': {'v': True, 'm': True, 'c': 5, 'd': 'Credit Recovery Active'},
@@ -356,7 +360,7 @@ class Port:
         'fibrechannel/csctl-mode-enabled': {'v': True, 'm': True, 'c': 5, 'd': 'CSCTL Enabled'},
         'fibrechannel/d-port-enable': {'v': True, 'm': True, 'c': 5, 'd': 'D-Port Enabled'},
         'fibrechannel/e-port-disable': {'v': True, 'm': True, 'c': 5, 'd': 'E-Port Disabled'},
-#        'fibrechannel/enabled-state': {'v': True, 'm': True, 'c': 5, 'd': 'Enabled'},  # Depricated in FOS 8.2.1b
+        # 'fibrechannel/enabled-state': {'v': True, 'm': True, 'c': 5, 'd': 'Enabled'},  # Depricated in FOS 8.2.1b
         'fibrechannel/encryption-active': {'v': True, 'm': True, 'c': 5, 'd': 'Encryption Active'},
         'fibrechannel/ex-port-enabled': {'v': True, 'm': True, 'c': 5, 'd': 'XISL Enabled'},
         'fibrechannel/fault-delay-enabled': {'v': True, 'm': True, 'c': 5, 'd': 'Fault Delay Enabled'},
@@ -384,19 +388,19 @@ class Port:
         'fibrechannel-statistics/bad-eofs-received': {'v': True, 'c': 8, 'd': 'Bad EOF'},
         'fibrechannel-statistics/bb-credit-zero': {'v': True, 'c': 10, 'd': 'Zero BB Credit'},
         'fibrechannel-statistics/remote-buffer-credit-info/bb-credit': {'v': True, 'c': 8, 'd': 'Remote BB Credit'},
-        'fibrechannel-statistics/remote-buffer-credit-info/peer-bb-credit': \
+        'fibrechannel-statistics/remote-buffer-credit-info/peer-bb-credit':
             {'v': True, 'c': 8, 'd': 'Remote Peer BB Credit'},
         'fibrechannel-statistics/class-1-frames': {'v': True, 'c': 8, 'd': 'Class 1 Frames'},
         'fibrechannel-statistics/class-2-frames': {'v': True, 'c': 8, 'd': 'Class 2 Frames'},
-        'fibrechannel-statistics/class-3-discards': {'v': True, 'c': 8, 'd': 'C3 Frame Discards'},
         'fibrechannel-statistics/class-3-frames': {'c': 14, 'd': 'Class 3 Frames'},
+        'fibrechannel-statistics/class-3-discards': {'v': True, 'c': 8, 'd': 'C3 Frame Discards'},
         'fibrechannel-statistics/class3-in-discards': {'v': True, 'c': 8, 'd': 'Rx C3 Frames discarded'},
         'fibrechannel-statistics/class3-out-discards': {'v': True, 'c': 8, 'd': 'Tx C3 Frame Discards'},
         'fibrechannel-statistics/crc-errors': {'v': True, 'c': 8, 'd': 'CRC Errors'},
         'fibrechannel-statistics/delimiter-errors': {'v': True, 'c': 8, 'd': 'Delimiter Errors'},
         'fibrechannel-statistics/encoding-disparity-errors': {'v': True, 'c': 8, 'd': 'Encoding Disparity Errors'},
         'fibrechannel-statistics/encoding-errors-outside-frame': {'v': True, 'c': 8,
-                                          'd': 'Encoding Errors Outside Frame'},
+                                                                  'd': 'Encoding Errors Outside Frame'},
         'fibrechannel-statistics/f-busy-frames': {'v': True, 'c': 8, 'd': 'Frame Busy'},
         'fibrechannel-statistics/f-rjt-frames': {'v': True, 'c': 8, 'd': 'Frame Rejects'},
         'fibrechannel-statistics/frames-too-long': {'v': True, 'c': 8, 'd': 'Frames Too Long'},
@@ -438,8 +442,8 @@ class Port:
         'fibrechannel-statistics/p-rjt-frames': {'v': True, 'c': 8, 'd': 'P-Reject Frames'},
         'fibrechannel-statistics/pcs-block-errors': {'v': True, 'c': 8, 'd': 'PCS Block Errors'},
         'fibrechannel-statistics/primitive-sequence-protocol-error': {'v': True, 'c': 8,
-                                              'd': 'Primitive Sequence Error'},
-        'fibrechannel-statistics/remote-primitive-sequence-protocol-error': \
+                                                                      'd': 'Primitive Sequence Error'},
+        'fibrechannel-statistics/remote-primitive-sequence-protocol-error':
             {'v': True, 'c': 8, 'd': 'Remote Primitive Sequence Error'},
         'fibrechannel-statistics/sampling-interval': {'v': True, 'c': 8, 'd': 'Sampling Interval (sec)'},
         'fibrechannel-statistics/time-generated': {'c': 24, 'd': 'Time Generated'},
@@ -504,7 +508,6 @@ class Port:
         'media-rdp/remote-media-voltage-alert/low-alarm': {'v': True, 'c': 6, 'd': 'Remote Voltage Low Alarm'},
         'media-rdp/remote-media-voltage-alert/low-warning': {'v': True, 'c': 6, 'd': 'Remote Voltage Low Warning'},
         # RNID
-        'rnid/manufacturer': {'v': True, 'c': 5, 'd': 'Manufacturer'},
         'rnid/format': {'v': True, 'c': 5, 'd': 'Format'},
         'rnid/flags': {'c': 8, 'd': 'Flags'},
         'rnid/node-parameters': {'c': 20, 'd': 'Node Parameters'},
@@ -539,7 +542,7 @@ class Port:
         'fibrechannel/speed',
         # 'fibrechannel/wwn',
         # Flags
-#        'fibrechannel/path-count',  # Has conflicting meaning. RFE #16 to fix.
+        # 'fibrechannel/path-count',  # Has conflicting meaning. RFE #16 to fix.
         'fibrechannel/persistent-disable',
         'fibrechannel/auto-negotiate',
         'fibrechannel/compression-active',
@@ -576,8 +579,6 @@ class Port:
         '_PORT_COMMENTS',
         '_SWITCH_NAME',
         '_PORT_NUMBER',
-#        'fibrechannel/user-friendly-name',
-        'fibrechannel/operational-status',
         'fibrechannel/port-type',
         '_BEST_DESC',
         'fibrechannel/is-enabled-state',
@@ -786,14 +787,15 @@ class Port:
         '_FDMI_NODE',
         '_FDMI_PORT',
     )
+
     
 class Login:
     # Includes FDMI as well. FDMI node data is preceeded with '_FDMI_NODE.' followed by the key. brcddb.report.login
     # seperates the key on '.'. Similarly, FDMI port data is preceeded with '_FDMI_PORT'.
     # How to display a login object key value is determined by looking up the key in the list of keys in display passed
-    # to login_page() in login_display_tbl. If a key is not found but exists in the login object, it is displayed with all
-    # the default settings. The keys are either one of the keys defined in 'brocade-interface/fibrechannel' or one of
-    # special keys below:
+    # to login_page() in login_display_tbl. If a key is not found but exists in the login object, it is displayed with
+    # all the default settings. The keys are either one of the keys defined in 'brocade-interface/fibrechannel' or one
+    # of special keys below:
     #   _LOGIN_COMMENTS     Display alerts
     #   _FABRIC_NAME        Lookup the fabric name. WWN is used if fabric is not named
     #   _FABRIC_NAME_AND_WWN Lookup the fabric name and include the wwn in parenthesis
@@ -850,7 +852,8 @@ class Login:
         'brocade-name-server/lsan': {'v': True, 'm': True, 'c': 5, 'd': 'Part of LSAN zone'},
         'brocade-name-server/cascaded-ag': {'v': True, 'm': True, 'c': 5, 'd': 'Connected to AG'},
         'brocade-name-server/connected-through-ag': {'v': True, 'm': True, 'c': 5, 'd': 'Connected through AG'},
-        'brocade-name-server/real-device-behind-ag': {'v': True, 'm': True, 'c': 5, 'd': 'Real device (not NPIV) in AG'},
+        'brocade-name-server/real-device-behind-ag':
+            {'v': True, 'm': True, 'c': 5, 'd': 'Real device (not NPIV) in AG'},
         'brocade-name-server/fcoe-device': {'v': True, 'm': True, 'c': 5, 'd': 'FCoE device'},
         'brocade-name-server/slow-drain-device-quarantine': {'v': True, 'm': True, 'c': 5, 'd': 'SDDQ'},
 
@@ -901,17 +904,17 @@ class Login:
         'brocade-name-server/port-name',
         '_ALIAS',
         '_FABRIC_NAME',
-#        '_FABRIC_NAME_AND_WWN',
-#        '_FABRIC_WWN',
+        # '_FABRIC_NAME_AND_WWN',
+        # '_FABRIC_WWN',
         '_SWITCH_NAME',
-#        '_SWITCH_NAME_AND_WWN',
-#        '_SWITCH_WWN',
+        # '_SWITCH_NAME_AND_WWN',
+        # '_SWITCH_WWN',
         '_PORT_NUMBER',
         'brocade-name-server/port-id',
         '_ZONES_DEF',
         '_ZONES_EFF',
         'brocade-name-server/class-of-service',
-#        'fabric-port-name',  # This is the WWN of the switch port where this logged in.
+        # 'fabric-port-name',  # This is the WWN of the switch port where this logged in.
         'brocade-name-server/fc4-features',
         'brocade-name-server/fc4-type',
         'brocade-name-server/link-speed',
@@ -921,8 +924,8 @@ class Login:
         'brocade-name-server/port-symbolic-name',
         '_FDMI_NODE.brocade-fdmi/node-symbolic-name',
         '_FDMI_PORT.brocade-fdmi/port-symbolic-name',
-#        'brocade-name-server/permanent-port-name',
-#        'brocade-name-server/port-index',
+        # 'brocade-name-server/permanent-port-name',
+        # 'brocade-name-server/port-index',
         'brocade-name-server/port-properties',
         'brocade-name-server/port-type',
         'brocade-name-server/state-change-registration',
@@ -976,6 +979,7 @@ class Login:
         '_FDMI_PORT.brocade-fdmi/supported-speed',
     )
 
+
 class BestPractice:
     # How to display best practices
     #   _TYPE               Type of alert
@@ -1005,6 +1009,3 @@ class BestPractice:
         '_AREA_2',
         '_DESCRIPTION',
     )
-
-
-

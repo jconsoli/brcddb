@@ -28,18 +28,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | Fixed overlapping zone and chassis alerts & added ZONE_UNDEFINED_ALIAS            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.classes.alert as al
+
 
 class ALERT_NUM:
     # MAPS alerts
@@ -165,16 +168,18 @@ class ALERT_NUM:
     ZONE_NULL_ALIAS_USED = ZONE_NULL_ALIAS + 1
     ZONE_ALIAS_NOT_USED = ZONE_NULL_ALIAS_USED + 1
     ZONE_MULTI_INITIATOR = ZONE_ALIAS_NOT_USED + 1
+    ZONE_UNDEFINED_ALIAS = ZONE_MULTI_INITIATOR + 1
     # The remaining zone alerts are support applications that modify zones
-    ZONE_ADD_ZONE = ZONE_MULTI_INITIATOR + 1  # Newly created zone
+    ZONE_ADD_ZONE = ZONE_UNDEFINED_ALIAS + 1  # Newly created zone
     ZONE_KEPT = ZONE_ADD_ZONE + 1  # Existing zone kept
     ZONE_REMOVED = ZONE_KEPT + 1  # Zone removed/not needed
-    
+
     # Chassis alerts
-    CHASSIS_BASE = 600
+    CHASSIS_BASE = 700
     CHASSIS_FRU = CHASSIS_BASE + 1
     CHASSIS_TEMP_ERROR = CHASSIS_FRU + 1
     CHASSIS_TEMP_WARN = CHASSIS_TEMP_ERROR + 1
+
 
 _power_above_threshold = ' above threshold. Threshold: $p1 uW. Actual: $p0 uW.'
 _power_below_threshold = ' below threshold. Threshold: $p1 uW. Actual: $p0 uW.'
@@ -184,6 +189,7 @@ _volt_above_threshold = ' above threshold. Threshold: $p1 V. Actual: $p0 V.'
 _volt_below_threshold = ' below threshold. Threshold: $p1 V. Actual: $p0 V.'
 _cur_above_threshold = ' above threshold. Threshold: $p1 mA. Actual: $p0 mA.'
 _cur_below_threshold = ' below threshold. Threshold: $p1 mA. Actual: $p0 mA.'
+
 
 class AlertTable:
     """
@@ -290,9 +296,9 @@ class AlertTable:
         ALERT_NUM.LOGIN_SPEED_DIFF_E: dict(m='$p0 logged in at slower speed also zonned to target(s): $p1.',
                                            s=al.ALERT_SEV.ERROR),
         ALERT_NUM.LOGIN_SPEED_IMP_W: dict(m='Mixed speeds zoned to this target. Search for $p0 and $p1',
-                                           s=al.ALERT_SEV.WARN),
+                                          s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SPEED_IMP_E: dict(m='Mixed speeds zoned to this target. Search for $p0 and $p1',
-                                           s=al.ALERT_SEV.ERROR),
+                                          s=al.ALERT_SEV.ERROR),
 
         # Zoning
         # Zones
@@ -322,6 +328,7 @@ class AlertTable:
         ALERT_NUM.ZONE_ADD_ZONE: dict(m='Added $p0', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.ZONE_KEPT: dict(m='Kept. $p0', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.ZONE_REMOVED: dict(m='Removed. $p0', s=al.ALERT_SEV.GENERAL),
+        ALERT_NUM.ZONE_UNDEFINED_ALIAS: dict(m='Alias $p0 used in zone $p1 does not exist.', s=al.ALERT_SEV.ERROR),
 
         # Chassis
         ALERT_NUM.PORT_SFP_HAA_F16_32_P8: dict(

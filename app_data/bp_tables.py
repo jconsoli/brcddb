@@ -69,21 +69,21 @@ Version Control::
     | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
     | 2.x.x     |               |                                                                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
+
 import brcddb.brcddb_common as brcddb_common
 import brcddb.app_data.alert_tables as al
-import brcddb.util.maps as brcddb_maps
 
 MAX_ZONE_PARTICIPATION = 30  # Maximum number of devices that can be zoned to a login. See brcddb_fabric.zone_analysis()
 
