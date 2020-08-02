@@ -25,25 +25,25 @@ Version Control::
     | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
     | 2.x.x     |               |                                                                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
 
-# Programmer's Tip: Apparently, .clear() doesn't work on dereferenced list and dict. Rather than write my own, I rely
-# on Python garbage collection to clean it up. If delete becomes common, I'll have to revist this but for now, I took
+# Programmer's Tip: Apparently, .clear() doesn't work on a dereference list and dict. Rather than write my own, I rely
+# on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
 # the easy way out. It may be a good thing that Python threw an exception because I didn't really think through what
 # objects that might be sharing a resource with other objects.
 
@@ -61,13 +61,13 @@ class ZoneCfgObj:
         _alerts (list): List of AlertObj objects associated with this object.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, project_obj, fabric_key):
         self._obj_key = name
         self._flags = 0
         self._members = []
         self._alerts = []
-        self._fabric_key = None
-        self._project_obj = None
+        self._fabric_key = fabric_key
+        self._project_obj = project_obj
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -77,7 +77,7 @@ class ZoneCfgObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -111,9 +111,9 @@ class ZoneCfgObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -138,14 +138,6 @@ class ZoneCfgObj:
         :rtype: list
         """
         return self.r_get_reserved('_reserved_keys')
-
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
 
     def r_project_obj(self):
         """Returns the project object associated with this object
@@ -207,8 +199,8 @@ class ZoneCfgObj:
     def s_add_member(self, members):
         """Adds zone members to the zone configuration if the zone is not already a member of the zone configuration
 
-        :param mem: Member
-        :type mem: list, str
+        :param members: Member or members to add
+        :type members: list, str
         """
         for mem in util.convert_to_list(members):
             if mem not in self._members:
@@ -227,12 +219,12 @@ class ZoneCfgObj:
                     break
 
     def r_members(self):
-        """Returns a tuple of zones in the zone configuration
+        """Returns a list of zones in the zone configuration
 
         :return: Members
-        :rtype: tuple
+        :rtype: list
         """
-        return (self._members)
+        return self._members.copy()
 
     def r_has_member(self, mem):
         """Checks to see if a zone exists in the zone configuration
@@ -243,14 +235,6 @@ class ZoneCfgObj:
         :rtype: bool
         """
         return True if mem in self._members else False
-
-    def s_fabric_key(self, wwn):
-        """Set the fabric key to the WWN of the fabric
-
-        :param wwn: WWN of fabric switch
-        :type wwn: str
-        """
-        self._fabric_key = wwn
 
     def r_fabric_key(self):
         """Returns the fabric WWN associated with this zone configuration
@@ -316,7 +300,7 @@ class ZoneCfgObj:
         return util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int
@@ -351,16 +335,15 @@ class ZoneObj:
         _alerts (list): List of AlertObj objects associated with this object.
     """
 
-    def __init__(self, name, type):
+    def __init__(self, name, zone_type, project_obj, fabric_key):
         self._obj_key = name   # Zone name
         self._flags = 0
         self._members = []  # 'member-entry' - Zone members
-        self._pmembers = [] # 'principal-member-entry' - Principal zone members - for peer zones
+        self._pmembers = []  # 'principal-member-entry' - Principal zone members - for peer zones
         self._alerts = []
-        self._type = type   # Zone type returned from brocade-zone/brocade-zone (0 default, 1 user created peer,
-                            # 2 target driven peer)
-        self._fabric_key = None
-        self._project_obj = None
+        self._type = zone_type   # Zone type from brocade-zone/brocade-zone (0 default, 1 user peer, 2 target  peer)
+        self._fabric_key = fabric_key
+        self._project_obj = project_obj
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -406,9 +389,9 @@ class ZoneObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -425,14 +408,6 @@ class ZoneObj:
         :rtype: list
         """
         return self.r_get_reserved('_reserved_keys')
-
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
 
     def r_project_obj(self):
         """Returns the project object associated with this object
@@ -532,21 +507,13 @@ class ZoneObj:
         :return: True: zone includes WWNs and d,i members, False zone does not include both WWN and d,i members
         :rtype: bool
         """
-        return bool(self._flags & brcddb_common.zone_flag_mixed)
+        return True if self._flags & brcddb_common.zone_flag_wwn and self._flags & brcddb_common.zone_flag_di else False
 
     def r_zone_obj(self):
         return self
 
     def r_zone_key(self):
         return self.r_obj_key()
-
-    def s_fabric_key(self, wwn):
-        """Set the fabric key to the WWN of the fabric
-
-        :param wwn: WWN of fabric switch
-        :type wwn: str
-        """
-        self._fabric_key = wwn
 
     def r_fabric_key(self):
         """Returns the fabric WWN associated with this zone
@@ -589,12 +556,12 @@ class ZoneObj:
                     break
 
     def r_members(self):
-        """Returns a tuple of members in the zone
+        """Returns a list of members in the zone
 
         :return: Members
-        :rtype: tuple
+        :rtype: list
         """
-        return (self._members)
+        return self._members.copy()
 
     def r_has_member(self, mem):
         """Checks to see if a member exists in the zone
@@ -629,12 +596,12 @@ class ZoneObj:
                     break
 
     def r_pmembers(self):
-        """Returns a tuple of principal members in the zone
+        """Returns a list of principal members in the zone
 
         :return: Members
-        :rtype: tuple
+        :rtype: list
         """
-        return (self._pmembers)
+        return self._pmembers.copy()
 
     def r_has_pmember(self, mem):
         """Checks to see if a principal member exists in the zone
@@ -647,13 +614,13 @@ class ZoneObj:
         return True if mem in self._pmembers else False
 
     def r_zonecfg_objects(self):
-        """Returns the zone configuration ojects of defined (not effective) zone configurations this zone is a member of
+        """Returns the zone configuration objects of defined zone configurations this zone is a member of
 
         :return: Zone configurations
         :rtype: list
         """
         zone = self.r_obj_key()
-        return [z for z in self.r_fabric_obj().r_zonecfg_objects() if z.r_has_member(zone) and \
+        return [z for z in self.r_fabric_obj().r_zonecfg_objects() if z.r_has_member(zone) and
                 z.r_obj_key() != '_effective_zone_cfg']
 
     def r_zone_configurations(self):
@@ -700,7 +667,7 @@ class ZoneObj:
         return util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int
@@ -732,13 +699,13 @@ class AliasObj:
         _fabric_key (str): WWN of fabric this alias belongs to.
         _alerts (list): List of AlertObj objects associated with this object.
     """
-    def __init__(self, name):
+    def __init__(self, name, project_obj, fabric_key):
         self._obj_key = name  # Alias name
         self._flags = 0
         self._members = []  # alias members
         self._alerts = []
-        self._fabric_key = None
-        self._project_obj = None
+        self._fabric_key = fabric_key
+        self._project_obj = project_obj
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -748,7 +715,7 @@ class AliasObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -782,9 +749,9 @@ class AliasObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -801,13 +768,6 @@ class AliasObj:
         :rtype: list
         """
         return self.r_get_reserved('_reserved_keys')
-
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
 
     def r_project_obj(self):
         """Returns the project object associated with this object
@@ -868,8 +828,8 @@ class AliasObj:
     def s_del_member(self, members):
         """Deletes members from the alias
 
-        :param mem: Member
-        :type mem: str, list
+        :param members: Member
+        :type members: str, list
         """
         for mem in util.convert_to_list(members):
             for i, e in reversed(list(enumerate(self._members))):
@@ -878,12 +838,12 @@ class AliasObj:
                     break
 
     def r_members(self):
-        """Returns a tuple of members in the alias
+        """Returns a list of members in the alias
 
         :return: Members
-        :rtype: tuple
+        :rtype: list
         """
-        return (self._members)
+        return self._members.copy()
 
     def r_has_member(self, mem):
         """Checks to see if a member exists in the alias
@@ -900,14 +860,6 @@ class AliasObj:
 
     def r_login_key(self):
         return self.r_obj_key()
-
-    def s_fabric_key(self, wwn):
-        """Set the fabric key to the WWN of the fabric
-
-        :param wwn: WWN of fabric switch
-        :type wwn: str
-        """
-        self._fabric_key = wwn
 
     def r_fabric_key(self):
         """Returns the fabric WWN associated with this alias
@@ -964,9 +916,8 @@ class AliasObj:
         """
         return util.s_new_key_for_class(self, k, v, f)
 
-
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int

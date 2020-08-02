@@ -27,23 +27,26 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
 
-# Programmer's Tip: Apparently, .clear() doesn't work on dereferenced list and dict. Rather than write my own, I rely
-# on Python garbage collection to clean it up. If delete becomes common, I'll have to revist this.
+# Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
+# on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this.
+
 
 class PortObj:
     """The PortObj contains all information relevant to a port including:
@@ -62,18 +65,18 @@ class PortObj:
         _obj_key (str): s/p of the port.
         _flags (int): Flags for each class are defined in brcddb.brcddb_common
         _project_obj (ProjectObj): The project object this port belongs to.
-        _port_objs (dict): Dictionary of ports in this switch. Key: s/p, Value: PortObj
         _switch (str): WWN of the switch this port belongs to.
         _alerts (list): List of AlertObj objects associated with this object.
         _maps_fc_port_group (list): List of MAPS groups associated with the port
         _maps_sfp_group (list): List of MAPS groups associated with the SFP
     """
 
-    def __init__(self, name):
+    def __init__(self, name, project_obj, switch_wwn):
         self._obj_key = name
+        self._project_obj = project_obj
+        self._switch = switch_wwn
         self._flags = 0
         self._alerts = []
-        self._project_obj = None
         self._maps_fc_port_group = []
         self._maps_sfp_group = []
 
@@ -99,7 +102,7 @@ class PortObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -134,9 +137,9 @@ class PortObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -161,14 +164,6 @@ class PortObj:
         :rtype: list
         """
         return self.r_get_reserved('_reserved_keys')
-
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
 
     def r_project_obj(self):
         """Returns the project object associated with this object
@@ -364,22 +359,6 @@ class PortObj:
         """
         return self._i_port_flags('fibrechannel/qos-enabled')
 
-    def r_is_compression_active(self):
-        """Determines if compression is active
-
-        :return: True: Compression is active. False: Compression is not active.
-        :rtype: bool
-        """
-        return self._i_port_flags('fibrechannel/compression-active')
-
-    def r_is_encryption_enabled(self):
-        """Determines if encryption is active
-
-        :return: True: Encryption is active. False: Encryption is not active.
-        :rtype: bool
-        """
-        return self._i_port_flags('fibrechannel/encryption-active')
-
     def r_is_target_zone_enabled(self):
         """Determines if target zoning is allowed
 
@@ -429,9 +408,9 @@ class PortObj:
         return self._i_port_flags('fibrechannel/compression-configured')
 
     def r_is_compression_active(self):
-        """Determines if compression is active, 'brocade-interface/fibrechannel/compression-active' == 1
+        """Determines if compression is active
 
-        :return: True: compression is active. False: compression is not active.
+        :return: True: Compression is active. False: Compression is not active.
         :rtype: bool
         """
         return self._i_port_flags('fibrechannel/compression-active')
@@ -744,9 +723,8 @@ class PortObj:
         """
         return util.s_new_key_for_class(self, k, v, f)
 
-
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int

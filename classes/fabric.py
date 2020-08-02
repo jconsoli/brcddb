@@ -35,26 +35,27 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
-import traceback
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
 import brcddb.classes.zone as zone_class
 import brcddb.classes.login as login_class
 
-# Programmer's Tip: Apparently, .clear() doesn't work on dereferenced list and dict. Rather than write my own, I rely
-# on Python garbage collection to clean it up. If delete becomes common, I'll have to revist this but for now, I took
+# Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
+# on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
 # the easy way out. It may be a good thing that Python threw an exception because I didn't really think through what
 # objects that might be sharing a resource with other objects.
 
@@ -89,8 +90,8 @@ class FabricObj:
         _port_map (dict): List of base NPIV login WWNs. Filled in my brcddb.util.util.build_login_port_map()
     """
 
-    def __init__(self, name):			# name is the WWN of the fabric principal switch
-        self._obj_key = name            # WWN of principal fabric switch
+    def __init__(self, name, project_obj):  # name is the WWN of the fabric principal switch
+        self._obj_key = name
         self._flags = 0
         self._switch_keys = [name]
         self._login_objs = {}
@@ -101,7 +102,7 @@ class FabricObj:
         self._fdmi_node_objs = {}
         self._fdmi_port_objs = {}
         self._alerts = []
-        self._project_obj = None
+        self._project_obj = project_obj
         self._base_logins = []
         self._port_map = {}
 
@@ -113,7 +114,7 @@ class FabricObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -155,9 +156,9 @@ class FabricObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -182,14 +183,6 @@ class FabricObj:
         :rtype: list
         """
         return self.r_get_reserved('_reserved_keys')
-
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
 
     def r_project_obj(self):
         """Returns the project object associated with this object
@@ -237,25 +230,6 @@ class FabricObj:
         self._flags &= bits
         return self._flags
 
-    def s_all_access_flag(self, access):
-        """Sets or clears the all_access flag (defzone)
-
-        :param access: True - set all_access, False  - set no_access
-        :type access: bool
-        """
-        if access:
-            self.s_or_flags(brcddb_common.zonecfg_flag_all_access)
-        else:
-            self.s_and_flags(~brcddb_common.zonecfg_flag_all_access)
-
-    def r_all_access_flag(self):
-        """Returns the all_access flag (defzone)
-
-        :return: True - all_access is set, False  - no_access is set
-        :rtype: bool
-        """
-        return bool(self.s_or_flags & brcddb_common.zonecfg_flag_all_access)
-
     def s_add_switch(self, wwn):
         """Adds a switch to the project if it doesn't already exist and then adds it to fabric if not already added
 
@@ -279,13 +253,11 @@ class FabricObj:
         :rtype: LoginObj
         """
         try:
-            loginObj = self._login_objs[wwn]
+            login_obj = self._login_objs[wwn]
         except:
-            loginObj = login_class.LoginObj(wwn)
-            self._login_objs.update({wwn : loginObj})
-            loginObj.s_project_obj(self.r_project_obj())
-            loginObj.s_fabric_key(self.r_obj_key())
-        return loginObj
+            login_obj = login_class.LoginObj(wwn, self.r_project_obj(), self.r_obj_key())
+            self._login_objs.update({wwn : login_obj})
+        return login_obj
 
     def s_del_login(self, wwn):
         """Deletes a login
@@ -323,7 +295,7 @@ class FabricObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._login_objs.values())
 
     def r_login_objs(self):
@@ -334,7 +306,7 @@ class FabricObj:
         """
         return self._login_objs
 
-    def s_add_zonecfg(self, name, mem=[]):
+    def s_add_zonecfg(self, name, mem=None):
         """Adds a zone configuration to the fabric if it doesn't already exist
 
         Similarly, zone members will be added if they don't already exist
@@ -345,16 +317,16 @@ class FabricObj:
         :return: Zone configuration object
         :rtype: zone_class.brcddb.classes.zone.ZoneCfgObj
         """
+        if mem is None:
+            mem = []
         try:
-            zoneCfgObj = self._zonecfg_objs[name]
+            zonecfg_obj = self._zonecfg_objs[name]
         except:
-            zoneCfgObj = zone_class.ZoneCfgObj(name)
-            zoneCfgObj.s_project_obj(self.r_project_obj())
-            self._zonecfg_objs.update({name : zoneCfgObj})
-            zoneCfgObj.s_fabric_key(self.r_obj_key())
+            zonecfg_obj = zone_class.ZoneCfgObj(name, self.r_project_obj(), self.r_obj_key())
+            self._zonecfg_objs.update({name: zonecfg_obj})
         for member in util.convert_to_list(mem):
-            zoneCfgObj.s_add_member(member)
-        return zoneCfgObj
+            zonecfg_obj.s_add_member(member)
+        return zonecfg_obj
 
     def s_del_zonecfg(self, members):
         """Delete zone configurations
@@ -396,7 +368,7 @@ class FabricObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._zonecfg_objs.values())
 
     def r_zonecfg_objs(self):
@@ -434,7 +406,7 @@ class FabricObj:
         eff_name = self.r_defined_eff_zonecfg_key
         return None if eff_name is None else self.r_zonecfg_obj(eff_name)
 
-    def s_add_eff_zonecfg(self, members=[]):
+    def s_add_eff_zonecfg(self, members=None):
         """Adds a special zone configuration named '_effective_zone_cfg' if it doesn't already exist.
 
         Similarly, zone members will be added if they don't already exist
@@ -448,6 +420,8 @@ class FabricObj:
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
+        if members is None:
+            members = []
         return self.s_add_zonecfg('_effective_zone_cfg', members)
 
     def r_eff_zone_cfg_obj(self):
@@ -458,30 +432,33 @@ class FabricObj:
         """
         return self.r_zonecfg_obj('_effective_zone_cfg')
 
-    def s_add_zone(self, name, type, mem=[], pmem=[]):
+    def s_add_zone(self, name, zone_type, mem=None, pmem=None):
         """Adds a zone to the fabric if it doesn't already exist. See zone in 'zoning/defined-configuration'
 
         :param name: Zone name
         :type name: str
         :param mem: Zone members
         :type mem: list, str, None
-        :param pmem: Principal zone members (relavant to peer zones only)
+        :param pmem: Principal zone members (relevant to peer zones only)
         :type pmem: list, str, None
-        :param type: Zone type
+        :param zone_type: Zone type
+        :type zone_type: int
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        zoneObj = self.r_zone_obj(name)
-        if zoneObj is None:
-            zoneObj = zone_class.ZoneObj(name, type)
-            zoneObj.s_project_obj(self.r_project_obj())
-            self._zone_objs.update({name : zoneObj})
-            zoneObj.s_fabric_key(self.r_obj_key())
+        if mem is None:
+            mem = []
+        if pmem is None:
+            pmem = []
+        zone_obj = self.r_zone_obj(name)
+        if zone_obj is None:
+            zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
+            self._zone_objs.update({name: zone_obj})
         for member in util.convert_to_list(mem):
-            zoneObj.s_add_member(member)
+            zone_obj.s_add_member(member)
         for member in util.convert_to_list(pmem):
-            zoneObj.s_add_pmember(member)
-        return zoneObj
+            zone_obj.s_add_pmember(member)
+        return zone_obj
 
     def r_zones_for_alias(self, alias):
         """Returns all the zones an alias is used in
@@ -491,7 +468,7 @@ class FabricObj:
         :return: List of zone names that are either members or principal members
         :rtype: list
         """
-        return [obj.r_obj_key() for obj in self.r_zone_objects() if alias in obj.r_members() or alias in \
+        return [obj.r_obj_key() for obj in self.r_zone_objects() if alias in obj.r_members() or alias in
                 obj.r_pmembers()]
 
     def r_zones_for_wwn(self, wwn):
@@ -511,12 +488,16 @@ class FabricObj:
             l.extend(self.r_zones_for_alias(alias))
         return l
 
-    def s_add_eff_zone(self, name, type, mem=[], pmem=[]):
+    def s_add_eff_zone(self, name, zone_type, mem=None, pmem=None):
         """Adds a zone to the effective configuration if it doesn't already exist.
         Similarly, zone members will be added if they don't already exist
         **To Do** I think there is a bug in here. The effective zone should only change when the zone configuration is
         enabled in the fabric. This is moot for any application not using this database for real time updates.
 
+        :param name: Zone name
+        :type name: str
+        :param zone_type: Zone type
+        :type zone_type: int
         :param mem: Zone members (this should be WWN)
         :type mem: str, list, tuple, None
         :param pmem: Principal zone members (this should be WWN). Only relavant to peer zones
@@ -524,26 +505,28 @@ class FabricObj:
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        zoneObj = self.r_eff_zone_obj(name)
-        if zoneObj is None:
-            zoneObj = zone_class.ZoneObj(name, type)
-            zoneObj.s_project_obj(self.r_project_obj())
-            self._eff_zone_objs.update({name : zoneObj})
-            zoneObj.s_fabric_key(self.r_obj_key())
-        zoneObj.s_or_flags(brcddb_common.zone_flag_effective)
+        if mem is None:
+            mem = []
+        if pmem is None:
+            pmem = []
+        zone_obj = self.r_eff_zone_obj(name)
+        if zone_obj is None:
+            zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
+            self._eff_zone_objs.update({name: zone_obj})
+        zone_obj.s_or_flags(brcddb_common.zone_flag_effective)
         for member in util.convert_to_list(mem):
-            zoneObj.s_add_member(member)
+            zone_obj.s_add_member(member)
             if ',' in member:
-                zoneObj.s_or_flags(brcddb_common.zone_flag_di)
+                zone_obj.s_or_flags(brcddb_common.zone_flag_di)
             else:
-                zoneObj.s_or_flags(brcddb_common.zone_flag_wwn)
+                zone_obj.s_or_flags(brcddb_common.zone_flag_wwn)
         for member in util.convert_to_list(pmem):
-            zoneObj.s_add_pmember(member)
+            zone_obj.s_add_pmember(member)
             if ',' in member:
-                zoneObj.s_or_flags(brcddb_common.zone_flag_di)
+                zone_obj.s_or_flags(brcddb_common.zone_flag_di)
             else:
-                zoneObj.s_or_flags(brcddb_common.zone_flag_wwn)
-        return zoneObj
+                zone_obj.s_or_flags(brcddb_common.zone_flag_wwn)
+        return zone_obj
 
     def r_eff_zone_obj(self, name):
         """Returns the effective zone object for a given zone
@@ -561,8 +544,6 @@ class FabricObj:
     def r_eff_zone_objs(self):
         """Returns the effective zone object list. Typically used for internal purposes only
 
-        :param name: Zone name
-        :type name: str
         :return: Zone object
         :rtype: brcddb.classes.zone.ZoneObj
         """
@@ -583,7 +564,7 @@ class FabricObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._eff_zone_objs.values())
 
     def r_eff_zone_objects_for_wwn(self, wwn):
@@ -595,11 +576,11 @@ class FabricObj:
         :rtype: list
         """
         ret_list = []
-        for zoneObj in self.r_eff_zone_objects():
-            if wwn in zoneObj.r_members():
-                ret_list.append(zoneObj)
-            elif wwn in zoneObj.r_pmembers():
-                ret_list.append(zoneObj)
+        for zone_obj in self.r_eff_zone_objects():
+            if wwn in zone_obj.r_members():
+                ret_list.append(zone_obj)
+            elif wwn in zone_obj.r_pmembers():
+                ret_list.append(zone_obj)
         return ret_list
 
     def r_eff_zones_for_wwn(self, wwn):
@@ -651,7 +632,7 @@ class FabricObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._zone_objs.values())
 
     def r_zone_objs(self):
@@ -662,7 +643,7 @@ class FabricObj:
         """
         return self._zone_objs
 
-    def s_add_alias(self, name, mem=[]):
+    def s_add_alias(self, name, mem=None):
         """Adds an alias to the fabric if it doesn't already exist.
         Similarly, alias members will be added if they don't already exist
         Typically, and best practice, there is one WWN member per alias. Multiples are allowed. I've seen it done on
@@ -675,22 +656,22 @@ class FabricObj:
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        try:
-            aliasObj = self._alias_objs[name]
-        except:
-            aliasObj = zone_class.AliasObj(name)
-            aliasObj.s_project_obj(self.r_project_obj())
-            aliasObj.s_fabric_key(self._obj_key)
-            self._alias_objs.update({name : aliasObj})
+        if mem is None:
+            mem = []
+        if name in self._alias_objs:
+            alias_obj = self._alias_objs[name]
+        else:
+            alias_obj = zone_class.AliasObj(name, self.r_project_obj(), self.r_obj_key())
+            self._alias_objs.update({name: alias_obj})
         for wwn in util.convert_to_list(mem):
-            if wwn not in aliasObj.r_members():  # No one should try to add the same member twice, but just in case
-                aliasObj.s_add_member(wwn)
-        return aliasObj
+            if wwn not in alias_obj.r_members():  # No one should try to add the same member twice, but just in case
+                alias_obj.s_add_member(wwn)
+        return alias_obj
 
     def s_del_alias(self, members):
         """Delete an alias or list of aliases
 
-        :param name: Name or list of the alias to be deleted
+        :param members: Name or list of the aliases to be deleted
         :type members: None, str, list, tuple
         """
         for mem in util.convert_to_list(members):
@@ -727,7 +708,7 @@ class FabricObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._alias_objs.values())
 
     def r_alias_objs(self):
@@ -766,13 +747,11 @@ class FabricObj:
         :return: FDMI object
         :rtype: FdmiObj
         """
-        fdmiObj = self.r_fdmi_node_obj(wwn)
-        if fdmiObj is None:
-            fdmiObj = login_class.FdmiNodeObj(wwn)
-            self._fdmi_node_objs.update({wwn : fdmiObj})
-            fdmiObj.s_project_obj(self.r_project_obj())
-            fdmiObj.s_fabric_key(self.r_obj_key())
-        return fdmiObj
+        fdmi_obj = self.r_fdmi_node_obj(wwn)
+        if fdmi_obj is None:
+            fdmi_obj = login_class.FdmiNodeObj(wwn, self.r_project_obj(), self.r_obj_key())
+            self._fdmi_node_objs.update({wwn: fdmi_obj})
+        return fdmi_obj
 
     def s_del_fdmi_node(self, wwn):
         """Deletes and FDMI node
@@ -813,7 +792,7 @@ class FabricObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._fdmi_node_objs.values())
 
     def r_fdmi_node_objs(self):
@@ -832,13 +811,11 @@ class FabricObj:
         :return: FDMI object
         :rtype: FdmiObj
         """
-        fdmiObj = self.r_fdmi_port_obj(wwn)
-        if fdmiObj is None:
-            fdmiObj = login_class.FdmiPortObj(wwn)
-            self._fdmi_port_objs.update({wwn : fdmiObj})
-            fdmiObj.s_project_obj(self.r_project_obj())
-            fdmiObj.s_fabric_key(self.r_obj_key())
-        return fdmiObj
+        fdmi_obj = self.r_fdmi_port_obj(wwn)
+        if fdmi_obj is None:
+            fdmi_obj = login_class.FdmiPortObj(wwn, self.r_project_obj(), self.r_obj_key())
+            self._fdmi_port_objs.update({wwn: fdmi_obj})
+        return fdmi_obj
 
     def s_del_fdmi_port(self, wwn):
         """Deletes and FDMI port
@@ -873,7 +850,7 @@ class FabricObj:
 
     def r_fdmi_port_objects(self):
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._fdmi_port_objs.values())
 
     def r_fdmi_port_objs(self):
@@ -898,8 +875,8 @@ class FabricObj:
         :return: List of brcddb.classes.zone.SwitchObj
         :rtype: list
         """
-        projObj = self.r_project_obj()
-        return [projObj.r_switch_obj(k) for k in self.r_switch_keys()]
+        proj_obj = self.r_project_obj()
+        return [proj_obj.r_switch_obj(k) for k in self.r_switch_keys()]
 
     def r_switch_obj(self, key):
         """Returns the switch object for a given switch WWN
@@ -917,8 +894,8 @@ class FabricObj:
         :return: List of ports in s/p format
         :rtype: list
         """
-        projObj = self.r_project_obj()
-        return [v for k in self.r_switch_keys() for v in projObj.r_switch_obj(k).r_port_keys()]
+        proj_obj = self.r_project_obj()
+        return [v for k in self.r_switch_keys() for v in proj_obj.r_switch_obj(k).r_port_keys()]
 
     def r_port_objects(self):
         """Returns a list of port objects for all ports in this fabric
@@ -926,14 +903,14 @@ class FabricObj:
         :return: List of PortObj
         :rtype: list
         """
-        projObj = self.r_project_obj()
-        return [v for k in self.r_switch_keys() for v in projObj.r_switch_obj(k).r_port_objects()]
+        proj_obj = self.r_project_obj()
+        return [v for k in self.r_switch_keys() for v in proj_obj.r_switch_obj(k).r_port_objects()]
 
     def r_port_obj_for_wwn(self, wwn):
         """Returns the port object matching a port index
 
         :param wwn: WWN of attached device
-        :type pid: str
+        :type wwn: str
         :return: PortObj or None if not found
         :rtype: PortObj, None
         """
@@ -961,7 +938,7 @@ class FabricObj:
         """Returns the port object matching a d,i
 
         :param di: domain, index
-        :type pid: str
+        :type di: str
         :return: PortObj or None if not found
         :rtype: PortObj, None
         """
@@ -1057,13 +1034,15 @@ class FabricObj:
         """Returns the switch object where a wwn logged in.
         **Must call brcddb.util.util.login_to_port_map() before using this method**
 
+        :param wwn: Login WWN
+        :type wwn: str
         :return: SwitchObj where the login occured. None if not found
         :rtype: brcddb.classes.port.SwitchObj
         """
         return self._port_map[wwn].r_switch_obj() if wwn in self._port_map else None
 
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int

@@ -25,18 +25,18 @@ Version Control::
     | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
     | 2.x.x     |               |                                                                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcdapi.log as brcdapi_log
 
@@ -172,6 +172,7 @@ def _maps_group_rules(obj):
 def _maps_groups(obj):
     return obj._maps_groups
 
+
 _class_reserved_case = {
     '_alerts': _alerts,
     '_reserved_keys': _reserved_keys,
@@ -305,7 +306,7 @@ def special_key_higher(obj, k, v, v1):
 def special_key_ignore(obj, k, v, v1):
     """Case for keys who's values and value types may change.
 
-    To Do: Choose the prefered format.
+    To Do: Choose the preferred format.
     :param obj: brcddb object.
     :type obj: Any class defined herein
     :param k: Key to be added.
@@ -459,6 +460,7 @@ def s_new_key_for_class(obj, k, v, f=False):
         brcdapi_log.exception(buf, True)
         return False
 
+
 def convert_to_list(obj):
     """Converts an object to a list as follows:
 
@@ -490,7 +492,7 @@ def convert_to_list(obj):
             return []
         return [obj]
     if isinstance(obj, tuple):
-        return (list(obj))
+        return list(obj)
     return [obj]
 
 
@@ -500,15 +502,13 @@ def class_getvalue(obj, keys, flag=False):
     :param obj: Any brcddb.classes object
     :type obj: ChassisObj, FabricObj, LoginObj, FdmiNodeObj, FdmiPortObj, PortObj, ProjectObj, SwitchObj, ZoneCfgObj \
         ZoneObj, AliasObj
-    :param keys: Key who's value is saught. None is allowed to simplify processing lists of keys that may not be present
+    :param keys: Key who's value is sought. None is allowed to simplify processing lists of keys that may not be present
     :type keys: str, None
     :param flag: If True, combine the first two keys into a single key. Used for port keys.
     :type flag: bool
     :return: Value associated with key
     :rtype: any
     """
-    global _old_flags
-
     if keys is None or obj is None or len(keys) == 0:
         return None
     kl = keys.split('/')
@@ -521,6 +521,7 @@ def class_getvalue(obj, keys, flag=False):
             return None  # Someone called this with missing keys if we get here.
 
     if hasattr(obj, '_reserved_keys') and kl[0] in obj._reserved_keys:
+        # Typically get here when someone did an obj.r_get() on a reserved key
         new_obj = _class_reserved(obj, kl.pop(0), )
         if len(kl) > 0:
             s_type = get_simple_class_type(obj)
@@ -528,6 +529,7 @@ def class_getvalue(obj, keys, flag=False):
         else:
             return new_obj
     elif hasattr(obj, '__dict__'):
+        # This is where you go for anything added to a brcddb object
         v0 = obj
         while len(kl) > 0:
             k0 = kl.pop(0)
@@ -537,13 +539,7 @@ def class_getvalue(obj, keys, flag=False):
                 return None  # The key was not found if we get here
         return v0
     else:
-        try:
-            if len(kl) == 0:
-                return obj.get(key)
-            else:
-                return class_getvalue(obj.get(key), '/'.join(kl))
-        except:
-            return None
+        brcdapi_log.exception('Unknown object type: ' + str(type(obj)) + '. keys: ' + keys, True)
 
 
 def class_getkeys(obj):
@@ -553,7 +549,7 @@ def class_getkeys(obj):
     :rtype: list
     """
     a = list(obj.__dict__.keys())
-    for i,e in reversed(list(enumerate(a))):
+    for i, e in reversed(list(enumerate(a))):
         if e in obj.r_reserved_keys():
             a.pop(i)
     return a

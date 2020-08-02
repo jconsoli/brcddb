@@ -27,22 +27,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 cleanup and add project object to objects during object creation             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
 
-# Programmer's Tip: Apparently, .clear() doesn't work on dereferenced list and dict. Rather than write my own, I rely
-# on Python garbage collection to clean it up. If delete becomes common, I'll have to revist this but for now, I took
+# Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
+# on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
 # the easy way out. It may be a good thing that Python threw an exception because I didn't really think through what
 # objects that might be sharing a resource with other objects.
 
@@ -66,12 +68,12 @@ class ChassisObj:
     * _alerts (list): List of AlertObj objects associated with this object.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, project_obj):
         self._obj_key = name
         self._flags = 0
         self._switch_keys = []
         self._alerts = []
-        self._project_obj = None
+        self._project_obj = project_obj
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -81,7 +83,7 @@ class ChassisObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -114,9 +116,9 @@ class ChassisObj:
         :return: Alert object
         :rtype: alert_class.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -141,14 +143,6 @@ class ChassisObj:
         :rtype: list
         """
         return self.r_get_reserved('_reserved_keys')
-
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
 
     def r_project_obj(self):
         """Returns the project object associated with this object
@@ -256,10 +250,9 @@ class ChassisObj:
         return False
 
     def r_is_bladded(self):
-        """Tests the virtual fabrics enabled flag ('brocade-fru/blade/extension-enabled')
+        """Determines if the chassis is bladed or fixed port
 
-        :param slot: Slot number of board where the extension flag is to be tested
-        :return: True if extension is enabled. Otherwise False
+        :return: True if director class. Otherwise False
         :rtype: bool
         """
         v = self.r_get('brocade-chassis/chassis/max-blades-supported')
@@ -467,7 +460,7 @@ class ChassisObj:
         return util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int

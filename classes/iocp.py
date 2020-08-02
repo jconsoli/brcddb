@@ -22,13 +22,12 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch - 3.x to be consistent with older class objects                    |
+    | 3.0.0     | 02 Aug 2020   | Initial                                                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__copyright__ = 'Copyright 2020 Jack Consoli'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
@@ -38,10 +37,19 @@ __version__ = '3.0.0'
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
 
-# Programmer's Tip: Apparently, .clear() doesn't work on dereferenced list and dict. Rather than write my own, I rely
+# Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
 # on Python garbage collection to clean it up. If delete becomes common, I'll have to revist this but for now, I took
 # the easy way out. It may be a good thing that Python threw an exception because I didn't really think through what
 # objects that might be sharing a resource with other objects.
+
+
+def version():
+    """Returns the module version number
+    :return: Version
+    :rtype: str
+    """
+    return __version__
+
 
 class IOCPObj:
     """The ZoneCfgObj contains all information relevant to a zone configuration including:
@@ -69,13 +77,13 @@ class IOCPObj:
         'cu': list - LIst of control units defined for this path
     """
 
-    def __init__(self, name):
+    def __init__(self, name, project_obj):
         self._obj_key = name
         self._flags = 0
         self._members = {}
         self._pmembers = {}
         self._alerts = []
-        self._project_obj = None
+        self._project_obj = project_obj
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -85,14 +93,14 @@ class IOCPObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
             '_alerts': self.r_alert_objects(),
             '_project_obj': self.r_project_obj(),
-            '_members': self.r_members(),
-            '_pmembers': self.r_pmembers(),
+            '_members': self.r_cu_objects(),
+            '_pmembers': self.r_path_objects(),
         }
         try:
             if k == '_reserved_keys':
@@ -119,9 +127,9 @@ class IOCPObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -146,14 +154,6 @@ class IOCPObj:
         :rtype: list
         """
         return self.r_get_reserved('_reserved_keys')
-
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
 
     def r_project_obj(self):
         """Returns the project object associated with this object
@@ -272,7 +272,7 @@ class IOCPObj:
         :return: Path dictionary
         :rtype: dict
         """
-        return [self._pmembers]
+        return self._pmembers
 
     def r_link_addr(self, tag):
         """Returns a tuple of link addresses associated with the specified path
@@ -311,9 +311,8 @@ class IOCPObj:
         """
         return util.s_new_key_for_class(self, k, v, f)
 
-
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int

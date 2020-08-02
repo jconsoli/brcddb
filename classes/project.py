@@ -27,16 +27,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -46,9 +48,10 @@ import brcddb.classes.switch as switch_class
 import brcddb.classes.fabric as fabric_class
 import brcddb.classes.iocp as iocp_class
 
-# Programmer's Tip: Apparently, .clear() doesn't work on dereferenced list and dict. Rather than write my own, I rely
-# on Python garbage collection to clean it up. If delete becomes common, I'll have to revist this but for now, I took
+# Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
+# on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
 # the easy way out.
+
 
 class ProjectObj:
     """This is the primary object of the brcddb library. All other objects are either a member of this class or a member
@@ -93,7 +96,7 @@ class ProjectObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -130,9 +133,9 @@ class ProjectObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -210,7 +213,7 @@ class ProjectObj:
         :return: True if the project warn flag bit is set. Otherwise False
         :rtype: bool
         """
-        return bool (self._flags & brcddb_common.project_warn)
+        return bool(self._flags & brcddb_common.project_warn)
 
     def r_is_api_warn(self):
         """Tests the flags against the project API warn flag bit (brcddb_common.project_api_warn)
@@ -218,7 +221,7 @@ class ProjectObj:
         :return: True if the project API warn flag bit is set. Otherwise False
         :rtype: bool
         """
-        return bool (self._flags & brcddb_common.project_api_warn)
+        return bool(self._flags & brcddb_common.project_api_warn)
 
     def r_is_user_warn(self):
         """Tests the flags against the project user warn flag bit (brcddb_common.project_user_warn)
@@ -226,7 +229,7 @@ class ProjectObj:
         :return: True if the project user warn flag bit is set. Otherwise False
         :rtype: bool
         """
-        return bool (self._flags & brcddb_common.project_user_warn)
+        return bool(self._flags & brcddb_common.project_user_warn)
 
     def r_is_any_warn(self):
         """Tests the flags against the project all the warn flag bits
@@ -234,7 +237,7 @@ class ProjectObj:
         :return: True if any project warn bit is set. Otherwise False
         :rtype: bool
         """
-        return bool (self.r_is_warn() | self.r_is_api_warn() | self.r_is_user_warn())
+        return bool(self.r_is_warn() | self.r_is_api_warn() | self.r_is_user_warn())
 
     def r_is_error(self):
         """Tests the flags against the project error flag bit (brcddb_common.project_error)
@@ -265,7 +268,7 @@ class ProjectObj:
         :return: True if any project warn bit is set. Otherwise False
         :rtype: bool
         """
-        return bool (self.r_is_error() | self.r_is_api_error() | self.r_is_user_error())
+        return bool(self.r_is_error() | self.r_is_api_error() | self.r_is_user_error())
 
     def s_warn_flag(self):
         """Sets the project warn bit flag (brcddb_common.project_warn)"""
@@ -340,7 +343,7 @@ class ProjectObj:
         """Sets the description for the project
 
         :param desc: Description
-        :type version: str
+        :type desc: str
         """
         self._description = desc
 
@@ -368,23 +371,22 @@ class ProjectObj:
         :return: Fabric object
         :rtype: FabricObj
         """
-        fabObj = self.r_fabric_obj(principal_wwn)
-        if fabObj is None:
-            fabObj = fabric_class.FabricObj(principal_wwn)
-            self._fabric_objs.update({principal_wwn : fabObj})
-            fabObj.s_project_obj(self)
+        fab_obj = self.r_fabric_obj(principal_wwn)
+        if fab_obj is None:
+            fab_obj = fabric_class.FabricObj(principal_wwn, self)
+            self._fabric_objs.update({principal_wwn: fab_obj})
         self.s_add_switch(principal_wwn).s_fabric_key(principal_wwn)
-        return fabObj
+        return fab_obj
 
     def s_del_fabric(self, principal_wwn):
-        """Delete a faric from the project
+        """Delete a fabric from the project
 
-        :param principal_wwn: Frabric key (principal WWN) to be deleted
+        :param principal_wwn: Fabric key (principal WWN) to be deleted
         :type principal_wwn: str
         """
         self._fabric_objs.pop(principal_wwn, None)
 
-    def r_fabric_obj(self, key): # key is the fabric principal WWNs
+    def r_fabric_obj(self, key):  # key is the fabric principal WWNs
         """Returns the fabric object for a certain fabric
 
         :param key: Principal WWN of the fabric
@@ -412,7 +414,7 @@ class ProjectObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._fabric_objs.values())
 
     def r_fabric_objs(self):
@@ -441,8 +443,8 @@ class ProjectObj:
         :rtype: list
         """
         v = []
-        for fabObj in self.r_fabric_objects():
-            v.extend(fabObj.r_login_keys())
+        for fab_obj in self.r_fabric_objects():
+            v.extend(fab_obj.r_login_keys())
         return v
 
     def r_login_objects(self):
@@ -452,8 +454,8 @@ class ProjectObj:
         :rtype: list
         """
         v = []
-        for fabObj in self.r_fabric_objects():
-            v.extend(fabObj.r_login_objects())
+        for fab_obj in self.r_fabric_objects():
+            v.extend(fab_obj.r_login_objects())
         return v
 
     def r_fdmi_node_keys(self):
@@ -463,8 +465,8 @@ class ProjectObj:
         :rtype: list
         """
         v = []
-        for fabObj in self.r_fabric_objects():
-            v.extend(fabObj.r_fdmi_node_keys())
+        for fab_obj in self.r_fabric_objects():
+            v.extend(fab_obj.r_fdmi_node_keys())
         return v
 
     def r_fdmi_node_objects(self):
@@ -474,8 +476,8 @@ class ProjectObj:
         :rtype: list
         """
         v = []
-        for fabObj in self.r_fabric_objects():
-            v.extend(fabObj.r_fdmi_node_objects())
+        for fab_obj in self.r_fabric_objects():
+            v.extend(fab_obj.r_fdmi_node_objects())
         return v
 
     def r_fdmi_port_keys(self):
@@ -485,8 +487,8 @@ class ProjectObj:
         :rtype: list
         """
         v = []
-        for fabObj in self.r_fabric_objects():
-            v.extend(fabObj.r_fdmi_port_keys())
+        for fab_obj in self.r_fabric_objects():
+            v.extend(fab_obj.r_fdmi_port_keys())
         return v
 
     def r_fdmi_port_objects(self):
@@ -496,8 +498,8 @@ class ProjectObj:
         :rtype: list
         """
         v = []
-        for fabObj in self.r_fabric_objects():
-            v.extend(fabObj.r_fdmi_port_objects())
+        for fab_obj in self.r_fabric_objects():
+            v.extend(fab_obj.r_fdmi_port_objects())
         return v
 
     def s_add_switch(self, wwn):
@@ -508,14 +510,13 @@ class ProjectObj:
         :return: Switch object
         :rtype: SwitchObj
         """
-        switchObj = self.r_switch_obj(wwn)
-        if switchObj is None:
-            switchObj = switch_class.SwitchObj(wwn)
-            self._switch_objs.update({wwn : switchObj})
-            switchObj.s_project_obj(self)
-        return switchObj
+        switch_obj = self.r_switch_obj(wwn)
+        if switch_obj is None:
+            switch_obj = switch_class.SwitchObj(wwn, self)
+            self._switch_objs.update({wwn: switch_obj})
+        return switch_obj
 
-    def r_switch_obj(self, key):	# key is the switch WWN
+    def r_switch_obj(self, key):  # key is the switch WWN
         """Returns the switch object for a given switch WWN
         
         :param key: Switch WWN
@@ -543,7 +544,7 @@ class ProjectObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._switch_objs.values())
 
     def r_switch_objs(self):
@@ -562,14 +563,13 @@ class ProjectObj:
         :return: Chassis object
         :rtype: ChassisObj
         """
-        chassisObj = self.r_chassis_obj(wwn)
-        if chassisObj is None:
-            chassisObj = chassis_class.ChassisObj(wwn)
-            self._chassis_objs.update({wwn : chassisObj})
-            chassisObj.s_project_obj(self)
-        return chassisObj
+        chassis_obj = self.r_chassis_obj(wwn)
+        if chassis_obj is None:
+            chassis_obj = chassis_class.ChassisObj(wwn, self)
+            self._chassis_objs.update({wwn : chassis_obj})
+        return chassis_obj
 
-    def r_chassis_obj(self, key):	# key is the chassis WWN
+    def r_chassis_obj(self, key):  # key is the chassis WWN
         """Returns the chassis object for a given chassis key
         
         :param key: Chassis WWN
@@ -597,7 +597,7 @@ class ProjectObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._chassis_objs.values())
 
     def r_chassis_objs(self):
@@ -614,7 +614,7 @@ class ProjectObj:
         :return: List of ports in s/p format
         :rtype: list
         """
-        return [v for switchObj in self.r_switch_objects() for v in switchObj.r_port_keys()]
+        return [v for switch_obj in self.r_switch_objects() for v in switch_obj.r_port_keys()]
 
     def r_port_objects(self):
         """Returns a list of port objects for all ports in this project
@@ -622,10 +622,7 @@ class ProjectObj:
         :return: List of PortObj
         :rtype: list
         """
-        return [v for switchObj in self.r_switch_objects() for v in switchObj.r_port_objects()]
-
-    def r_project_obj(self):
-        return self
+        return [v for switch_obj in self.r_switch_objects() for v in switch_obj.r_port_objects()]
 
     def r_project_key(self):
         return self.r_obj_key()
@@ -644,9 +641,8 @@ class ProjectObj:
         """
         return util.s_new_key_for_class(self, k, v, f)
 
-
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int
@@ -663,10 +659,6 @@ class ProjectObj:
         """
         return util.class_getkeys(self)
 
-
-
-
-
     def s_add_iocp(self, cec_sn):
         """Add an IOCP to the project if the IOCP doesn't already exist
 
@@ -677,9 +669,8 @@ class ProjectObj:
         """
         iocp_obj = self.r_iocp_obj(cec_sn)
         if iocp_obj is None:
-            iocp_obj = iocp_class.IOCPObj(cec_sn)
+            iocp_obj = iocp_class.IOCPObj(cec_sn, self)
             self._iocp_objs.update({cec_sn: iocp_obj})
-            iocp_obj.s_project_obj(self)
         return iocp_obj
 
     def r_iocp_obj(self, key):

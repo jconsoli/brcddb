@@ -27,16 +27,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
@@ -56,12 +58,12 @@ class LoginObj:
         _alerts (list): List of AlertObj objects associated with this object.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, project_obj, fabric_key):
         self._obj_key = name
         self._flags = 0
         self._alerts = []
-        self._fabric_key = None
-        self._project_obj = None
+        self._fabric_key = fabric_key
+        self._project_obj = project_obj
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -71,7 +73,7 @@ class LoginObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -104,9 +106,9 @@ class LoginObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -132,14 +134,6 @@ class LoginObj:
         """
         return self.r_get_reserved('_reserved_keys')
 
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
-
     def r_project_obj(self):
         """Returns the project object associated with this object
 
@@ -147,14 +141,6 @@ class LoginObj:
         :rtype: ProjectObj
         """
         return self._project_obj
-
-    def s_fabric_key(self, wwn):
-        """Set the fabric key to the WWN of the fabric
-
-        :param wwn: WWN of fabric switch
-        :type wwn: str
-        """
-        self._fabric_key = wwn
 
     def r_fabric_key(self):
         """Returns the fabric WWN associated with this login
@@ -172,18 +158,6 @@ class LoginObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key())
-        except:
-            return None
-
-    def r_switch_obj(self):
-        """Returns the switch object associated with this login
-
-        **Must call brcddb.util.util.login_to_port_map() before using this method**
-        :return: Switch object. None if the switch is offline or the fabric may not have been polled
-        :rtype: SwitchObj, None
-        """
-        try:
-            return self.r_fabric_obj().r_switch_obj(self.r_obj_key())
         except:
             return None
 
@@ -207,9 +181,7 @@ class LoginObj:
         :rtype: SwitchObj, None
         """
         port_obj = self.r_port_obj()
-        if port_obj is None:
-            return None
-        return None if port_obj.r_switch_obj() is None else port_obj.r_switch_obj()
+        return None if port_obj is None else port_obj.r_switch_obj()
 
     def r_chassis_obj(self):
         """Returns the chassis object associated with this login
@@ -268,9 +240,9 @@ class LoginObj:
         return self._flags
 
     def r_is_share_area(self):
-        """Tests the flags against the sharred area flag bit ('brocade-name-server/share-area')
+        """Tests the flags against the shared area flag bit ('brocade-name-server/share-area')
 
-        :return: True sharred == 'yes'. Otherwise False
+        :return: True shared == 'yes'. Otherwise False
         :rtype: bool
         """
         v = self.r_get('brocade-name-server/share-area')
@@ -348,12 +320,6 @@ class LoginObj:
         v = self.r_get('brocade-name-server/slow-drain-device-quarantine')
         return False if v is None else True if v == 'yes' else False
 
-    def r_login_obj(self):
-        return self
-
-    def r_login_key(self):
-        return self.r_obj_key()
-
     def s_new_key(self, k, v, f=False):
         """Creates a new key/value pair.
 
@@ -369,7 +335,7 @@ class LoginObj:
         return util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int
@@ -386,6 +352,7 @@ class LoginObj:
         """
         return util.class_getkeys(self)
 
+
 class FdmiNodeObj:
     """The FdmiNodeObj contains all information relevant to the node FDMI including:
         * 'brocade-fdmi/hba'
@@ -401,12 +368,12 @@ class FdmiNodeObj:
         _alerts (list): List of AlertObj objects associated with this object.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, project_obj, fabric_key):
         self._obj_key = name
         self._flags = 0
         self._alerts = []
-        self._fabric_key = None
-        self._project_obj = None
+        self._fabric_key = fabric_key
+        self._project_obj = project_obj
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -416,7 +383,7 @@ class FdmiNodeObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -449,9 +416,9 @@ class FdmiNodeObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -469,14 +436,6 @@ class FdmiNodeObj:
         """
         return self.r_get_reserved('_reserved_keys')
 
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
-
     def r_project_obj(self):
         """Returns the project object associated with this object
 
@@ -493,14 +452,6 @@ class FdmiNodeObj:
         """
         v = self.r_get('brocade-fdmi/hba/boot-bios-enabled')
         return False if v is None else bool(v)
-
-    def s_fabric_key(self, wwn):
-        """Set the fabric key to the WWN of the fabric
-
-        :param wwn: WWN of fabric switch
-        :type wwn: str
-        """
-        self._fabric_key = wwn
 
     def r_fabric_key(self):
         """Returns the fabric WWN associated with this login
@@ -598,7 +549,7 @@ class FdmiNodeObj:
         return util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int
@@ -631,12 +582,12 @@ class FdmiPortObj:
         _alerts (list): List of AlertObj objects associated with this object.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, project_obj, fabric_key):
         self._obj_key = name
         self._flags = 0
         self._alerts = []
-        self._fabric_key = None
-        self._project_obj = None
+        self._fabric_key = fabric_key
+        self._project_obj = project_obj
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -646,7 +597,7 @@ class FdmiPortObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -679,9 +630,9 @@ class FdmiPortObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -699,14 +650,6 @@ class FdmiPortObj:
         """
         return self.r_get_reserved('_reserved_keys')
 
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
-
     def r_project_obj(self):
         """Returns the project object associated with this object
 
@@ -714,14 +657,6 @@ class FdmiPortObj:
         :rtype: ProjectObj
         """
         return self._project_obj
-
-    def s_fabric_key(self, wwn):
-        """Set the fabric key to the WWN of the fabric
-
-        :param wwn: WWN of fabric switch
-        :type wwn: str
-        """
-        self._fabric_key = wwn
 
     def r_fabric_key(self):
         """Returns the fabric WWN associated with this login
@@ -818,9 +753,8 @@ class FdmiPortObj:
         """
         return util.s_new_key_for_class(self, k, v, f)
 
-
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int

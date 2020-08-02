@@ -27,26 +27,29 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 02 Aug 2020   | PEP8 cleanup and add project object to port object during object creation         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '02 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
 import brcddb.classes.port as port_class
 
-# Programmer's Tip: Apparently, .clear() doesn't work on dereferenced list and dict. Rather than write my own, I rely
-# on Python garbage collection to clean it up. If delete becomes common, I'll have to revist this but for now, I took
+# Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
+# on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
 # the easy way out. It may be a good thing that Python threw an exception because I didn't really think through what
 # objects that might be sharing a resource with other objects.
+
 
 class SwitchObj:
     """The SwitchObj contains all information relevant to a switch including:
@@ -63,14 +66,14 @@ class SwitchObj:
         * _port_objs (dict): Dictionary of ports in this switch. Key: s/p, Value: PortObj
         * _ge_port_objs (dict): Dictionary of GE ports in this switch. Key: s/p, Value: PortObj
         * _fabric_key (str): WWN of the fabric this port belongs to.
-        * _chassis_key (str): WWN of the chassi this port belongs to.
+        * _chassis_key (str): WWN of the chassis this port belongs to.
         * _alerts (list): List of AlertObj objects associated with this object.
         * _maps_rules (dict): Key is active rule name. Value is dict from brocade-maps/rule
         * _maps_group_rules (dict): Key is active group name. Value is list of active rules associated with the group
         * _maps_groups (dict): Key is group name. Value is dict from brocade-maps/group
     """
 
-    def __init__(self,name):
+    def __init__(self, name, project_obj):
         self._obj_key = name
         self._flags = 0
         self._chassis_key = ''
@@ -78,7 +81,7 @@ class SwitchObj:
         self._port_objs = {}
         self._ge_port_objs = {}
         self._alerts = []
-        self._project_obj = None
+        self._project_obj = project_obj
         self._maps_rules = {}
         self._maps_group_rules = {}
         self._maps_groups = {}
@@ -91,7 +94,7 @@ class SwitchObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget youu may also need to update brcddb.util.copy
+        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -130,9 +133,9 @@ class SwitchObj:
         :return: Alert object
         :rtype: brcddb.classes.alert.AlertObj
         """
-        alertObj = alert_class.AlertObj(tbl, num, key, p0, p1)
-        self._alerts.append(alertObj)
-        return alertObj
+        alert_obj = alert_class.AlertObj(tbl, num, key, p0, p1)
+        self._alerts.append(alert_obj)
+        return alert_obj
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
@@ -157,14 +160,6 @@ class SwitchObj:
         :rtype: list
         """
         return self.r_get_reserved('_reserved_keys')
-
-    def s_project_obj(self, obj):
-        """Set the project object this object belongs to
-
-        :param obj: Project object
-        :type obj: brcddb.classes.project.ProjectObj
-        """
-        self._project_obj = obj
 
     def r_project_obj(self):
         """Returns the project object associated with this object
@@ -216,17 +211,13 @@ class SwitchObj:
         """Set the switch polled flag, 'fabric/fabric-switch' requested"""
         self.s_or_flags(brcddb_common.switch_flag_polled)
 
-    def s_fab_polled(self):
-        """Set the switch polled flag, 'fabric/fabric-switch' requested"""
-        self.s_or_flags(brcddb_common.switch_flag_fab_polled)
-
     def s_chassis_key(self, k):
         self._chassis_key = k
 
     def r_chassis_key(self):
         """Returns the chassis key this switch belongs to
 
-        :return: Login spped
+        :return: Login speed
         :rtype: str
         """
         return self._chassis_key
@@ -234,8 +225,8 @@ class SwitchObj:
     def r_chassis_obj(self):
         """Returns the chassis object this switch belongs to
 
-        :return: Login spped
-        :rtype: str
+        :return: Chassis object
+        :rtype: brcddb.classes.chassis.ChassisObj
         """
         return self.r_project_obj().r_chassis_obj(self.r_chassis_key())
 
@@ -326,9 +317,9 @@ class SwitchObj:
         :return: Fabric object. None if the switch is offline or the fabric may not have been polled
         :rtype: FabricObj, None
         """
-        projObj = self.r_project_obj()
+        proj_obj = self.r_project_obj()
         # The switch is not in a fabric if the switch is offline of fabric information wasn't polled
-        return None if self._fabric_key is None else projObj.r_fabric_obj(self._fabric_key)
+        return None if self._fabric_key is None else proj_obj.r_fabric_obj(self._fabric_key)
 
     def s_add_port(self, port):
         """Add a port to the switch
@@ -338,13 +329,11 @@ class SwitchObj:
         :return: Port object
         :rtype: PortObj
         """
-        portObj = self.r_port_obj(port)
-        if portObj is None:
-            portObj = port_class.PortObj(port)
-            self._port_objs.update({port : portObj})
-            portObj._switch = self._obj_key
-            portObj.s_project_obj(self.r_project_obj())
-        return portObj
+        port_obj = self.r_port_obj(port)
+        if port_obj is None:
+            port_obj = port_class.PortObj(port, self.r_project_obj(), self._obj_key)
+            self._port_objs.update({port: port_obj})
+        return port_obj
 
     def r_port_keys(self):
         """Returns a list of all ports in this switch
@@ -361,7 +350,7 @@ class SwitchObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._port_objs.values())
 
     def r_port_objs(self):
@@ -388,13 +377,11 @@ class SwitchObj:
         :return: Port object
         :rtype: PortObj
         """
-        portObj = self.r_ge_port_obj(port)
-        if portObj is None:
-            portObj = port_class.PortObj(port)
-            self._ge_port_objs.update({port : portObj})
-            portObj._switch = self._obj_key
-            portObj.s_project_obj(self.r_project_obj())
-        return portObj
+        port_obj = self.r_ge_port_obj(port)
+        if port_obj is None:
+            port_obj = port_class.PortObj(port, self.r_project_obj(), self._obj_key)
+            self._ge_port_objs.update({port: port_obj})
+        return port_obj
 
     def r_ge_port_keys(self):
         """Returns a list of all GE ports in this switch
@@ -411,7 +398,7 @@ class SwitchObj:
         :rtype: list
         """
         # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
-        # https://bugs.python.org/issue32467 For those not at 3.7 yet so allways process dict_values as a list
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
         return list(self._ge_port_objs.values())
 
     def r_ge_port_objs(self):
@@ -508,7 +495,7 @@ class SwitchObj:
         """
         if isinstance(i, int):
             for port_obj in self.r_port_objects():
-                if  port_obj.r_get('fibrechannel/default-index') == i:
+                if port_obj.r_get('fibrechannel/default-index') == i:
                     return port_obj
         return None
 
@@ -522,7 +509,7 @@ class SwitchObj:
         """
         if isinstance(pid, str):
             for port_obj in self.r_port_objects():
-                if  port_obj.r_get('fibrechannel/fcid-hex') == pid:
+                if port_obj.r_get('fibrechannel/fcid-hex') == pid:
                     return port_obj
         return None
 
@@ -535,8 +522,6 @@ class SwitchObj:
         """
         proj_obj = self.r_project_obj()
         ret = {}
-        gdm = {}  # Master: key is group number. Value is [source PortObj, dest SwitchObj, dest PortObj] of trunk master
-        gds = {}  # key is group numner. Value is list of [source PortObj, dest PortObj] of trunk members
         for td in util.convert_to_list(self.r_get('brocade-fibrechannel-trunk/trunk')):
             ds_wwn = td.get('neighbor-wwn')
             if ds_wwn not in ret:
@@ -547,7 +532,7 @@ class SwitchObj:
                 g.update({group: []})
             l = g.get(group)
             li = [self.r_port_object_for_index(td.get('source-port')),
-                   proj_obj.r_switch_obj(ds_wwn).r_port_object_for_index(td.get('destination-port'))]
+                  proj_obj.r_switch_obj(ds_wwn).r_port_object_for_index(td.get('destination-port'))]
             if len(l) == 0 or not td.get('master'):
                 l.append(li)
             else:
@@ -568,8 +553,6 @@ class SwitchObj:
     def s_add_group(self, group):
         """Adds a group to _maps_group_rules
 
-        :param name: Group name
-        :type name: str
         :param group: Dictionary of group attributes as returned from brocade-maps/group
         :type group: dict
         """
@@ -588,8 +571,6 @@ class SwitchObj:
     def s_add_rule(self, rule):
         """Adds a rule _maps_rules and adds the rule to _maps_group_rules
 
-        :param name: Rule name
-        :type name: str
         :param rule: Dictionary of rule attributes as returned from brocade-maps/rule
         :type rule: dict
         """
@@ -612,11 +593,7 @@ class SwitchObj:
         return self._maps_rules.get(name)
 
     def r_maps_group_rules(self):
-        """Adds a group to _maps_group_rules
-
-        :param group: Dictionary of group attributes as returned from brocade-maps/group
-        :type group: dict
-        """
+        """Adds a group to _maps_group_rules"""
         return self._maps_group_rules
 
     def r_rule_objects_for_group(self, name):
@@ -651,7 +628,7 @@ class SwitchObj:
         """Returns the list of group names in the active MAPS policy
 
         :return: List of group names
-        :type rule: dict
+        :rtype: list
         """
         return list(self.r_maps_group_rules().keys())
 
@@ -659,7 +636,7 @@ class SwitchObj:
         """Returns the list of group objects in the active MAPS policy
 
         :return: List of group objects
-        :type rule: dict
+        :rtype: list
         """
         return [self.r_group(name) for name in self.r_active_groups()]
 
@@ -667,7 +644,7 @@ class SwitchObj:
         """Returns the switch model as an integer
 
         :return: Switch model as an integer
-        :type rule: int
+        :rtype: int
         """
         try:
             return int(float(self.r_get('brocade-fibrechannel-switch/fibrechannel-switch/model')))
@@ -689,7 +666,7 @@ class SwitchObj:
         return util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
-        """Returns the value for a given key. Keys for nested objects must be seperated with '/'.
+        """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int
