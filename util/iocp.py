@@ -40,21 +40,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 22 Aug 2020   | Fixed missing link addresses and added UNIT.                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '22 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import collections
 import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
+import brcddb.util.file as brcddb_file
 
 # Converts IBM device type to user friendly name, 'd', and the generic type, 't'
 # Note: These are the types as ordered from IBM. CECs log in to the fabric with the types in this table but devices log
@@ -455,9 +458,14 @@ def _parse_cntlunit(cntlunit):
                     # would be len 0. In days gone by, that was typically done as a place holder while someone was
                     # builing an IOCP. Basically WIP just as I've done below.
                     path.update({k: v[0]})
+            cl = working_buf.split(',')
             unitadd = []  # WIP
             cuadd = []  # WIP
-            unit = ''  # WIP
+            unit = ''
+            for i in range(0, len(cl)):
+                if 'UNIT=' in cl[i] and len(cl) > i:
+                    unit = cl[i].split('=')[1]
+                    break
             r.update({cntl_unit: {'path': path, 'unitadd': unitadd, 'cuadd': cuadd, 'unit': unit}})
 
     return r
@@ -472,9 +480,7 @@ def parse_iocp(proj_obj, iocp):
     :type iocp: str
     """
     # Read in the IOCP definition file and get an IOCP object
-    f = open(iocp, 'r')
-    iocp_list = f.read().replace('\r', '').split('\n')
-    f.close()
+    iocp_list = brcddb_file.read_file(iocp, False, False)
     iocp_obj = proj_obj.s_add_iocp(iocp.split('/').pop().split('_')[0])
 
     # Parse the CHPID and CNTLUNIT macros
@@ -490,7 +496,7 @@ def parse_iocp(proj_obj, iocp):
     for chpid in chpids:
         chpid_path = dict()
         tag, chpid_path['partition'], chpid_path['pchid'], chpid_path['switch'] = _parse_chpid(chpid)
-        link_addr = []
+        link_addr = list()
         cu = []
         for k, v in control_units.items():  # k is the control unit number, v is a dict of the parsed CONTLUNIT macro
             path = v.get('path')
@@ -500,4 +506,5 @@ def parse_iocp(proj_obj, iocp):
                         # Think of a control unit as a LUN. You can have multiple CUs behind the same address
                         link_addr.append(path[tag])
                     cu.append(k)
+        chpid_path['link'] = link_addr
         iocp_obj.s_add_path(tag, chpid_path)
