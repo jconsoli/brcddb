@@ -30,16 +30,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | Fixed overlapping zone and chassis alerts & added ZONE_UNDEFINED_ALIAS            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 22 Aug 2020   | Added ZONE_WWN_ALIAS. Set sev level of ZONE_ALIAS_USE to WARN.                    |
+    |           |               | Cleaned up language in LOGIN_NOT_ZONED alert.                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '22 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.classes.alert as al
 
@@ -161,7 +164,8 @@ class ALERT_NUM:
     ZONE_NOT_USED = ZONE_NOT_FOUND + 1
     ZONE_MISMATCH = ZONE_NOT_USED + 1
     ZONE_MIXED = ZONE_MISMATCH + 1
-    ZONE_BASE_ZONED = ZONE_MIXED + 1
+    ZONE_WWN_ALIAS = ZONE_MIXED + 1
+    ZONE_BASE_ZONED = ZONE_WWN_ALIAS + 1
     ZONE_MAX_PARTICIPATION = ZONE_BASE_ZONED + 1
     ZONE_DUP_ALIAS = ZONE_MAX_PARTICIPATION + 1
     ZONE_NULL_ALIAS = ZONE_DUP_ALIAS + 1
@@ -285,7 +289,7 @@ class AlertTable:
 
         # Login
         ALERT_NUM.LOGIN_DUP_LOGIN: dict(m='Duplicate WWN. Also found in fabric $p0', s=al.ALERT_SEV.ERROR),
-        ALERT_NUM.LOGIN_NOT_ZONED: dict(m='Inaccessible. Not in any effective zone.', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.LOGIN_NOT_ZONED: dict(m='Inaccessible. Not in any zone.', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_BASE_ZONED: dict(m='Base NPIV login address in zone', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION: dict(m='Max zone participation allowed is $p0', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SIM: dict(m='SIM port', s=al.ALERT_SEV.GENERAL),
@@ -307,12 +311,13 @@ class AlertTable:
         ALERT_NUM.ZONE_PEER_NO_PMEM: dict(m='Peer zone with no principle members', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.ZONE_PEER_NO_NMEM: dict(m='Peer zone with no members', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.ZONE_MIXED: dict(m='Mixed WWN and d,i zone', s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.ZONE_WWN_ALIAS: dict(m='Mixed use of WWN and alias in zone', s=al.ALERT_SEV.WARN),
         ALERT_NUM.ZONE_NOT_USED: dict(m='Not used', s=al.ALERT_SEV.WARN),
         ALERT_NUM.ZONE_MISMATCH: dict(m='Effective zone does not match defined zone', s=al.ALERT_SEV.WARN),
 
         # Zone members. In all cases, _p0 must be the WWN because that is how the report associates an alert with a
         # member rather than the zone itself. 'f' = True is used to indicate the alert is relevant to the member.
-        ALERT_NUM.ZONE_ALIAS_USE: dict(m='Consider using alias $p1', s=al.ALERT_SEV.GENERAL, f=True),
+        ALERT_NUM.ZONE_ALIAS_USE: dict(m='Consider using alias $p1', s=al.ALERT_SEV.WARN, f=True),
         ALERT_NUM.ZONE_PROB_AMP: dict(m='SIM Port or AMP trunk link', s=al.ALERT_SEV.GENERAL,
                                       f=True),
         ALERT_NUM.ZONE_DIFF_FABRIC: dict(m='Member found in fabric $p1', s=al.ALERT_SEV.ERROR, f=True),
