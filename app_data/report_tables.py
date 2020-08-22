@@ -62,16 +62,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 22 Aug 2020   | Fixed typo in Path Count                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '22 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 
 class Chassis:
@@ -144,6 +146,7 @@ class Switch:
         # Status Flags
         'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/base-switch-enabled': 'Base Switch',
         'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/default-switch-status': 'Default Switch',
+        'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ficon-mode-enabled': 'FICON Switch',
         # Configuration
         'brocade-fibrechannel-switch/fibrechannel-switch/banner': 'Banner',
         'brocade-fabric/fabric-switch/chassis-user-friendly-name': 'Chassis',
@@ -160,7 +163,7 @@ class Switch:
         'brocade-fibrechannel-switch/fibrechannel-switch/subnet-mask': 'Management Subnet Mask',
         'brocade-fibrechannel-switch/fibrechannel-switch/ip-static-gateway-list/ip-static-gateway': 'IP Static Gateway',
         'brocade-fabric/fabric-switch/ipv6-address': 'Management IPv6 Address',
-        'brocade-fabric/fabric-switch//path-count': '/Path Count',
+        'brocade-fabric/fabric-switch/path-count': 'Path Count',
         'brocade-fibrechannel-switch/fibrechannel-switch/model': 'Switch Model',
         # 'brocade-fibrechannel-switch/fibrechannel-switch/name': 'Switch WWN',
         'brocade-fibrechannel-switch/fibrechannel-switch/operational-status': 'Status',
