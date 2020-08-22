@@ -24,15 +24,17 @@ Version Control::
     +===========+===============+===================================================================================+
     | 3.0.0     | 02 Aug 2020   | Initial                                                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 22 Aug 2020   | Fixed r_cu_objects(), was returning a list of dict instead of dict.               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '22 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
@@ -217,7 +219,7 @@ class IOCPObj:
         :param cu: Control unit number
         :type cu: str
         :return: The dictionary associtated with the specified control unit numbers
-        :rtype: dict
+        :rtype: dict, None
         """
         return self._members.get(cu)
 
@@ -230,12 +232,12 @@ class IOCPObj:
         return [str(cu) for cu in self._members.keys()]
 
     def r_cu_objects(self):
-        """Returns dictionary of control unit
+        """Returns dictionary of control unit objects
 
         :return: Control unit dictionary
         :rtype: dict
         """
-        return [self._members]
+        return self._members
 
     def s_add_path(self, tag, path):
         """Add a control unit definition
