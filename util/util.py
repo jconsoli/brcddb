@@ -28,16 +28,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 22 Aug 2020   | Made sort_ports() more effecient                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '22 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import re
 import brcdapi.log as brcdapi_log
@@ -174,14 +176,12 @@ def sort_ports(obj_list):
     :rtype: list
     """
     return_list = []
-    w = {}              # Working dictionary of switch, slots, then ports
+    w = {}  # Working dictionary of switch, slots, then ports
 
     # Split everything out into seperate buckets for switch, slot and port.
     for port_obj in obj_list:
         switch_obj = port_obj.r_switch_obj()
         switch = switch_obj.r_obj_key()
-        if switch_obj.r_get('switch-user-friendly-name') is not None:
-            switch = switch_obj.r_get('switch-user-friendly-name') + switch
         if switch not in w:
             w.update({switch: {}})
         t = port_obj.r_obj_key().split('/')
