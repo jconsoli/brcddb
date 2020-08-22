@@ -28,16 +28,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 22 Aug 2020   | Stripped non-ascii characters and added blank line option in read_file()          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '22 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcdapi.log as brcdapi_log
 import json
@@ -54,6 +56,12 @@ def write_dump(obj, file):
     :type file: str
     :rtype: None
     """
+    # Debug
+    with open(file, 'w') as f:
+        f.write(json.dumps(obj, sort_keys=True))
+    f.close()
+    return
+
     brcdapi_log.log('CALL: brcddb_util.write_dump. File: ' + file)
     try:
         with open(file, 'w') as f:
@@ -98,19 +106,25 @@ def read_director(folder):
         return []
 
 
-def read_file(file):
+def read_file(file, remove_blank=True, rc=True):
     """Reads a file, comments and blank lines removed, and trailing white space removed into a list
 
     :param file: Name of file to read
     :type file: str
+    :param remove_blank: If True, blank lines are removed
+    :type remove_blank: bool
+    :param remove_comments: If True, remove anything begining with # to the end of line
+    :type rc: bool
     :return: List of file file contents.
     :rtype: list
     """
-    f = open(file, 'r')
-    rl = []
-    for buf in f:
-        mod_line = buf[:buf.find('#')].rstrip() if buf.find('#') >= 0 else buf.rstrip()
-        if len(mod_line) > 0:
-            rl.append(mod_line)
+    # Apparently Putty puts some weird characters in the file. Looks like there is a Python bug with the line below. I
+    # get "NameError: name 'open' is not defined.
+    # f = oepn(file, 'r', encoding='utf-8', errors='ignore')
+    #  So I read as bytes, decoded using utf-8 and then had to ignore errors.
+    f = open(file, 'rb')
+    data = f.read().decode('utf-8', errors='ignore')
     f.close()
-    return rl
+    content = data.replace('\r', '').split('\n')
+    rl = [buf[:buf.find('#')].rstrip() if buf.find('#') >= 0 else buf.rstrip() for buf in content] if rc else content
+    return [buf for buf in rl if len(buf) > 0] if remove_blank else rl
