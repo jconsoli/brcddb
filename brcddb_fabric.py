@@ -52,16 +52,18 @@ Version Control::
     | 3.0.1     | 02 Aug 2020   | Removed unused varriables. Added check for when an alias is used in a zone but    |
     |           |               | the alias does not exists (ZONE_UNDEFINED_ALIAS)                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 22 Aug 2020   | Fixed check for logged in WWNs                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '22 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -260,7 +262,7 @@ def wwn_zone_speed_check(fab_obj):
 
 def zone_analysis(fab_obj):
     """Analyzes zoning. Finds where all members are. Adds an alert if any of the following conditions exist:
-    * bjCalls alias_analysis() - additional alias checking
+    * Calls alias_analysis() - additional alias checking
     * Zone has less than 2 members
     * Peer zone doesn't have at least one principal and one regular member
     * Mixed d,i and WWN zones
@@ -270,13 +272,17 @@ def zone_analysis(fab_obj):
     * Zone member not found
     * Base port (HBA) of NPIV logins is in a zone
     * Maximum number of devices zoned to a device. See brcddb.app_data.bp_tables.MAX_ZONE_PARTICIPATION
+    * Mix of WWN and alias in the same zone
 
     :param fab_obj: brcddb fabric object
     :type fab_obj: brcddb.classes.fabric.FabricObj
     """
     # To-Do: Break this up into multiple methods or review to shorten. This is way too long
     _WWN_MEM = 0b1  # The member was entered as a WWN or d,i, not an alias
-    _IN_DEFINED_ZONECFG = _WWN_MEM << 1  # Zone found in defined zone
+    _WWN_IN_ZONE = _WWN_MEM << 1  # A zone contains a WWN member
+    _ALIAS_IN_ZONE = _WWN_IN_ZONE << 1  # A zone contains an alias member
+    _DI_IN_ZONE = _ALIAS_IN_ZONE << 1  # The zone contains a d,i member
+    _IN_DEFINED_ZONECFG = _DI_IN_ZONE << 1  # Zone found in defined zone
     _ZONE_MISMATCH = _IN_DEFINED_ZONECFG << 1  # The effective zone does not match the defined zone
 
     # We'll need to figure out where all the logins are so build a table to cross-reference all the neighbor WWNs
@@ -288,23 +294,22 @@ def zone_analysis(fab_obj):
     for zone_obj in fab_obj.r_zone_objects():
         pmem_list = []  # pmem_list and nmem_list was an after thought to save time resolving them again in the
         nmem_list = []  # effective zone to defined zone comparison. These are de-referenced (alias converted to WWN)
-        flag &= ~_IN_DEFINED_ZONECFG
+        flag &= ~(_IN_DEFINED_ZONECFG | _WWN_IN_ZONE | _ALIAS_IN_ZONE | _DI_IN_ZONE)
 
         # Check for d,i zones, mixed d,i & WWN zones, and make sure the member is in the fabric
         for i in range(0, 2):   # 0 - Get the members, 1 - get the principal members
             zmem_list = zone_obj.r_members() if i == 0 else zone_obj.r_pmembers()
             for zmem in zmem_list:
                 if brcddb_util.is_wwn(zmem):
-                    flag |= _WWN_MEM
+                    flag |= _WWN_MEM | _WWN_IN_ZONE
                     mem_list = [zmem]
                 else:
                     flag &= ~_WWN_MEM
+                    flag |= _ALIAS_IN_ZONE
                     a_obj = fab_obj.r_alias_obj(zmem)
                     if a_obj is None:
-                        zone_obj.s_add_alert(al.AlertTable.alertTbl,
-                                          al.ALERT_NUM.ZONE_UNDEFINED_ALIAS,
-                                          None, zmem,
-                                          zone_obj.r_obj_key())
+                        zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_UNDEFINED_ALIAS, None, zmem,
+                                             zone_obj.r_obj_key())
                         mem_list = []
                     else:
                         mem_list = a_obj.r_members()
@@ -316,6 +321,7 @@ def zone_analysis(fab_obj):
                     # FOS won't allow the user to configure a bad zone member so it's either d,i or WWN
                     if brcddb_util.is_di(mem):
                         # It's a d,i member - typically FICON
+                        flag |= _DI_IN_ZONE
                         t = mem.split(',')
                         zone_obj.s_or_flags(brcddb_common.zone_flag_di)
                         found_flag = False
@@ -381,6 +387,12 @@ def zone_analysis(fab_obj):
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MULTI_INITIATOR, None,
                                  ', '.join(elist))
 
+        # Check for mixed zone members
+        if flag & _DI_IN_ZONE and flag & _WWN_IN_ZONE:
+            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MIXED)
+        if flag & _WWN_IN_ZONE and flag & _ALIAS_IN_ZONE:
+            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_WWN_ALIAS)
+
         # Make sure the defined zone matches the effective zone
         effZoneObj = fab_obj.r_eff_zone_obj(zone_obj.r_obj_key())
         if effZoneObj is not None:
@@ -398,8 +410,17 @@ def zone_analysis(fab_obj):
         except:
             pass  # Defined configuration was deleted - I'm not certian FOS allows it so this is just to be sure
 
-    # Make sure each login is zoned and check zone participation
     for login_obj in fab_obj.r_login_objects():
+        wwn = login_obj.r_obj_key()
+
+        # Make sure that all logins are zoned.
+        if len(fab_obj.r_zones_for_wwn(wwn)) > 0:
+            if wwn in fab_obj.r_base_logins():
+                login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_BASE_ZONED)
+        else:
+            login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_NOT_ZONED)
+
+        # Check zone participation
         port_obj = login_obj.r_port_obj()
         buf = login_obj.r_get('port-properties')
         if buf is not None and buf in special_login:
@@ -407,7 +428,6 @@ def zone_analysis(fab_obj):
             continue
         # Figure out how many devices are zoned to this device
         eList = []  # List of effective zones this login participates in
-        wwn = login_obj.r_obj_key()
         for zone_obj in fab_obj.r_eff_zone_objects_for_wwn(wwn):
             if zone_obj.r_is_peer():
                 if wwn in zone_obj.r_pmembers():
@@ -418,12 +438,6 @@ def zone_analysis(fab_obj):
                 eList.extend(zone_obj.r_members())
         if wwn in eList:  # If it's not zoned, it's not in eList
             eList.remove(wwn)
-        if wwn in fab_obj.r_base_logins():
-            if len(eList) > 0:
-                login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_BASE_ZONED)
-        elif len(eList) == 0:
-            if fab_obj.r_port_obj(wwn) is not None:  # If it's not associated with a port it's a special login
-                login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_NOT_ZONED)
         if len(eList) > bt.MAX_ZONE_PARTICIPATION:
             login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION, None,
                                   bt.MAX_ZONE_PARTICIPATION)
