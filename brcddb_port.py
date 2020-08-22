@@ -30,16 +30,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 3.0.0     | 19 Jul 2020   | Initial Launch - 3.x for consistancy with other library version conventions       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 22 Aug 2020   | Added port_obj_for_index()                                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__date__ = '22 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -109,7 +111,7 @@ def port_type(port_obj, num_flag=False):
     """Returns the port type (F-Port, E-Port, etc.) in plain text
 
     :param port_obj: Port Object
-    :type port_obj: brcddb_classes.PortObj
+    :type port_obj: brcddb.classes.port.PortObj
     :param num_flag: If True, append (type) where type is the numerical port type returned from the API
     :type num_flag: bool
     :return: Port type
@@ -120,3 +122,21 @@ def port_type(port_obj, num_flag=False):
         return ''
     buf = brcddb_common.port_conversion_tbl['fibrechannel/port-type'][type]
     return buf + '(' + str(type) + ')' if num_flag else buf
+
+
+def port_obj_for_index(obj, index):
+    """Returns the port object for a port index.
+
+    :param obj: Object with port objects - obj.r_port_objects90
+    :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.port.PortObj
+    :param index: Port index
+    :type index: int
+    :return: Port object. None if not found
+    :rtype: brcddb.classes.port.PortObj, None
+    """
+    for port_obj in obj.r_port_objects():
+        port_index = port_obj.r_get('fibrechannel/index')
+        if port_index is not None and port_index == index:
+            return port_obj
+
+    return None  # If we got this far, we didn't find it.
