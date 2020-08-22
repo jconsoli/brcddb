@@ -28,16 +28,18 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 22 Aug 2020   | Fixed orientation of check marks.                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '22 Aug 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -223,7 +225,7 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                 sheet[cell].font = report_fonts.font_type('bold')
             sheet[cell].border = border
             if 'v' in _zone_hdr[k] and _zone_hdr[k]['v']:
-                sheet[cell].alignment = report_fonts.align_type('wrap_vert_center')
+                sheet[cell].alignment = report_fonts.align_type('wrap_center')
             else:
                 sheet[cell].alignment = report_fonts.align_type('wrap')
             sheet[cell].fill = fill
@@ -265,7 +267,7 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                         sheet[cell].font = report_fonts.font_type('std')
                     sheet[cell].border = border
                     if 'v' in _zone_hdr[k] and _zone_hdr[k]['v']:
-                        sheet[cell].alignment = report_fonts.align_type('wrap_vert_center')
+                        sheet[cell].alignment = report_fonts.align_type('wrap_center')
                     else:
                         sheet[cell].alignment = report_fonts.align_type('wrap')
                     sheet[cell] = _zone_hdr[k]['m'](zone_obj, mem, wwn, port_obj)
