@@ -30,22 +30,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 22 Aug 2020   | Stripped non-ascii characters and added blank line option in read_file()          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 02 Sep 2020   | Added read_full_directory()                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '22 Aug 2020'
+__date__ = '02 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcdapi.log as brcdapi_log
 import json
 from os import listdir
 from os.path import isfile, join
-
+from os import stat
+from pathlib import Path
 
 def write_dump(obj, file):
     """Creates a file using json.dumps. Typical use is to convert a project object with brcddb_to_plain_copy to a plain
@@ -128,3 +131,68 @@ def read_file(file, remove_blank=True, rc=True):
     content = data.replace('\r', '').split('\n')
     rl = [buf[:buf.find('#')].rstrip() if buf.find('#') >= 0 else buf.rstrip() for buf in content] if rc else content
     return [buf for buf in rl if len(buf) > 0] if remove_blank else rl
+
+
+def read_full_directory(folder):
+    """Beginning with file, reads the full content of a folder and puts all file names and stats in a list of dict
+
+    Structure for returned dict is:
+
+    +-----------+-------+-----------------------------------------------+
+    | key       | type  | Description                                   |
+    +===========+=======+===============================================+
+    | name      | str   | File name                                     |
+    +-----------+-------+-----------------------------------------------+
+    | folder    | str   | Folder name, relative to passed param folder  |
+    +-----------+-------+-----------------------------------------------+
+    | st_atime  | float | Last access time (epoch time)                 |
+    +-----------+-------+-----------------------------------------------+
+    | st_ctime  | float | Creation time (epoch time)                    |
+    +-----------+-------+-----------------------------------------------+
+    | st_mtime  | float | Last time modified (epoch time)               |
+    +-----------+-------+-----------------------------------------------+
+    | st_size   | int   | File size in bytes                            |
+    +-----------+-------+-----------------------------------------------+
+    | st_mode   | int   | File mode, see os.stat()                      |
+    +-----------+-------+-----------------------------------------------+
+    | st_ino    | int   | File mode, see os.stat()                      |
+    +-----------+-------+-----------------------------------------------+
+    | st_dev    | int   | File mode, see os.stat()                      |
+    +-----------+-------+-----------------------------------------------+
+    | st_nlink  | int   | File mode, see os.stat()                      |
+    +-----------+-------+-----------------------------------------------+
+    | st_uid    | int   | File mode, see os.stat()                      |
+    +-----------+-------+-----------------------------------------------+
+    | st_gid    | int   | See os.stat()                                 |
+    +-----------+-------+-----------------------------------------------+
+
+    :param folder: Name of the directory to read
+    :type folder: str
+    :return: List of files.
+    :rtype: list
+    """
+
+    rl = []
+    try:
+        for file in read_director(folder):
+            stats = stat(folder + '/' + file)
+            rl.append(dict(
+                name=file,
+                folder=folder,
+                st_atime=stats.st_atime,
+                st_ctime=stats.st_ctime,
+                st_mtime=stats.st_mtime,
+                st_size=stats.st_size,
+                st_mode=stats.st_mode,
+                st_ino=stats.st_ino,
+                st_dev=stats.st_dev,
+                st_nlink=stats.st_nlink,
+                st_uid=stats.st_uid,
+                st_gid=stats.st_gid
+            ))
+        for new_dir in [file for file in [f for f in listdir(folder) if listdir(join(folder, f))] if '~$' not in file]:
+            rl.extend(read_full_directory(folder + '/' + new_dir))
+    except:
+        pass
+
+    return rl
