@@ -42,16 +42,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 22 Aug 2020   | Fixed missing link addresses and added UNIT.                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 02 Sep 2020   | Handled condition whan CHPID is not immediately followed by PATH                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '22 Aug 2020'
+__date__ = '02 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import collections
 import brcddb.brcddb_common as brcddb_common
@@ -82,7 +84,8 @@ _ibm_type = {
     '2965': {'d': 'z13s', 't': 'CPU'},
     '3906': {'d': 'z14', 't': 'CPU'},
     '3907': {'d': 'z14s', 't': 'CPU'},	# I guess. z14s not announced at the time I wrote this.
-    '8562': {'d': 'z15', 't': 'CPU'},
+    '8561': {'d': 'z15 T01', 't': 'CPU'},
+    '8562': {'d': 'z15 T02', 't': 'CPU'},
 
     # CTC
     'FCTC': {'d': 'CTC', 't': 'CTC'},
@@ -188,30 +191,30 @@ def _condition_iocp(iocp):
 
         # If it's a line contiuation, keep building the line and see if we're done
         if line_continue:
-            working_buf += ''.join(buf[0: 71].split())
+            working_buf += buf[0: 71]
             if len(buf) > 71 and buf[71] != ' ':
                 continue
             line_continue = False
             if chpid_flag:
                 if 'TYPE=FC' in working_buf and 'SWITCH=' in working_buf:
-                    chpids.append(working_buf)
+                    chpids.append(brcddb_util.remove_duplicate_space(working_buf.strip()))
                 chpid_flag = False
             elif cntlunit_flag:
-                cntlunits.append(working_buf)
+                cntlunits.append(brcddb_util.remove_duplicate_space(working_buf.strip()))
                 cntlunit_flag = False
             else:
                 brcdapi_log.exception('Programming error', True)
             working_buf = ''
             continue
 
-        x = buf.find('CHPID PATH=')
-        if x >= 0:
-            working_buf = ''.join(buf[0: 71][x + len('CHPID PATH='):].split())
+        temp_buf = buf.lstrip()
+        if temp_buf[0: min(len('CHPID'), len(temp_buf))] == 'CHPID':
+            working_buf += buf[0: 71]
             if (len(buf) > 70 and buf[71] != ' '):
                 line_continue = True
                 chpid_flag = True
             elif 'TYPE=FC' in working_buf and 'SWITCH=' in working_buf:
-                chpids.append(working_buf)
+                chpids.append(brcddb_util.remove_duplicate_space(working_buf.strip()))
             continue
 
         x = buf.find('CNTLUNIT CUNUMBR=')
@@ -221,7 +224,7 @@ def _condition_iocp(iocp):
                 line_continue = True
                 cntlunit_flag = True
             else:
-                cntlunits.append(working_buf)
+                cntlunits.append(brcddb_util.remove_duplicate_space(working_buf.strip()))
             continue
 
     return chpids, cntlunits
@@ -232,12 +235,8 @@ def css_to_tag(css_list):
 
     :param css_list: List of CSSs (list is of int)
     :type css_list: list
-    :return tag: CHPID and CSS formatted as tag
+    :return tag: CSS formatted as the upper byte of the tag
     :rtype tag: str
-    :return partition: List of partitions sharing this CHPID
-    :rtype partition: list
-    :return pcchid: PCHID
-    :rtype pcchid: str
     """
     css = 0  # The tag is a bit flag starting highest to lowest so CSS 0 is 0x80, CSS 1, 0x40, etc.
     for x in css_list:
@@ -339,33 +338,32 @@ def _parse_chpid(chpid):
     # Sample CHPID macro: CHPID PATH=(CSS(0),50),SHARED,PARTITION=((SYJ3,SYJ4),(=)),SWITCH=F4,PCHID=168,TYPE=FC
     # Note that 'CHPID PATH=' is already stripped off so we just have: (CSS(0),4D),SHARED,PARTITION...
     try:
-        l, working_buf = css_chpid_to_tag(chpid)
-        tag = l[0]
-        # Tack on 'xxx=xxx' so don't have to be concerned with PARTITION being at the end. HCD would never do that but
-        # there are still some old timers who generate the IOCP and import it back into HCD. I don't know if HCD
-        # reorders the parameters
-        working_buf = working_buf + ',xxx=xxx'
 
-        # Now get the SWITCH, PARTITION and PCHID
+        # Tack on 'xxx=xxx' so I don't have handle any elements at the end as a special case.
+        # Get the SWITCH, PARTITION and PCHID
         x = 0
-        temp_l = working_buf.split('=')
+        temp_l = (chpid + ',xxx=xxx').split('=')
         for buf in temp_l:
             if x + 1 >= len(temp_l):
                 break
             next_buf = temp_l[x+1]
+
+            if 'PATH' in buf:
+                l, dummy_buf = css_chpid_to_tag(next_buf)
+                tag = l[0]
+
             if 'PARTITION' in buf:
-                i = 0  # I've seen anywhwere from 0 to 2 ( so just skip through them all
+                i = 0  # I've seen anywhwere from 0 to 2 '(' so just skip through them all
                 for chr in next_buf:
                     if chr != '(':
                         break
                     i += 1
                 partition = next_buf[i: next_buf.find(')')].split(',')
             elif 'PCHID' in buf:
-                pchid = next_buf[0: next_buf.find(',')]
+                pchid = next_buf.split(',')[0]
             elif 'SWITCH' in buf:
-                switch = next_buf[0: next_buf.find(',')]
+                switch = next_buf.split(',')[0]
             x += 1
-
 
     except:
         brcdapi_log.exception('Unknown CHPID macro format:\n' + chpid, True)
