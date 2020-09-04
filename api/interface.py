@@ -41,16 +41,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 02 Sep 2020   | Added _switch_from_list_match_case()                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '02 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.pyfos_auth as pyfos_auth
@@ -293,14 +295,16 @@ def _convert_ip_addr(obj):
         return brcdapi_util.mask_ip_addr(obj)
 
 
-def _update_brcddb_obj_from_list(objx, obj, uri, sl=[]):
+def _update_brcddb_obj_from_list(objx, obj, uri, skip_list=None):
     """Adds a FOS API request response that is a list. Each item in the list is added to a brcddb class object
 
     All parameters as in comments above except:
-    :param sl: Skip list. List of elements to not add to objx
-    :type sl: list, tuple
+    :param skip_list: Skip list. List of elements to not add to objx
+    :type skip_list: None, list, tuple
     """
     global _GEN_CASE_ERROR_MSG
+
+    sl = [] if skip_list is None else skip_list
 
     try:
         tl = uri.split('/')
@@ -498,6 +502,18 @@ def _switch_from_list_case(switch_obj, obj, uri):
         pass
 
 
+def _switch_from_list_match_case(switch_obj, obj, uri):
+    switch_wwn = switch_obj.r_obj_key()
+    element = uri.split('/').pop()
+    i = 0
+    for s_obj in brcddb_util.convert_to_list(obj.get(element)):
+        fos_switch_wwn = s_obj.get('switch-wwn')
+        if fos_switch_wwn is not None and fos_switch_wwn == switch_wwn:
+            _update_brcddb_obj_from_list(switch_obj, brcddb_util.convert_to_list(obj.get(element))[i], uri)
+            return
+        i += 1
+
+
 def _fabric_ns_case(objx, obj, uri):
     fab_obj = objx.r_fabric_obj()
     for ns_obj in brcddb_util.convert_to_list(obj.get('fibrechannel-name-server')):
@@ -575,6 +591,7 @@ _custom_rest_methods = {  # Normally, all data returned from the API is stored i
     'brocade-zone/defined-configuration': _defined_zonecfg_case,
     'brocade-zone/effective-configuration': _effective_zonecfg_case,
     'brocade-fru/blade': _fru_blade_case,
+    'brocade-ficon/switch-rnid': _switch_from_list_match_case,
 }
 
 _rest_methods = {
