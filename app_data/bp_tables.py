@@ -71,16 +71,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 02 Sep 2020   | Disabled duplicate WWN (FDISC) check                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '02 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.app_data.alert_tables as al
@@ -230,7 +232,7 @@ switch_tbl = (
     },
     # Duplicate WWN handling should be to accept the second FDISC into the fabric
     {
-        'skip': False,
+        'skip': True,
         'm': al.ALERT_NUM.HANDLE_DUP_WWN,
         'l': {'k': 'brocade-fibrechannel-configuration/f-port-login-settings/enforce-login', 'v': 2, 't': '!='}
     },
