@@ -40,16 +40,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 04 Sep 2020   | Added 9.0 MAPS categories                                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '04 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
@@ -132,9 +134,9 @@ def _chassis_category(switch_obj, dash_obj):
         chassis_obj.s_add_alert(al.AlertTable.alertTbl, al_num, None, p0, None)
 
 
-# The Rest API Guide is wrong. 'Port Health', not 'port-health', is what is returned from the API. I took a guess at
-# the others. This table is used in maps_dashboard_alerts()
+# In FOS 8.x, the user friendly name 'Port Health' was used. This was "fixed" in FOS 9.0. I guessed at the others.
 _maps_category = {
+    # FOS 8.x
     'Port Health': _port_category,
     'Backend Port Health': _port_category,
     'Extension GE Port Health': _port_category,
@@ -145,6 +147,27 @@ _maps_category = {
     'Switch Resources': _chassis_category,
     'Fabric Performance Impact': _port_category,
     'Traffic Performance': _fabric_category,
+    # FOS 9.x - And what the categories always should have been
+    'switch-health': _switch_category,
+    'power-supply-health': _chassis_category,
+    'fan-health': _chassis_category,
+    'wwn-health': _chassis_category,
+    'temperature-sensor-health': _chassis_category,
+    'ha-health': _chassis_category,
+    'control-processor-health': _chassis_category,
+    'core-blade-health': _chassis_category,
+    'blade-health': _chassis_category,
+    'flash-health': _chassis_category,
+    'port-health': _port_category,  # Not documented in the Yang models but I saw this come in
+    'marginal-port-health': _port_category,
+    'faulty-port-health': _port_category,
+    'missing-sfp-health': _port_category,
+    'error-port-health': _port_category,
+    'expired-certificate-health': _switch_category,
+    'airflow-mismatch-health': _chassis_category,
+    'marginal-sfp-health': _switch_category,
+    'trusted-fos-certificate-health': _switch_category,
+    'fabric-state-changes': _fabric_category,  # Not documented in the Yang models but I saw this come in
 }
 
 
