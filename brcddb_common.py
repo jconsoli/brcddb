@@ -29,16 +29,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 02 Sep 2020   | Added 0 auto-negotiate no-sync) to fibrechannel/speed to port_conversion_tbl      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '02 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Released'
-__version__ = '3.0.1'
+__status__ = 'Required'
+__version__ = '3.0.2'
 
 
 #################################################################################
@@ -354,6 +356,7 @@ port_conversion_tbl = {
         16000:  16000,
     },
     'fibrechannel/speed': {
+        0: 0,  # This happens when auto-negotiate is set and the port is not yet in sync
         1000000000:     1,
         2000000000:     2,
         4000000000:     4,
