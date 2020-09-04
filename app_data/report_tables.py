@@ -64,16 +64,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 22 Aug 2020   | Fixed typo in Path Count                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 02 Sep 2020   | Added the port address to the default port pages.                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '22 Aug 2020'
+__date__ = '02 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 
 class Chassis:
@@ -527,6 +529,7 @@ class Port:
         '_SWITCH_NAME',
         '_PORT_NUMBER',
         'fibrechannel/user-friendly-name',
+        'fibrechannel/fcid-hex',
         'fibrechannel/port-type',
         'fibrechannel/is-enabled-state',
         'fibrechannel/operational-status',
@@ -535,7 +538,6 @@ class Port:
         '_MAPS_GROUP',
         'fibrechannel/e-port-credit',
         'fibrechannel/f-port-buffers',
-        'fibrechannel/fcid-hex',
         'fibrechannel/long-distance',
         # 'fibrechannel/name',        # Not copied to the object because it is the object key
         # 'fibrechannel/neighbor',    # Handled separately
@@ -582,6 +584,7 @@ class Port:
         '_PORT_COMMENTS',
         '_SWITCH_NAME',
         '_PORT_NUMBER',
+        'fibrechannel/fcid-hex',
         'fibrechannel/port-type',
         '_BEST_DESC',
         'fibrechannel/is-enabled-state',
@@ -726,6 +729,7 @@ class Port:
         '_PORT_COMMENTS',
         '_SWITCH_NAME',
         '_PORT_NUMBER',
+        'fibrechannel/fcid-hex',
         'fibrechannel/operational-status',
         'media-rdp/serial-number',
         'media-rdp/remote-optical-product-data/serial-number',
@@ -763,6 +767,7 @@ class Port:
         '_PORT_COMMENTS',
         '_SWITCH_NAME',
         '_PORT_NUMBER',
+        'fibrechannel/fcid-hex',
         'fibrechannel/operational-status',
         'fibrechannel/port-type',
         'rnid/format',
