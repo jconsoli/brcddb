@@ -28,16 +28,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | Added the IOCP Page                                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 02 Sep 2020   | Added the ability to customize the report                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '02 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import collections
 import brcddb.app_data.report_tables as rt
@@ -57,17 +59,31 @@ import brcddb.report.iocp as report_iocp
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_fabric as brcddb_fabric
 
-_ADD_PROJ_DASHBOARD = True  # Set True to add the project dashboard page
-_ADD_CHASSIS = True  # Set True to add the chassis page
-_ADD_FABRIC_SUMMARY = True  # Set True to add the fabric summary page
-_ADD_FABRIC_DASHBOARD = True  # Set True to add the fabric dashboard
-_ADD_SWITCH_PAGE = True  # Set True to add the switch page
-_ADD_PORT_PAGE = True  # Set True to add the port page
-_ADD_ZONE_PAGE = True  # Set True to add the zone analysis page
-_ADD_ALIAS_PAGE = True  # Set True to add the alias detail page
-_ADD_LOGIN_PAGE = True  # Set True to add the login page
-_ADD_BP_SUMMARY = True  # Add a best practice (really an alert) summary page
-_ADD_IOCP_PAGE = True  # Add the IOCP
+_report_pages = dict(
+    proj_dashboard=dict(s=True, d='Project dashboard page'),
+    chassis=dict(s=True, d='Chassis page'),
+    fabric_summary=dict(s=True, d='Fabric summary page'),
+    fabric_dashboard=dict(s=True, d='Fabric dashboard'),
+    switch=dict(s=True, d='Switch page'),
+    port_config=dict(s=True, d='Port configuration page'),
+    port_config_error=dict(s=False, d='Port configuration alert summary page. Not yet implemented.'),
+    port_stats=dict(s=True, d='Port statistics page'),
+    port_stats_error=dict(s=False, d='Port statistics alert summary page. Not yet implemented.'),
+    port_zone=dict(s=True, d='Port by login, alias and zone page'),
+    port_zone_error=dict(s=False, d='Port zone/login alert summary page. Not yet implemented.'),
+    port_sfp=dict(s=True, d='Port SFP page'),
+    port_sfp_error=dict(s=False, d='Port SFP alert summary page. Not yet implemented.'),
+    port_rnid=dict(s=False, d='Port RNID page. Typically only used for FICON'),
+    port_rnid_error=dict(s=False, d='Port RNID alert summary page. Not yet implemented.'),
+    zone_page=dict(s=True, d='Zone analysis page'),
+    zone_error=dict(s=False, d='Alias alert summary page. Not yet implemented.'),
+    alias=dict(s=True, d='Alias detail page'),
+    alias_error=dict(s=False, d='Alias alert summary page. Not yet implemented.'),
+    login=dict(s=True, d='Login page'),
+    login_error=dict(s=False, d='Login alert summary page. Not yet implemented.'),
+    bp=dict(s=True, d='Project wide best practice alert summary page'),
+    iocp=dict(s=True, d='IOCP page. Only added if IOCPs were added. FICON only.'),
+)
 
 _MAX_DB_SIZE = 10   # Set the top xx dashboard size
 
@@ -163,20 +179,133 @@ def dashboard(obj, tc, wb, sheet_index, sheet_name, title):
                                         content=dashboard_item)
 
 
-def report(proj_obj, outf):
+def report_pages(remove_pages, add_pages):
+    """Use to modify the default pages for the report
+
+    :param obj: Project, fabric, or switch object
+    :type obj: ProjectObj, SwitchObj, FabricObj
+    :param tc: Table of context page. A link to this page is place in cell A1
+    :type tc: str, None
+    :param wb: Workbook object
+    :type wb: dict
+    :param sheet_index: Location for the title page. First sheet is 0
+    :type sheet_index: int
+    :param sheet_name: Sheet (tab) name
+    :type sheet_name: str
+    :param title: Title at top of  sheet
+    :type title: str
+    :rtype: None
+    """
+    dashboard_item = collections.OrderedDict()
+    dashboard_item['bad-eofs-received'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' Bad EOF', 'port_list': []}
+    dashboard_item['class-3-discards'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' C3 Discards', 'port_list': []}
+    dashboard_item['in-crc-errors'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' CRC With Good EOF', 'port_list': []}
+    dashboard_item['crc-errors'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' CRC', 'port_list': []}
+    dashboard_item['loss-of-signal'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' Loss of Signal', 'port_list': []}
+    dashboard_item['bb-credit-zero'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' BB Credit Zero', 'port_list': []}
+    port_list = obj.r_port_objects()
+    for k in dashboard_item.keys():
+        db = dashboard_item.get(k)
+        db_list = brcddb_search.test_threshold(port_list, 'fibrechannel-statistics/' + k, '>', 0)
+        db_list = brcddb_util.sort_obj_num(db_list, 'fibrechannel-statistics/' + k, True)
+        if len(db_list) > _MAX_DB_SIZE:
+            del db_list[_MAX_DB_SIZE:]
+        db['port_list'].extend(db_list)
+    report_port.performance_dashboard(wb, tc, sheet_name=sheet_name, sheet_i=sheet_index, sheet_title=title,
+                                      content=dashboard_item)
+
+
+def customize_help():
+    """Returns a list of help messages for remove_pages and add_pages parameters in report()
+
+    :return: List of help messages
+    :rtype: list
+    """
+    # Figure out which key is the longest
+    lkey = 0
+    for k in _report_pages.keys():
+        lkey = max(lkey, len(k))
+    lkey += 2
+
+    # Format the help messages
+    rl = list('\n')
+    for k, v in _report_pages.items():
+        key = k
+        while len(key) < lkey:
+            key += ' '
+        default_value = 'Default      ' if v['s'] else 'Not default  '
+        rl.append(key + default_value + v['d'])
+    rl.append('\n')
+
+    return rl
+
+
+def report(proj_obj, outf, remove_pages=None, add_pages=None):
     """Creates an Excel report. Sort of a SAN Health like report.
 
     :param proj_obj: The project object
     :type proj_obj: brcddb.classes.ProjectObj
     :param outf: Output file name
     :type outf: str
+    :param remove_pages: List of default pages to remove. Done first so you can clear all then add pages.
+    :type remove_pages: None, str, list
+    :param add_pages: Pages, in addition to the defaults, to add to the report
+    :type add_pages: None, str, list
+    """
+
+    # Figure out what pages to include in the report
+    for key in brcddb_util.convert_to_list(remove_pages):
+        d = _report_pages.get(key)
+        if d is None:
+            if key == 'all':
+                for obj in _report_pages.values():
+                    obj['s'] = False
+                break
+            else:
+                brcdapi_log.log(key + ' is unkonwn in remove page list. ignored')
+        else:
+            d['s'] = False
+    for key in brcddb_util.convert_to_list(add_pages):
+        d = _report_pages.get(key)
+        if d is None:
+            if key == 'all':
+                for obj in _report_pages.values():
+                    obj['s'] = True
+                break
+            else:
+                brcdapi_log.log(key + ' is unkonwn in add page list. ignored')
+        else:
+            d['s'] = True
+
+
+    """port_pages is used to determine how to display pages
+    +-------+-------------------------------------------------------------------------------+
+    |  key  | Description                                                                   |
+    +=======+===============================================================================+
+    |   c   | Key in the _report_pages table                                                |
+    +-------+-------------------------------------------------------------------------------+
+    |   s   | Sheet name prefix                                                             |
+    +-------+-------------------------------------------------------------------------------+
+    |   t   | The table used to control how the port data is displayed.                     |
+    +-------+-------------------------------------------------------------------------------+
+    |   d   | Text to display as a header on the worksheet.                                 |
+    +-------+-------------------------------------------------------------------------------+
+    |   l   | When true, displays all the logins. Otherwise, just the base WWN is reported. |
+    +-------+-------------------------------------------------------------------------------+
     """
     port_pages = [
-        {'s': '_config', 't': rt.Port.port_config_tbl, 'd': 'Port Configurations', 'l': False},
-        {'s': '_stats', 't': rt.Port.port_stats_tbl, 'd': 'Port Statistics', 'l': False},
-        {'s': '_zl', 't': rt.Port.port_zone_tbl, 'd': 'Ports by Zone and Login', 'l': True},
-        {'s': '_sfp', 't': rt.Port.port_sfp_tbl, 'd': 'SFP report', 'l': False},
-        {'s': '_ficon', 't': rt.Port.port_rnid_tbl, 'd': 'FICON RNID report', 'l': False},
+        dict(c='port_config', s='_config', t=rt.Port.port_config_tbl, d='Port Configurations', l=False),
+        dict(c='port_config_error', s='_config_error', t=rt.Port.port_config_tbl, d='Port Configurations Error Summary',
+             l=False),
+        dict(c='port_stats', s='_stats', t=rt.Port.port_stats_tbl, d='Port Statistics', l=False),
+        dict(c='port_stats_error', s='_stats_error', t=rt.Port.port_stats_tbl, d='Port Statistics Error Summary',
+             l=False),
+        dict(c='port_zone', s='_zl', t=rt.Port.port_zone_tbl, d='Ports by Zone and Login', l=True),
+        dict(c='port_zone_error', s='_zl_error', t=rt.Port.port_zone_tbl, d='Ports by Zone and Login Error Summary',
+             l=True),
+        dict(c='port_sfp', s='_sfp', t=rt.Port.port_sfp_tbl, d='SFP report', l=False),
+        dict(c='port_sfp_error', s='_sfp_error', t=rt.Port.port_sfp_tbl, d='SFP Error Summary', l=False),
+        dict(c='port_rnid', s='_ficon', t=rt.Port.port_rnid_tbl, d='Port RNID data', l=False),
     ]
 
     tc_page = proj_obj.r_obj_key()  # Just to save some typing
@@ -199,7 +328,7 @@ def report(proj_obj, outf):
         tbl_contents.append({'d': 'No Duplicate WWNs Found'})
 
     # Project dashboard
-    if _ADD_PROJ_DASHBOARD:
+    if _report_pages['proj_dashboard']['s']:
         tbl_contents.append({'h': True, 'd': 'Project Links'})
         sname = 'proj_dashboard'
         title = 'Project Dashboard'
@@ -208,7 +337,7 @@ def report(proj_obj, outf):
         sheet_index += 1
 
     # Add all the chassis
-    if _ADD_CHASSIS:
+    if _report_pages['chassis']['s']:
         tbl_contents.append({'h': True, 'd': 'Chassis'})
         for chassis_obj in proj_obj.r_chassis_objects():
             chassis_name = brcddb_chassis.best_chassis_name(chassis_obj)
@@ -228,7 +357,7 @@ def report(proj_obj, outf):
         prefix = fab_name.replace(' ', '_').replace(':', '').replace('-', '_')[:22] + '_' + str(sheet_index)
 
         # Fabric summary page
-        if _ADD_FABRIC_SUMMARY:
+        if _report_pages['fabric_summary']['s']:
             brcdapi_log.log('    Building fabric summary page', True)
             sname = prefix + '_sum'
             report_fabric.fabric_page(wb, tc_page, sheet_index, sname, fab_name + ' Summary', fab_obj)
@@ -236,7 +365,7 @@ def report(proj_obj, outf):
             sheet_index += 1
 
         # Fabric Dashboard
-        if _ADD_FABRIC_DASHBOARD:
+        if _report_pages['fabric_dashboard']['s']:
             brcdapi_log.log('    Building fabric dashboard', True)
             sname = prefix + '_db'
             dashboard(fab_obj, tc_page, wb, sheet_index, sname, fab_name + ' Dasboard')
@@ -244,7 +373,7 @@ def report(proj_obj, outf):
             sheet_index += 1
 
         # Switch page
-        if _ADD_SWITCH_PAGE:
+        if _report_pages['switch']['s']:
             brcdapi_log.log('    Building switch detail page', True)
             sname = prefix + '_switch'
             report_switch.switch_page(wb, tc_page, sname, sheet_index, 'Switch Detail For Fabric: ' + fab_name,
@@ -253,18 +382,18 @@ def report(proj_obj, outf):
             sheet_index += 1
 
         # Now the port pages
-        if _ADD_PORT_PAGE:
-            brcdapi_log.log('    Building the port pages', True)
-            port_list = brcddb_util.sort_ports(fab_obj.r_port_objects())
-            for obj in port_pages:
+        brcdapi_log.log('    Building the port pages', True)
+        port_list = brcddb_util.sort_ports(fab_obj.r_port_objects())
+        for obj in port_pages:
+            if _report_pages[obj['c']]['s']:
                 sname = prefix + obj.get('s')
                 report_port.port_page(wb, tc_page, sname, sheet_index, fab_name + ' ' + obj.get('d'), port_list,
-                                      obj.get('t'), rt.Port.port_display_tbl, obj.get('l'))
+                obj.get('t'), rt.Port.port_display_tbl, obj.get('l'))
                 tbl_contents.append({'s': sname, 'd': obj.get('d')})
                 sheet_index += 1
 
         #  Zone Analysis Page
-        if _ADD_ZONE_PAGE:
+        if _report_pages['zone_page']['s']:
             brcdapi_log.log('    Building zone analysis page', True)
             sname = prefix + '_zone'
             report_zone.zone_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name + ' Zone Analysis')
@@ -272,7 +401,7 @@ def report(proj_obj, outf):
             sheet_index += 1
 
         #  Alias Page
-        if _ADD_ALIAS_PAGE:
+        if _report_pages['alias']['s']:
             brcdapi_log.log('    Building alias page', True)
             sname = prefix + '_alias'
             report_zone.alias_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name + ' Alias Detail')
@@ -280,7 +409,7 @@ def report(proj_obj, outf):
             sheet_index += 1
 
         #  Login Page
-        if _ADD_LOGIN_PAGE:
+        if _report_pages['login']['s']:
             brcdapi_log.log('    Building login page', True)
             sname = prefix + '_login'
             report_login.login_page(wb, tc_page, sname, sheet_index, fab_name + ' Logins', fab_obj.r_login_objects(),
@@ -289,7 +418,7 @@ def report(proj_obj, outf):
             sheet_index += 1
 
     #  IOCP Page
-    if _ADD_IOCP_PAGE:
+    if _report_pages['iocp']['s']:
         iocp_objects = proj_obj.r_iocp_objects()
         if len(iocp_objects) > 0:
             brcdapi_log.log('Adding the IOCP pages', True)
@@ -301,7 +430,7 @@ def report(proj_obj, outf):
                 sheet_index += 1
 
     # Add the Best Practice page
-    if _ADD_BP_SUMMARY:
+    if _report_pages['bp']['s']:
         sname = 'Best_Practice'
         fab_name = 'Best Practice Violations'  # Just borrowing fab_name for the title
         report_bp.bp_page(wb, tc_page, sname, 0, fab_name, proj_obj, rt.BestPractice.bp_tbl,
