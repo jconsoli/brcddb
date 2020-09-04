@@ -25,16 +25,18 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 22 Aug 2020   | Fixed link address reporting.                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 02 Sep 2020   | Fixed missing paths in IOCP report                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '22 Aug 2020'
+__date__ = '02 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import openpyxl.utils.cell as xl
 import brcddb.brcddb_switch as brcddb_switch
@@ -87,6 +89,11 @@ def _css_case(id, port_obj, chpid, link_addr=None):
 def _chpid_case(id, port_obj, chpid, link_addr=None):
     """Returns the CHIPID for the id (tag). See _null_case() for parameter definitions"""
     return id[2:]
+
+
+def _defined_tag_case(id, port_obj, chpid, link_addr=None):
+    """Returns the CHIPID for the id (tag). See _null_case() for parameter definitions"""
+    return id.replace('0x', '')
 
 
 def _switch_id_case(id, port_obj, chpid, link_addr=None):
@@ -197,7 +204,7 @@ def _tag_case(id, port_obj, chpid, link_addr=None):
     if port_obj is None:
         return ''
     tag = port_obj.r_get('rnid/tag')
-    return '' if tag is None else tag
+    return '' if tag is None else tag.replace('0x', '')
 
 
 def _zone_case(id, port_obj, chpid, link_addr=None):
@@ -217,7 +224,7 @@ _chpid_hdr = {
     'PCHID': dict(c=7, m=_pchid_case),
     'CSS': dict(c=10, m=_css_case),
     'CHPID': dict(c=7, m=_chpid_case),
-    'Defined Tag': dict(c=8, m=_link_addr_case),
+    'Defined Tag': dict(c=8, m=_defined_tag_case),
     'Switch ID': dict(c=7, m=_switch_id_case),
     'Link Addr': dict(c=7, m=_chpid_link_addr_case),
     'Unit Type': dict(c=9, m=_null_case),
@@ -268,12 +275,14 @@ def port_obj_for_chipid(port_objects, seq, tag):
     :rturn: Port object where this CHPID is connected. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
+    # The tag from the IOCP will never have '0x' prefix so below is just in case I ever use this for something else.
+    test_tag = tag if '0x' in tag else '0x' + tag
     port_list = brcddb_search.match_test(
         port_objects,
         {
             'l': (
-                dict(k='rnid/sequence-number', t='exact', v=seq),
-                dict(k='rnid/tag', t='exact', v=tag),
+                dict(k='rnid/sequence-number', t='exact', v=seq, i=True),
+                dict(k='rnid/tag', t='exact', v=test_tag, i=True),
                 dict(k='rnid/flags', t='exact', v='0x10'),  # Indicates the RNID data is valid for a channel
             ),
             'logic': 'and'  # 'and' is the default logic so this is just for clarity for the reader
