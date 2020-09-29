@@ -30,16 +30,18 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 22 Aug 2020   | Fixed orientation of check marks.                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 29 Sep 2020   | Added alerts associated with the port for the zone member                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '22 Aug 2020'
+__date__ = '29 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -110,8 +112,10 @@ def mem_comment_case(obj, mem, wwn, port_obj):
     al = [a.fmt_msg() for a in obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
     # If there is a login, add any comments associated with the login that are zoning specific
     if obj.r_fabric_obj() is not None and obj.r_fabric_obj().r_login_obj(wwn) is not None:
-        al.extend('\n'.join([a.fmt_msg() for a in obj.r_fabric_obj().r_login_obj(wwn).r_alert_objects() \
-                      if a.is_flag() and a.p0() == mem]))
+        al.extend('\n'.join([a.fmt_msg() for a in obj.r_fabric_obj().r_login_obj(wwn).r_alert_objects()
+                             if a.is_flag() and a.p0() == mem]))
+    if port_obj is not None:  # Add the alerts associated with the port for this member
+        al.extend([a.fmt_msg() for a in port_obj.r_alert_objects() if a.is_error() or a.is_warn()])
     return '\n'.join(al)
 
 
