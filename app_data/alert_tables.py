@@ -36,16 +36,18 @@ Version Control::
     | 3.0.3     | 02 Sep 2020   | Changed unused zones, unused alias, logins no zoned, and enabled ports with no    |
     |           |               | from WARN to GENERAL                                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 29 Sep 2020   | Changed LOGIN_FDMI_NOT_ENABLED to GENERAL                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Sep 2020'
+__date__ = '29 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcddb.classes.alert as al
 
@@ -297,7 +299,7 @@ class AlertTable:
         ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION: dict(m='Max zone participation allowed is $p0', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SIM: dict(m='SIM port', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_AMP: dict(m='AMP', s=al.ALERT_SEV.GENERAL),
-        ALERT_NUM.LOGIN_FDMI_NOT_ENABLED: dict(m='FDMI on attached HBA is not enabled', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.LOGIN_FDMI_NOT_ENABLED: dict(m='FDMI on attached HBA is not enabled', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_SPEED_DIFF_W: dict(m='$p0 logged in at slower speed also zonned to target(s): $p1.',
                                            s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SPEED_DIFF_E: dict(m='$p0 logged in at slower speed also zonned to target(s): $p1.',
