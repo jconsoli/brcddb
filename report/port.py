@@ -29,18 +29,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 29 Sep 2020   | Standardized time stamp and added return type documentation to port_page()        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '29 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
-import time
+import datetime
 import collections
 import openpyxl.utils.cell as xl
 import brcddb.brcddb_common as brcddb_common
@@ -224,7 +226,7 @@ def p_port_maps_group_case(port_obj, k, wwn):
 
 def p_time_generated_case(port_obj, k, wwn):
     x = port_obj.r_get('fibrechannel-statistics/time-generated')
-    return None if x is None else time.ctime(float(x))
+    return None if x is None else datetime.datetime.fromtimestamp(x).strftime('%d %b %Y, %H:%M:%S')
 
 
 def p_los_tov_mode_case(port_obj, k, wwn):
@@ -406,7 +408,8 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, display, port_di
     :param port_display_tbl: Display control table. See brcddb.report.report_tables.port_display_tbl
     :param login_flag: When True, include NPIV logins below the base port.
     :type login_flag: bool
-    :rtype: None
+    :return: openxl sheet
+    :rtype: Worksheet
     """
     global port_case
 
