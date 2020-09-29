@@ -30,16 +30,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 02 Sep 2020   | Added the ability to customize the report                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 29 Sep 2020   | used brcddb.report.utils.valid_sheet_name for uniform sheet name conventions.     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Sep 2020'
+__date__ = '29 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import collections
 import brcddb.app_data.report_tables as rt
@@ -342,8 +344,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
         for chassis_obj in proj_obj.r_chassis_objects():
             chassis_name = brcddb_chassis.best_chassis_name(chassis_obj)
             brcdapi_log.log('Processing chassis: ' + chassis_name, True)
-            sname = chassis_name.replace(' ', '_').replace(':', '').replace('-', '_')[:22] + '_' + str(sheet_index) + \
-                    '_' + str(sheet_index)
+            sname = report_utils.valid_sheet_name.sub('', chassis_name.replace(' ', '_'))[:22] + '_' + str(sheet_index)
             report_chassis.chassis_page(wb, tc_page, sname, sheet_index, 'Chassis Detail For: ' + chassis_name,
                                         chassis_obj, rt.Chassis.chassis_display_tbl)
             tbl_contents.append({'s': sname, 'd': chassis_name})
@@ -354,7 +355,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
         fab_name = brcddb_fabric.best_fab_name(fab_obj)
         brcdapi_log.log('Processing fabric: ' + fab_name, True)
         tbl_contents.append({'h': True, 'd': fab_name})
-        prefix = fab_name.replace(' ', '_').replace(':', '').replace('-', '_')[:22] + '_' + str(sheet_index)
+        prefix = report_utils.valid_sheet_name.sub('', fab_name.replace(' ', '_'))[:22] + '_' + str(sheet_index)
 
         # Fabric summary page
         if _report_pages['fabric_summary']['s']:
@@ -424,7 +425,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
             brcdapi_log.log('Adding the IOCP pages', True)
             tbl_contents.append({'h': True, 'd': 'IOCPs'})
             for iocp_obj in iocp_objects:
-                sname = iocp_obj.r_obj_key()
+                sname = report_utils.valid_sheet_name.sub('', iocp_obj.r_obj_key())[:22]
                 report_iocp.iocp_page(iocp_obj, tc_page, wb, sname, sheet_index, sname)
                 tbl_contents.append({'s': sname, 'd': sname})
                 sheet_index += 1
