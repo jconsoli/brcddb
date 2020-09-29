@@ -27,16 +27,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 29 Sep 2020   | Added more debug information in s_new_key_for_class()                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '29 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcdapi.log as brcdapi_log
 
@@ -452,12 +454,14 @@ def s_new_key_for_class(obj, k, v, f=False):
     if buf is None:
         return True
     else:
-        buf += '\nObject:     ' + str(type(obj))
-        buf += '\nKey:        ' + k
-        buf += '\nValue type: ' + str(type(v))
+        ml = ['Object:     ' + str(type(obj))]
+        if get_simple_class_type(obj) is not None:
+            ml.append('Object Key: ' + obj.r_obj_key())
+        ml.append('Key:        ' + k)
+        ml.append('Value type: ' + str(type(v)))
         if isinstance(v, (str, int, float)):
-            buf += '\nValue:      ' + str(v)
-        brcdapi_log.exception(buf, True)
+            ml.append('Value:      ' + str(v))
+        brcdapi_log.exception(ml, True)
         return False
 
 
