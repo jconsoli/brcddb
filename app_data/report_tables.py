@@ -66,16 +66,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 02 Sep 2020   | Added the port address to the default port pages.                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 29 Sep 2020   | Removed duplicate table entries.                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Sep 2020'
+__date__ = '29 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 
 class Chassis:
@@ -205,7 +207,6 @@ class Switch:
         'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/logical-isl-enabled':
             'Logical ISL (XISL) Enabled',
         'brocade-fibrechannel-switch/fibrechannel-switch/principal': 'Fabric Principal',
-        'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ficon-mode-enabled': 'FICON Mode (HIF)',
         'brocade-fibrechannel-configuration/switch-configuration/wwn-port-id-mode': 'Persistent WWN PID Mode',
         'brocade-fibrechannel-configuration/fabric/insistent-domain-id-enabled': 'Insistent Domain ID',
         # RNID
@@ -803,7 +804,7 @@ class Login:
     # How to display a login object key value is determined by looking up the key in the list of keys in display passed
     # to login_page() in login_display_tbl. If a key is not found but exists in the login object, it is displayed with
     # all the default settings. The keys are either one of the keys defined in 'brocade-interface/fibrechannel' or one
-    # of special keys below:
+    # of the special keys below:
     #   _LOGIN_COMMENTS     Display alerts
     #   _FABRIC_NAME        Lookup the fabric name. WWN is used if fabric is not named
     #   _FABRIC_NAME_AND_WWN Lookup the fabric name and include the wwn in parenthesis
