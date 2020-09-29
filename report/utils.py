@@ -29,23 +29,32 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 29 Sep 2020   | Set type for col_width to list or tuple in title_page(), added valid_sheet_name.  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '29 Sep 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
+import re
 import brcdapi.log as brcdapi_log
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.util.util as brcddb_util
 import brcddb.report.fonts as report_fonts
+
+
+# Use this to create a sheet name that is not only valid for Excel but can have a link. Note when creating a link to a
+# sheet in Excel, there are additional restrictions on the sheet name. For example, it cannot contain a space. Sample
+# use: good_sheet_name = valid_sheet_name.sub('_', bad_sheet_name)
+valid_sheet_name = re.compile(r'[^\d\w_]')
 
 #######################################################################
 #
@@ -231,7 +240,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     :param content: Caller defined content. List or tuple of dictionaries to add to the title page. See comments below
     :type content: list, tuple
     :param col_width: List of column widths to set on sheet
-    :type col_width: list
+    :type col_width: list, tuple
     :rtype: None
     """
     # dict defined as noted below. Any unspecified item is ignored which means the default is whatever default is
