@@ -28,16 +28,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 01 Nov 2020   | Removed depricated KPIs                                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '01 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -117,16 +119,6 @@ def s_switch_up_time_case(switch_obj, k):
     return int(x / 86400 + 0.5) if isinstance(x, int) else 'Unknown'
 
 
-def s_operational_status_case(switch_obj, k):
-    try:
-        return brcddb_common.switch_conversion_tbl[k][switch_obj.r_get(k)]
-    except:
-        try:
-            return brcddb_common.switch_conversion_tbl['enabled-state'][switch_obj.r_get('enabled-state')]
-        except:
-            return ''
-
-
 def s_maps_active_policy_name(switch_obj, k):
     try:
         return switch_obj.r_active_maps_policy().get('name')
@@ -147,7 +139,6 @@ switch_key_case = {
     'brocade-fabric/fabric-switch/domain-id': s_switch_did_case,
     'brocade-fibrechannel-switch/fibrechannel-switch/ip-static-gateway-list/ip-static-gateway': s_switch_list_case,
     'brocade-fibrechannel-switch/fibrechannel-switch/model': s_switch_model_case,
-    'fibrechannel/operational-status': s_operational_status_case,
     'brocade-fibrechannel-configuration/switch-configuration/area-mode': s_switch_area_mode_case,
     'brocade-fibrechannel-switch/fibrechannel-switch/up-time': s_switch_up_time_case,
     # f-port-login-settings
