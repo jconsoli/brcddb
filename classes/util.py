@@ -29,22 +29,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 29 Sep 2020   | Added more debug information in s_new_key_for_class()                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 01 Nov 2020   | Made _simple_class_type public (changed to _simple_class_type)                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '29 Sep 2020'
+__date__ = '01 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcdapi.log as brcdapi_log
 
 force_msg = 'To overwrite a key, set f=True in the call to s_new_key()\n'
 
-_simple_class_type = ('AlertObj', 'AliasObj', 'ChassisObj', 'FabricObj', 'LoginObj', 'FdmiNodeObj', 'FdmiPortObj',
+simple_class_type = ('AlertObj', 'AliasObj', 'ChassisObj', 'FabricObj', 'LoginObj', 'FdmiNodeObj', 'FdmiPortObj',
                       'PortObj', 'ProjectObj', 'SwitchObj', 'ZoneCfgObj', 'ZoneObj')
 
 
@@ -57,9 +59,9 @@ def get_simple_class_type(obj):
     :return: Simple class type
     :rtype: str
     """
-    global _simple_class_type
+    global simple_class_type
 
-    for k in _simple_class_type:
+    for k in simple_class_type:
         if k in str(type(obj)):
             return k
     return None  # It's not a brcddb class object
