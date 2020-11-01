@@ -27,16 +27,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 01 Nov 2020   | Changed return in r_zone_configurations() to list rather than generator type.     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '01 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -627,9 +629,9 @@ class ZoneObj:
         """Returns the names of defined (not effective) zone configuration this zone is a member of.
 
         :return: Zone configurations
-        :rtype: tuple
+        :rtype: list
         """
-        return (obj.r_obj_key() for obj in self.r_zonecfg_objects())
+        return [obj.r_obj_key() for obj in self.r_zonecfg_objects()]
 
     def r_type(self):
         """Returns zone type
