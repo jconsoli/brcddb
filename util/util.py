@@ -30,23 +30,36 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 22 Aug 2020   | Made sort_ports() more effecient                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 01 Nov 2020   | Consolidated regex matching to here. Added add_to_obj(), get_from_obj(),          |
+    |           |               | resolve_multiplier(), and dBm_to_absolute()                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '22 Aug 2020'
+__date__ = '01 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import re
 import brcdapi.log as brcdapi_log
 import brcddb.util.search as brcddb_search
+import brcddb.classes.util as brcddb_class_util
 
-_DEBUG_FICON = True  # Intended for lab use only. Few, if any, will use this to zone a FICON switch
+_DEBUG_FICON = False  # Intended for lab use only. Few, if any, will use this to zone a FICON switch
 _MAX_ZONE_NAME_LEN = 64
+
+# ReGex matching
+non_decimal = re.compile(r'[^\d.]+')
+decimal = re.compile(r'[\d.]+')  # # Use: letters.sub('', '1.4G') returns 'G'
+zone_notes = re.compile(r'[~*#+^]')
+ishex = re.compile(r'^[A-Fa-f0-9]*$')  # use: if ishex.match(hex_str) returns True if hex_str represents a hex number
+valid_file_name = re.compile(r'\w[ -]')  # use: good_file_name = valid_file_name.sub('_', bad_file_name)
+
+multiplier = dict(k=1000, K=1000, m=1000000, M=1000000, g=1000000000, G=1000000000, t=1000000000000, T=1000000000000)
 
 
 def ports_for_login(login_list):
@@ -217,30 +230,29 @@ def remove_duplicates(obj_list):
     return [obj for obj in obj_list if not (obj in seen or seen_add(obj))]
 
 
-def is_wwn(wwn):
+def is_wwn(wwn, full_check=True):
     """Validates that the wwn is a properly formed WWN
 
     :param wwn: WWN
     :type wwn: str
+    :param full_check: When True, the first byte cannot be 0
     :return: True - wwn is a valid WWN, False - wwn is not a valid WWN
     :rtype: bool
     """
     if len(wwn) != 23:
         return False
-    if wwn[0] == '0':
+    if wwn[0] == '0' and full_check:
         return False
     i = 0
     wwn_chars = ''
     for c in wwn:
         if i in (0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22):
             wwn_chars += c
-        else:
-            if c != ':':
-                return False
+        elif c != ':':
+            return False
         i += 1
-    if not re.match("^[A-Fa-f0-9]*$", wwn_chars):
-        return False
-    return True
+
+    return True if ishex.match(wwn_chars) else False
 
 
 def is_valid_zone_name(zone_obj):
@@ -650,3 +662,139 @@ def paren_content(buf, p_remove=False):
         r_buf.pop(0)
 
     return ''.join(r_buf), remainder
+
+
+def add_to_obj(obj, k, v):
+    """Adds a key value pair to obj using '/' notation in the key. If the key already exists, it is overwritten.
+
+    :param obj: Dictionary or brcddb.class object the key value pair is to be added to
+    :type obj: dict
+    :param k: The key
+    :type k: str
+    :param v: Value associated with the key.
+    :type v: int, str, list, dict
+    """
+    if not isinstance(k, str):
+        brcdapi_log.exception('Invalid key. Expected type str, received type ' + str(type(k)), True)
+        return
+    key_list = k.split('/')
+    if isinstance(obj, dict):
+        if len(key_list) == 1:
+            obj.update({k: v})
+            return
+        key = key_list.pop(0)
+        d = obj.get(key)
+        if d is None:
+            d = dict()
+            obj.update({key: d})
+        add_to_obj(d, '/'.join(key_list), v)
+    elif brcddb_class_util.get_simple_class_type(obj) is None:
+        brcdapi_log.exception('Invalid object type.', True)
+    else:
+        key = key_list.pop(0)
+        if len(key_list) == 0:
+            obj.s_new_key(key, v, True)
+            return
+        r_obj = obj.r_get(key)
+        if r_obj is None:
+            r_obj = dict()
+            obj.s_new_key(key, r_obj)
+        add_to_obj(r_obj, '/'.join(key_list), v)
+
+
+def get_struct_from_obj(obj, k):
+    """Returns a Python data structure for a key using / notation in obj with everything not in the key, k, filtered out
+
+    :param obj: Dictionary the key is for
+    :type obj: dict
+    :param k: The key
+    :type k: str
+    :return: Filtered data structure. None is returned if the key was not found
+    :rtype: int, str, list, dict, None
+    """
+    if not isinstance(k, str) or obj is None or len(k) == 0:
+        return None
+    r_obj = dict()
+    w_obj = r_obj
+    kl = k.split('/')
+    k0 = None
+    v0 = obj
+    while len(kl) > 0:
+        k0 = kl.pop(0)
+        v0 = v0.get(k0) if isinstance(v0, dict) else v0.r_get(k0)
+        if v0 is None:
+            return None  # The key was not found if we get here
+        if len(kl) > 0:
+            if isinstance(v0, dict):
+                w_obj.update({k0: dict()})
+                w_obj = w_obj[k0]
+            else:
+                brcdapi_log.exception('Expected type dict for ' + k0 + ' in ' + k, True)
+    if k0 is not None:
+        w_obj.update({k0: v0})
+
+    return r_obj
+
+
+def get_from_obj(obj, k):
+    """Returns the value associated with a key in / notation for a dict or brcddb.class object
+
+    :param obj: Dictionary the key is for
+    :type obj: dict
+    :param k: The key
+    :type k: str
+    :return: Value associated with the key. None is returned if the key was not found
+    :rtype: int, str, list, dict, None
+    """
+    if isinstance(obj, dict):
+        v0 = get_struct_from_obj(obj, k)
+        if v0 is None:
+            return None
+        kl = k.split('/')
+        while len(kl) > 0:
+            k0 = kl.pop(0)
+            v0 = v0.get(k0)
+            if v0 is None:
+                return None  # The key was not found if we get here
+        return v0
+    elif brcddb_class_util.get_simple_class_type(obj) is None:
+        brcdapi_log.exception('Invalid object type.', True)
+    else:
+        return obj.r_get(k)
+
+
+def resolve_multiplier(val):
+    """Converts an str representation of a number. Supported conversions are k, m,, g, or t
+
+    :param val: Dictionary the key is for
+    :type val: str
+    :return: val as a number. Returns None if
+    :rtype: float, None
+    """
+    if isinstance(val, str):
+        try:
+            mod_val = float(non_decimal.sub('', val))
+            mult = decimal.sub('', val)
+            if len(mult) > 0:
+                return mod_val * multiplier[mult]
+            return mod_val
+        except:
+            return None
+    return val
+
+
+def dBm_to_absolute(val, r=1):
+    """Converts a number in dBm to it's value
+
+    :param val: dBm value
+    :type val: str, float
+    :param r: Number of digits to the left of the decimal point to round off to
+    :type r: int
+    :return: val converted to it's absolute value. None if val cannot be converted to a float.
+    :rtype: float, None
+    """
+    try:
+        return round((10 ** (float(val)/10)) * 1000, r)
+    except:
+        pass
+    return None
