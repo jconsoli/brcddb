@@ -54,16 +54,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 22 Aug 2020   | Fixed check for logged in WWNs                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 01 Nov 2020   | Fixed check for duplicate aliases, added check for peer zone property in zone,    |
+    |           |               | and only check if a login is zoned if it's not a base login for NPIV.             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '22 Aug 2020'
+__date__ = '01 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -133,9 +136,12 @@ def alias_analysis(fabric_obj):
                 a_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NULL_ALIAS_USED, None, \
                                   ', '.join([zone_obj.r_obj_key() for zone_obj in zone_list]), None)
         elif len(alias_members) == 1:  # Duplicate alias? Keeping it simple by only checking 1 member per alias
+            alias_name = a_obj.r_obj_key()
             bl = []
             for c_obj in alias_list:
-                if c_obj != a_obj and len(c_obj.r_members()) == 1 and alias_members[0] == c_obj.r_members()[0]:
+                mem = c_obj.r_members()[0] if len(c_obj.r_members()) == 1 else None
+                if c_obj.r_obj_key() != alias_name and len(c_obj.r_members()) == 1 and \
+                        alias_members[0] == c_obj.r_members()[0]:
                     bl.append(c_obj.r_obj_key())
             if len(bl) > 0:
                 a_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_DUP_ALIAS, None, ', '.join(bl), None)
@@ -262,7 +268,8 @@ def wwn_zone_speed_check(fab_obj):
 
 def zone_analysis(fab_obj):
     """Analyzes zoning. Finds where all members are. Adds an alert if any of the following conditions exist:
-    * Calls alias_analysis() - additional alias checking
+    * Calls alias_analysis() - multiple identical aliases, unused alias, and alias with no members
+    * Calls wwn_zone_speed_check() - Checks for speed mismatches, potential slow drain device
     * Zone has less than 2 members
     * Peer zone doesn't have at least one principal and one regular member
     * Mixed d,i and WWN zones
@@ -273,6 +280,8 @@ def zone_analysis(fab_obj):
     * Base port (HBA) of NPIV logins is in a zone
     * Maximum number of devices zoned to a device. See brcddb.app_data.bp_tables.MAX_ZONE_PARTICIPATION
     * Mix of WWN and alias in the same zone
+    * Peer zone property member in zone
+    * Duplicate aliases
 
     :param fab_obj: brcddb fabric object
     :type fab_obj: brcddb.classes.fabric.FabricObj
@@ -296,6 +305,10 @@ def zone_analysis(fab_obj):
         nmem_list = []  # effective zone to defined zone comparison. These are de-referenced (alias converted to WWN)
         flag &= ~(_IN_DEFINED_ZONECFG | _WWN_IN_ZONE | _ALIAS_IN_ZONE | _DI_IN_ZONE)
 
+        # Is the zone used in any configuration?
+        if len(zone_obj.r_zone_configurations()) == 0:
+            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_USED, None, None, None)
+
         # Check for d,i zones, mixed d,i & WWN zones, and make sure the member is in the fabric
         for i in range(0, 2):   # 0 - Get the members, 1 - get the principal members
             zmem_list = zone_obj.r_members() if i == 0 else zone_obj.r_pmembers()
@@ -303,6 +316,8 @@ def zone_analysis(fab_obj):
                 if brcddb_util.is_wwn(zmem):
                     flag |= _WWN_MEM | _WWN_IN_ZONE
                     mem_list = [zmem]
+                elif brcddb_util.is_wwn(zmem, False):
+                    zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_PROPERTY, None, zmem, None)
                 else:
                     flag &= ~_WWN_MEM
                     flag |= _ALIAS_IN_ZONE
@@ -417,7 +432,7 @@ def zone_analysis(fab_obj):
         if len(fab_obj.r_zones_for_wwn(wwn)) > 0:
             if wwn in fab_obj.r_base_logins():
                 login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_BASE_ZONED)
-        else:
+        elif wwn not in fab_obj.r_base_logins():
             login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_NOT_ZONED)
 
         # Check zone participation

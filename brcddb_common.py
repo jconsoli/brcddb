@@ -29,19 +29,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 02 Sep 2020   | Added 0 auto-negotiate no-sync) to fibrechannel/speed to port_conversion_tbl      |
+    | 3.0.2     | 02 Sep 2020   | Added 0 auto-negotiate no-sync to fibrechannel/speed to port_conversion_tbl       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 01 Nov 2020   | Removed depricated conversions. Added 9.0 status values to port operational-status|
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Sep 2020'
+__date__ = '01 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Required'
-__version__ = '3.0.2'
-
+__status__ = 'Released'
+__version__ = '3.0.3'
 
 #################################################################################
 #                                   Project                                     #
@@ -120,6 +121,12 @@ zonecfg_conversion_tbl = {
         CFG_ACTION_CLEAR: 'Clear the entire zone database',
         CFG_ACTION_CLEAR_PEND: 'Clear pending changes',
     },
+    'zone-type': {  # zone-type-type
+        0: 'zone',
+        1: 'user-created-peer-zone',
+        2: 'target-created-peer-zone'
+    },
+
 }
 
 #################################################################################
@@ -212,33 +219,12 @@ switch_conversion_tbl = {
         1: '1 - Second login takes precedence',
         2: '2 - First FLOGI takes precedence, second FDISC (NPIV) takes precedence',
     },
-    'switch/fibrechannel-switch/ag-mode': {
-        0: 'Not supported',
-        1: 'Supported, not enabled',
-        3: 'Enabled',
-    },
-    'switch/fibrechannel-switch/enabled-state': {  # Deprecated in 8.2.1b. See operational-status
-        0: 'Disabled',
-        2: 'Enabled',
-        7: 'In test',
-    },
-    'switch/fibrechannel-switch/operational-status': {  # Replaces enabled-state in 8.2.1b.
-        0: 'Undefined',
-        2: 'Enabled',
-        3: 'Disabled',
-        7: 'In test',
-    },
     'brocade-fibrechannel-switch/fibrechannel-switch/ag-mode': {
         0: 'Not supported',
         1: 'Supported, not enabled',
         3: 'Enabled',
     },
-    'brocade-fibrechannel-switch/fibrechannel-switch/enabled-state': {  # Deprecated in 8.2.1b. See operational-status
-        0: 'Disabled',
-        2: 'Enabled',
-        7: 'In test',
-    },
-    'brocade-fibrechannel-switch/fibrechannel-switch/operational-status': {  # Replaces enabled-state in 8.2.1b.
+    'brocade-fibrechannel-switch/fibrechannel-switch/operational-status': {
         0: 'Undefined',
         2: 'Enabled',
         3: 'Disabled',
@@ -309,9 +295,11 @@ port_conversion_tbl = {
         PORT_TYPE_LB: 'LB-Port',
     },
     'fibrechannel/operational-status': {
+        0: 'Undefined',
         2: 'Online',
         3: 'Offline',
         5: 'Faulty',
+        6: 'Testing',
     },
     'fibrechannel/long-distance': {
         0: 'Disabled',

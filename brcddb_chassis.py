@@ -37,16 +37,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 01 Nov 2020   | Added Gen7 board types to blade_id_name.                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '01 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.brcddb_switch as brcddb_switch
 
@@ -91,6 +93,10 @@ blade_id_name = {
     186: 'SX6',
     202: 'G630',
     204: 'FC32-64',
+    214: 'CR64-4',
+    215: 'CR64-8',
+    218: 'FC32-X7-48',
+    220: 'CPX7',
 }
 
 
