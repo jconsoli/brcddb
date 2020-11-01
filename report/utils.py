@@ -31,16 +31,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 29 Sep 2020   | Set type for col_width to list or tuple in title_page(), added valid_sheet_name.  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 01 Nov 2020   | Fix bug if row was a list in cell_match_val(). Added read_sheet() and             |
+    |           |               | get_next_switch_d()                                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '29 Sep 2020'
+__date__ = '01 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
@@ -49,7 +52,7 @@ import brcdapi.log as brcdapi_log
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.util.util as brcddb_util
 import brcddb.report.fonts as report_fonts
-
+import brcddb.util.search as brcddb_search
 
 # Use this to create a sheet name that is not only valid for Excel but can have a link. Note when creating a link to a
 # sheet in Excel, there are additional restrictions on the sheet name. For example, it cannot contain a space. Sample
@@ -339,11 +342,11 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
 
 
 def col_to_num(cell):
-    """Converts a cell reference to a column number.
+    """Converts a cell reference to a column number. This is a little more effecient than the openpyxl method
 
     :param cell: Excel spreadsheet cell reference. Example: 'AR20' or just 'AR'
     :type cell: str
-    :return: Column number
+    :return: Column number. 0 if column not found
     :rtype: int
     """
     r = 0
@@ -371,19 +374,16 @@ def cell_match_val(sheet, val, col=None, row=None, num=1):
     :return: List of cell references where value found. If num == 1: just one str is returned. None if not found
     :rtype: str, list, None
     """
-    if col is None:
-        col_list = []
-        for i in range(1, sheet.max_column):
-            col_list.append(xl_util.get_column_letter(i))
-    else:
-        col_list = brcddb_util.convert_to_list(col)
+    col_list = [xl_util.get_column_letter(i) for i in range(1, sheet.max_column)] if col is None \
+        else brcddb_util.convert_to_list(col)
+    row_list = [i for i in range(1, sheet.max_row)] if row is None else brcddb_util.convert_to_list(row)
 
     class Found(Exception):
         pass
     ret = []
     try:
         for c in col_list:
-            for r in brcddb_util.convert_to_list(row):
+            for r in row_list:
                 cell = c + str(r)
                 rv = sheet[cell].value
                 if (isinstance(val, (int, float)) and isinstance(rv, (int, float))) or \
@@ -402,6 +402,80 @@ def cell_match_val(sheet, val, col=None, row=None, num=1):
             return None
     else:
         return ret
+
+
+def read_sheet(sheet, order='col'):
+    """Reads the contents (values) of a worksheet into a list of dict of:
+
+    sl Detail:
+    +---------------+---------------------------------------------------------------------------------------+
+    | key           | Value description                                                                     |
+    +===============+=======================================================================================+
+    | cell          | Cell reference.                                                                       |
+    +---------------+---------------------------------------------------------------------------------------+
+    | val           | Value read from cell.                                                                 |
+    +---------------+---------------------------------------------------------------------------------------+
+
+    Intended to be used by methods that will feed this list to brcddb.utils.search.match_test()
+
+    :param sheet: Sheet structure returned from wb.create_sheet()
+    :type sheet: class
+    :param order: Order in which to read. 'row' means read by row, then each individual column. 'col' for column 1st
+    :type order: str
+    :return sl: List of dict as noted above
+    :rtype sl: list
+    :return al: List of lists. Contents of the worksheet referenced by al[col-1][row-1] if order is 'col' or
+                al[row-1][col-1] if order is 'row'
+    :rtype al: list
+    """
+     # Read in all the cell values
+    sl = list()
+    al = list()
+    if order.lower() == 'col':
+        for col in range(1, sheet.max_column):
+            col_ref = xl_util.get_column_letter(col)
+            rl = list()
+            for row in range(1, sheet.max_row):
+                cell = col_ref + str(row)
+                v = sheet[cell].value
+                rl.append(v)
+                if v is not None and col not in hidden_columns and row not in hidden_rows:
+                    sl.append(dict(cell=cell, val=v))
+            al.append(rl)
+    else:
+        for row in range(1, sheet.max_row+1):
+            cl = list()
+            for col in range(1, sheet.max_column):
+                cell = xl_util.get_column_letter(col) + str(row)
+                v = sheet[cell].value
+                cl.append(v)
+                if v is not None:
+                    sl.append(dict(cell=cell, val=v))
+            al.append(cl)
+
+    return sl, al
+
+
+def get_next_switch_d(switch_list, val, test_type, ignore_case=False):
+    """Finds the first match in an sl list returned from read_sheet() and returns the next entry in switch_list
+
+    :param switch_list: A list of dictionaries as returned from brcddb.report.utils.read_sheet()
+    :type switch_list: list, tuple
+    :param val: The value to look for
+    :type val: str, int, float
+    :param test_type: The type of test to perform. See brcddb.util.search.match_test
+    :type test_type: str
+    :param ignore_case: If True, performs a case insensitive search
+    :return: Entry in switch_list. None if not found or if the match was the last entry in switch_list
+    :rtype: dict, None
+    """
+    ml = brcddb_search.match_test(switch_list, dict(k='val', v=val, t=test_type, i=ignore_case))
+    if len(ml) > 0:
+        cell = ml[0]['cell']  # Find this cell
+        for i in range(0, len(switch_list)):
+            if switch_list[i]['cell'] == cell:
+                return None if i + 1 >= len(switch_list) else switch_list[i+1]
+    return None
 
 
 # Rather than rely on the user to not move columns or worksheets around, we use the tables below to figure out where
