@@ -34,20 +34,22 @@ Version Control::
     |           |               | Cleaned up language in LOGIN_NOT_ZONED alert.                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 02 Sep 2020   | Changed unused zones, unused alias, logins no zoned, and enabled ports with no    |
-    |           |               | from WARN to GENERAL                                                              |
+    |           |               | logins from WARN to GENERAL                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 29 Sep 2020   | Changed LOGIN_FDMI_NOT_ENABLED to GENERAL                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 01 Nov 2020   | Added ZONE_PEER_PROPERTY                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '29 Sep 2020'
+__date__ = '01 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcddb.classes.alert as al
 
@@ -178,8 +180,9 @@ class ALERT_NUM:
     ZONE_ALIAS_NOT_USED = ZONE_NULL_ALIAS_USED + 1
     ZONE_MULTI_INITIATOR = ZONE_ALIAS_NOT_USED + 1
     ZONE_UNDEFINED_ALIAS = ZONE_MULTI_INITIATOR + 1
+    ZONE_PEER_PROPERTY = ZONE_UNDEFINED_ALIAS + 1  # A WWN beginning with 00 is in the zone. Typically a properties WWN
     # The remaining zone alerts are support applications that modify zones
-    ZONE_ADD_ZONE = ZONE_UNDEFINED_ALIAS + 1  # Newly created zone
+    ZONE_ADD_ZONE = ZONE_PEER_PROPERTY + 1  # Newly created zone
     ZONE_KEPT = ZONE_ADD_ZONE + 1  # Existing zone kept
     ZONE_REMOVED = ZONE_KEPT + 1  # Zone removed/not needed
 
@@ -319,8 +322,10 @@ class AlertTable:
         ALERT_NUM.ZONE_WWN_ALIAS: dict(m='Mixed use of WWN and alias in zone', s=al.ALERT_SEV.WARN),
         ALERT_NUM.ZONE_NOT_USED: dict(m='Not used', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.ZONE_MISMATCH: dict(m='Effective zone does not match defined zone', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.ZONE_PEER_PROPERTY: dict(m='Peer property WWN, $p0, should not be included in the zone definition',
+                                           s=al.ALERT_SEV.GENERAL),
 
-        # Zone members. In all cases, _p0 must be the WWN because that is how the report associates an alert with a
+        # Zone members. In all cases, p0 must be the WWN because that is how the report associates an alert with a
         # member rather than the zone itself. 'f' = True is used to indicate the alert is relevant to the member.
         ALERT_NUM.ZONE_ALIAS_USE: dict(m='Consider using alias $p1', s=al.ALERT_SEV.WARN, f=True),
         ALERT_NUM.ZONE_PROB_AMP: dict(m='SIM Port or AMP trunk link', s=al.ALERT_SEV.GENERAL,
