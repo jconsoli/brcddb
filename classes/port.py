@@ -29,16 +29,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 14 Nov 2020   | Handle all port speeds.                                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '14 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -596,20 +598,6 @@ class PortObj:
         """
         return int(self.r_obj_key().split('/')[0])
 
-    def c_login_speed(self):
-        """converts the login speed to Gbps
-
-        :return: Login speed in Gbps.
-        :rtype: int
-        """
-        if self.r_is_online():
-            try:
-                return brcddb_common.port_conversion_tbl['fibrechannel/speed'][self.r_get('fibrechannel/speed')]
-            except:
-                return 0    # This is a bug if we get here
-        else:
-            return 0
-
     def c_login_type(self):
         """Converts the login type to a human readible port type
 
@@ -653,11 +641,10 @@ class PortObj:
         :rtype: str
         """
         speed = self.r_get('fibrechannel/speed')
-        if speed is None:
-            return ''
+        if isinstance(speed, (int, float)):
+            return str(int(speed/1000000000)) + 'N' if self.r_is_auto_neg() else str(int(speed/1000000000)) + 'G'
         else:
-            buf = str(brcddb_common.port_conversion_tbl['fibrechannel/speed'][speed])
-            return buf + 'N' if self.r_is_auto_neg() else buf + 'G'
+            return ''
 
     def r_chassis_key(self):
         """Returns the chassis key this port belongs to
