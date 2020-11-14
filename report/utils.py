@@ -34,16 +34,18 @@ Version Control::
     | 3.0.3     | 01 Nov 2020   | Fix bug if row was a list in cell_match_val(). Added read_sheet() and             |
     |           |               | get_next_switch_d()                                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 14 Nov 2020   | Made parse_sfp_file() more effecient and added protection against a malformed file|
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '01 Nov 2020'
+__date__ = '14 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
@@ -139,7 +141,7 @@ def combined_login_alert_objects(login_obj):
     :return: List of AlertObj
     :rtype: list
     """
-    a_list = []
+    a_list = list()
     if login_obj is not None:
         a_list.extend(login_obj.r_alert_objects())  # Alerts tied to the login
         wwn = login_obj.r_obj_key()
@@ -293,7 +295,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     if isinstance(content, (list, tuple)):
         for obj in content:
             if isinstance(obj, dict):
-                display = []
+                display = list()
                 if 'disp' in obj:
                     if isinstance(obj.get('disp'), (str, int, float)):
                         display.append(obj.get('disp'))
@@ -380,7 +382,7 @@ def cell_match_val(sheet, val, col=None, row=None, num=1):
 
     class Found(Exception):
         pass
-    ret = []
+    ret = list()
     try:
         for c in col_list:
             for r in row_list:
@@ -635,7 +637,7 @@ def parse_sfp_file_for_rules(file, groups):
     :return: List of SFP rule dictionaries. None if an error was encountered
     :rtype: list, None
     """
-    new_sfp_rules = []  # The list of rule dictionaries that will be returned
+    new_sfp_rules = list()  # The list of rule dictionaries that will be returned
 
     # Load the workbook
     try:
@@ -683,7 +685,7 @@ def parse_sfp_file(file):
     :return: List of dictionaries. The key for each dictionary is the column header and the value is the cell value
     :rtype: list
     """
-    parsed_sfp_sheet = []  # The list of rule dictionaries that will be returned
+    parsed_sfp_sheet = list()  # The list of rule dictionaries that will be returned
 
     # Load the workbook
     try:
@@ -693,31 +695,26 @@ def parse_sfp_file(file):
         brcdapi_log.log('Error opening workbook: ' + 'None' if file is None else file, True)
         return parsed_sfp_sheet
 
+    sl, al = read_sheet(sheet, 'row')
+
     # We must have at least the 'Group' column
-    cell = cell_match_val(sheet, 'Group', None, 1)
-    if cell is None:
+    hdr = al[0]
+    for group_col in range(0, len(hdr)):
+        if hdr[group_col] == 'Group':
+            break
+    if hdr[group_col] != 'Group':
         brcdapi_log.log('Could not find column with \'Group\'', True)
         return parsed_sfp_sheet
-    group_col = xl_util.get_column_letter(col_to_num(cell))
+    max_columns = len(hdr)
 
-    # Find all the columns
-    sheet = wb['new_SFP_rules']
-    max_columns = sheet.max_column
-    col_hdr = [None]
-    col_letter = [None]
-    for i in range(1, max_columns):
-        col_letter.append(xl_util.get_column_letter(i))
-        col_hdr.append(sheet[col_letter[i] + str(1)].value)
-
-    # Now parse all the rows
-    row = 2
-    group = sheet[group_col + str(row)].value
-    while group != '__END__':
-        d = {}
-        for i in range(1, max_columns):
-            d.update({col_hdr[i]: sheet[col_letter[i] + str(row)].value})
+    # Parse all the rows
+    for row in range(1, len(al)):
+        row_data = al[row]
+        if row_data[group_col] == '__END__':
+            break
+        d = dict()
+        for i in range(0, max_columns):
+            d.update({hdr[i]: row_data[i]})
         parsed_sfp_sheet.append(d)
-        row += 1
-        group = sheet[group_col + str(row)].value
 
     return parsed_sfp_sheet
