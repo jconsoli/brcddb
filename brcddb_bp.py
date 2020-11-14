@@ -41,16 +41,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 14 Nov 2020   | Added ability to parse multiple SFP part numbers for the same rule. This was done |
+    |           |               | to accomodated the new secure SFPs for Gen7.                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '14 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.util.util as brcddb_util
 import brcddb.util.search as brcddb_search
@@ -422,20 +425,22 @@ def _check_sfps(obj_list, t_obj):
     for rule in sfp_rules:
         group = 'Unkonwn' if rule.get('Group') is None else rule.get('Group')
         try:
-            pn = rule.get('Mfg. P/N')
-            if pn is not None and pn != '':
-                plist = brcddb_search.match_test(enabled_ports, {'k': 'media-rdp/part-number', 't': 'exact', 'v': pn})
-                if len(plist) > 0:
-                    online_plist = brcddb_search.match_test(plist, bp_tables.is_online)
-                    for k0, obj_0 in _rule_template.items():
-                        for k1, obj_1 in obj_0.items():
-                            val = float(rule.get(k1))  # The threshold to test against
-                            m = obj_1.get('a')  # Alert number
-                            tlist = online_plist if obj_1.get('l') else plist
-                            for p_obj in brcddb_search.match_test(tlist, {'k': k0, 't': obj_1.get('t'), 'v': val}):
-                                p_obj.s_add_alert(_alert_tbl, m, k0, p_obj.r_get(k0), val)
+            pn_l = rule.get('Mfg. P/N')
+            if pn_l is not None and pn_l != '':
+                for pn in [p.strip() for p in pn_l.split(',')]:
+                    plist = brcddb_search.match_test(enabled_ports,
+                                                     {'k': 'media-rdp/part-number', 't': 'exact', 'v': pn})
+                    if len(plist) > 0:
+                        online_plist = brcddb_search.match_test(plist, bp_tables.is_online)
+                        for k0, obj_0 in _rule_template.items():
+                            for k1, obj_1 in obj_0.items():
+                                val = float(rule.get(k1))  # The threshold to test against
+                                m = obj_1.get('a')  # Alert number
+                                tlist = online_plist if obj_1.get('l') else plist
+                                for p_obj in brcddb_search.match_test(tlist, {'k': k0, 't': obj_1.get('t'), 'v': val}):
+                                    p_obj.s_add_alert(_alert_tbl, m, k0, p_obj.r_get(k0), val)
             else:
-                brcdapi_log.log('Unknown P/N in ' + sfp_rules + ', Group: ' + str(group), True)
+                brcdapi_log.log('Missing P/N in ' + sfp_rules + ', Group: ' + str(group), True)
 
         except:
             brcdapi_log.exception('Invalid SFP rules file ' + sfp_rules + '. Group: ' + str(group), True)

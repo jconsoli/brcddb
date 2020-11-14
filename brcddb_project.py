@@ -30,16 +30,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 14 Nov 2020   | Handle all port speeds.                                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '14 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.classes.project as project_class
 import brcddb.brcddb_fabric as brcddb_fabric
@@ -172,7 +174,7 @@ def add_custom_search_terms(proj_obj):
                 search.update({'max_login_speed': min([max_sfp, max_r_sfp])})
 
         # Convert the actual login speed, which is bps, to Gbps for easier comparisons to the SFP speed capabilities
-        v = port_obj.r_get('fibrechannel/speed')
-        if isinstance(v, int):
-            if 'speed' not in search:
-                search.update({'speed': brcddb_common.port_conversion_tbl['fibrechannel/speed'][v]})
+        if 'speed' not in search:
+            v = brcddb_util.non_decimal.sub('', port_obj.c_login_speed())
+            if len(v) > 0:
+                search.update({'speed': int(v)})

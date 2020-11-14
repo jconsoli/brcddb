@@ -33,16 +33,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 01 Nov 2020   | Removed depricated conversions. Added 9.0 status values to port operational-status|
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 14 Nov 2020   | Removed 'fibrechannel/speed' and 'fibrechannel/max-speed' from                    |
+    |           |               | port_conversion_tbl in favor of calculating speed so as to accomodate all speeds  |
+    |           |               | in code.                                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '01 Nov 2020'
+__date__ = '14 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 #################################################################################
 #                                   Project                                     #
@@ -342,29 +346,6 @@ port_conversion_tbl = {
         14000:  14000,
         15000:  15000,
         16000:  16000,
-    },
-    'fibrechannel/speed': {
-        0: 0,  # This happens when auto-negotiate is set and the port is not yet in sync
-        1000000000:     1,
-        2000000000:     2,
-        4000000000:     4,
-        8000000000:     8,
-        10000000000:    10,
-        16000000000:    16,
-        32000000000:    32,
-        40000000000:    40,
-        64000000000:    64,
-    },
-    'fibrechannel/max-speed': {
-        1000000000:     1,
-        2000000000:     2,
-        4000000000:     4,
-        8000000000:     8,
-        10000000000:    10,
-        16000000000:    16,
-        32000000000:    32,
-        40000000000:    40,
-        64000000000:    64,
     },
     'fibrechannel/los-tov-mode-enabled': {
         0:  'Disabled',
