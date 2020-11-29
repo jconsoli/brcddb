@@ -42,16 +42,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 04 Sep 2020   | Added 9.0 MAPS categories                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 29 Nov 2020   | Fixed bug when a MAPS alert was triggered for a port that was moved to another VF |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '04 Sep 2020'
+__date__ = '29 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
@@ -104,7 +106,7 @@ def _port_category(switch_obj, dash_obj):
     sev = dash_obj.get('event-severity') if dash_obj.get('event-severity') in _event_severity else 'default'
     al_num = _event_severity[sev]
     port_obj = switch_obj.r_port_obj(port)
-    if not brcddb_util.has_alert(port_obj, al_num, None, p0, None):
+    if port_obj is not None and not brcddb_util.has_alert(port_obj, al_num, None, p0, None):
         port_obj.s_add_alert(al.AlertTable.alertTbl, al_num, None, p0, None)
 
 
