@@ -38,20 +38,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 29 Nov 2020   | Fixed "ADDED" and "REMOVED" matching when the check should have been skipped.     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '29 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import copy
 import re
 import brcdapi.log as brcdapi_log
+import brcddb.classes.util as class_util
 
 # Returns a dictionary as noted below.
 #
@@ -90,24 +93,7 @@ _MISSING_BASE = 'Missing base'
 _INVALID_REF = 'Programming error. Invalid reference. Check the log for details.'
 _BAD_OBJECT = 'Programming error. Bad brcddb object. Check the log for details.'
 
-_BROCADE_OBJ_TYPE_CLEAN_UP = ('<class \'', '\'>', 'brcddb.classes.', 'alert.', 'chassis.', 'fabric.', 'login.', 'port.',
-                              'project.', 'switch.', 'util.', 'zone.')
-
 _brcddb_control_tables = None
-
-
-def _brcddb_obj_type(obj):
-    """Converts a brcddb object to a simple str type
-
-    :param obj: Object to convert to simple type
-    :type obj: brcddb.classes.*.*
-    :return: Simple object type (just the class name)
-    :rtype: str
-    """
-    ref_type = str(type(obj))
-    for s in _BROCADE_OBJ_TYPE_CLEAN_UP:
-        ref_type = ref_type.replace(s, '')
-    return ref_type
 
 
 def _update_r_obj(r_obj, d):
@@ -148,7 +134,7 @@ def _check_control(ref, control_tbl):
         for k in control_tbl.keys():
             if re.search(k, ref):
                 cd = control_tbl.get(k)
-                skip_flag = False if cd.get('skip') is None else True if cd.get('skip') else False
+                skip_flag = False if cd.get('skip') is None else cd.get('skip')
                 lt = 0 if cd.get('lt') is None else cd.get('lt')
                 gt = 0 if cd.get('gt') is None else cd.get('gt')
                 break
@@ -241,7 +227,7 @@ def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
         skip_flag, lt, gt = _check_control(ref + '/' + k, control_tbl)
         if not skip_flag:
             b_obj_r = b_obj.r_get_reserved(k)
-            new_r_obj = [] if isinstance(b_obj_r, (list, tuple)) else {}
+            new_r_obj = [] if isinstance(b_obj_r, (list, tuple)) else dict()
             x = _compare(new_r_obj, '/' + k, b_obj_r, c_obj.r_get_reserved(k), control_tbl)
             if x > 0:
                 r_obj.update({k: copy.deepcopy(new_r_obj)})
@@ -250,10 +236,10 @@ def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     # Compare all the added objects
     tl = b_obj.r_keys()
     for k in tl:
-        new_r_obj = {}
+        new_r_obj = dict()
         x = _compare(new_r_obj, ref + '/' + k, b_obj.r_get(k), c_obj.r_get(k), control_tbl)
         if x > 0:
-            r_obj.update({k: copy.deepcopy(new_r_obj)})
+            r_obj.update({k: copy.deepcopy(new_r_obj)})  # I have no idea why I did a copy here
             c += x
 
     # Check for removed objects
@@ -287,9 +273,9 @@ def _brcddb_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     if skip_flag:
         return 0
 
-    new_r_obj = {}
+    new_r_obj = dict()
     try:
-        ct = _brcddb_control_tables.get(_brcddb_obj_type(b_obj))
+        ct = _brcddb_control_tables.get(class_util.get_simple_class_type(b_obj))
     except:
         ct = None
     c = _brcddb_internal_compare(new_r_obj, '', b_obj, c_obj, ct)
@@ -325,10 +311,12 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     for k in b_obj.keys():  # Check existing
         new_ref = ref + '/' + k
         b_obj_r = b_obj.get(k)
-        new_r_obj = [] if isinstance(b_obj_r, (list, tuple)) else {}
+        new_r_obj = [] if isinstance(b_obj_r, (list, tuple)) else dict()
         c_obj_r = c_obj.get(k)
         if c_obj_r is None:
-            _update_r_obj(new_r_obj, {'b': k, 'c': '', 'r': _REMOVED})
+            skip_flag_0, lt_0, gt_0 = _check_control(new_ref, control_tbl)
+            if not skip_flag_0:
+                _update_r_obj(new_r_obj, {'b': k, 'c': '', 'r': _REMOVED})
             x = 1
         else:
             x = _compare(new_r_obj, new_ref, b_obj_r, c_obj_r, control_tbl)
@@ -337,7 +325,9 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
             c += x
     for k in c_obj.keys():  # Anything added?
         if k not in b_obj:
-            _update_r_obj(r_obj, {k: {'b': '', 'c': k, 'r': _NEW}})
+            skip_flag_0, lt_0, gt_0 = _check_control(ref + '/' + k, control_tbl)
+            if not skip_flag_0:
+                _update_r_obj(r_obj, {k: {'b': '', 'c': k, 'r': _NEW}})
             c += 1
     return c
 
@@ -370,7 +360,7 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     len_c_obj = len(c_obj)
     len_b_obj = len(b_obj)
     for i in range(0, len_b_obj):
-        new_r_obj = {}
+        new_r_obj = dict()
         if i < len_c_obj:
             x = _compare(new_r_obj, ref, b_obj[i], c_obj[i], control_tbl)
         else:
@@ -444,6 +434,7 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
     :return: Change counter
     :rtype: int
     """
+
     # Make sure we have a valid reference.
     if not isinstance(ref, str):
         brcdapi_log.exception('Invalid reference type: ' + str(type(ref)), True)
@@ -462,15 +453,20 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
 
     # Are we comparing the same types?
     # There could be a mix of int and float.
-    b_type = 'num' if isinstance(b_obj, (int, float)) else _brcddb_obj_type(b_obj)
-    c_type = 'num' if isinstance(c_obj, (int, float)) else _brcddb_obj_type(b_obj)
+    b_type = class_util.get_simple_class_type(b_obj)
+    if b_type is None:
+        b_type = 'num' if isinstance(b_obj, (int, float)) else \
+            str(type(b_obj)).replace('<class ', '').replace('>', '').replace("\'", '')
+    c_type = class_util.get_simple_class_type(c_obj)
+    if c_type is None:
+        c_type = 'num' if isinstance(c_obj, (int, float)) else \
+            str(type(c_obj)).replace('<class ', '').replace('>', '').replace("\'", '')
     if b_type != c_type:
         _update_r_obj(r_obj, {'b': b_type, 'c': c_type, 'r': _MISMATCH})
         return 1
 
-    for k in _obj_type_action.keys():
-        if k in b_type:
-            return _obj_type_action.get(k)(r_obj, ref, b_obj, c_obj, control_tbl)
+    if b_type in _obj_type_action:
+        return _obj_type_action.get(b_type)(r_obj, ref, b_obj, c_obj, control_tbl)
 
     brcdapi_log.log('Unknown base object type: ' + b_type, True)
     _update_r_obj(r_obj, {'b': b_type, 'c': '', 'r': _INVALID_REF})
@@ -496,7 +492,7 @@ def compare(b_obj, c_obj, control_tbl=None, brcddb_control_tbl=None):
 
     if isinstance(brcddb_control_tbl, dict):
         _brcddb_control_tables = copy.deepcopy(brcddb_control_tbl)
-    r_obj = [] if isinstance(b_obj, (list, tuple)) else {}
+    r_obj = [] if isinstance(b_obj, (list, tuple)) else dict()
     return _compare(r_obj, '', b_obj, c_obj, control_tbl), r_obj
 
 
