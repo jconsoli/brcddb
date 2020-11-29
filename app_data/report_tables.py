@@ -68,16 +68,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 29 Sep 2020   | Removed duplicate table entries.                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 29 Nov 2020   | Added average-transmit-buffer-usage and average-receive-buffer-usage              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '29 Sep 2020'
+__date__ = '29 Nov 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 
 class Chassis:
@@ -344,6 +346,8 @@ class Port:
         'fibrechannel/wwn': {'c': 22, 'd': 'Switch Port WWN'},
         'fibrechannel/average-receive-frame-size': {'v': True, 'c': 8, 'd': 'Average Rx Frame Size'},
         'fibrechannel/average-transmit-frame-size': {'v': True, 'c': 8, 'd': 'Average Tx Frame Size'},
+        'fibrechannel/average-transmit-buffer-usage': {'v': True, 'c': 8, 'd': 'Avg Tx buffer usage'},
+        'fibrechannel/average-receive-buffer-usage': {'v': True, 'c': 8, 'd': 'Avg Rx buffer usage'},
         'fibrechannel/port-type-string': {'c': 15, 'd': 'Port Type'},
         'fibrechannel/reserved-buffers': {'v': True, 'c': 8, 'd': 'Reserved Buffers'},
         'fibrechannel/authentication-protocol': {'c': 15, 'd': 'Authentication Protocol'},
