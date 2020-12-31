@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -33,16 +33,18 @@ Version Control::
     | 3.0.3     | 01 Nov 2020   | Consolidated regex matching to here. Added add_to_obj(), get_from_obj(),          |
     |           |               | resolve_multiplier(), and dBm_to_absolute()                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 31 Dec 2020   | Added sp_port_sort().                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '01 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '31 Dec 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import re
 import brcdapi.log as brcdapi_log
@@ -54,7 +56,7 @@ _MAX_ZONE_NAME_LEN = 64
 
 # ReGex matching
 non_decimal = re.compile(r'[^\d.]+')
-decimal = re.compile(r'[\d.]+')  # # Use: letters.sub('', '1.4G') returns 'G'
+decimal = re.compile(r'[\d.]+')  # Use: decimal.sub('', '1.4G') returns 'G'
 zone_notes = re.compile(r'[~*#+^]')
 ishex = re.compile(r'^[A-Fa-f0-9]*$')  # use: if ishex.match(hex_str) returns True if hex_str represents a hex number
 valid_file_name = re.compile(r'\w[ -]')  # use: good_file_name = valid_file_name.sub('_', bad_file_name)
@@ -132,7 +134,7 @@ def sort_obj_num (obj_list, key, r=False, h=False):
     :return: Sorted list of obects.
     :rtype: list
     """
-    count_dict = {}  # key is the count (value of dict item whose key is the input counter). Value is a list of port
+    count_dict = dict()  # key is the count (value of dict item whose key is the input counter). Value is a list of port
                      # objects whose counter matches this count
 
     for obj in obj_list:
@@ -165,18 +167,45 @@ def convert_to_list(obj):
     :rtype: list
     """
     if obj is None:
-        return []
+        return list()
     elif isinstance(obj, list):
         return obj
     elif isinstance(obj, dict):
         if len(obj.keys()) == 0:
-            return []
+            return list()
         else:
             return [obj]
     elif isinstance(obj, tuple):
         return list(obj)
     else:
         return [obj]
+
+
+def sp_port_sort(port_list):
+    """Sorts a list of port objects by slot then port number.
+
+    :param port_list: list of ports in s/p notation
+    :type port_list: list
+    :return return_list: Sorted list of ports
+    :rtype: list
+    """
+    wd = dict()  # Working dictionary of slots which contains a dictionary of ports
+    for port in port_list:
+        t = port.split('/')
+        if int(t[0]) not in wd:
+            wd.update({int(t[0]): dict()})
+        wd[int(t[0])].update({int(t[1]): port})
+
+    # Now sort them and create the return list
+    rl = list()
+    slot_l = list(wd.keys())
+    slot_l.sort()
+    for slot in slot_l:
+        port_l = list(wd[slot].keys())
+        port_l.sort()
+        rl.extend([wd[slot][port] for port in port_l])
+
+    return rl
 
 
 def sort_ports(obj_list):
@@ -188,33 +217,28 @@ def sort_ports(obj_list):
     :return return_list: Sorted list of port objects from obj_list
     :rtype: list
     """
-    return_list = []
-    w = {}  # Working dictionary of switch, slots, then ports
+    rl = list()
+    if len(obj_list) == 0:
+        return rl
+    proj_obj = obj_list[0].r_project_obj()  # Assume the same project for all ports
 
-    # Split everything out into seperate buckets for switch, slot and port.
+    # Sort by switch
+    wd = dict()
     for port_obj in obj_list:
-        switch_obj = port_obj.r_switch_obj()
-        switch = switch_obj.r_obj_key()
-        if switch not in w:
-            w.update({switch: {}})
-        t = port_obj.r_obj_key().split('/')
-        if int(t[0]) not in w[switch]:
-            w[switch].update({int(t[0]): {}})
-        w[switch][int(t[0])].update({int(t[1]): port_obj})
+        switch = port_obj.r_switch_key()
+        if switch not in wd:
+            wd.update({switch: list()})
+        wd[switch].append(port_obj.r_obj_key())
+    sl = list(wd.keys())
+    sl.sort()
 
-    # Now sort them and create the return list
-    switch_list = list(w.keys())
-    switch_list.sort()
-    for switch in switch_list:
-        slot_list = list(w[switch].keys())
-        slot_list.sort()
-        for slot in slot_list:
-            port_list = list(w[switch][slot].keys())
-            port_list.sort()
-            for port in port_list:
-                return_list.append(w[switch][slot][port])
+    # Build the return list, sorted by port
+    rl = list()
+    for switch in sl:
+        switch_obj = proj_obj.r_switch_obj(switch)
+        rl.extend([switch_obj.r_port_obj(port) for port in sp_port_sort(wd[switch])])
 
-    return return_list
+    return rl
 
 
 def remove_duplicates(obj_list):
@@ -239,20 +263,17 @@ def is_wwn(wwn, full_check=True):
     :return: True - wwn is a valid WWN, False - wwn is not a valid WWN
     :rtype: bool
     """
-    if len(wwn) != 23:
+    if not isinstance(wwn, str) or len(wwn) != 23 or (wwn[0] == '0' and full_check):
         return False
-    if wwn[0] == '0' and full_check:
-        return False
-    i = 0
-    wwn_chars = ''
-    for c in wwn:
-        if i in (0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22):
-            wwn_chars += c
-        elif c != ':':
-            return False
-        i += 1
+    clean_wwn = list()
+    for i in range(0, len(wwn)):
+        if i in (2, 5, 8, 11, 14, 17, 20):
+            if wwn[i] != ':':
+                return False
+        else:
+            clean_wwn.append(wwn[i])
 
-    return True if ishex.match(wwn_chars) else False
+    return True if ishex.match(''.join(clean_wwn)) else False
 
 
 def is_valid_zone_name(zone_obj):
@@ -286,8 +307,8 @@ def _login_to_port_map(fab_obj):
     :return base: List of NPIV base port logins
     :rtype base: list
     """
-    port_to_wwn_map = {}
-    base_list = []
+    port_to_wwn_map = dict()
+    base_list = list()
     for port_obj in fab_obj.r_port_objects():
         nl = list(port_obj.r_login_keys())
         if len(nl) > 1:
@@ -379,7 +400,7 @@ def global_port_list(fabric_objects, wwn_list):
     :return: List of port objects (brcddb.classes.port.PortObj)
     :rtype: list
     """
-    port_list = []
+    port_list = list()
     for fab_obj in fabric_objects:
         port_list.extend([fab_obj.r_port_obj(wwn) for wwn in convert_to_list(wwn_list)
                           if fab_obj.r_port_obj(wwn) is not None])
@@ -499,7 +520,7 @@ def parse_cli(file_buf):
     :return: List of commands parsed into the aforementioned dictionary
     :rtype: list
     """
-    cond_input = []
+    cond_input = list()
     for buf in file_buf:
         mod_line = buf[:buf.find('#')] if buf.find('#') >= 0 else buf
         if not _DEBUG_FICON:
@@ -514,7 +535,7 @@ def parse_cli(file_buf):
                 mod_line += re.sub('\s+', '', t[i])
             else:
                 mod_line += t[i]
-        t = mod_line.split(' ') if len(mod_line) > 0 else []
+        t = mod_line.split(' ') if len(mod_line) > 0 else list()
         for i in range(len(t)):
             t[i] = t[i].replace('"', '')
         c = None
@@ -551,9 +572,9 @@ def parse_cli(file_buf):
                 p1 = p_buf.split(';')
                 state = _state_members
         if c is None:
-            cond_input.append({})
+            cond_input.append(dict())
         elif c in skip_commands:
-            cond_input.append({})
+            cond_input.append(dict())
         elif flag:
             if c in c_type_conv:
                 # 'malformed' will be reported as an unsupported command, but with everything else in the user error
@@ -575,14 +596,9 @@ def is_di(di):
     :return: True - di looks like a d,i pair. Otherwise False.
     :rtype: bool
     """
-    buf = di
-    buf.replace(' ', '')
-    l = buf.split(',')
-    if len(l) != 2:
-        return False
     try:
-        temp = [int(x) for x in l]
-        return True
+        temp = [int(x) for x in di.replace(' ', '').split(',')]
+        return True if len(temp) == 2 else False
     except:
         return False
 
@@ -623,8 +639,7 @@ def str_to_num(buf):
                 return buf
             else:
                 return num
-    else:
-        return buf
+    return buf
 
 
 def paren_content(buf, p_remove=False):
@@ -639,7 +654,7 @@ def paren_content(buf, p_remove=False):
     :rtype x_buf: str
     """
     p_count = 0
-    r_buf = []
+    r_buf = list()
     buf_len = len(buf)
     if len(buf) > 1 and buf[0] == '(':
         p_count += 1  # The first character must be (
@@ -655,7 +670,7 @@ def paren_content(buf, p_remove=False):
 
     if p_count != 0:
         brcdapi_log.exception('Input string does not have matching parenthesis:\n' + buf, True)
-        r_buf = []
+        r_buf = list()
     remainder = '' if len(buf) - len(r_buf) < 1 else buf[len(r_buf):]
     if len(r_buf) > 2 and p_remove:
         r_buf.pop()
