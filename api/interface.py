@@ -43,16 +43,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 02 Sep 2020   | Added _switch_from_list_match_case()                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 31 Dec 2020   | Removed unused global variables & fixed single switch batch in get_batch()        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Sep 2020'
+__date__ = '31 Dec 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.pyfos_auth as pyfos_auth
@@ -65,8 +67,6 @@ import brcddb.app_data.alert_tables as al
 import brcddb.classes.util as brcddb_class_util
 
 _GEN_CASE_ERROR_MSG = '. A request for was made for something that needs to be added to an object that does not exist'
-_MAX_CHASSIS_BATCH = 15  # Somewhat arbitrary number chassis requests to batch. Used in get_all()
-_MAX_SWITCH_BATCH = 1  # Somewhat arbitrary number FID level requests to batch. Used in get_all()
 
 _ip_list = (  # List of keys that are IP addresses. Used to determine if all but the last byte should be masked
     'ip-address',
@@ -179,7 +179,7 @@ def login(user_id, pw, ip_addr, https='none', proj_obj=None):
     :type pw: str
     :type ip_addr: str
     :type https: str
-    :return: flag, session
+    :return: session
     :rtype: dict
     """
     # Attempt to log in
@@ -669,8 +669,11 @@ def get_batch(session, proj_obj, kpi_list, fid=None):
 
     # Figure out which logical switches to poll switch level data from.
     if chassis_obj.r_is_vf_enabled() and fid is not None:
-        fid_list = brcddb_util.convert_to_list(fid)
-        switch_list = [obj for obj in chassis_obj.r_switch_objects() if brcddb_switch.switch_fid(obj) in fid_list]
+        switch_list = list()
+        for fab_id in brcddb_util.convert_to_list(fid):
+            switch_obj = chassis_obj.r_switch_obj_for_fid(fab_id)
+            if switch_obj is None:
+                brcdapi_log.log('FID ' + str(fab_id) + ' not found', True)
     else:
         switch_list = chassis_obj.r_switch_objects()
 
