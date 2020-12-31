@@ -29,16 +29,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 cleanup and add project object to objects during object creation             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 31 Dec 2020   | Added r_default_switch_obj() and r_default_switch_fid()                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '31 Dec 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
@@ -299,6 +301,30 @@ class ChassisObj:
                 return switch_obj
         return None
 
+    def r_default_switch_obj(self):
+        """Returns the switch object for the default switch in this chassis
+
+        :return: Switch object. None if default switch object not found (logical switches haven't been polled yet)
+        :rtype: brcddb.classes.switch.SwitchObj, None
+        """
+        for switch_obj in self.r_switch_objects():
+            if switch_obj.r_get(
+                    'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/default-switch-status'):
+                return switch_obj
+        return None
+
+
+    def r_default_switch_fid(self):
+        """Returns the switch object for the default switch in this chassis
+
+        :return: Fabric ID. None if not found
+        :rtype: int, None
+        """
+        switch_obj = self.r_default_switch_obj()
+        return None if switch_obj is None else \
+            switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
+
+
     def r_fabric_keys(self):
         """Returns the list of fabric keys associated with switches in this chassis
 
@@ -414,7 +440,7 @@ class ChassisObj:
         :return: List of ports in s/p format
         :rtype: list
         """
-        return [v for switchObj in self.r_switch_objects() for v in switchObj.r_port_keys()]
+        return [v for switch_obj in self.r_switch_objects() for v in switch_obj.r_port_keys()]
 
     def r_port_objects(self):
         """Returns a list of port objects for all ports in this chassis
@@ -422,7 +448,21 @@ class ChassisObj:
         :return: List of PortObj
         :rtype: list
         """
-        return [v for switchObj in self.r_switch_objects() for v in switchObj.r_port_objects()]
+        return [v for switch_obj in self.r_switch_objects() for v in switch_obj.r_port_objects()]
+
+    def r_port_obj(self, port):
+        """Returns the port object for a port
+
+        :param port: Port name in s/p notation
+        :type port: str
+        :return: Port object. None if not found
+        :type: None, brcddb.classes.port.PortObj
+        """
+        for switch_obj in self.r_switch_objects():
+            port_obj = switch_obj.r_port_obj(port)
+            if port_obj is not None:
+                return port_obj
+        return None
 
     def c_fru_blade_map(self):
         """Sorts brocade-fru/blade into a list that can be indexed by slot number
