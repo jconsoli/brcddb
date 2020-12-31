@@ -32,16 +32,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 29 Sep 2020   | used brcddb.report.utils.valid_sheet_name for uniform sheet name conventions.     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 31 Dec 2020   | Added summary of chassis not included in audit.                                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '29 Sep 2020'
+__date__ = '31 Dec 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import collections
 import brcddb.app_data.report_tables as rt
@@ -60,6 +62,7 @@ import brcddb.report.bp as report_bp
 import brcddb.report.iocp as report_iocp
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_fabric as brcddb_fabric
+import brcddb.brcddb_switch as brcddb_switch
 
 _report_pages = dict(
     proj_dashboard=dict(s=True, d='Project dashboard page'),
@@ -124,23 +127,27 @@ def proj_title_page(proj_obj, tc, wb, sheet_index, sheet_name, sheet_title, cont
     :param contents: List of objects {'s': sheet name, 'd': reference name (individual sheet titles)}
     :rtype: None
     """
-    t_content = [{'new_row': False, 'merge': 2, 'font': 'std', 'align': 'wrap', 'disp': 'Description'},
-                 {'font': 'std', 'align': 'wrap', 'disp': proj_obj.c_description()},
-                 {'new_row': False, 'merge': 2, 'font': 'std', 'align': 'wrap', 'disp': 'Data collected'},
-                 {'font': 'std', 'align': 'wrap', 'disp': proj_obj.r_date()}]
+    t_content = [dict(new_row=False, merge=2, font='std', align='wrap', disp='Description'),
+                 dict(font='std', align='wrap', disp=proj_obj.c_description()),
+                 dict(new_row=False, merge=2, font='std', align='wrap', disp='Data collected'),
+                 dict(font='std', align='wrap', disp=proj_obj.r_date())]
 
     # Add the table  of contents
     for obj in contents:
+        m = 3  # Number of cells to merge
         if obj.get('h') is not None and obj.get('h') is True:
-            t_content.append({})
-            t_content.append({'merge': 3, 'font': 'hdr_2', 'align': 'wrap', 'disp': obj.get('d')})
-        elif obj.get('s') is not None:
-            t_content.append({'new_row': False, 'disp': ''})  # First column is blank
-            t_content.append({'merge': 2, 'font': 'link', 'align': 'wrap', 'disp': obj.get('d'),
-                              'hyper': '#'+obj.get('s')+'!A1'})
+            t_content.append(dict())
+            t_content.append(dict(merge=m, font='hdr_2', align='wrap', disp=obj.get('d')))
+            continue
+        if obj.get('sc') is not None:
+            for i in range(0, obj.get('sc')):
+                t_content.append(dict(new_row=False, disp=''))  # Column is blank
+                m -= 1
+        if obj.get('s') is not None:
+            t_content.append(dict(merge=m, font='link', align='wrap', disp=obj.get('d'), hyper='#'+obj.get('s')+'!A1'))
         else:
             buf = obj.get('font') if 'font' in obj else 'std'
-            t_content.append({'merge': 2, 'font': buf, 'align': 'wrap', 'disp': obj.get('d')})
+            t_content.append(dict(merge=m, font=buf, align='wrap', disp=obj.get('d')))
 
     report_utils.title_page(wb, tc, sheet_name, sheet_index, sheet_title, t_content, (4, 20, 62))
 
@@ -163,12 +170,12 @@ def dashboard(obj, tc, wb, sheet_index, sheet_name, title):
     :rtype: None
     """
     dashboard_item = collections.OrderedDict()
-    dashboard_item['bad-eofs-received'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' Bad EOF', 'port_list': []}
-    dashboard_item['class-3-discards'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' C3 Discards', 'port_list': []}
-    dashboard_item['in-crc-errors'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' CRC With Good EOF', 'port_list': []}
-    dashboard_item['crc-errors'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' CRC', 'port_list': []}
-    dashboard_item['loss-of-signal'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' Loss of Signal', 'port_list': []}
-    dashboard_item['bb-credit-zero'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' BB Credit Zero', 'port_list': []}
+    dashboard_item['bad-eofs-received'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' Bad EOF', port_list=list())
+    dashboard_item['class-3-discards'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' C3 Discards', port_list=list())
+    dashboard_item['in-crc-errors'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' CRC With Good EOF', port_list=list())
+    dashboard_item['crc-errors'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' CRC', port_list=list())
+    dashboard_item['loss-of-signal'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' Loss of Signal', port_list=list())
+    dashboard_item['bb-credit-zero'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' BB Credit Zero', port_list=list())
     port_list = obj.r_port_objects()
     for k in dashboard_item.keys():
         db = dashboard_item.get(k)
@@ -199,12 +206,12 @@ def report_pages(remove_pages, add_pages):
     :rtype: None
     """
     dashboard_item = collections.OrderedDict()
-    dashboard_item['bad-eofs-received'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' Bad EOF', 'port_list': []}
-    dashboard_item['class-3-discards'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' C3 Discards', 'port_list': []}
-    dashboard_item['in-crc-errors'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' CRC With Good EOF', 'port_list': []}
-    dashboard_item['crc-errors'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' CRC', 'port_list': []}
-    dashboard_item['loss-of-signal'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' Loss of Signal', 'port_list': []}
-    dashboard_item['bb-credit-zero'] = {'title': 'Top ' + str(_MAX_DB_SIZE) + ' BB Credit Zero', 'port_list': []}
+    dashboard_item['bad-eofs-received'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' Bad EOF', port_list=list())
+    dashboard_item['class-3-discards'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' C3 Discards', port_list=list())
+    dashboard_item['in-crc-errors'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' CRC With Good EOF', port_list=list())
+    dashboard_item['crc-errors'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' CRC', port_list=list())
+    dashboard_item['loss-of-signal'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' Loss of Signal', port_list=list())
+    dashboard_item['bb-credit-zero'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' BB Credit Zero', port_list=list())
     port_list = obj.r_port_objects()
     for k in dashboard_item.keys():
         db = dashboard_item.get(k)
@@ -288,6 +295,8 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
     +-------+-------------------------------------------------------------------------------+
     |   s   | Sheet name prefix                                                             |
     +-------+-------------------------------------------------------------------------------+
+    |  sc   | Number of columns to skip                                                     |
+    +-------+-------------------------------------------------------------------------------+
     |   t   | The table used to control how the port data is displayed.                     |
     +-------+-------------------------------------------------------------------------------+
     |   d   | Text to display as a header on the worksheet.                                 |
@@ -296,65 +305,65 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
     +-------+-------------------------------------------------------------------------------+
     """
     port_pages = [
-        dict(c='port_config', s='_config', t=rt.Port.port_config_tbl, d='Port Configurations', l=False),
-        dict(c='port_config_error', s='_config_error', t=rt.Port.port_config_tbl, d='Port Configurations Error Summary',
+        dict(c='port_config', sc=1, s='_config', t=rt.Port.port_config_tbl, d='Port Configurations', l=False),
+        dict(c='port_config_error', sc=1, s='_config_error', t=rt.Port.port_config_tbl, d='Port Configurations Error Summary',
              l=False),
-        dict(c='port_stats', s='_stats', t=rt.Port.port_stats_tbl, d='Port Statistics', l=False),
-        dict(c='port_stats_error', s='_stats_error', t=rt.Port.port_stats_tbl, d='Port Statistics Error Summary',
+        dict(c='port_stats', sc=1, s='_stats', t=rt.Port.port_stats_tbl, d='Port Statistics', l=False),
+        dict(c='port_stats_error', sc=1, s='_stats_error', t=rt.Port.port_stats_tbl, d='Port Statistics Error Summary',
              l=False),
-        dict(c='port_zone', s='_zl', t=rt.Port.port_zone_tbl, d='Ports by Zone and Login', l=True),
-        dict(c='port_zone_error', s='_zl_error', t=rt.Port.port_zone_tbl, d='Ports by Zone and Login Error Summary',
+        dict(c='port_zone', sc=1, s='_zl', t=rt.Port.port_zone_tbl, d='Ports by Zone and Login', l=True),
+        dict(c='port_zone_error', sc=1, s='_zl_error', t=rt.Port.port_zone_tbl, d='Ports by Zone and Login Error Summary',
              l=True),
-        dict(c='port_sfp', s='_sfp', t=rt.Port.port_sfp_tbl, d='SFP report', l=False),
-        dict(c='port_sfp_error', s='_sfp_error', t=rt.Port.port_sfp_tbl, d='SFP Error Summary', l=False),
-        dict(c='port_rnid', s='_ficon', t=rt.Port.port_rnid_tbl, d='Port RNID data', l=False),
+        dict(c='port_sfp', sc=1, s='_sfp', t=rt.Port.port_sfp_tbl, d='SFP report', l=False),
+        dict(c='port_sfp_error', sc=1, s='_sfp_error', t=rt.Port.port_sfp_tbl, d='SFP Error Summary', l=False),
+        dict(c='port_rnid', sc=1, s='_ficon', t=rt.Port.port_rnid_tbl, d='Port RNID data', l=False),
     ]
 
     tc_page = proj_obj.r_obj_key()  # Just to save some typing
-    tbl_contents = []
+    tbl_contents = list()
 
     # Set up the workbook
     sheet_index = 0
     wb = report_utils.new_report()
 
     # Check project for duplicate WWNs
-    tbl_contents.append({'h': True, 'd': 'Duplicate WWNs'})
+    tbl_contents.append(dict(h=True, d='Duplicate WWNs'))
     wl = brcddb_project.dup_wwn(proj_obj)
     if len(wl) > 0:
         sname = 'dup_wwns'
         report_login.login_page(wb, tc_page, sname, sheet_index, 'Duplicate WWNs', wl, dup_login_tbl,
                                 rt.Login.login_display_tbl, False)
-        tbl_contents.append({'s': sname, 'd': 'Duplicate WWNs'})
+        tbl_contents.append(dict(sc=1, s=sname, d='Duplicate WWNs'))
         sheet_index += 1
     else:
-        tbl_contents.append({'d': 'No Duplicate WWNs Found'})
+        tbl_contents.append(dict(sc=1, d='No Duplicate WWNs Found'))
 
     # Project dashboard
     if _report_pages['proj_dashboard']['s']:
-        tbl_contents.append({'h': True, 'd': 'Project Links'})
+        tbl_contents.append(dict(h=True, d='Project Links'))
         sname = 'proj_dashboard'
         title = 'Project Dashboard'
         dashboard(proj_obj, tc_page, wb, sheet_index, sname, title)
-        tbl_contents.append({'s': sname, 'd': title})
+        tbl_contents.append(dict(sc=1, s=sname, d=title))
         sheet_index += 1
 
     # Add all the chassis
     if _report_pages['chassis']['s']:
-        tbl_contents.append({'h': True, 'd': 'Chassis'})
+        tbl_contents.append(dict(h=True, d='Chassis'))
         for chassis_obj in proj_obj.r_chassis_objects():
             chassis_name = brcddb_chassis.best_chassis_name(chassis_obj)
             brcdapi_log.log('Processing chassis: ' + chassis_name, True)
             sname = report_utils.valid_sheet_name.sub('', chassis_name.replace(' ', '_'))[:22] + '_' + str(sheet_index)
             report_chassis.chassis_page(wb, tc_page, sname, sheet_index, 'Chassis Detail For: ' + chassis_name,
                                         chassis_obj, rt.Chassis.chassis_display_tbl)
-            tbl_contents.append({'s': sname, 'd': chassis_name})
+            tbl_contents.append(dict(sc=1, s=sname, d=chassis_name))
             sheet_index += 1
 
     # Add all the fabrics
     for fab_obj in proj_obj.r_fabric_objects():
         fab_name = brcddb_fabric.best_fab_name(fab_obj)
         brcdapi_log.log('Processing fabric: ' + fab_name, True)
-        tbl_contents.append({'h': True, 'd': fab_name})
+        tbl_contents.append(dict(h=True, d=fab_name))
         prefix = report_utils.valid_sheet_name.sub('', fab_name.replace(' ', '_'))[:22] + '_' + str(sheet_index)
 
         # Fabric summary page
@@ -362,7 +371,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
             brcdapi_log.log('    Building fabric summary page', True)
             sname = prefix + '_sum'
             report_fabric.fabric_page(wb, tc_page, sheet_index, sname, fab_name + ' Summary', fab_obj)
-            tbl_contents.append({'s': sname, 'd': 'Fabric Summary'})
+            tbl_contents.append(dict(sc=1, s=sname, d='Fabric Summary'))
             sheet_index += 1
 
         # Fabric Dashboard
@@ -370,7 +379,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
             brcdapi_log.log('    Building fabric dashboard', True)
             sname = prefix + '_db'
             dashboard(fab_obj, tc_page, wb, sheet_index, sname, fab_name + ' Dasboard')
-            tbl_contents.append({'s': sname, 'd': 'Fabric Dashboard'})
+            tbl_contents.append(dict(sc=1, s=sname, d='Fabric Dashboard'))
             sheet_index += 1
 
         # Switch page
@@ -379,7 +388,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
             sname = prefix + '_switch'
             report_switch.switch_page(wb, tc_page, sname, sheet_index, 'Switch Detail For Fabric: ' + fab_name,
                                       fab_obj.r_switch_objects(), rt.Switch.switch_display_tbl)
-            tbl_contents.append({'s': sname, 'd': 'Switch Detail'})
+            tbl_contents.append(dict(sc=1, s=sname, d='Switch Detail'))
             sheet_index += 1
 
         # Now the port pages
@@ -390,7 +399,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
                 sname = prefix + obj.get('s')
                 report_port.port_page(wb, tc_page, sname, sheet_index, fab_name + ' ' + obj.get('d'), port_list,
                 obj.get('t'), rt.Port.port_display_tbl, obj.get('l'))
-                tbl_contents.append({'s': sname, 'd': obj.get('d')})
+                tbl_contents.append(dict(sc=1, s=sname, d=obj.get('d')))
                 sheet_index += 1
 
         #  Zone Analysis Page
@@ -398,7 +407,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
             brcdapi_log.log('    Building zone analysis page', True)
             sname = prefix + '_zone'
             report_zone.zone_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name + ' Zone Analysis')
-            tbl_contents.append({'s': sname, 'd': 'Zone Analysis'})
+            tbl_contents.append(dict(sc=1, s=sname, d='Zone Analysis'))
             sheet_index += 1
 
         #  Alias Page
@@ -406,7 +415,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
             brcdapi_log.log('    Building alias page', True)
             sname = prefix + '_alias'
             report_zone.alias_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name + ' Alias Detail')
-            tbl_contents.append({'s': sname, 'd': 'Alias Detail'})
+            tbl_contents.append(dict(sc=1, s=sname, d='Alias Detail'))
             sheet_index += 1
 
         #  Login Page
@@ -415,7 +424,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
             sname = prefix + '_login'
             report_login.login_page(wb, tc_page, sname, sheet_index, fab_name + ' Logins', fab_obj.r_login_objects(),
                                     rt.Login.login_tbl, rt.Login.login_display_tbl, True)
-            tbl_contents.append({'s': sname, 'd': 'Logins'})
+            tbl_contents.append(dict(sc=1, s=sname, d='Logins'))
             sheet_index += 1
 
     #  IOCP Page
@@ -423,11 +432,11 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
         iocp_objects = proj_obj.r_iocp_objects()
         if len(iocp_objects) > 0:
             brcdapi_log.log('Adding the IOCP pages', True)
-            tbl_contents.append({'h': True, 'd': 'IOCPs'})
+            tbl_contents.append(dict(h=True, d='IOCPs'))
             for iocp_obj in iocp_objects:
                 sname = report_utils.valid_sheet_name.sub('', iocp_obj.r_obj_key())[:22]
                 report_iocp.iocp_page(iocp_obj, tc_page, wb, sname, sheet_index, sname)
-                tbl_contents.append({'s': sname, 'd': sname})
+                tbl_contents.append(dict(sc=1, s=sname, d=sname))
                 sheet_index += 1
 
     # Add the Best Practice page
@@ -436,8 +445,29 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
         fab_name = 'Best Practice Violations'  # Just borrowing fab_name for the title
         report_bp.bp_page(wb, tc_page, sname, 0, fab_name, proj_obj, rt.BestPractice.bp_tbl,
                           rt.BestPractice.bp_display_tbl)
-        tbl_contents.insert(0, {'s': sname, 'd': fab_name})
-        tbl_contents.insert(0, {'h': True, 'd': fab_name})
+        tbl_contents.insert(0, dict(sc=1, s=sname, d=fab_name))
+        tbl_contents.insert(0, dict(h=True, d=fab_name))
+
+    # Add the missing chassis (chassis not polled) to the title & contents page
+    i = 0
+    tbl_contents.append(dict(h=True, merge=3, d='Missing chassis (discovered in fabrics but not polled)'))
+    for chassis_obj in proj_obj.r_chassis_objects():
+        if chassis_obj.r_get('brocade-chassis') is None:
+            # Try to find a chassis name
+            chassis_name = None
+            for obj in chassis_obj.r_switch_objects():
+                chassis_name = obj.r_get('brocade-fabric/fabric-switch/chassis-user-friendly-name')
+                if chassis_name is not None:
+                    break
+            if chassis_name is None:
+                chassis_name = 'Unknown'
+            chassis_name += ' (' + chassis_obj.r_obj_key() + ')'
+            tbl_contents.append(dict(sc=1, d=chassis_name))
+            for obj in chassis_obj.r_switch_objects():
+                tbl_contents.append(dict(sc=2, d=brcddb_switch.best_switch_name(obj, True)))
+            i += 1
+    if i == 0:
+        tbl_contents.append(dict(sc=1, d='None'))
 
     # Insert the title & contents page
     proj_title_page(proj_obj, None, wb, 0, tc_page, 'Contents', contents=tbl_contents)
