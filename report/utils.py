@@ -36,16 +36,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 14 Nov 2020   | Made parse_sfp_file() more effecient and added protection against a malformed file|
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 31 Dec 2020   | Fixed exception case when a bad merge type was passed or merge was 0              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '14 Nov 2020'
+__date__ = '31 Dec 2020'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
@@ -322,12 +324,13 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
                     if 'fill' in obj:
                         sheet[cell].fill = report_fonts.fill_type(obj.get('fill'))
                     if 'merge' in obj:
-                        if isinstance(obj.get('merge'), int) and obj.get('merge') > 1:
-                            sheet.merge_cells(start_row=row, start_column=col, end_row=row,
-                                              end_column=(col + obj.get('merge') - 1))
-                            col += obj.get('merge')
+                        if isinstance(obj.get('merge'), int):
+                            if obj.get('merge') > 1:
+                                sheet.merge_cells(start_row=row, start_column=col, end_row=row,
+                                                  end_column=(col + obj.get('merge') - 1))
+                                col += obj.get('merge')
                         else:
-                            brcdapi_log.exception('Merge must be an integer > 1. Type: ' + str(len(obj.get('merge'))),
+                            brcdapi_log.exception('Merge must be an integer. Type: ' + str(type(obj.get('merge'))),
                                                   True)
                             col += 1
                     else:
@@ -718,3 +721,328 @@ def parse_sfp_file(file):
         parsed_sfp_sheet.append(d)
 
     return parsed_sfp_sheet
+
+
+""" _switch_find_d is used in _parse_switch_sheet() to determine what should be parsed out of the spreadsheet and how it
+should be interpreted. The key is the value in the cell in the "Area" column. The value is a dict as follows:
+    +-------+-------------------------------------------------------------------------------------------------------+
+    | key   | Description                                                                                           |
+    +=======+=======================================================================================================+
+    | k     | The key used in the data structure returned from _parse_switch_sheet()                                |
+    +-------+-------------------------------------------------------------------------------------------------------+
+    | d     | The default value to assign in the event the parameter is missing from the spreadsheet                |
+    +-------+-------------------------------------------------------------------------------------------------------+
+    | r     | If True, a value for the paramter is required                                                         |
+    +-------+-------------------------------------------------------------------------------------------------------+
+    | h     | If True, treat the value from the spreasheet as a hex number and convert to a decimal int.            |
+    +-------+-------------------------------------------------------------------------------------------------------+
+    | i     | Convert the value from the spreadsheet to an int                                                      |
+    +-------+-------------------------------------------------------------------------------------------------------+
+    | yn    | Convert "Yes" to True and "No" to False                                                               |
+    +-------+-------------------------------------------------------------------------------------------------------+
+"""
+_switch_find_d = {  # Key is the 'Area' column. Value dict is: k=Key for return data structure, d=default value,
+    # r=required, h=True if value is hex and should be conerted to the decimal int equivalent, yn=Convert Yes/No to
+    # True/False. This table is used in _parse_switch_sheet()
+    'Fabric ID (FID)': dict(k='fid', d=None, r=True, h=False, yn=False),
+    'Fabric Name': dict(k='fab_name', d=None, r=False, i=False, h=False, yn=False),
+    'Switch Name': dict(k='switch_name', d=None, r=False, i=False, h=False, yn=False),
+    'Domain ID (DID)': dict(k='did', d=None, r=True, h=True, yn=False),
+    'Insistent DID': dict(k='idid', d=True, r=False, h=False, yn=True),
+    'Allow XISL': dict(k='xisl', d=False, r=False, i=False, h=False, yn=True),
+    'Enable Switch': dict(k='enable_switch', d=False, r=False, i=False, h=False, yn=True),
+    'Enable Ports': dict(k='enable_ports', d=False, r=False, i=False, h=False, yn=True),
+    'Login Banner': dict(k='banner', d=None, r=False, i=False, h=False, yn=False),
+    'Switch Type': dict(k='switch_type', d=None, r=False, i=False, h=False, yn=False),
+    'Duplicate WWN': dict(k='dup_wwn', d='First', r=False, i=True, h=False, yn=False),
+    'Bind': dict(k='bind', d=None, r=False, i=False, h=False, yn=True),
+}
+
+
+def _parse_switch_sheet(sheet):
+    """Parses a "Switch_x" workhseet from X6_X7-8_Slot_48_FICON_Link_Address_Planning.xlsx as this dictionary:
+
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | key           | type      | Description                                                                       |
+    +===============+===========+===================================================================================+
+    | banner        | None, str | Login banner. Not set if None.                                                    |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | bind          | bool      | If set, find the addresses                                                        |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | fab_name      | None, str | Fabric name. Not set if None                                                      |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | fid           | int       | Fabric ID as a decimal.                                                           |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | did           | int       | Domain ID. Although read from the workbook as a str in Hex, it is returned as a   |
+    |               |           | decimal int                                                                       |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | dup_wwn       | str       | Duplicate WWN handling: 'First', 'Second', 'Second FDISC'                         |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | enable_ports  | bool      | If True, enable the ports after configuration is complete.                        |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | enable_swtich | bool      | If True, enable the switch after configuruation is complete.                      |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | ports         | dict      | Key is the port number and value is the link address                              |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | switch_flag   | bool      | When True, a corresponding switch sheet was not found. This happens when a FID on |
+    |               |           | on a "Slot x" sheet without a sheet  to match.                                    |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | switch_name   | None, str | Switch name. Not set if None                                                      |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | switch_type   | str       | default', 'ficon', 'base', or 'open'                                              |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | xisl          | bool      | If True, base switch usage is allowed.                                            |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+
+    :param sheet: openpyxl worksheet
+    :type sheet: str
+    :return: Dictionary for switch. None if an error was encountered.
+    :rtype: dict, None
+    """
+    global _switch_find_d
+
+    sl, al = read_sheet(sheet, 'row')
+
+    # Find the 'Area' and 'Parameter' columns
+    find_l = ('Area', 'Parameter')
+    col_d = dict()
+    hdr = al[0]
+    for buf in find_l:
+        found = False
+        for col in range(0, len(hdr)):
+            if hdr[col] == buf:
+                col_d.update({buf: col})
+                found = True
+                break
+        if not found:
+            brcdapi_log.log('Sheet ' + sheet.title + ' missing column ' + buf, True)
+            return None
+
+    # Add and validate all the data from the worksheet to return dictionary
+    rd = dict(switch_flag=True, ports=dict())
+    ml = list()
+    for k, d in _switch_find_d.items():
+        found = False
+        for row in range(1, len(al)):
+            if k == al[row][col_d['Area']]:
+                v = d['d'] if al[row][col_d['Parameter']] is None else al[row][col_d['Parameter']]
+                if v is None and d['r']:
+                    ml.append('Missing required value for ' + k)
+                else:
+                    if d['h']:
+                        try:
+                            v = int(v, 16)
+                        except:
+                            ml.append('Value for ' + k + ', ' + str(v) + ', is not a valid hex number.')
+                    if d['yn']:
+                        v = True if v.lower() == 'yes' else False
+                    found = True
+                break
+        if not found:
+            v = d['d']
+        if d['r'] and v is None:
+            ml.append('Missing required value for ' + k)
+        rd.update({d['k']: v})
+
+    # Return the switch dict or None if there was an error
+    if len(ml) > 0:
+        brcdapi_log.log(ml, True)
+        return None
+    return rd
+
+
+"""
++-------+-----------------------------------------------------------------------------------------------+
+| k     | Key used in the dictionaries returned from _parse_slot_sheet()                                |
++-------+-----------------------------------------------------------------------------------------------+
+| h     | If True, treat the cell value as a hex number and convert to a decimal int                    |
++-------+-----------------------------------------------------------------------------------------------+
+| s     | If True, convert the cell value to a str                                                      |
++-------+-----------------------------------------------------------------------------------------------+
+| slot  | If True, prepend the slot number an '/' to the value. Used to convert ports to s/p notation   |
++-------+-----------------------------------------------------------------------------------------------+
+| p     | When the length of the cell value is less than that specified by p, 0s are prepended to make  |
+|       | the value this length. Used for creating FC addresses.                                        | 
++-------+-----------------------------------------------------------------------------------------------+
+"""
+_slot_d_find = {  # See table above
+    'Port': dict(k='port', h=False, s=True, slot=True, p=0),
+    'DID (Hex)': dict(k='did', h=True, s=True, slot=False, p=0),
+    'Port Addr (Hex)': dict(k='port_addr', h=False, s=True, slot=False, p=2),
+    'Link Addr': dict(k='link_addr', h=False, s=True, slot=False, p=4),
+    'FID': dict(k='fid', h=False, s=False, slot=False, p=0),
+    'Attached Device': dict(k='desc', h=False, s=True, slot=False, p=0),
+    'ICL Description': dict(k='desc', h=False, s=True, slot=False, p=0),
+    'Low Qos VC': dict(k='low_vc', h=False, s=False, slot=False, p=0),
+    'Med Qos VC': dict(k='med_vc', h=False, s=False, slot=False, p=0),
+    'High Qos VC': dict(k='high_vc', h=False, s=False, slot=False, p=0),
+}
+
+
+def _parse_slot_sheet(sheet):
+    """Parses a "Slot x" workhseet from X6_X7-8_Slot_48_FICON_Link_Address_Planning.xlsx as a dictionary. The key is the
+    port number in s/p notation. The value for each port dictionary is as follows:
+
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | key           | type      | Description                                                                       |
+    +===============+===========+===================================================================================+
+    | fid           | int       | Fabric ID as a decimal.                                                           |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | did           | int       | Domain ID. Although read from the workbook as a str in Hex, it is returned as a   |
+    |               |           | decimal int                                                                       |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | port_addr     | str       | Port address in hex as read from the sheet (no leading 0x). Padded to 2 places.   |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | link_addr     | str       | Link address in hex as read from the sheet (no leading 0x)                        |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | desc          | str       | Attached Device or ICL Description                                                |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | low_vc        | int       | Low Qos VC                                                                        |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | med_vc        | int       | Medium Qos VC                                                                     |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | high_vc       | int       | High Qos VC                                                                       |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+
+    :param sheet: openpyxl worksheet
+    :type sheet: str
+    :return: Dictionary for switch. None if an error was encountered.
+    :rtype: dict, None
+    """
+    global _slot_d_find
+
+    rd = dict()  # The return dictionary
+    sl, al = read_sheet(sheet, 'row')
+
+    # Find the slot number
+    for buf in al[0]:
+        if buf is not None and 'slot' in buf.lower():
+            slot = buf.split(' ')[1] + '/'
+            break
+
+    # Find the column headers
+    col_d = [dict(), dict()]
+    col_start = [0, 0]
+    hdr = al[1]
+    port_found = False
+    max_col = 0
+    for i in range(0, 2):
+        col_start[i] = max_col
+        for k in _slot_d_find.keys():
+            for col in range(col_start[i], len(hdr)):
+                if hdr[col] == k:
+                    col_d[i].update({_slot_d_find[k]['k']: col})
+                    max_col = max(max_col, col+1)
+                    break
+
+    # Add the data from the worksheet
+    rl = list()
+    ml = list()
+    for row in range(3, len(al)):
+        if al[row][col_d[0]['port']] is None:
+            break
+        for i in range(0, 2):
+            if len(col_d[i]) == 0:
+                break
+
+            # Build the port dict and add to the return dict
+            pd = dict()
+            for k, d in _slot_d_find.items():
+                r_key = _slot_d_find[k]['k']
+                if r_key in col_d[i]:
+                    v = str(al[row][col_d[i][r_key]]) if d['s'] else al[row][col_d[i][r_key]]
+                    if d['h']:
+                        try:
+                            v = int(v, 16)
+                        except:
+                            ml.append('Value for ' + k + ', ' + str(v) + ', is not a valid hex number.')
+                    if isinstance(v, str):
+                        while len(v) < d['p']:
+                            v = '0' + v
+                    v = slot + v if d['slot'] else v
+                    pd.update({r_key: v})
+            rd.update({pd['port']: pd})
+
+    # Return the slot dict or None if there was an error
+    if len(ml) > 0:
+        brcdapi_log.log(ml, True)
+        return None
+    return rd
+
+
+def parse_switch_file(file):
+    """Parses Excel switch configuration Workbook. See X6_X7-8_Slot_48_FICON_Link_Address_Planning.xlsx
+
+    :param file: Path and name of Excel Workbook with switch configuration definitions
+    :type file: str
+    :return: Dictionary of logical switches (dict as described below). Key is the FID as an int.
+    :rtype: dict
+
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | key           | type      | Description                                                                       |
+    +===============+===========+===================================================================================+
+    | switch_flag   | bool      | When True, a corresponding switch sheet was found. When False, the FID was found  |
+    |               |           | on a "Slot x" sheet without a matchin sheet for the switch.                       |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | fab_name      | None, str | Fabric name. Not set if None                                                      |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | switch_name   | None, str | Switch name. Not set if None                                                      |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | Domain ID     | int       | Although read from the workbook as a str in Hex, it is returned as a decimal int  |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | xisl          | bool      | If True, base switch usage is allowed.                                            |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | enable_swtich | bool      | If True, enable the switch after configuruation is complete.                      |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | enable_ports  | bool      | If True, enable the ports after configuration is complete.                        |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | banner        | None, str | Login banner. Not set if None.                                                    |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | ports         | dict      | Key is the port number and value is a dictionary as follows:                      |
+    |               |           |  Key          Type    Value                                                       |
+    |               |           |  did          int     The hexidecimal DID converted to decimal.                   |
+    |               |           |  port_addr    str     The hexidecimal port address (middle byte of the FC address)|
+    |               |           |  link_addr    str     FICON link address in hex                                   |
+    |               |           |  fid          int     Fabric ID                                                   |
+    |               |           |  ad           str,None    Attached device description. None if left blank.        |
+    |               |           |  low_vc       int     VC for QOSL zone                                            |
+    |               |           |  med_vc       int     VC for QOSM zone                                            |
+    |               |           |  high_vc      int     VC for QOSH zone                                            |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | sheet_name    | str       | Name of sheet in Workbook.                                                        |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    """
+    rd = dict()  # Return dict
+
+    # Load the workbook
+    try:
+        wb = xl.load_workbook(file, data_only=True)
+    except:
+        brcdapi_log.log('Error opening workbook: ' + 'None' if file is None else file, True)
+        return rd
+
+    # Sort out the "Sheet_x" and "Slot x" worksheets
+    switch_d = dict()
+    port_d = dict()
+    for sheet in wb.worksheets:
+        title = sheet.title
+        if len(title) >= len('Switch') and title[0:len('Switch')] == 'Switch':
+            d = _parse_switch_sheet(sheet)
+            d.update(dict(sheet_name=title))
+            fid = d.get('fid')
+            if fid is not None:
+                if fid in rd:
+                    buf = 'Duplicate FID, ' + str(fid) + '. Appears in ' + title + ' and ' + rd[fid]['sheet_name']
+                    brcdapi_log.log(buf, True)
+                else:
+                    rd.update({d['fid']: d})
+        elif len(title) >= len('Slot x') and title[0:len('Slot ')] == 'Slot ':
+            port_d.update(_parse_slot_sheet(sheet))
+
+    # Build the return dictionary
+    for k, port in port_d.items():
+        fid = port.get('fid')
+        switch_d = dict(switch_flag=False, fid=fid, ports=dict()) if rd.get(fid) is None else rd.get(fid)
+        switch_d['ports'].update({k: port})
+
+    return rd
