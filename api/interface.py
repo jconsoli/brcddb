@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -45,16 +45,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 31 Dec 2020   | Removed unused global variables & fixed single switch batch in get_batch()        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 09 Jan 2021   | Fixed: get_batch() only made API requests if the FID was None.                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '31 Dec 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '09 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.pyfos_auth as pyfos_auth
@@ -142,14 +144,14 @@ def get_chassis(session, proj_obj):
         wwn = obj.get('chassis').get('chassis-wwn')
         chassis_obj = proj_obj.s_add_chassis(wwn)
         results_action(chassis_obj, obj, uri)
-        session.update({'chassis_wwn': wwn})
+        session.update(dict(chassis_wwn=wwn))
         # Get all the switches in this chassis
         if chassis_obj.r_is_vf_enabled():  # Get all the logical switches in this chassis
             uri = 'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch'
             obj = brcdapi_rest.get_request(session, uri, None)
             if pyfos_auth.is_error(obj):
                 _process_errors(session, uri, obj, chassis_obj)
-                fid_l = []
+                fid_l = list()
             else:
                 results_action(chassis_obj, obj, uri)
                 fid_l = [d.get('fabric-id') for d in obj.get('fibrechannel-logical-switch')]
@@ -201,7 +203,7 @@ def login(user_id, pw, ip_addr, https='none', proj_obj=None):
         return session
 
     # Step 2: Parse the module information and add it to the session object
-    kpi_list = []
+    kpi_list = list()
     for mod_obj in obj.get(uri).get('module'):
         name = mod_obj.get('name')
         if name is None:
@@ -213,7 +215,7 @@ def login(user_id, pw, ip_addr, https='none', proj_obj=None):
                 kpi_list.append(name + '/' + mod_object)
         except:
             pass
-    session.update({'supported_uris': kpi_list})
+    session.update(dict(supported_uris=kpi_list))
 
     return session
 
@@ -285,7 +287,7 @@ _port_case_case = {
 
 def _convert_ip_addr(obj):
     if isinstance(obj, dict):
-        d = {}
+        d = dict()
         for k, v in obj.items():
             d.update({k: _convert_ip_addr(v)})
         return d
@@ -304,17 +306,17 @@ def _update_brcddb_obj_from_list(objx, obj, uri, skip_list=None):
     """
     global _GEN_CASE_ERROR_MSG
 
-    sl = [] if skip_list is None else skip_list
+    sl = list() if skip_list is None else skip_list
 
     try:
         tl = uri.split('/')
         d = objx.r_get(tl[0])
         if d is None:
-            d = {}
+            d = dict()
             objx.s_new_key(tl[0], d)
         d1 = d.get(tl[1])
         if d1 is None:
-            d1 = {}
+            d1 = dict()
             d.update({tl[1]: d1})
         for k in obj:
             if k not in sl:
@@ -348,7 +350,7 @@ def _update_brcddb_obj(objx, obj, uri):
         tl = uri.split('/')
         d = objx.r_get(tl[0])
         if d is None:
-            d = {}
+            d = dict()
             objx.s_new_key(tl[0], d)
         for k in obj:
             v1 = obj.get(k)
@@ -441,7 +443,7 @@ def _add_switch_to_chassis_int(chassis_obj, switch, uri, switch_wwn):
 def _add_fab_switch_to_chassis_case(chassis_obj, obj, uri):
     proj_obj = chassis_obj.r_project_obj()
     fab_obj = None
-    sl = []
+    sl = list()
     for switch in brcddb_util.convert_to_list(obj.get(uri.split('/').pop())):
         c_obj = proj_obj.s_add_chassis(switch.get('chassis-wwn'))
         s_wwn = switch.get('name')
@@ -553,7 +555,7 @@ def _switch_port_case(objx, obj, uri):
         if port_obj is not None:
             d = port_obj.r_get(leaf)
             if d is None:
-                port_obj.s_new_key(leaf, {})
+                port_obj.s_new_key(leaf, dict())
                 d = port_obj.r_get(leaf)
             for k, v in port.items():
                 d.update({k: v})
@@ -562,12 +564,12 @@ def _switch_port_case(objx, obj, uri):
 def _fru_blade_case(objx, obj, uri):
     global _ip_list
 
-    new_obj = {}
+    new_obj = dict()
     for k, v in obj.items():
         if isinstance(v, list) and k == 'blade':
-            new_list = []
+            new_list = list()
             for d in v:
-                new_d = {}
+                new_d = dict()
                 for k1, v1 in d.items():
                     if k1 in _ip_list:
                         new_d.update({k1: _convert_ip_addr(v1)})
@@ -674,6 +676,8 @@ def get_batch(session, proj_obj, kpi_list, fid=None):
             switch_obj = chassis_obj.r_switch_obj_for_fid(fab_id)
             if switch_obj is None:
                 brcdapi_log.log('FID ' + str(fab_id) + ' not found', True)
+            else:
+                switch_list.append(switch_obj)
     else:
         switch_list = chassis_obj.r_switch_objects()
 
