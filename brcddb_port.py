@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2020 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,16 +32,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 22 Aug 2020   | Added port_obj_for_index()                                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 22 Jan 2021   | Added port_obj_for_wwn()                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020 Jack Consoli'
-__date__ = '22 Aug 2020'
+__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
+__date__ = '22 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -127,8 +129,9 @@ def port_type(port_obj, num_flag=False):
 def port_obj_for_index(obj, index):
     """Returns the port object for a port index.
 
-    :param obj: Object with port objects - obj.r_port_objects90
-    :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.port.PortObj
+    :param obj: Object with port objects, obj.r_port_objects()
+    :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
+                brcddb.classes.chassis.ChassisObj
     :param index: Port index
     :type index: int
     :return: Port object. None if not found
@@ -138,5 +141,28 @@ def port_obj_for_index(obj, index):
         port_index = port_obj.r_get('fibrechannel/index')
         if port_index is not None and port_index == index:
             return port_obj
+
+    return None  # If we got this far, we didn't find it.
+
+
+def port_obj_for_wwn(obj, wwn):
+    """Returns the port object for a logged in WWN
+
+    :param obj: Object with port objects, obj.r_port_objects()
+    :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
+                brcddb.classes.chassis.ChassisObj
+    :param index: Port index
+    :type index: int
+    :return: Port object. None if not found
+    :rtype: brcddb.classes.port.PortObj, None
+    """
+    if not brcddb_util.is_wwn(wwn):
+        return None
+    for port_obj in obj.r_port_objects():
+        nd = port_obj.r_get('fibrechannel/neighbor')
+        if nd is not None:
+            for port_wwn in brcddb_util.convert_to_list(nd.get('wwn')):
+                if port_wwn is not None and port_wwn == wwn:
+                    return port_obj
 
     return None  # If we got this far, we didn't find it.
