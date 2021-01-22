@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -37,16 +37,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 22 Jan 2021   | Fixed potential mutable list in s_add_zonecfg(), s_add_eff_zonecfg(),             |
+    |           |               | s_add_zone(), s_add_eff_zone, and s_add_alias()                                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '22 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -94,17 +97,17 @@ class FabricObj:
         self._obj_key = name
         self._flags = 0
         self._switch_keys = [name]
-        self._login_objs = {}
-        self._zonecfg_objs = {}
-        self._alias_objs = {}
-        self._zone_objs = {}
-        self._eff_zone_objs = {}
-        self._fdmi_node_objs = {}
-        self._fdmi_port_objs = {}
-        self._alerts = []
+        self._login_objs = dict()
+        self._zonecfg_objs = dict()
+        self._alias_objs = dict()
+        self._zone_objs = dict()
+        self._eff_zone_objs = dict()
+        self._fdmi_node_objs = dict()
+        self._fdmi_port_objs = dict()
+        self._alerts = list()
         self._project_obj = project_obj
-        self._base_logins = []
-        self._port_map = {}
+        self._base_logins = list()
+        self._port_map = dict()
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -306,19 +309,18 @@ class FabricObj:
         """
         return self._login_objs
 
-    def s_add_zonecfg(self, name, mem=None):
+    def s_add_zonecfg(self, name, in_mem=None):
         """Adds a zone configuration to the fabric if it doesn't already exist
 
         Similarly, zone members will be added if they don't already exist
         :param name: Name of the zone configuration
         :type name: str
-        :param mem: List of zone members, by name, in this zone configuration
-        :type mem: str, list, tuple
+        :param in_mem: List of zone members, by name, in this zone configuration
+        :type in_mem: str, list, tuple
         :return: Zone configuration object
         :rtype: zone_class.brcddb.classes.zone.ZoneCfgObj
         """
-        if mem is None:
-            mem = []
+        mem = list() if in_mem is None else in_mem
         try:
             zonecfg_obj = self._zonecfg_objs[name]
         except:
@@ -345,13 +347,13 @@ class FabricObj:
 
         :param name: Name of the zone configuration
         :type name: str
-        :return: Zone configuration object
-        :rtype: brcddb.classes.zone.ZoneCfgObj
+        :return: Zone configuration object. None if not found.
+        :rtype: brcddb.classes.zone.ZoneCfgObj, None
         """
         try:
             return self._zonecfg_objs[name]
         except:
-            return
+            return None
 
     def r_zonecfg_keys(self):
         """Returns a list of zone configurations, by name, in this fabric
@@ -406,7 +408,7 @@ class FabricObj:
         eff_name = self.r_defined_eff_zonecfg_key
         return None if eff_name is None else self.r_zonecfg_obj(eff_name)
 
-    def s_add_eff_zonecfg(self, members=None):
+    def s_add_eff_zonecfg(self, in_members=None):
         """Adds a special zone configuration named '_effective_zone_cfg' if it doesn't already exist.
 
         Similarly, zone members will be added if they don't already exist
@@ -420,8 +422,7 @@ class FabricObj:
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        if members is None:
-            members = []
+        members = list() if in_members is None else in_members
         return self.s_add_zonecfg('_effective_zone_cfg', members)
 
     def r_eff_zone_cfg_obj(self):
@@ -432,24 +433,22 @@ class FabricObj:
         """
         return self.r_zonecfg_obj('_effective_zone_cfg')
 
-    def s_add_zone(self, name, zone_type, mem=None, pmem=None):
+    def s_add_zone(self, name, zone_type, in_mem=None, in_pmem=None):
         """Adds a zone to the fabric if it doesn't already exist. See zone in 'zoning/defined-configuration'
 
         :param name: Zone name
         :type name: str
-        :param mem: Zone members
-        :type mem: list, str, None
-        :param pmem: Principal zone members (relevant to peer zones only)
-        :type pmem: list, str, None
         :param zone_type: Zone type
         :type zone_type: int
+        :param in_mem: Zone members
+        :type in_mem: list, str, None
+        :param in_pmem: Principal zone members (relevant to peer zones only)
+        :type in_pmem: list, str, None
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        if mem is None:
-            mem = []
-        if pmem is None:
-            pmem = []
+        mem = list() if in_mem is None else in_mem
+        pmem = list() if in_pmem is None else in_pmem
         zone_obj = self.r_zone_obj(name)
         if zone_obj is None:
             zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
@@ -480,7 +479,7 @@ class FabricObj:
         :rtype: list
         """
         if wwn is None:
-            return []
+            return list()
         # l contains just the zones defined with the WWN
         l = [obj.r_obj_key() for obj in self.r_zone_objects() if wwn in obj.r_members() or wwn in obj.r_pmembers()]
         # This gets all the zones where wwn is in an alias
@@ -488,7 +487,7 @@ class FabricObj:
             l.extend(self.r_zones_for_alias(alias))
         return l
 
-    def s_add_eff_zone(self, name, zone_type, mem=None, pmem=None):
+    def s_add_eff_zone(self, name, zone_type, in_mem=None, in_pmem=None):
         """Adds a zone to the effective configuration if it doesn't already exist.
         Similarly, zone members will be added if they don't already exist
         **To Do** I think there is a bug in here. The effective zone should only change when the zone configuration is
@@ -498,17 +497,15 @@ class FabricObj:
         :type name: str
         :param zone_type: Zone type
         :type zone_type: int
-        :param mem: Zone members (this should be WWN)
-        :type mem: str, list, tuple, None
-        :param pmem: Principal zone members (this should be WWN). Only relavant to peer zones
-        :type pmem: str, list, tuple, None
+        :param in_mem Zone members (this should be WWN)
+        :type in_mem: str, list, tuple, None
+        :param in_pmem: Principal zone members (this should be WWN). Only relavant to peer zones
+        :type in_pmem: str, list, tuple, None
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        if mem is None:
-            mem = []
-        if pmem is None:
-            pmem = []
+        mem = list() if in_mem is None else in_mem
+        pmem = list() if in_pmem is None else in_pmem
         zone_obj = self.r_eff_zone_obj(name)
         if zone_obj is None:
             zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
@@ -533,13 +530,13 @@ class FabricObj:
 
         :param name: Zone name
         :type name: str
-        :return: Zone object
-        :rtype: brcddb.classes.zone.ZoneObj
+        :return: Zone object None if not found.
+        :rtype: brcddb.classes.zone.ZoneObj, None
         """
         try:
             return self._eff_zone_objs[name]
         except:
-            return
+            return None
 
     def r_eff_zone_objs(self):
         """Returns the effective zone object list. Typically used for internal purposes only
@@ -575,7 +572,7 @@ class FabricObj:
         :return: List of zone objects, brcddb.classes.zone.ZoneObj
         :rtype: list
         """
-        ret_list = []
+        ret_list = list()
         for zone_obj in self.r_eff_zone_objects():
             if wwn in zone_obj.r_members():
                 ret_list.append(zone_obj)
@@ -610,13 +607,13 @@ class FabricObj:
 
         :param name: Zone name
         :type name: str
-        :return: Zone object
-        :rtype: brcddb.classes.zone.ZoneObj
+        :return: Zone object None if not found.
+        :rtype: brcddb.classes.zone.ZoneObj, None
         """
         try:
             return self._zone_objs[name]
         except:
-            return
+            return None
 
     def r_zone_keys(self):
         """Returns all the defined zones in the fabric
@@ -643,7 +640,7 @@ class FabricObj:
         """
         return self._zone_objs
 
-    def s_add_alias(self, name, mem=None):
+    def s_add_alias(self, name, in_mem=None):
         """Adds an alias to the fabric if it doesn't already exist.
         Similarly, alias members will be added if they don't already exist
         Typically, and best practice, there is one WWN member per alias. Multiples are allowed. I've seen it done on
@@ -651,13 +648,12 @@ class FabricObj:
 
         :param name: Alias name
         :type name: str
-        :param mem: Alias members
-        :type mem: str, list, tuple, None
+        :param in_mem: Alias members
+        :type in_mem: str, list, tuple, None
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        if mem is None:
-            mem = []
+        mem = list() if in_mem is None else in_mem
         if name in self._alias_objs:
             alias_obj = self._alias_objs[name]
         else:
@@ -685,8 +681,8 @@ class FabricObj:
 
         :param name: Alias name
         :type name: str
-        :return: Alias object
-        :rtype: brcddb.classes.zone.AliasObj
+        :return: Alias object. None if not found.
+        :rtype: brcddb.classes.zone.AliasObj, None
         """
         try:
             return self._alias_objs[name]
@@ -769,8 +765,8 @@ class FabricObj:
 
         :param wwn: WWN
         :type wwn: str
-        :return: FDMI node object
-        :rtype: FdmiObj
+        :return: FDMI node object. None if not found.
+        :rtype: FdmiObj, None
         """
         try:
             return self._fdmi_node_objs[wwn]
@@ -832,13 +828,13 @@ class FabricObj:
 
         :param wwn: WWN
         :type wwn: str
-        :return: FDMI node object
-        :rtype: FdmiObj
+        :return: FDMI node object. None if not found.
+        :rtype: FdmiObj, None
         """
         try:
             return self._fdmi_port_objs[wwn]
         except:
-            return
+            return None
 
     def r_fdmi_port_keys(self):
         """Returns the list of FDMI ports (by WWN) in the fabric
