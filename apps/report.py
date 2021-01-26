@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -34,16 +34,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 31 Dec 2020   | Added summary of chassis not included in audit.                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 22 Jan 2021   | Fix sheet name too long.                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '31 Dec 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '22 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import collections
 import brcddb.app_data.report_tables as rt
@@ -364,7 +366,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
         fab_name = brcddb_fabric.best_fab_name(fab_obj)
         brcdapi_log.log('Processing fabric: ' + fab_name, True)
         tbl_contents.append(dict(h=True, d=fab_name))
-        prefix = report_utils.valid_sheet_name.sub('', fab_name.replace(' ', '_'))[:22] + '_' + str(sheet_index)
+        prefix = report_utils.valid_sheet_name.sub('', fab_name.replace(' ', '_'))[:21] + '_' + str(sheet_index)
 
         # Fabric summary page
         if _report_pages['fabric_summary']['s']:
