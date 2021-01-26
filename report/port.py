@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -31,16 +31,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 29 Sep 2020   | Standardized time stamp and added return type documentation to port_page()        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '29 Sep 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import datetime
 import collections
@@ -413,7 +415,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, display, port_di
     """
     global port_case
 
-    addl_row = {}   # I forgot all about logins and had to shoe horn in something to report the logins. This also meant
+    addl_row = dict()   # I forgot all about logins and had to shoe horn in something to report the logins. This also meant
                     # I had to shoe horn in a way to get the comments associated with logins, but only if login
                     # information was requested, into the display.
                     # To Do: Clean this up

@@ -448,7 +448,7 @@ def read_sheet(sheet, order='col'):
                     sl.append(dict(cell=cell, val=v))
             al.append(rl)
     else:
-        for row in range(1, sheet.max_row+1):
+        for row in range(1, sheet.max_row + 1):
             cl = list()
             for col in range(1, sheet.max_column):
                 cell = xl_util.get_column_letter(col) + str(row)

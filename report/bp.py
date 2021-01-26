@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -28,16 +28,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import openpyxl.utils.cell as xl
 import brcddb.brcddb_fabric as brcddb_fabric
@@ -50,12 +52,8 @@ import brcddb.brcddb_port as brcddb_port
 
 
 def _add_alerts(obj, type, sev, area_1, area_2):
-    rl = []
-    alert_list = obj.r_alert_objects()
-    for al_obj in alert_list:
-        if al_obj.sev() == sev:
-            rl.append([type, al_obj.fmt_sev(), area_1, area_2, al_obj.fmt_msg()])
-    return rl
+    return [[type, al_obj.fmt_sev(), area_1, area_2, al_obj.fmt_msg()] for al_obj in obj.r_alert_objects() if \
+            al_obj.sev() == sev]
 
 
 ##################################################################
@@ -148,7 +146,7 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
     :rtype: None
     """
     # Validate the user input
-    err_msg = []
+    err_msg = list()
     if obj is None:
         err_msg.append('obj was not defined.')
     elif not bool('ProjectObj' in str(type(obj)) or 'FabricObj' in str(type(obj))):
@@ -210,11 +208,11 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
         fab_list = [obj]
         chassis_list = obj.r_project_obj().r_chassis_objects()
         switch_list = obj.r_project_obj().r_switch_objects()
-    alert_list = []
+    alert_list = list()
 
     # Get all the chassis alerts
     for tobj in chassis_list:
-        tl = []
+        tl = list()
         for sev in (al.ALERT_SEV.ERROR, al.ALERT_SEV.WARN):  # Display errors first
             tl.extend(_add_alerts(tobj, 'Chassis', sev, brcddb_chassis.best_chassis_name(tobj), ''))
         if len(tl) > 0:
@@ -224,7 +222,7 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
 
     # Get all the fabric alerts
     for fab_obj in fab_list:
-        tl = []
+        tl = list()
         for sev in (al.ALERT_SEV.ERROR, al.ALERT_SEV.WARN):  # Display errors first
             tl.extend(_add_alerts(fab_obj, 'Fabric', sev, brcddb_fabric.best_fab_name(fab_obj), ''))
             for tobj in fab_obj.r_zonecfg_objects():
@@ -246,7 +244,7 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
 
     # Get all the switch and port alerts
     for switch_obj in switch_list:
-        tl = []
+        tl = list()
         for sev in (al.ALERT_SEV.ERROR, al.ALERT_SEV.WARN):  # Display errors first
             tl.extend(_add_alerts(switch_obj, 'Switch', sev, brcddb_switch.best_switch_name(switch_obj), ''))
             for tobj in switch_obj.r_port_objects():

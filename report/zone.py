@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -32,16 +32,18 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 29 Sep 2020   | Added alerts associated with the port for the zone member                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '29 Sep 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -242,7 +244,7 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         mem_list = list(zone_obj.r_pmembers())
         mem_list.extend(list(zone_obj.r_members()))
         for mem in mem_list:
-            wwn_list = []  # WWNs or d,i
+            wwn_list = list()  # WWNs or d,i
             if fab_obj.r_alias_obj(mem) is None:
                 wwn_list.append(mem)
             else:

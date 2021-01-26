@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -28,16 +28,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -66,7 +68,7 @@ hdr['col_only_7'] = 10
 hdr['col_only_8'] = 10
 hdr['col_only_9'] = 10
 
-_fru = {}
+_fru = dict()
 _fru_hdr = {
     'brocade-fru/blade': {'h': 'Blades', 's': 'slot-number'},
     'brocade-fru/fan': {'h': 'Fans', 's': 'unit-number'},
@@ -194,7 +196,7 @@ def cfru_blade_id_case(v):
     return brcddb_chassis.blade_name(v) + ' (' + str(v) + ')'
 
 
-chassis_key_case = {}  # This is consistent with all  other reports. I just don't have anything chassis custom
+chassis_key_case = dict()  # This is consistent with all  other reports. I just don't have anything chassis custom
 
 
 chassis_fru_key_case = {
@@ -390,7 +392,7 @@ def chassis_page(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj, display)
     :rtype: None
     """
     # Validate the user input
-    err_msg = []
+    err_msg = list()
     if chassis_obj is None:
         err_msg.append('chassis_obj was not defined.')
     elif brcddb_class_util.get_simple_class_type(chassis_obj) != 'ChassisObj':

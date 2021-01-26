@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -30,16 +30,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | Fixed typo in align_type() exception case                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcdapi.log as brcdapi_log
 import openpyxl.styles as xl_styles
@@ -121,16 +123,16 @@ link_font = xl_styles.Font(
     underline='single',
     strike=False,
     color='3336FF')
-font_tbl = {
-    'std': std_font,
-    'hdr_1': h1_font,
-    'hdr_2': h2_font,
-    'bold': bold_font,
-    'italic': italic_font,
-    'warn': warn_font,
-    'error': error_font,
-    'link': link_font,
-}
+font_tbl = dict(
+    std=std_font,
+    hdr_1=h1_font,
+    hdr_2=h2_font,
+    bold=bold_font,
+    italic=italic_font,
+    warn=warn_font,
+    error=error_font,
+    link=link_font,
+)
 
 #################################################################
 #   Fill Types                                                  #
@@ -141,9 +143,9 @@ lightblue_fill = xl_styles.PatternFill(
     fill_type='solid',
     start_color='FFCCE5FF',
 )
-fill_tbl = {
-    'lightblue': lightblue_fill,
-}
+fill_tbl = dict(
+    lightblue=lightblue_fill,
+)
 
 #################################################################
 #   Border Types                                                #
@@ -160,9 +162,9 @@ thin_border = xl_styles.Border(
     # vertical=xl_styles.Side(border_style=None,color='FF000000'),
     # horizontal=xl_styles.Side(border_style=None,color='FF000000')
 )
-border_tbl = {
-    'thin': thin_border,
-}
+border_tbl = dict(
+    thin=thin_border,
+)
 
 #################################################################
 #   Align Types                                                 #
@@ -197,12 +199,12 @@ wrap_vert_center_alignment = xl_styles.Alignment(
     wrap_text=True,
     shrink_to_fit=False,
     indent=0)
-align_tbl = {
-    'wrap_center': wrap_center_alignment,
-    'wrap': wrap_alignment,
-    'wrap_vert_center': wrap_vert_center_alignment,
-    'wrap_right': wrap_right_alignment,
-}
+align_tbl = dict(
+    wrap_center=wrap_center_alignment,
+    wrap=wrap_alignment,
+    wrap_vert_center=wrap_vert_center_alignment,
+    wrap_right=wrap_right_alignment,
+)
 
 
 def font_type(x):
