@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -31,16 +31,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 31 Dec 2020   | Added r_default_switch_obj() and r_default_switch_fid()                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '31 Dec 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Released'
-__version__ = '3.0.2'
+__status__ = 'Development'
+__version__ = '3.0.3'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
@@ -73,8 +75,8 @@ class ChassisObj:
     def __init__(self, name, project_obj):
         self._obj_key = name
         self._flags = 0
-        self._switch_keys = []
-        self._alerts = []
+        self._switch_keys = list()
+        self._alerts = list()
         self._project_obj = project_obj
 
     def r_get_reserved(self, k):
@@ -349,7 +351,7 @@ class ChassisObj:
         :return: List of WWNs logged into this port
         :rtype: list
         """
-        k = []
+        k = list()
         for s in self.r_switch_objects():
             k.extend(s.r_login_keys())
         return k
@@ -360,7 +362,7 @@ class ChassisObj:
         :return: List of LoginObj logged into this port
         :rtype: list
         """
-        k = []
+        k = list()
         for s in self.r_switch_objects():
             k.extend(s.r_login_objects())
         return k
@@ -371,7 +373,7 @@ class ChassisObj:
         :return: List of FDMI node WWNs associated this chassis
         :rtype: list
         """
-        rl = []
+        rl = list()
         for fab_obj in self.r_fabric_objects():
             rl.extend(fab_obj.r_fdmi_node_keys())
         return rl
@@ -382,7 +384,7 @@ class ChassisObj:
         :return: List of FdmiNodeObj associated with this chassis
         :rtype: list
         """
-        rl = []
+        rl = list()
         for fab_obj in self.r_fabric_objects():
             rl.extend(fab_obj.r_fdmi_node_objects())
         return rl
@@ -393,7 +395,7 @@ class ChassisObj:
         :return: List of FDMI port WWNs associated this chassis
         :rtype: list
         """
-        rl = []
+        rl = list()
         for fab_obj in self.r_fabric_objects():
             rl.extend(fab_obj.r_fdmi_port_keys())
         return rl
@@ -404,7 +406,7 @@ class ChassisObj:
         :return: List of FdmiPortObj associated with this chassis
         :rtype: list
         """
-        rl = []
+        rl = list()
         for fab_obj in self.r_fabric_objects():
             rl.extend(fab_obj.r_fdmi_port_objects())
         return rl
@@ -415,7 +417,7 @@ class ChassisObj:
         :return: List of FIDs (int)
         :rtype: list
         """
-        fid = []
+        fid = list()
         for switch_obj in self.r_switch_objects():
             tf = switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
             if tf is not None:

@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -31,16 +31,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 01 Nov 2020   | Made _simple_class_type public (changed to _simple_class_type)                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '01 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcdapi.log as brcdapi_log
 
@@ -421,42 +423,43 @@ def s_new_key_for_class(obj, k, v, f=False):
     """
     global force_msg
 
-    buf = None
+    ml = list()
     if k in obj.r_reserved_keys():
-        buf = 'Attempted to add a reserved key.'
+        ml.append('Attempted to add a reserved key.')
     elif hasattr(obj, k) and not f:
         if k in obj.__dict__.keys():
             # The key and value pair already exists
             v1 = obj.r_get(k)
             if k in special:
-                buf = special[k](obj, k, v, v1)
-                if buf is None:
+                ml.append(special[k](obj, k, v, v1))
+                if ml[len(ml)-1] is None:
                     return False  # False so that no additional processing is done
             elif type(v) != type(v1):
-                buf = force_msg + 'Key already exists. Value type ' + str(type(v)) + ' is changing. New value type:' +\
-                      str(type(v1))
+                ml.append(force_msg + 'Key already exists. Value type ' + str(type(v)) + \
+                          ' is changing. New value type:' + str(type(v1)))
             elif isinstance(v, (str, int, float)):
                 if v != v1:
                     # If the key/value pair exists but the value is not changing ignore it. It is common for fabric wide
                     # keys to be present in multiple chassis.
-                    buf = force_msg + 'Attempted to add key who\'s value is changing. Old value is: ' + str(v1)
+                    ml.append(force_msg + 'Attempted to add key who\'s value is changing. Old value is: ' + str(v1))
             elif isinstance(v, list):
-                buf = _add_to_list(v, v1)
+                ml.append(_add_to_list(v, v1))
             elif isinstance(v, dict):
-                buf = _add_to_dict(v, v1)
+                ml.append(_add_to_dict(v, v1))
             else:
-                buf = force_msg + 'Attempted to add existing key.'
+                ml.append(force_msg + 'Attempted to add existing key.')
         else:
             # callable() would tell us for sure, but what else could it be? Even if I'm over looking something, the
             # error message won't be right but the trace stack and information provided should be adequate for most
             # programmers to figure out what's going on.
-            buf = 'Attempted to add a key that has the same name as an existing method.'
+            ml.append('Attempted to add a key that has the same name as an existing method.')
     else:
         setattr(obj, k, v)
-    if buf is None:
+    ml = [msg for msg in ml if msg is not None]  # Methods called in this method return None for no error
+    if len(ml) == 0:
         return True
     else:
-        ml = ['Object:     ' + str(type(obj))]
+        ml.append('Object:     ' + str(type(obj)))
         if get_simple_class_type(obj) is not None:
             ml.append('Object Key: ' + obj.r_obj_key())
         ml.append('Key:        ' + k)
@@ -490,13 +493,11 @@ def convert_to_list(obj):
     # This is a copy and paste from brcddb_util.convert_to_list(). It takes care of scenarios that should never be
     # encountered here but I didn't want to change something that was working and its future proof.
     if obj is None:
-        return []
+        return list()
     if isinstance(obj, list):
         return obj
     if isinstance(obj, dict):
-        if len(obj.keys()) == 0:
-            return []
-        return [obj]
+        return list() if len(obj.keys()) == 0 else [obj]
     if isinstance(obj, tuple):
         return list(obj)
     return [obj]

@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -29,16 +29,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -82,11 +84,11 @@ class ProjectObj:
         self._date = date
         self._python_version = ''
         self._description = None
-        self._fabric_objs = {}  # fabric objects. Key is principal switch WWN
-        self._switch_objs = {}  # Switch objects. Key is switch WWN
-        self._chassis_objs = {}  # Chassis objects. Key is chassis WWN
-        self._iocp_objs = {}  # IOCP objects. Key is the CEC serial number 
-        self._alerts = []
+        self._fabric_objs = dict()  # fabric objects. Key is principal switch WWN
+        self._switch_objs = dict()  # Switch objects. Key is switch WWN
+        self._chassis_objs = dict()  # Chassis objects. Key is chassis WWN
+        self._iocp_objs = dict()  # IOCP objects. Key is the CEC serial number
+        self._alerts = list()
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -442,7 +444,7 @@ class ProjectObj:
         :return: List of WWNs
         :rtype: list
         """
-        v = []
+        v = list()
         for fab_obj in self.r_fabric_objects():
             v.extend(fab_obj.r_login_keys())
         return v
@@ -453,7 +455,7 @@ class ProjectObj:
         :return: List of LoginObj
         :rtype: list
         """
-        v = []
+        v = list()
         for fab_obj in self.r_fabric_objects():
             v.extend(fab_obj.r_login_objects())
         return v
@@ -464,7 +466,7 @@ class ProjectObj:
         :return: List of FDMI node WWNs associated this project
         :rtype: list
         """
-        v = []
+        v = list()
         for fab_obj in self.r_fabric_objects():
             v.extend(fab_obj.r_fdmi_node_keys())
         return v
@@ -475,7 +477,7 @@ class ProjectObj:
         :return: List of FdmiNodeObj associated with this project
         :rtype: list
         """
-        v = []
+        v = list()
         for fab_obj in self.r_fabric_objects():
             v.extend(fab_obj.r_fdmi_node_objects())
         return v
@@ -486,7 +488,7 @@ class ProjectObj:
         :return: List of FDMI port WWNs associated this project
         :rtype: list
         """
-        v = []
+        v = list()
         for fab_obj in self.r_fabric_objects():
             v.extend(fab_obj.r_fdmi_port_keys())
         return v
@@ -497,7 +499,7 @@ class ProjectObj:
         :return: List of FdmiPortObj associated with this project
         :rtype: list
         """
-        v = []
+        v = list()
         for fab_obj in self.r_fabric_objects():
             v.extend(fab_obj.r_fdmi_port_objects())
         return v

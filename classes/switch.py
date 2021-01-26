@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -16,9 +16,7 @@
 
 """
 :mod:`brcdd.classes.switch` - Defines the switch object, SwitchObj.
-
 Version Control::
-
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
@@ -29,20 +27,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 cleanup and add project object to port object during object creation         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
-import brcddb.classes.util as util 
+import brcddb.classes.util as util
 import brcddb.classes.port as port_class
 
 # Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
@@ -55,10 +55,8 @@ class SwitchObj:
     """The SwitchObj contains all information relevant to a switch including:
         * 'logical-switch/fibrechannel-logical-switch'
         * 'switch/fibrechannel-switch'
-
     Args:
         * name (str): WWN of the switch. Stored in _obj_key and key in ProjectObj
-
     Attributes:
         * _obj_key (str): WWN of the switch.
         * _flags (int): Flags for each class are defined in brcddb.brcddb_common
@@ -78,17 +76,16 @@ class SwitchObj:
         self._flags = 0
         self._chassis_key = ''
         self._fabric_key = None
-        self._port_objs = {}
-        self._ge_port_objs = {}
-        self._alerts = []
+        self._port_objs = dict()
+        self._ge_port_objs = dict()
+        self._alerts = list()
         self._project_obj = project_obj
-        self._maps_rules = {}
-        self._maps_group_rules = {}
-        self._maps_groups = {}
+        self._maps_rules = dict()
+        self._maps_group_rules = dict()
+        self._maps_groups = dict()
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
-
         :param k: Reserved key
         :type k: str
         :return: Value associated with k. None if k is not present
@@ -120,7 +117,6 @@ class SwitchObj:
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
-
         :param tbl: The table that defines this alert. See brcddb.classes.alert.AlertObj
         :type tbl: dict
         :param num: Alert number. See brcddb.classes.alert.AlertObj
@@ -139,7 +135,6 @@ class SwitchObj:
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
-
         :return: List of alert objects (brcddb.classes.alert.AlertObj)
         :rtype: list
         """
@@ -147,7 +142,6 @@ class SwitchObj:
 
     def r_alert_nums(self):
         """Returns a list of alert numbers associated with this object
-
         :return: List of alert objects (brcddb.classes.alert.AlertObj)
         :rtype: list
         """
@@ -155,7 +149,6 @@ class SwitchObj:
 
     def r_reserved_keys(self):
         """Returns a list of reserved words (keys) associated with this object
-
         :return: List of reserved words
         :rtype: list
         """
@@ -163,7 +156,6 @@ class SwitchObj:
 
     def r_project_obj(self):
         """Returns the project object associated with this object
-
         :return: Project object
         :rtype: ProjectObj
         """
@@ -171,7 +163,6 @@ class SwitchObj:
 
     def r_obj_key(self):
         """Returns key that is used in the parent object to retrieve this object
-
         :return: Object key
         :rtype: str
         """
@@ -179,7 +170,6 @@ class SwitchObj:
 
     def r_flags(self):
         """Returns flags associated with this object. Flags are defined in brcddb_common.py
-
         :return: Bit flags
         :rtype: int
         """
@@ -187,7 +177,6 @@ class SwitchObj:
 
     def s_or_flags(self, bits):
         """Performs a logical OR on the flags associated with this object. Flags are defined in brcddb_common.py
-
         :param bits: Bits to be ORed with the bit flags
         :type bits: int
         :return: Bit flags
@@ -198,7 +187,6 @@ class SwitchObj:
 
     def s_and_flags(self, bits):
         """Performs a logical AND on the flags associated with this object. Flags are defined in brcddb_common.py
-
         :param bits: Bits to be ANDed with the bit flags
         :type bits: int
         :return: Bit flags
@@ -216,7 +204,6 @@ class SwitchObj:
 
     def r_chassis_key(self):
         """Returns the chassis key this switch belongs to
-
         :return: Login speed
         :rtype: str
         """
@@ -224,7 +211,6 @@ class SwitchObj:
 
     def r_chassis_obj(self):
         """Returns the chassis object this switch belongs to
-
         :return: Chassis object
         :rtype: brcddb.classes.chassis.ChassisObj
         """
@@ -232,7 +218,6 @@ class SwitchObj:
 
     def r_is_polled(self):
         """Tests to determined if the switch has been polled, 'fabric/fabric-switch' requested
-
         :return: True: Switch has been polled. False: Switch has not been polled
         :rtype: bool
         """
@@ -240,7 +225,6 @@ class SwitchObj:
 
     def r_is_base(self):
         """Test to determine is switch is defined as a base switch, 'fibrechannel-switch/base-switch-enabled'
-
         :return: True: Switch is the fabric principal switch. False: Switch is not the fabric principal switch
         :rtype: bool
         """
@@ -248,7 +232,6 @@ class SwitchObj:
 
     def r_is_enabled(self):
         """Determines if a switch is enabled
-
         :return: True if enabled, False if not enabled or unknown
         :rtype: bool
         """
@@ -256,7 +239,6 @@ class SwitchObj:
 
     def r_is_principal(self):
         """Test to determine is switch is the principal switch in the fabric
-
         :return: True: Switch is the fabric principal switch. False: Switch is not the fabric principal switch
         :rtype: bool
         """
@@ -264,7 +246,6 @@ class SwitchObj:
 
     def r_is_xisl(self):
         """Test to determine is logical ISLs is enabled in the switch, 'fibrechannel-switch/logical-isl-enabled'
-
         :return: True: Switch is the fabric principal switch. False: Switch is not the fabric principal switch
         :rtype: bool
         """
@@ -272,7 +253,6 @@ class SwitchObj:
 
     def r_is_hif(self):
         """Test to determine if High Integrity Fabric (HIF) is enabled
-
         :return: True: Switch is configured for FICON. False: Switch is not configured for FICON
         :rtype: bool
         """
@@ -280,7 +260,6 @@ class SwitchObj:
 
     def r_is_default(self):
         """Test to determine if switch is the default switch, 'fibrechannel-switch/default-switch-status'
-
         :return: True: Switch is the default switch. False: Switch is not the default switch
         :rtype: bool
         """
@@ -288,7 +267,6 @@ class SwitchObj:
 
     def s_fabric_key(self, wwn):
         """Set the fabric key to the WWN of the fabric
-
         :param wwn: WWN of fabric switch
         :type wwn: str
         """
@@ -302,7 +280,6 @@ class SwitchObj:
 
     def r_fabric_key(self):
         """Returns the fabric WWN this switch is a member of
-
         :return: Fabric principal switch WWN. None if the switch is offline or the fabric may not have been polled
         :rtype: FabricObj, None
         """
@@ -313,7 +290,6 @@ class SwitchObj:
 
     def r_fabric_obj(self):
         """Returns the fabric object associated with this switch
-
         :return: Fabric object. None if the switch is offline or the fabric may not have been polled
         :rtype: FabricObj, None
         """
@@ -323,7 +299,6 @@ class SwitchObj:
 
     def s_add_port(self, port):
         """Add a port to the switch
-
         :param port: Port in s/p notation
         :type port: str
         :return: Port object
@@ -337,7 +312,6 @@ class SwitchObj:
 
     def r_port_keys(self):
         """Returns a list of all ports in this switch
-
         :return: List of ports in s/p format
         :rtype: list
         """
@@ -345,7 +319,6 @@ class SwitchObj:
 
     def r_port_objects(self):
         """Returns a list of port objects for all ports in this switch
-
         :return: List of PortObj
         :rtype: list
         """
@@ -355,7 +328,6 @@ class SwitchObj:
 
     def r_port_objs(self):
         """Returns the dictionary of port objects. Typically only used by the brcddb libraries
-
         :return: Dictionary of port objects
         :rtype: dict
         """
@@ -363,7 +335,6 @@ class SwitchObj:
 
     def r_port_obj(self, k):
         """Returns the port object for a port
-
         :param k: Port name in s/p notation
         :type k: str
         """
@@ -371,7 +342,6 @@ class SwitchObj:
 
     def s_add_ge_port(self, port):
         """Add a GE port to the switch
-
         :param port: Port in s/p notation
         :type port: str
         :return: Port object
@@ -385,7 +355,6 @@ class SwitchObj:
 
     def r_ge_port_keys(self):
         """Returns a list of all GE ports in this switch
-
         :return: List of ports in s/p format
         :rtype: list
         """
@@ -393,7 +362,6 @@ class SwitchObj:
 
     def r_ge_port_objects(self):
         """Returns a list of port objects for all ports in this switch
-
         :return: List of PortObj
         :rtype: list
         """
@@ -403,7 +371,6 @@ class SwitchObj:
 
     def r_ge_port_objs(self):
         """Returns the dictionary of port objects. Typically only used by the brcddb libraries
-
         :return: Dictionary of port objects
         :rtype: dict
         """
@@ -411,7 +378,6 @@ class SwitchObj:
 
     def r_ge_port_obj(self, k):
         """Returns the port object for a port
-
         :param k: Port name in s/p notation
         :type k: str
         """
@@ -419,75 +385,65 @@ class SwitchObj:
 
     def r_login_keys(self):
         """Returns all the login WWNs associated with this switch. Includes E-Ports
-
         :return: List of WWNs logged into this switch
         :rtype: list
         """
-        k = []
+        k = list()
         for p in self.r_port_objects():
             k.extend(p.r_login_keys())
         return k
 
     def r_login_objects(self):
         """Returns all the login objects for logins on this switch
-
         :return: List of LoginObj logged into this switch
         :rtype: list
         """
         fab_obj = self.r_fabric_obj()
-        if fab_obj is None:
-            return []
-        return [fab_obj.r_login_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_login_obj(wwn) is not None]
+        return list() if fab_obj is None else\
+            [fab_obj.r_login_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_login_obj(wwn) is not None]
 
     def r_fdmi_node_keys(self):
         """Returns all the FDMI node WWNs associated with this switch.
-
         :return: List of FDMI node WWNs associated this switch
         :rtype: list
         """
         fab_obj = self.r_fabric_obj()
         if fab_obj is None:
-            return []
+            return list()
         fdmi_keys = fab_obj.r_fdmi_node_keys()
         return [wwn for wwn in self.r_login_keys() if wwn in fdmi_keys]
 
     def r_fdmi_node_objects(self):
         """Returns all the FDMI node objects for logins associated with this switch
-
         :return: List of FdmiNodeObj associated with this switch
         :rtype: list
         """
         fab_obj = self.r_fabric_obj()
-        if fab_obj is None:
-            return []
-        return [fab_obj.r_fdmi_node_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_fdmi_node_obj(wwn) is not None]
+        return list() if fab_obj is None else\
+            [fab_obj.r_fdmi_node_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_fdmi_node_obj(wwn) is not None]
 
     def r_fdmi_port_keys(self):
         """Returns all the FDMI port WWNs associated with this switch.
-
         :return: List of FDMI port WWNs associated this switch
         :rtype: list
         """
         fab_obj = self.r_fabric_obj()
         if fab_obj is None:
-            return []
+            return list()
         fdmi_keys = fab_obj.r_fdmi_port_keys()
         return [wwn for wwn in self.r_login_keys() if wwn in fdmi_keys]
 
     def r_fdmi_port_objects(self):
         """Returns all the FDMI port objects for logins associated with this switch
-
         :return: List of FdmiPortObj associated with this switch
         :rtype: list
         """
         fab_obj = self.r_fabric_obj()
-        if fab_obj is None:
-            return []
-        return [fab_obj.r_fdmi_port_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_fdmi_port_obj(wwn) is not None]
+        return list() if fab_obj is None else \
+            [fab_obj.r_fdmi_port_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_fdmi_port_obj(wwn) is not None]
 
     def r_port_object_for_index(self, i):
         """Returns the port object matching a port index
-
         :param i: Port index
         :type i: int
         :return: PortObj or None if not found
@@ -501,7 +457,6 @@ class SwitchObj:
 
     def r_port_obj_for_pid(self, pid):
         """Returns the port object matching an FC address
-
         :param pid: Port ID (fibre channel address)
         :type pid: str
         :return: PortObj or None if not found
@@ -515,21 +470,20 @@ class SwitchObj:
 
     def c_trunk_map(self):
         """Returns the trunk groups for this switch in a map as a list of the following dictionary:
-
         {dswwn: {group_number: [[src_port_obj, dest_port_obj], [src_port_obj, dest_port_obj], ...]}}
         :return: List of dict as defined above
         :rtype: list
         """
         proj_obj = self.r_project_obj()
-        ret = {}
+        ret = dict()
         for td in util.convert_to_list(self.r_get('brocade-fibrechannel-trunk/trunk')):
             ds_wwn = td.get('neighbor-wwn')
             if ds_wwn not in ret:
-                ret.update({ds_wwn: {}})
+                ret.update({ds_wwn: dict()})
             g = ret.get(ds_wwn)
             group = td.get('group')
             if group not in g:
-                g.update({group: []})
+                g.update({group: list()})
             l = g.get(group)
             li = [self.r_port_object_for_index(td.get('source-port')),
                   proj_obj.r_switch_obj(ds_wwn).r_port_object_for_index(td.get('destination-port'))]
@@ -541,7 +495,6 @@ class SwitchObj:
 
     def r_active_maps_policy(self):
         """Returns the active MAPS policy associated with this switch
-
         :return: Active MAPS. None if no active MAPS policy
         :rtype: dict, None
         """
@@ -552,7 +505,6 @@ class SwitchObj:
 
     def s_add_group(self, group):
         """Adds a group to _maps_group_rules
-
         :param group: Dictionary of group attributes as returned from brocade-maps/group
         :type group: dict
         """
@@ -562,7 +514,6 @@ class SwitchObj:
 
     def r_maps_rules(self):
         """Returns the maps rules
-
         :return: Dictionary of rule attributes as returned from brocade-maps/rule
         :type: dict
         """
@@ -570,7 +521,6 @@ class SwitchObj:
 
     def s_add_rule(self, rule):
         """Adds a rule _maps_rules and adds the rule to _maps_group_rules
-
         :param rule: Dictionary of rule attributes as returned from brocade-maps/rule
         :type rule: dict
         """
@@ -579,12 +529,11 @@ class SwitchObj:
             self._maps_rules.update({name: rule})
             group = rule.get('group-name')
             if group not in self._maps_group_rules:
-                self._maps_group_rules.update({group: []})
+                self._maps_group_rules.update({group: list()})
             self._maps_group_rules.get(group).append(name)
 
     def r_rule(self, name):
         """Returns the rule dict for the rule
-
         :param name: Rule name
         :type name: str
         :return: Dictionary of rule attributes as returned from brocade-maps/rule
@@ -598,7 +547,6 @@ class SwitchObj:
 
     def r_rule_objects_for_group(self, name):
         """Returns a list of the rule dictionaries associated with a group
-
         :param name: Group name
         :type name: str
         :return: List of rule attribute dictionaries as returned from brocade-maps/rule associated with the group
@@ -608,7 +556,6 @@ class SwitchObj:
 
     def r_maps_groups(self):
         """Returns the maps groups
-
         :return: Dictionary of group attributes as returned from brocade-maps/group
         :type: dict
         """
@@ -616,7 +563,6 @@ class SwitchObj:
 
     def r_group(self, name):
         """Returns the group dict for the group
-
         :param name: Group name
         :type name: str
         :return: Dictionary of group attributes as returned from brocade-maps/group
@@ -626,7 +572,6 @@ class SwitchObj:
 
     def r_active_groups(self):
         """Returns the list of group names in the active MAPS policy
-
         :return: List of group names
         :rtype: list
         """
@@ -634,7 +579,6 @@ class SwitchObj:
 
     def r_active_group_objects(self):
         """Returns the list of group objects in the active MAPS policy
-
         :return: List of group objects
         :rtype: list
         """
@@ -642,7 +586,6 @@ class SwitchObj:
 
     def c_switch_model(self):
         """Returns the switch model as an integer
-
         :return: Switch model as an integer
         :rtype: int
         """
@@ -653,7 +596,6 @@ class SwitchObj:
 
     def s_new_key(self, k, v, f=False):
         """Creates a new key/value pair.
-
         :param k: Key to be added
         :type k: str, int
         :param v: Value to be added. Although any type should be valid, it has only been tested with the types below.
@@ -667,7 +609,6 @@ class SwitchObj:
 
     def r_get(self, k):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
-
         :param k: Key
         :type k: str, int
         :return: Value
@@ -677,7 +618,6 @@ class SwitchObj:
 
     def r_keys(self):
         """Returns a list of keys added to this object.
-
         :return: List of keys
         :rtype: list
         """

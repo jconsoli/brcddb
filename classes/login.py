@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -29,16 +29,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
@@ -61,7 +63,7 @@ class LoginObj:
     def __init__(self, name, project_obj, fabric_key):
         self._obj_key = name
         self._flags = 0
-        self._alerts = []
+        self._alerts = list()
         self._fabric_key = fabric_key
         self._project_obj = project_obj
 
@@ -371,7 +373,7 @@ class FdmiNodeObj:
     def __init__(self, name, project_obj, fabric_key):
         self._obj_key = name
         self._flags = 0
-        self._alerts = []
+        self._alerts = list()
         self._fabric_key = fabric_key
         self._project_obj = project_obj
 
@@ -585,7 +587,7 @@ class FdmiPortObj:
     def __init__(self, name, project_obj, fabric_key):
         self._obj_key = name
         self._flags = 0
-        self._alerts = []
+        self._alerts = list()
         self._fabric_key = fabric_key
         self._project_obj = project_obj
 

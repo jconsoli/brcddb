@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2020 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -26,15 +26,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 22 Aug 2020   | Fixed r_cu_objects(), was returning a list of dict instead of dict.               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020 Jack Consoli'
-__date__ = '22 Aug 2020'
+__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Released'
-__version__ = '3.0.1'
+__status__ = 'Development'
+__version__ = '3.0.2'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
@@ -82,9 +84,9 @@ class IOCPObj:
     def __init__(self, name, project_obj):
         self._obj_key = name
         self._flags = 0
-        self._members = {}
-        self._pmembers = {}
-        self._alerts = []
+        self._members = dict()
+        self._pmembers = dict()
+        self._alerts = list()
         self._project_obj = project_obj
 
     def r_get_reserved(self, k):

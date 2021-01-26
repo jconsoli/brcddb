@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -29,16 +29,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 01 Nov 2020   | Changed return in r_zone_configurations() to list rather than generator type.     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '01 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -66,8 +68,8 @@ class ZoneCfgObj:
     def __init__(self, name, project_obj, fabric_key):
         self._obj_key = name
         self._flags = 0
-        self._members = []
-        self._alerts = []
+        self._members = list()
+        self._alerts = list()
         self._fabric_key = fabric_key
         self._project_obj = project_obj
 
@@ -269,10 +271,10 @@ class ZoneCfgObj:
         :return: List of brcddb.classes.zone.ZoneObj
         :rtype: list
         """
+        # I can't think of a way for fab_obj or zone_obj to be None but rather than over think it ...
         fab_obj = self.r_fabric_obj()
-        if fab_obj is None:
-            return []  # I can't think of a way to get here or how zone_obj below can be None but rather than over think
-        return [fab_obj.r_zone_obj(zone) for zone in self.r_members() if fab_obj.r_zone_obj(zone) is not None]
+        return list() if fab_obj is None else \
+            [fab_obj.r_zone_obj(zone) for zone in self.r_members() if fab_obj.r_zone_obj(zone) is not None]
 
     def s_copy(self, zonecfg):
         """Copy self to a new zone
@@ -340,9 +342,9 @@ class ZoneObj:
     def __init__(self, name, zone_type, project_obj, fabric_key):
         self._obj_key = name   # Zone name
         self._flags = 0
-        self._members = []  # 'member-entry' - Zone members
-        self._pmembers = []  # 'principal-member-entry' - Principal zone members - for peer zones
-        self._alerts = []
+        self._members = list()  # 'member-entry' - Zone members
+        self._pmembers = list()  # 'principal-member-entry' - Principal zone members - for peer zones
+        self._alerts = list()
         self._type = zone_type   # Zone type from brocade-zone/brocade-zone (0 default, 1 user peer, 2 target  peer)
         self._fabric_key = fabric_key
         self._project_obj = project_obj
@@ -704,8 +706,8 @@ class AliasObj:
     def __init__(self, name, project_obj, fabric_key):
         self._obj_key = name  # Alias name
         self._flags = 0
-        self._members = []  # alias members
-        self._alerts = []
+        self._members = list()  # alias members
+        self._alerts = list()
         self._fabric_key = fabric_key
         self._project_obj = project_obj
 

@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -31,16 +31,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 14 Nov 2020   | Handle all port speeds.                                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '14 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -78,9 +80,9 @@ class PortObj:
         self._project_obj = project_obj
         self._switch = switch_wwn
         self._flags = 0
-        self._alerts = []
-        self._maps_fc_port_group = []
-        self._maps_sfp_group = []
+        self._alerts = list()
+        self._maps_fc_port_group = list()
+        self._maps_sfp_group = list()
 
     def _i_port_flags(self, k):
         """For internal use only. Returns the state of the specified port flag
@@ -219,8 +221,7 @@ class PortObj:
         :return: List of WWNs logged into this port
         :rtype: list
         """
-        rl = util.class_getvalue(self, 'fibrechannel/neighbor/wwn')
-        return rl if isinstance(rl, list) else []
+        return util.convert_to_list(util.class_getvalue(self, 'fibrechannel/neighbor/wwn'))
 
     def r_login_objects(self):
         """Returns all the login objects for logins on this port
@@ -229,9 +230,8 @@ class PortObj:
         :rtype: list
         """
         fab_obj = self.r_fabric_obj()
-        if fab_obj is None:
-            return []
-        return [fab_obj.r_login_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_login_obj(wwn) is not None]
+        return list() if fab_obj is None else \
+            [fab_obj.r_login_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_login_obj(wwn) is not None]
 
     def r_fdmi_node_keys(self):
         """Returns all the FDMI node WWNs associated with this port.
@@ -241,7 +241,7 @@ class PortObj:
         """
         fab_obj = self.r_fabric_obj()
         if fab_obj is None:
-            return []
+            return list()
         fdmi_keys = fab_obj.r_fdmi_node_keys()
         return [wwn for wwn in self.r_login_keys() if wwn in fdmi_keys]
 
@@ -252,9 +252,8 @@ class PortObj:
         :rtype: list
         """
         fab_obj = self.r_fabric_obj()
-        if fab_obj is None:
-            return []
-        return [fab_obj.r_fdmi_node_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_fdmi_node_obj(wwn) is not None]
+        return list() if fab_obj is None else \
+            [fab_obj.r_fdmi_node_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_fdmi_node_obj(wwn) is not None]
 
     def r_fdmi_port_keys(self):
         """Returns all the FDMI port WWNs associated with this port.
@@ -264,7 +263,7 @@ class PortObj:
         """
         fab_obj = self.r_fabric_obj()
         if fab_obj is None:
-            return []
+            return list()
         fdmi_keys = fab_obj.r_fdmi_port_keys()
         return [wwn for wwn in self.r_login_keys() if wwn in fdmi_keys]
 
@@ -275,9 +274,8 @@ class PortObj:
         :rtype: list
         """
         fab_obj = self.r_fabric_obj()
-        if fab_obj is None:
-            return []
-        return [fab_obj.r_fdmi_port_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_fdmi_port_obj(wwn) is not None]
+        return list() if fab_obj is None else \
+            [fab_obj.r_fdmi_port_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_fdmi_port_obj(wwn) is not None]
 
     def r_obj_key(self):
         """Returns key that is used in the parent object to retrieve this object
