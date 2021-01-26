@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -28,16 +28,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
@@ -70,7 +72,7 @@ def object_copy(obj, objx, flag_obj=None, skip_list=None):
     :rtype: None
     """
     if skip_list is None:
-        skip_list = []
+        skip_list = list()
     # Programmer’s Tip: Note that the rest object and brcddb object are reversed. My humble appologies for that.
     if isinstance(obj, dict):
         for k in obj.keys():
@@ -86,22 +88,22 @@ def object_copy(obj, objx, flag_obj=None, skip_list=None):
                             brcdapi_log.exception('Unexpected type: ' + str(type(objx)), True)
                 elif isinstance(v, dict):
                     if isinstance(objx, dict):
-                        d = {}
+                        d = dict()
                         objx.update({k: d})
                         object_copy(v, d, flag_obj, skip_list)
                     elif isinstance(objx, list):
-                        d = []
+                        d = list()
                         objx.append(d)
                         object_copy(v, d, flag_obj, skip_list)
                     else:
                         brcdapi_log.exception('Unexpected type: ' + str(type(objx)), True)
                 elif isinstance(v, list):
                     if isinstance(objx, dict):
-                        d = []
+                        d = list()
                         objx.update({k: d})
                         object_copy(v, d, flag_obj, skip_list)
                     elif isinstance(objx, list):
-                        d = []
+                        d = list()
                         objx.append(d)
                         object_copy(v, d, flag_obj, skip_list)
                     else:
@@ -113,7 +115,7 @@ def object_copy(obj, objx, flag_obj=None, skip_list=None):
                     # which check to see if the object was already created so it will revert back to just a pointer.
                     # Although this works, it wastes a lot of space which could be problematic with large projects,
                     # hence the exception warning.
-                    d1 = {}
+                    d1 = dict()
                     objx.update({k: d1})
                     brcddb_to_plain_copy(v, d1, flag_obj, skip_list)
                     brcdapi_log.exception('Making large copies with ' + str(k) +
@@ -122,7 +124,7 @@ def object_copy(obj, objx, flag_obj=None, skip_list=None):
                     brcdapi_log.exception('Type of value associated with ' + str(k) + ' unknown. Type is ' +
                                           str(type(v)), True)
     elif isinstance(obj, list):
-        # We never get here for data returned fro the API. We only get here if a custom key was added.
+        # We never get here for data returned from the API. We only get here if a custom key was added.
         for v in obj:
             if isinstance(v, (str, int)):
                 if isinstance(objx, list):
@@ -131,7 +133,7 @@ def object_copy(obj, objx, flag_obj=None, skip_list=None):
                     brcdapi_log.exception('Unexpected objx type: ' + str(type(objx)), True)
             elif isinstance(v, dict):
                 if isinstance(objx, list):
-                    d = {}
+                    d = dict()
                     objx.append(d)
                     object_copy(v, d, flag_obj, skip_list)
                 elif isinstance(objx, dict):
@@ -144,7 +146,7 @@ def object_copy(obj, objx, flag_obj=None, skip_list=None):
                 else:
                     brcdapi_log.exception('Unexpected objx type: ' + str(type(objx)), True)
             elif 'brcddb.classes' in str(type(v)):
-                d = {}
+                d = dict()
                 objx.append(d)
                 brcddb_to_plain_copy(v, d, flag_obj, skip_list)
             else:
@@ -165,6 +167,7 @@ def brcddb_to_plain_copy(objx, obj, flag_obj=None, skip_list=None):
     :type skip_list: list, tuple
     :rtype: None
     """
+
     if skip_list is None:
         skip_list = _default_skip_list
     # Copy all the reserved keys
@@ -184,18 +187,18 @@ def brcddb_to_plain_copy(objx, obj, flag_obj=None, skip_list=None):
                 if isinstance(v, (str, int, tuple)):
                     obj.update({k: v})
                 elif isinstance(v, list):
-                    d = []
+                    d = list()
                     obj.update({k: d})
                     object_copy(v, d, flag_obj, skip_list)
                 elif isinstance(v, dict):
-                    d = {}
+                    d = dict()
                     obj.update({k: d})
                     for k1 in v.keys():
                         v1 = v.get(k1)
                         # This wasn't very well thought out. I should have put everything in object_copy() in here
                         # rather than break it out seperate.
                         if 'brcddb.classes' in str(type(v1)):
-                            d1 = {}
+                            d1 = dict()
                             d.update({v1.r_obj_key(): d1})
                             brcddb_to_plain_copy(v1, d1, flag_obj, skip_list)
                         else:
@@ -206,14 +209,14 @@ def brcddb_to_plain_copy(objx, obj, flag_obj=None, skip_list=None):
                     # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
                     # https://bugs.python.org/issue32467. For those not at 3.7 yet, this cheesy check gets by it.
                     # All methods that return dict_values were changed to return list so we shouldn't get in here.
-                    d = {}
+                    d = dict()
                     obj.update({k: d})
                     for obj1 in v:
-                        d1 = {}
+                        d1 = dict()
                         d.update({obj1.r_obj_key(): d1})
                         brcddb_to_plain_copy(obj1, d1, flag_obj, skip_list)
                 else:
-                    d = {}
+                    d = dict()
                     obj.update({k: d})
                     brcddb_to_plain_copy(v, d, flag_obj, skip_list)
 
@@ -225,7 +228,7 @@ def brcddb_to_plain_copy(objx, obj, flag_obj=None, skip_list=None):
                     if v is None or isinstance(v, (str, int, float, list)):
                         obj.update({k: v})
                     elif isinstance(v, dict):
-                        d = {}
+                        d = dict()
                         brcddb_to_plain_copy(v, d, flag_obj, skip_list)
                         obj.update({k: d})
                     else:
@@ -430,10 +433,10 @@ def plain_copy_to_brcddb(obj, objx):
                     objx.update({k: v})
             elif isinstance(v, dict):
                 if hasattr(objx, 's_new_key') and callable(getattr(objx, 's_new_key')):
-                    objx.s_new_key(k, {})
+                    objx.s_new_key(k, dict())
                     plain_copy_to_brcddb(v, objx.r_get(k))
                 else:
-                    d = {}
+                    d = dict()
                     plain_copy_to_brcddb(v, d)
                     objx.update({k: d})
             else:
@@ -443,11 +446,11 @@ def plain_copy_to_brcddb(obj, objx):
         if isinstance(objx, list):
             for v in obj:
                 if isinstance(v, dict):
-                    d = {}
+                    d = dict()
                     plain_copy_to_brcddb(v, d)
                     objx.append(d)
                 elif isinstance(v, (list, tuple)):
-                    d = []
+                    d = list()
                     plain_copy_to_brcddb(v, d)
                     objx.append(d)
                 elif isinstance(v, (str, int, float)):
@@ -464,11 +467,11 @@ def plain_copy_to_brcddb(obj, objx):
                     else:
                         objx.append(v)
                 elif isinstance(v, dict):
-                    d = {}
+                    d = dict()
                     plain_copy_to_brcddb(v, d)
                     objx.append(d)
                 elif isinstance(v, (list, tuple)):
-                    d = []
+                    d = list()
                     plain_copy_to_brcddb(v, d)
                     objx.append(d)
                 else:

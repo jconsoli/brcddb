@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -32,16 +32,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 02 Sep 2020   | Added read_full_directory()                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Sep 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcdapi.log as brcdapi_log
 import json
@@ -59,12 +61,6 @@ def write_dump(obj, file):
     :type file: str
     :rtype: None
     """
-    # Debug
-    with open(file, 'w') as f:
-        f.write(json.dumps(obj, sort_keys=True))
-    f.close()
-    return
-
     brcdapi_log.log('CALL: brcddb_util.write_dump. File: ' + file)
     try:
         with open(file, 'w') as f:
@@ -106,7 +102,7 @@ def read_director(folder):
         # Filtering out '~$' is to remove left over junk from Windows that is not actually in the directory
         return [file for file in [f for f in listdir(folder) if isfile(join(folder, f))] if '~$' not in file]
     except:
-        return []
+        return list()
 
 
 def read_file(file, remove_blank=True, rc=True):
@@ -172,7 +168,7 @@ def read_full_directory(folder):
     :rtype: list
     """
 
-    rl = []
+    rl = list()
     try:
         for file in read_director(folder):
             stats = stat(folder + '/' + file)

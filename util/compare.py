@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -40,16 +40,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 29 Nov 2020   | Fixed "ADDED" and "REMOVED" matching when the check should have been skipped.     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '29 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import copy
 import re
@@ -227,7 +229,7 @@ def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
         skip_flag, lt, gt = _check_control(ref + '/' + k, control_tbl)
         if not skip_flag:
             b_obj_r = b_obj.r_get_reserved(k)
-            new_r_obj = [] if isinstance(b_obj_r, (list, tuple)) else dict()
+            new_r_obj = list() if isinstance(b_obj_r, (list, tuple)) else dict()
             x = _compare(new_r_obj, '/' + k, b_obj_r, c_obj.r_get_reserved(k), control_tbl)
             if x > 0:
                 r_obj.update({k: copy.deepcopy(new_r_obj)})
@@ -311,7 +313,7 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     for k in b_obj.keys():  # Check existing
         new_ref = ref + '/' + k
         b_obj_r = b_obj.get(k)
-        new_r_obj = [] if isinstance(b_obj_r, (list, tuple)) else dict()
+        new_r_obj = list() if isinstance(b_obj_r, (list, tuple)) else dict()
         c_obj_r = c_obj.get(k)
         if c_obj_r is None:
             skip_flag_0, lt_0, gt_0 = _check_control(new_ref, control_tbl)
@@ -355,7 +357,7 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     if not isinstance(c_obj, type(b_obj)):
         _update_r_obj(r_obj, {'b': str(type(b_obj)), 'c': str(type(c_obj)), 'r': _MISMATCH})
         return 1
-    change_list = []
+    change_list = list()
     c = 0
     len_c_obj = len(c_obj)
     len_b_obj = len(b_obj)
@@ -492,7 +494,7 @@ def compare(b_obj, c_obj, control_tbl=None, brcddb_control_tbl=None):
 
     if isinstance(brcddb_control_tbl, dict):
         _brcddb_control_tables = copy.deepcopy(brcddb_control_tbl)
-    r_obj = [] if isinstance(b_obj, (list, tuple)) else dict()
+    r_obj = list() if isinstance(b_obj, (list, tuple)) else dict()
     return _compare(r_obj, '', b_obj, c_obj, control_tbl), r_obj
 
 

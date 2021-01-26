@@ -40,16 +40,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Aug 2020'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import re
 import fnmatch
@@ -57,7 +59,7 @@ import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
 
 
-# The case statements for numerical_test_case{} in test_threshold()
+# The case statements for numerical_test_case used in test_threshold()
 def test_greater(v1, v2):
     return True if v1 > v2 else False
 
@@ -107,10 +109,10 @@ def test_threshold(obj_list, key, test, val):
     :return: List of objects from obj_list that meet the filter criteria in the same order as obj_list
     :rtype: list
     """
-    return_list = []
+    return_list = list()
 
     #  Validate the inputs
-    msg = []
+    msg = list()
     if not isinstance(obj_list, (list, tuple)):
         msg.append('\nobj_list is type ' + str(type(obj_list)) + '. It must be a list or typle of brcddb objects')
     if not isinstance(key, str):
@@ -193,7 +195,7 @@ def match(search_objects, search_key, search_term, ignore_case=False, stype='exa
     # structure, this method does not make use of list comprehensions. If you need something more effecient, create
     # a seperate method for a more specific purpose and leave this as a general purpose search and match method.
 
-    return_list = []
+    return_list = list()
 
     # Validate user input
     if not isinstance(search_term, (str, list, tuple, bool)):
@@ -323,10 +325,10 @@ def match_test(obj_list, test_obj, logic=None):
     w_list = list(obj_list)  # w_list is the working list. To start, the working list is the obj_list. This is returned
     lg = 'and' if logic is None else logic
     t_list = brcddb_util.convert_to_list(test_obj)  # This is the list of objects to test against
-    o_list = []  # This is the NAND and OR list when 'nand' or 'or' logic is specified
+    o_list = list()  # This is the NAND and OR list when 'nand' or 'or' logic is specified
 
     for t_obj in t_list:
-        m_list = []
+        m_list = list()
         if len(w_list) == 0:
             break
         if 'l' in t_obj:
@@ -341,7 +343,7 @@ def match_test(obj_list, test_obj, logic=None):
                 m_list = test_threshold(w_list, t_obj.get('k'), t_obj.get('t'), t_obj.get('v'))
             else:
                 brcdapi_log.exception('Invalid search key, ' + t_obj.get('t'), True)
-                return []
+                return list()
 
         # Apply the test logic
         if lg == 'and':
@@ -363,7 +365,7 @@ def match_test(obj_list, test_obj, logic=None):
             w_list = [obj for obj in w_list if obj not in m_list]
         else:
             brcdapi_log.exception('Invalid logic, ' + lg, True)
-            return []
+            return list()
 
     if lg == 'nand' or lg == 'or':
         w_list = o_list

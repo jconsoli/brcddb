@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2020 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -44,16 +44,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 02 Sep 2020   | Handled condition whan CHPID is not immediately followed by PATH                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '02 Sep 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import collections
 import brcddb.brcddb_common as brcddb_common
@@ -170,8 +172,8 @@ def _condition_iocp(iocp):
     """
     comment_flag = False  # When True, the next line is a continuation of a comment
     line_continue = False  # When True, the next line is a contunuation of the previous line
-    chpids = []  # List of CHPID macros
-    cntlunits = []  # List of CNTLUNIT macros
+    chpids = list()  # List of CHPID macros
+    cntlunits = list()  # List of CNTLUNIT macros
     working_buf = ''  # The conditioned line
     cntlunit_flag = False  # In process of reading in a CNTLUNIT macro
     chpid_flag = False  # In process of reading a CHPID macro
@@ -264,7 +266,7 @@ def css_chpid_to_tag(chpid):
     # ordered because the control unit macro must match link addresses to the CHPIDs associated with these CSS in the
     # order of CHPIDs and LINK addresses in the control unit macro
     d = collections.OrderedDict()
-    css_list = []
+    css_list = list()
     while 'CSS(' in working_buf:
         t_buf, working_buf = brcddb_util.paren_content(working_buf[working_buf.find('CSS(') + len('CSS'):], True)
         css_list = [int(c) for c in t_buf.split(',')]
@@ -272,7 +274,7 @@ def css_chpid_to_tag(chpid):
         for c in [c.upper() for c in l if len(c) > 1]:
             cl = d.get(c)
             if cl is None:
-                cl = []
+                cl = list()
                 d.update({c: cl})
             cl.extend(css_list)
 
@@ -290,9 +292,9 @@ def tag_to_css_list(tag):
     try:
         css = int(tag[0:2], 16)
     except:
-        return []
+        return list()
 
-    css_list = []
+    css_list = list()
     i = 0x80
     for x in range(0, 8):
         if css & i:
@@ -331,7 +333,7 @@ def _parse_chpid(chpid):
     :rtype switch: str
     """
     tag = ''
-    partition = []
+    partition = list()
     pchid = ''
     switch = ''
 
@@ -398,10 +400,10 @@ def _parse_cntlunit(cntlunit):
     :return: List of dict as defined above
     :rtype: dict
     """
-    r = {}
+    r = dict()
     for temp_cntl_macro in (cntlunit):
         cntl_macro = temp_cntl_macro.upper()  # Not that I've ever seen lower case, but just in case.
-        link_addr = {}
+        link_addr = dict()
         if 'LINK' in cntl_macro:
             # HCD allows link addresses to be on a subset of the CSS defined for a CHPID. Below assumes all link
             # addresses are available to all CSS the CHPID is defined for. This means that if a report displays the
@@ -430,7 +432,7 @@ def _parse_cntlunit(cntlunit):
             links, working_buf = brcddb_util.paren_content(cntl_macro[cntl_macro.find('LINK=') + len('LINK='):], True)
             d = collections.OrderedDict()
             for k in chpid_tag_list:
-                d.update({k: []})  # List of link addresses associated with each CHPID
+                d.update({k: list()})  # List of link addresses associated with each CHPID
             # If a link address isn't associated with a CSS, it will just have a ,. For example, in link address 6304 is
             # only associated with CSS(1), it will look like:
             # LINK=((CSS(0),,0122,0122),(CSS(1),6304,0122,0122))
@@ -446,7 +448,7 @@ def _parse_cntlunit(cntlunit):
                         d[chpid_tag_list[i]].append(link_list[i])
 
             # Fill out the dict for this control unit
-            path = {}
+            path = dict()
             for k, v in d.items():
                 if len(v) > 0:
                     # I don't think HCD allows multiple link addresses to the same CU on the same CHPID so I expect
@@ -457,8 +459,8 @@ def _parse_cntlunit(cntlunit):
                     # builing an IOCP. Basically WIP just as I've done below.
                     path.update({k: v[0]})
             cl = working_buf.split(',')
-            unitadd = []  # WIP
-            cuadd = []  # WIP
+            unitadd = list()  # WIP
+            cuadd = list()  # WIP
             unit = ''
             for i in range(0, len(cl)):
                 if 'UNIT=' in cl[i] and len(cl) > i:
@@ -495,7 +497,7 @@ def parse_iocp(proj_obj, iocp):
         chpid_path = dict()
         tag, chpid_path['partition'], chpid_path['pchid'], chpid_path['switch'] = _parse_chpid(chpid)
         link_addr = list()
-        cu = []
+        cu = list()
         for k, v in control_units.items():  # k is the control unit number, v is a dict of the parsed CONTLUNIT macro
             path = v.get('path')
             if path is not None:  # I don't know why it would ever be None but just in case:

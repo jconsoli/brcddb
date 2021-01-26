@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -44,16 +44,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 29 Nov 2020   | Fixed bug when a MAPS alert was triggered for a port that was moved to another VF |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '29 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
@@ -73,13 +75,13 @@ def build_maps_alerts(proj_obj):
 # Case statements in _maps_category - To be modified once the RFE for dashboard alerts is complete
 
 
-_event_severity = {
-    'critical': al.ALERT_NUM.MAPS_DASH_ERROR,
-    'default': al.ALERT_NUM.MAPS_DASH_WARN,
-    'error': al.ALERT_NUM.MAPS_DASH_ERROR,
-    'info': al.ALERT_NUM.MAPS_DASH_INFO,
-    'warning': al.ALERT_NUM.MAPS_DASH_WARN,
-}
+_event_severity = dict(
+    critical=al.ALERT_NUM.MAPS_DASH_ERROR,
+    default=al.ALERT_NUM.MAPS_DASH_WARN,
+    error=al.ALERT_NUM.MAPS_DASH_ERROR,
+    info=al.ALERT_NUM.MAPS_DASH_INFO,
+    warning=al.ALERT_NUM.MAPS_DASH_WARN,
+)
 
 
 def _unknown_category(switch_obj, dash_obj):

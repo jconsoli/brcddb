@@ -35,16 +35,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 31 Dec 2020   | Added sp_port_sort().                                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2020'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import re
 import brcdapi.log as brcdapi_log
@@ -168,14 +170,11 @@ def convert_to_list(obj):
     """
     if obj is None:
         return list()
-    elif isinstance(obj, list):
+    if isinstance(obj, list):
         return obj
-    elif isinstance(obj, dict):
-        if len(obj.keys()) == 0:
-            return list()
-        else:
-            return [obj]
-    elif isinstance(obj, tuple):
+    if isinstance(obj, dict):
+        return list() if len(obj.keys()) == 0 else [obj]
+    if isinstance(obj, tuple):
         return list(obj)
     else:
         return [obj]
@@ -217,9 +216,8 @@ def sort_ports(obj_list):
     :return return_list: Sorted list of port objects from obj_list
     :rtype: list
     """
-    rl = list()
     if len(obj_list) == 0:
-        return rl
+        return list()
     proj_obj = obj_list[0].r_project_obj()  # Assume the same project for all ports
 
     # Sort by switch
@@ -461,30 +459,30 @@ def slot_port(port):
 ###################################################################
 
 # Convert CLI commands to the c-type for brcddb.apps.zone
-c_type_conv = {
-    'aliadd': 'alias-add',
-    'alicreate': 'alias-create',
-    'alidelete': 'alias-delete',
-    'aliremove': 'alias-remove',
-    'cfgadd': 'cfg-add',
-    'cfgclear': 'cfg-clear',
-    'cfgcreate': 'cfg-create',
-    'cfgdelete': 'cfg-delete',
-    # 'cfgdisable': None,  # Not supported
-    'cfgenable': 'cfg-enable',
-    'cfgremove': 'cfg-remove',
-    'cfgsave': 'cfg-save',
-    'defzone': 'defzone',
-    'zoneadd': 'zone-add',
-    'zonecleanup': 'zone-cleanup',
-    'zonecreate': 'zone-create',
-    'zonedelete': 'zone-delete',
-    'zoneobjectcopy': 'zone-object-copy',
-    # 'zoneobjectexpunge': None,  # Not supported
-    'zoneobjectrename': 'zone-object-rename',  # Not supported
-    # 'zoneobjectreplace': None,  # Not supported
-    'zoneremove': 'zone-remove',
-}
+c_type_conv=dict(
+    aliadd='alias-add',
+    alicreate='alias-create',
+    alidelete='alias-delete',
+    aliremove='alias-remove',
+    cfgadd='cfg-add',
+    cfgclear='cfg-clear',
+    cfgcreate='cfg-create',
+    cfgdelete='cfg-delete',
+    # cfgdisable=None,  # Not supported
+    cfgenable='cfg-enable',
+    cfgremove='cfg-remove',
+    cfgsave='cfg-save',
+    defzone='defzone',
+    zoneadd='zone-add',
+    zonecleanup='zone-cleanup',
+    zonecreate='zone-create',
+    zonedelete='zone-delete',
+    zoneobjectcopy='zone-object-copy',
+    # zoneobjectexpunge=None,  # Not supported
+    zoneobjectrename='zone-object-rename',  # Not supported
+    # zoneobjectreplace=None,  # Not supported
+    zoneremove='zone-remove',
+)
 # It's not uncommon for customers with CLI zone scripts to have show commands in the script
 skip_commands = ('alishow', 'cfgactvshow', 'cfgshow', 'cfgtransshow', 'configshow', 'zoneshow')
 
