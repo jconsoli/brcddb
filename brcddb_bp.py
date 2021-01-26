@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -44,17 +44,20 @@ Version Control::
     | 3.0.2     | 14 Nov 2020   | Added ability to parse multiple SFP part numbers for the same rule. This was done |
     |           |               | to accomodated the new secure SFPs for Gen7.                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 26 Jan 2021   | Use standardized brcddb object types                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '14 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
+import collections
 import brcddb.util.util as brcddb_util
 import brcddb.util.search as brcddb_search
 import brcdapi.log as brcdapi_log
@@ -62,12 +65,12 @@ import brcddb.brcddb_switch as brcddb_switch
 import brcddb.app_data.alert_tables as al
 import brcddb.app_data.bp_tables as bp_tables
 import brcddb.util.maps as brcddb_maps
-import collections
+import brcddb.classes.util as brcddb_class_util
 
 HIGH_TEMP_ERROR = 65
 HIGH_TEMP_WARN = 60
 sfp_rules = None
-_alert_tbl = {}
+_alert_tbl = dict()
 
 # The _rule_template table determines how to check SFPs against the MAPS rules.
 # Key - KPI of the parameter to test
@@ -197,10 +200,13 @@ def _isl_num_links(obj, t_obj):
     :return: List of alert dictionaries {'a': alert number, 'p0': p0, 'p1': p1, 'k': '_isl_map'}
     :rtype: list
     """
-    r_list = []
+    r_list = list()
     # Validate input
-    if 'SwitchObj' not in str(type(obj)):
-        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + str(type(obj)), True)
+    obj_type = brcddb_class_util.get_simple_class_type(obj)
+    if obj_type is None:
+        obj_type = str(type(obj))
+    if obj_type != 'SwitchObj':
+        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, True)
         return r_list
 
     proj_obj = obj.r_project_obj()
@@ -209,7 +215,7 @@ def _isl_num_links(obj, t_obj):
         switch_pair = isl_map.get(k)
         if _amp_in_switch_pair(obj, k, switch_pair):
             continue
-        isls_per_trunk = []
+        isls_per_trunk = list()
         for k1 in switch_pair.keys():
             tl = switch_pair.get(k1)
             for trunk in tl:
@@ -232,10 +238,13 @@ def _isl_bw(obj, t_obj):
     :return: List of alert dictionaries {'a': alert number, 'p0': p0, 'p1': p1, 'k': '_isl_map'}
     :rtype: list
     """
-    r_list = []
+    r_list = list()
     # Validate input
-    if 'SwitchObj' not in str(type(obj)):
-        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + str(type(obj)), True)
+    obj_type = brcddb_class_util.get_simple_class_type(obj)
+    if obj_type is None:
+        obj_type = str(type(obj))
+    if obj_type != 'SwitchObj':
+        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, True)
         return r_list
 
     proj_obj = obj.r_project_obj()
@@ -244,7 +253,7 @@ def _isl_bw(obj, t_obj):
         switch_pair = isl_map.get(k)
         if _amp_in_switch_pair(obj, k, switch_pair):
             continue
-        speeds = []
+        speeds = list()
         for k1 in switch_pair.keys():
             try:
                 s = switch_pair.get(k1)[0][0].r_get('fibrechannel/speed')
@@ -270,10 +279,13 @@ def _isl_fru(obj, t_obj):
     :return: List of alert dictionaries {'a': alert number, 'p0': p0, 'p1': p1, 'k': '_isl_map'}
     :rtype: list
     """
-    r_list = []
+    r_list = list()
     # Validate input
-    if 'SwitchObj' not in str(type(obj)):
-        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + str(type(obj)), True)
+    obj_type = brcddb_class_util.get_simple_class_type(obj)
+    if obj_type is None:
+        obj_type = str(type(obj))
+    if obj_type != 'SwitchObj':
+        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, True)
         return r_list
 
     proj_obj = obj.r_project_obj()
@@ -282,7 +294,7 @@ def _isl_fru(obj, t_obj):
         switch_pair = isl_map.get(k)
         if _amp_in_switch_pair(obj, k, switch_pair):
             continue
-        slots = []
+        slots = list()
         for k1 in switch_pair.keys():
             tl = switch_pair.get(k1)
             for trunk in tl:
@@ -306,11 +318,13 @@ def _isl_redundant(obj, t_obj):
     :return: List of alert dictionaries {'a': alert number, 'p0': p0, 'p1': p1, 'k': '_isl_map'}
     :rtype: list
     """
-    r_list = []
+    r_list = list()
     # Validate input
-    if 'SwitchObj' not in str(type(obj)):
-        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + str(type(obj)),
-                             True)
+    obj_type = brcddb_class_util.get_simple_class_type(obj)
+    if obj_type is None:
+        obj_type = str(type(obj))
+    if obj_type != 'SwitchObj':
+        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, True)
         return r_list
 
     proj_obj = obj.r_project_obj()
@@ -354,7 +368,7 @@ def _fc16_48_haa_p8(obj, t_obj):
         for port_obj in ml:
             port_obj.s_add_alert(_alert_tbl, t_obj.get('m'))
 
-    return []
+    return list()
 
 
 def _chassis_fru_check(obj, t_obj):
@@ -369,7 +383,7 @@ def _chassis_fru_check(obj, t_obj):
     """
     global _alert_tbl
 
-    r_list = []
+    r_list = list()
     # Blades
     for d in brcddb_util.convert_to_list(obj.r_get('brocade-fru/blade')):
         v = str(d.get('blade-state'))
@@ -528,14 +542,14 @@ def _fdmi_enabled(obj_list, t_obj):
     :return: List of port objects, brcddb.classes.port.PortObj, matching the test criteria in t_obj
     :rtype: list
     """
-    ret_list = []
+    ret_list = list()
     for obj in brcddb_search.match_test(obj_list, t_obj.get('l'), t_obj.get('logic')):
         port_obj = obj.r_port_obj()
         if port_obj is None:
             continue
         wwn = obj.r_obj_key()
         try:
-            if port_obj.r_get('fibrechannel/neighbor').get('wwn')[1] == wwn:
+            if port_obj.r_get('fibrechannel/neighbor/wwn')[1] == wwn:
                 if obj.r_fabric_obj().r_fdmi_port_obj(wwn) is None:
                     ret_list.append(port_obj)
         except:
@@ -544,9 +558,7 @@ def _fdmi_enabled(obj_list, t_obj):
     return ret_list
 
 
-_bp_special_list_case_tbl = {
-    'FDMI_ENABLED': _fdmi_enabled,
-}
+_bp_special_list_case_tbl = dict(FDMI_ENABLED=_fdmi_enabled)
 
 
 def _bp_special_list(obj_list, t_obj):
@@ -620,7 +632,7 @@ def best_practice(a_tbl, proj_obj):
     """
     global _alert_tbl
 
-    _alert_tbl = a_tbl
+    _alert_tbl = a_tbl  # I could have handled this better but I'm not fixing working code.
 
     brcdapi_log.log('Checking best practices', True)
     _check_best_practice(proj_obj.r_port_objects(), bp_tables.port_tbl)

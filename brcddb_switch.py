@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -30,16 +30,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 01 Nov 2020   | Removed all products past EOS and added Gen7 products                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '01 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = 'xx xxx 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Released'
-__version__ = '3.0.2'
+__status__ = 'Development'
+__version__ = '3.0.3'
 
 import brcddb.util.copy as brcddb_copy
 import brcddb.util.util as brcddb_util
@@ -489,7 +491,7 @@ def model_broadcom(switch):
     return model_oem(switch, SWITCH_BRAND.Brocade)
 
 
-def add_rest_port_data(switch_obj, pobj, flag_obj=None, skip_list=[]):
+def add_rest_port_data(switch_obj, pobj, flag_obj=None, skip_list=list()):
     """Adds port statistics from rest request 'brocade-interface/fibrechannel-statistics' to each port object
 
     :param switch_obj: Switch object
@@ -514,7 +516,7 @@ def add_rest_port_data(switch_obj, pobj, flag_obj=None, skip_list=[]):
                 port_obj = switch_obj.s_add_port('/'.join(pdict.get('name').split('/')[1:]))
             else:
                 port_obj = switch_obj.s_add_port(pdict.get('name'))
-            v = {}
+            v = dict()
             port_obj.s_new_key(k, v)
             brcddb_copy.object_copy(pdict, v, port_obj, sl)
             # Make sure there is a login object for every login found

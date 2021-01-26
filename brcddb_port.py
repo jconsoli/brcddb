@@ -34,16 +34,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 22 Jan 2021   | Added port_obj_for_wwn()                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes.                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '22 Jan 2021'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -67,8 +69,7 @@ def port_best_desc(port_obj):
     if port_obj is None:
         return 'Unknown'
     wwn_list = brcddb_util.convert_to_list(port_obj.r_get('fibrechannel/neighbor/wwn'))
-    wwn = wwn_list[0] if len(wwn_list) > 0 else None
-    if wwn is None:
+    if len(wwn_list) == 0:
         return ''
 
     # Try E-Port
@@ -103,10 +104,9 @@ def best_port_name(port_obj, port_num=False):
     buf = port_obj.r_get('fibrechannel/user-friendly-name')
     if buf is None:
         return port_obj.r_obj_key()
-    elif port_num:
+    if port_num:
         return buf + ' (' + port_obj.r_obj_key() + ')'
-    else:
-        return buf
+    return buf
 
 
 def port_type(port_obj, num_flag=False):
@@ -159,10 +159,8 @@ def port_obj_for_wwn(obj, wwn):
     if not brcddb_util.is_wwn(wwn):
         return None
     for port_obj in obj.r_port_objects():
-        nd = port_obj.r_get('fibrechannel/neighbor')
-        if nd is not None:
-            for port_wwn in brcddb_util.convert_to_list(nd.get('wwn')):
-                if port_wwn is not None and port_wwn == wwn:
-                    return port_obj
+        for port_wwn in brcddb_util.convert_to_list(port_obj.r_get('fibrechannel/neighbor/wwn')):
+            if port_wwn is not None and port_wwn == wwn:
+                return port_obj
 
     return None  # If we got this far, we didn't find it.

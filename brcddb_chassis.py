@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,16 +39,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 01 Nov 2020   | Added Gen7 board types to blade_id_name.                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '01 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcddb.brcddb_switch as brcddb_switch
 
@@ -124,9 +126,7 @@ def best_chassis_name(chassis_obj, wwn=False):
     if chassis_obj is None:
         return 'Unknown'
     buf = chassis_obj.r_get('brocade-chassis/chassis/chassis-user-friendly-name')
-    if buf is None:
-        return chassis_obj.r_obj_key()
-    return buf + ' (' + chassis_obj.r_obj_key() + ')' if wwn else buf
+    return chassis_obj.r_obj_key() if buf is None else buf + ' (' + chassis_obj.r_obj_key() + ')' if wwn else buf
 
 
 def chassis_type(chassis_obj, type_num=False):

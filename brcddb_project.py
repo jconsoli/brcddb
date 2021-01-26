@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -32,16 +32,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 14 Nov 2020   | Handle all port speeds.                                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '14 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '26 Jan 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcddb.classes.project as project_class
 import brcddb.brcddb_fabric as brcddb_fabric
@@ -70,8 +72,8 @@ def dup_wwn(proj_obj):
     :return: List of login objects for the duplicate WWNS. None entry seperates multiple duplicates
     :rtype: list
     """
-    dup_wwn = []
-    dup_login = []
+    dup_wwn = list()
+    dup_login = list()
     for fabObj in proj_obj.r_fabric_objects():
         other_fab_list = proj_obj.r_fabric_objects()
         other_fab_list.remove(fabObj)
@@ -147,7 +149,7 @@ def add_custom_search_terms(proj_obj):
         max_sfp = None
         search = port_obj.r_get('_search')
         if search is None:
-            search = {}
+            search = dict()
             port_obj.s_new_key('_search', search)
 
         # Get the maximum and minimum speeds supported by the switch SFP
