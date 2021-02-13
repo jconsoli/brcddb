@@ -12,3 +12,10 @@ Contains the following SAN automation applications:
 * Tool to validate Python development environment
 * Sample zoning configuration application
 * Sample applications to use the search capabilities.
+
+
+Updates
+
+13 Feb 2021
+
+Primarily a clean up release. Some minor bug fixes and removed shebang lines from library methods.
