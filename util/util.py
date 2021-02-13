@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -37,16 +36,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 13 Feb 2021   | Improved debug support and exception messages.                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '26 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import re
 import brcdapi.log as brcdapi_log
@@ -55,6 +56,7 @@ import brcddb.classes.util as brcddb_class_util
 
 _DEBUG_FICON = False  # Intended for lab use only. Few, if any, will use this to zone a FICON switch
 _MAX_ZONE_NAME_LEN = 64
+error_asserted = False  # Set True any time an error is encountered. Use for debug only.
 
 # ReGex matching
 non_decimal = re.compile(r'[^\d.]+')
@@ -81,6 +83,15 @@ def ports_for_login(login_list):
 def port_obj_for_wwn(objx, wwn):
     """Returns the port object for a switch port WWN.
 
+    Programmers Tip: The need to know a port WWN is rare. Although the key for all other objects is the WWN, with
+    ports I used the port number because virtual ports do not have a WWN and may not have an index. Furthermore, the WWN
+    for the switch port is not prevalent. The only time I needed to associate a port object with a port WWN is with
+    E-Ports because the neighbor in that case is the port WWN of the port in the ISLed switch.
+
+    This method is extremely inefficient but since E-Port look up in this manner is infequent, it's good enough. If you
+    find yourself in a situation where you need to look up a port object from a port WWN often, you should build a
+    table, similar to brcddb_project.build_xref(), for effecient look ups.
+
     :param objx: A brcddb class object that has a method port_objects()
     :type objx: ProjectObj, FabricObj, SwitchObj, ChassisObj
     :param wwn: WWN of a switch port
@@ -88,12 +99,6 @@ def port_obj_for_wwn(objx, wwn):
     :return: Port Object. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
-    # Programmers Tip: The need to know a port WWN is rare. Although the key for all other objects is the WWN, with
-    # ports I used the port number because virtual ports do not have a WWN. The only time I needed to associate a port
-    # object with a port WWN is when reporting the neighbor switch name. Remember that 'neighbor' in the rest API for
-    # the E-Port is the neighbor port WWN, not the switch WWN. This is extremely inefficient but good enough. If you
-    # find yourself in a situation where you need to look up a port object from a port WWN often, you should build a
-    # table, similar to brcddb_project.build_xref(), for effecient look ups.
     l = brcddb_search.match(objx.r_port_objects(), 'wwn', wwn, ignore_case=True, stype='exact')
     return l[0] if len(l) > 0 else None
 
@@ -108,6 +113,8 @@ def get_key_val(obj, keys):
     :return: Value associated with last key
     :rtype: int, float, str, list, tuple, dict
     """
+    global error_asserted
+
     if hasattr(obj, 'r_get') and callable(obj.r_get):
         return obj.r_get(keys)
 
@@ -118,6 +125,7 @@ def get_key_val(obj, keys):
         elif v is not None:
             brcdapi_log.exception('Object type, ' + str(type(v)) + ', for ' + k + ', in ' + keys +
                                   ' not a dict or brcddb object ', True)
+            error_asserted = True
     return v
 
 
@@ -651,6 +659,8 @@ def paren_content(buf, p_remove=False):
     :return x_buf: Remaind of buf after matching parenthesis have been found
     :rtype x_buf: str
     """
+    global error_asserted
+
     p_count = 0
     r_buf = list()
     buf_len = len(buf)
@@ -668,6 +678,7 @@ def paren_content(buf, p_remove=False):
 
     if p_count != 0:
         brcdapi_log.exception('Input string does not have matching parenthesis:\n' + buf, True)
+        error_asserted = True
         r_buf = list()
     remainder = '' if len(buf) - len(r_buf) < 1 else buf[len(r_buf):]
     if len(r_buf) > 2 and p_remove:
@@ -687,8 +698,11 @@ def add_to_obj(obj, k, v):
     :param v: Value associated with the key.
     :type v: int, str, list, dict
     """
+    global error_asserted
+
     if not isinstance(k, str):
         brcdapi_log.exception('Invalid key. Expected type str, received type ' + str(type(k)), True)
+        error_asserted = True
         return
     key_list = k.split('/')
     if isinstance(obj, dict):
@@ -702,7 +716,9 @@ def add_to_obj(obj, k, v):
             obj.update({key: d})
         add_to_obj(d, '/'.join(key_list), v)
     elif brcddb_class_util.get_simple_class_type(obj) is None:
-        brcdapi_log.exception('Invalid object type.', True)
+        brcdapi_log.exception('Invalid object type: ' + str(type(obj)) + '. k = ' + k + ', v type: ' + str(type(v)),
+                              True)
+        error_asserted = True
     else:
         key = key_list.pop(0)
         if len(key_list) == 0:
@@ -725,6 +741,8 @@ def get_struct_from_obj(obj, k):
     :return: Filtered data structure. None is returned if the key was not found
     :rtype: int, str, list, dict, None
     """
+    global error_asserted
+
     if not isinstance(k, str) or obj is None or len(k) == 0:
         return None
     r_obj = dict()
@@ -742,7 +760,9 @@ def get_struct_from_obj(obj, k):
                 w_obj.update({k0: dict()})
                 w_obj = w_obj[k0]
             else:
-                brcdapi_log.exception('Expected type dict for ' + k0 + ' in ' + k, True)
+                brcdapi_log.exception('Expected type dict for ' + k0 + ' in ' + k + '. Actual type: ' + str(type(k0)),
+                                      True)
+                error_asserted = True
     if k0 is not None:
         w_obj.update({k0: v0})
 
@@ -759,6 +779,8 @@ def get_from_obj(obj, k):
     :return: Value associated with the key. None is returned if the key was not found
     :rtype: int, str, list, dict, None
     """
+    global error_asserted
+
     if isinstance(obj, dict):
         v0 = get_struct_from_obj(obj, k)
         if v0 is None:
@@ -772,6 +794,7 @@ def get_from_obj(obj, k):
         return v0
     elif brcddb_class_util.get_simple_class_type(obj) is None:
         brcdapi_log.exception('Invalid object type.', True)
+        error_asserted = True
     else:
         return obj.r_get(k)
 

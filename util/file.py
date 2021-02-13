@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -34,16 +33,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 13 Feb 2021   | Took try/except out of write_dump() and read_dump() to see error messages.        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '26 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcdapi.log as brcdapi_log
 import json
@@ -62,12 +63,9 @@ def write_dump(obj, file):
     :rtype: None
     """
     brcdapi_log.log('CALL: brcddb_util.write_dump. File: ' + file)
-    try:
-        with open(file, 'w') as f:
-            f.write(json.dumps(obj, sort_keys=True))
-        f.close()
-    except:
-        brcdapi_log.log('Unable to open file: ' + file, True)
+    with open(file, 'w') as f:
+        f.write(json.dumps(obj, sort_keys=True))
+    f.close()
 
 
 def read_dump(file):
@@ -80,14 +78,10 @@ def read_dump(file):
     :rtype: dict, None
     """
     brcdapi_log.log('CALL: brcddb_util.read_dump. File: ' + file)
-    try:
-        f = open(file, 'r')
-        obj = json.load(f)
-        f.close()
-        return obj
-    except:
-        brcdapi_log.log('Unable to open file: ' + file, True)
-        return None
+    f = open(file, 'r')
+    obj = json.load(f)
+    f.close()
+    return obj
 
 
 def read_director(folder):
