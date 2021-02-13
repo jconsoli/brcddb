@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -30,16 +29,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 01 Nov 2020   | Removed depricated KPIs                                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '01 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -89,7 +90,7 @@ def s_switch_list_case(switch_obj, k):
 
 
 def s_switch_trunk_case(switch_obj, k):  # Not used yet
-    rl = []
+    rl = list()
     for obj in brcddb_util.convert_to_list(switch_obj.r_get(k)):
         port_obj = switch_obj.r_port_object_for_index(obj.get('source-port'))
         ps_name = 'Index: ' + obj.get('source-port') if port_obj is None else port_obj.r_obj_key()
@@ -319,7 +320,7 @@ def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list, display):
     :rtype: None
     """
     # Validate the user input
-    err_msg = []
+    err_msg = list()
     if s_list is None:
         err_msg.append('s_list was not defined.')
     elif not isinstance(s_list, (list, tuple)):

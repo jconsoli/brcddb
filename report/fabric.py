@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -30,16 +29,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 13 Feb 2021   | Added FID to fabric summary.                                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '26 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -50,14 +51,15 @@ import brcddb.report.fonts as report_fonts
 import brcddb.app_data.alert_tables as al
 import brcddb.classes.util as brcddb_class_util
 
-sheet = None
-row = 1
-hdr = collections.OrderedDict()
+_sheet = None
+_row = 1
+_hdr = collections.OrderedDict()
 # Key is the column header and value is the width
-hdr['Name'] = 22
-hdr['WWN'] = 22
-hdr['DID'] = 22
-hdr['Firmware'] = 22
+_hdr['Name'] = 30
+_hdr['WWN'] = 22
+_hdr['DID'] = 10
+_hdr['Fabric ID'] = 10
+_hdr['Firmware'] = 22
 zone_key_conv = {
     'cfg-action': 'Configuration actions',
     'cfg-name': 'Effective Configuration',
@@ -86,30 +88,30 @@ def _setup_worksheet(wb, tc, sheet_i, sheet_name, sheet_title):
     :type sheet_title: str
     :rtype: None
     """
-    global row, sheet, hdr
+    global _row, _sheet, _hdr
 
     # Create the worksheet, add the headers, and set up the column widths
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
-    sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
-    sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    row = 1
+    _sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    _sheet.page_setup.paperSize = _sheet.PAPERSIZE_LETTER
+    _sheet.page_setup.orientation = _sheet.ORIENTATION_LANDSCAPE
+    _row = 1
     col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        cell = xl.get_column_letter(col) + str(_row)
+        _sheet[cell].hyperlink = '#' + tc + '!A1'
+        _sheet[cell].font = report_fonts.font_type('link')
+        _sheet[cell] = 'Contents'
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
-    sheet.freeze_panes = sheet['A2']
+    cell = xl.get_column_letter(col) + str(_row)
+    _sheet[cell].font = report_fonts.font_type('hdr_1')
+    _sheet[cell] = sheet_title
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
+    _sheet.freeze_panes = _sheet['A2']
 
     # Set the column width
     col = 1
-    for k, v in hdr.items():
-        sheet.column_dimensions[xl.get_column_letter(col)].width = v
+    for k, v in _hdr.items():
+        _sheet.column_dimensions[xl.get_column_letter(col)].width = v
         col += 1
 
 
@@ -120,72 +122,73 @@ def _fabric_summary(fabric_obj):
     :type fabric_obj: brcddb.classes.fabric.FabricObj
     :rtype: None
     """
-    global row, sheet, hdr
+    global _row, _sheet, _hdr
 
     border = report_fonts.border_type('thin')
     alignment = report_fonts.align_type('wrap')
     font = report_fonts.font_type('bold')
 
     # Add the headers
-    row += 2
+    _row += 2
     col = 1
-    for k in hdr.keys():
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].alignment = alignment
-        sheet[cell].border = border
-        sheet[cell].font = font
-        sheet[cell] = k
+    for k in _hdr.keys():
+        cell = xl.get_column_letter(col) + str(_row)
+        _sheet[cell].alignment = alignment
+        _sheet[cell].border = border
+        _sheet[cell].font = font
+        _sheet[cell] = k
         col += 1
+    _row += 1
 
-    # Add the switches
+    # Setup the common cell attributes
     font = report_fonts.font_type('std')
-    for switch_obj in fabric_obj.r_switch_objects():
-        col = 1
+    switch_obj_l = fabric_obj.r_switch_objects()
+    row = _row
+    for switch_obj in switch_obj_l:
+        for col in range(1, len(_hdr)+1):
+            cell = xl.get_column_letter(col) + str(row)
+            _sheet[cell].alignment = alignment
+            _sheet[cell].border = border
+            _sheet[cell].font = font
         row += 1
+
+    # Add the switch summary
+    for switch_obj in switch_obj_l:
+        col = 1
         # Switch name
         buf = brcddb_switch.best_switch_name(switch_obj, False)
         if switch_obj.r_is_principal():
             buf = '*' + buf
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].alignment = alignment
-        sheet[cell].border = border
-        sheet[cell].font = font
-        sheet[cell] = buf
+        cell = xl.get_column_letter(col) + str(_row)
+        _sheet[cell] = buf
         col += 1
         # Switch WWN
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].alignment = alignment
-        sheet[cell].border = border
-        sheet[cell].font = font
-        sheet[cell] = switch_obj.r_obj_key()
+        cell = xl.get_column_letter(col) + str(_row)
+        _sheet[cell] = switch_obj.r_obj_key()
         col += 1
         # Switch DID
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].alignment = alignment
-        sheet[cell].border = border
-        sheet[cell].font = font
+        cell = xl.get_column_letter(col) + str(_row)
         buf = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
-        if buf is None:
-            buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/domain-id')
-        sheet[cell] = '' if buf is None else buf
+        _sheet[cell] = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/domain-id') if buf is None \
+            else buf
         col += 1
-        # Switch Firmware
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].alignment = alignment
-        sheet[cell].border = border
-        sheet[cell].font = font
+        # Switch FID
+        cell = xl.get_column_letter(col) + str(_row)
+        _sheet[cell] = brcddb_switch.switch_fid(switch_obj)
+        col += 1
+        # Firmware version
+        cell = xl.get_column_letter(col) + str(_row)
         buf = switch_obj.r_get('brocade-fabric/fabric-switch/firmware-version')
-        if buf is None:
-            buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/firmware-version')
-        sheet[cell] = '' if buf is None else buf
+        _sheet[cell] = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/firmware-version') if \
+            buf is None else buf
+        _row += 1
 
     # Pincipal switch footnote
-    row += 1
     col = 1
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = font
-    sheet[cell] = '* indicates principal switch'
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
+    cell = xl.get_column_letter(col) + str(_row)
+    _sheet[cell].font = font
+    _sheet[cell] = '* indicates principal switch'
 
 
 def _maps_dashboard(fabric_obj):
@@ -195,43 +198,43 @@ def _maps_dashboard(fabric_obj):
     :type fabric_obj: brcddb.classes.fabric.FabricObj
     :rtype: None
     """
-    global row, sheet, hdr
+    global _row, _sheet, _hdr
 
     col = 1
-    row += 2
+    _row += 2
     border = report_fonts.border_type('thin')
     alignment = report_fonts.align_type('wrap')
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('bold')
-    sheet[cell].alignment = alignment
-    sheet[cell] = 'MAPS Dashboard Alerts'
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
+    cell = xl.get_column_letter(col) + str(_row)
+    _sheet[cell].font = report_fonts.font_type('bold')
+    _sheet[cell].alignment = alignment
+    _sheet[cell] = 'MAPS Dashboard Alerts'
     font = report_fonts.font_type('std')
     i = 0
     for alert_obj in fabric_obj.r_alert_objects():
         if alert_obj.alert_num() in al.AlertTable.maps_alerts:
-            row += 1
-            sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
-            for col in range(1, len(hdr)):
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].border = border
+            _row += 1
+            _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
+            for col in range(1, len(_hdr)):
+                cell = xl.get_column_letter(col) + str(_row)
+                _sheet[cell].border = border
             col = 1
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
-            sheet[cell] = alert_obj.fmt_msg()
+            cell = xl.get_column_letter(col) + str(_row)
+            _sheet[cell].font = font
+            _sheet[cell].alignment = alignment
+            _sheet[cell] = alert_obj.fmt_msg()
             i += 1
     if i == 0:
-        row += 1
-        sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
-        for col in range(1, len(hdr) + 1):
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
+        _row += 1
+        _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
+        for col in range(1, len(_hdr) + 1):
+            cell = xl.get_column_letter(col) + str(_row)
+            _sheet[cell].border = border
         col = 1
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = font
-        sheet[cell].alignment = alignment
-        sheet[cell] = 'None'
+        cell = xl.get_column_letter(col) + str(_row)
+        _sheet[cell].font = font
+        _sheet[cell].alignment = alignment
+        _sheet[cell] = 'None'
 
 
 def _zone_configuration(fabric_obj):
@@ -241,7 +244,7 @@ def _zone_configuration(fabric_obj):
     :type fabric_obj: brcddb.classes.fabric.FabricObj
     :rtype: None
     """
-    global row, sheet, hdr
+    global _row, _sheet, _hdr
 
     border = report_fonts.border_type('thin')
     alignment = report_fonts.align_type('wrap')
@@ -249,81 +252,79 @@ def _zone_configuration(fabric_obj):
     obj = fabric_obj.r_eff_zone_cfg_obj()
 
     # Add the Defined Configurations
-    row += 2
+    _row += 2
     col = 1
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr)+1)
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].alignment = alignment
-    sheet[cell].border = border
-    sheet[cell].font = report_fonts.font_type('bold')
-    sheet[cell] = 'Defined Configurations'
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr)+1)
+    cell = xl.get_column_letter(col) + str(_row)
+    _sheet[cell].alignment = alignment
+    _sheet[cell].border = border
+    _sheet[cell].font = report_fonts.font_type('bold')
+    _sheet[cell] = 'Defined Configurations'
     for obj in fabric_obj.r_zonecfg_objects():
         buf = obj.r_obj_key()
         if buf == '_effective_zone_cfg':
             continue
-        row += 1
+        _row += 1
         if obj.r_is_effective():
             buf = '*' + buf
-        sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
-        for col in range(1, len(hdr)+1):
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
+        _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
+        for col in range(1, len(_hdr)+1):
+            cell = xl.get_column_letter(col) + str(_row)
+            _sheet[cell].border = border
         col = 1
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].alignment = alignment
-        sheet[cell].font = font
-        sheet[cell] = buf
+        cell = xl.get_column_letter(col) + str(_row)
+        _sheet[cell].alignment = alignment
+        _sheet[cell].font = font
+        _sheet[cell] = buf
 
     # Effective zone footnote
-    row += 1
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
+    _row += 1
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
     col = 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = font
-    sheet[cell] = '* indicates effective zone configuration'
+    cell = xl.get_column_letter(col) + str(_row)
+    _sheet[cell].font = font
+    _sheet[cell] = '* indicates effective zone configuration'
 
     # Effective zone configuration summary
     if obj is not None:
-        row += 2
+        _row += 2
         col = 1
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = report_fonts.font_type('bold')
-        sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
-        sheet[cell] = 'Effective Zone Configuration Summary'
+        cell = xl.get_column_letter(col) + str(_row)
+        _sheet[cell].font = report_fonts.font_type('bold')
+        _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
+        _sheet[cell] = 'Effective Zone Configuration Summary'
         ec_obj = fabric_obj.r_get('brocade-zone/effective-configuration')
         if isinstance(ec_obj, dict):
             for k in ec_obj:
-                row += 1
+                _row += 1
                 col = 1
-                sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+1)
-                for i in range(col, col+2):
-                    cell = xl.get_column_letter(i) + str(row)
-                    sheet[cell].border = border
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].font = font
-                sheet[cell].alignment = alignment
-                sheet[cell] = zone_key_conv[k] if k in zone_key_conv else k
+                _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=col+1)
+                cell = xl.get_column_letter(col) + str(_row)
+                _sheet[cell].font = font
+                _sheet[cell].alignment = alignment
+                # _sheet[cell].border = border
+                _sheet[cell] = zone_key_conv[k] if k in zone_key_conv else k
                 col += 2
-                sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+1)
-                for i in range(col, col+2):
-                    cell = xl.get_column_letter(i) + str(row)
-                    sheet[cell].border = border
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].font = font
-                sheet[cell].alignment = alignment
+                _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
+                cell = xl.get_column_letter(col) + str(_row)
+                _sheet[cell].font = font
+                _sheet[cell].alignment = alignment
                 v = ec_obj.get(k)
                 try:
-                    sheet[cell] = brcddb_common.zonecfg_conversion_tbl[k][v]
+                    _sheet[cell] = brcddb_common.zonecfg_conversion_tbl[k][v]
                 except:
-                    sheet[cell] = v
+                    _sheet[cell] = v
+                for i in range(1, len(_hdr)+1):
+                    cell = xl.get_column_letter(i) + str(_row)
+                    _sheet[cell].border = border
         else:
-            row += 1
+            _row += 1
             col = 1
-            sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + 1)
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
-            sheet[cell] = 'No effective configuration'
+            _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=col + 1)
+            cell = xl.get_column_letter(col) + str(_row)
+            _sheet[cell].font = font
+            _sheet[cell].alignment = alignment
+            _sheet[cell] = 'No effective configuration'
 
 
 def fabric_page(wb, tc, sheet_i, sheet_name, sheet_title, fabric_obj):

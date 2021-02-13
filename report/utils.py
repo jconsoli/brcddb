@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -38,16 +37,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 31 Dec 2020   | Fixed exception case when a bad merge type was passed or merge was 0              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 13 Feb 2021   | Validated sheet name in title_page()                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '31 Dec 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
@@ -234,6 +235,26 @@ def save_report(wb, file_name='Report.xlsx'):
 def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     """Creates a title page for the Excel report.
 
+    content is as defined as noted below. Any unspecified item is ignored which means the default is whatever default is
+    configured in Excel.
+        content_item = {
+            'new_row':  False           # Default is True. Setting this to False is useful when using different cell
+                                        # attributes for different columns. Otherwise, all cell attributes are applied
+                                        # to all cells.
+            'font': 'hdr_1',            # Predefined font type in font_tbl
+            'fill': 'light_blue'        # Predefined cell fill type in fill_tbl
+            'border': 'thin'            # Predefined border type in border_tbl
+            'align': 'wrap'             # Predefined align type in align_tbl
+            'merge': 2,                 # Number of columns to merge, starting from current column
+            'disp': ('col_1', 'col_2', 'etc')   # Str, list or tuple. Content to add to the worksheet
+        }
+        Example:
+        content = (
+            {'font': 'hdr_1', 'merge': 3, 'align': 'wrap_center', 'disp': 'Title Page'},
+            {}, # Skip a row
+            {'font': 'std', 'align': 'wrap', 'disp': ('col_1', 'col_2', 'col_3') },
+        )
+
     :param wb: Workbook object
     :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1.
@@ -244,35 +265,16 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     :type sheet_i: int
     :param sheet_title: Title to be displayed in large font, hdr_1, with light blue fill at the top of the sheet
     :type sheet_title: str
-    :param content: Caller defined content. List or tuple of dictionaries to add to the title page. See comments below
+    :param content: Caller defined content. List or tuple of dictionaries to add to the title page. See comments above
     :type content: list, tuple
     :param col_width: List of column widths to set on sheet
     :type col_width: list, tuple
     :rtype: None
     """
-    # dict defined as noted below. Any unspecified item is ignored which means the default is whatever default is
-    # configured in Excel.
-#        content_item = {
-#            'new_row':  False           # Default is True. Setting this to False is useful when using different cell
-#                                        # attributes for different columns. Otherwise, all cell attributes are applied
-#                                        # to all cells.
-#            'font': 'hdr_1',            # Predefined font type in font_tbl
-#            'fill': 'light_blue'        # Predefined cell fill type in fill_tbl
-#            'border': 'thin'            # Predefined border type in border_tbl
-#            'align': 'wrap'             # Predefined align type in align_tbl
-#            'merge': 2,                 # Number of columns to merge, starting from current column
-#            'disp': ('col_1', 'col_2', 'etc')   # Str, list or tuple. Content to add to the worksheet
-#        }
-#        Example:
-#        content = (
-#            {'font': 'hdr_1', 'merge': 3, 'align': 'wrap_center', 'disp': 'Title Page'},
-#            {}, # Skip a row
-#            {'font': 'std', 'align': 'wrap', 'disp': ('col_1', 'col_2', 'col_3') },
-#        )
 
     # Set up the sheet
     col = 1
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet = wb.create_sheet(index=sheet_i, title=valid_sheet_name.sub('_', sheet_name))
     for i in col_width:
         sheet.column_dimensions[xl_util.get_column_letter(col)].width = i
         col += 1

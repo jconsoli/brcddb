@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# Copyright 2020 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -24,15 +23,17 @@ Version Control::
     +============+================+==================================================================================+
     | 3.0.0      | 29 Sep 2020    | Initial. Started with 3.0 for consistency with other libraries                   |
     +------------+----------------+----------------------------------------------------------------------------------+
+    | 3.0.1     | 13 Feb 2021   | Removed the shebang line                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020 Jack Consoli'
-__date__ = '29 Sep 2020'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import openpyxl.utils.cell as xl
 from openpyxl.chart import AreaChart, AreaChart3D, BarChart, BarChart3D, LineChart, LineChart3D, Reference, Series
