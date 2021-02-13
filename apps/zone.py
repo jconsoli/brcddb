@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# Copyright 2020 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -18,7 +17,7 @@
 
 **Overview**
 
-Performs zoning transactions on a per transaction basis or in bulk. Oringionally intended for use with a script written
+Performs zoning transactions on a per transaction basis or in bulk. Origionally intended for use with a script written
 to support an Ansible Playbook. Ansible Playbooks are usually expected to have a test mode so that the Playbook can
 validate the actions before executing the Playbook. Due to Ansible container library restrictions in most shops, it
 morphed into an example on how to zone via the API. Since there is a test mode, it also serves as an eample on how to
@@ -207,15 +206,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 01 Nov 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 13 Feb 2021   | Removed the shebang line                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020 Jack Consoli'
-__date__ = '01 Nov 2020'
+__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import sys
 import datetime
