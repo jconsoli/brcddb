@@ -34,6 +34,8 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 13 Feb 2021   | Changed is to == for literal compare                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
@@ -43,7 +45,7 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import datetime
 import collections
@@ -245,7 +247,7 @@ def p_alias_case(port_obj, k, wwn):
 
 
 def p_comment_case(port_obj, k, wwn):
-    if k is '_PORT_COMMENTS':  # It's for the port itself
+    if k == '_PORT_COMMENTS':  # It's for the port itself
         return report_utils.combined_alerts(port_obj, wwn)
     else:  # It's an NPIV login
         return report_utils.combined_login_alerts(port_obj.r_fabric_obj().r_login_obj(wwn), wwn)
@@ -535,7 +537,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, display, port_di
                     sheet[cell].border = border
                     sheet[cell].font = font
                     sheet[cell].alignment = report_fonts.align_type('wrap')
-                    if k1 is '_PORT_COMMENTS':
+                    if k1 == '_PORT_COMMENTS':
                         sheet[cell] = port_case[k1](port_obj, '', login[i])
                     elif k1 in port_case:
                         sheet[cell] = port_case[k1](port_obj, k1, login[i])
