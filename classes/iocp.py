@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -28,15 +27,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 13 Feb 2021   | Removed method version().                                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '26 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Development'
-__version__ = '3.0.2'
+__status__ = 'Released'
+__version__ = '3.0.3'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
@@ -45,14 +46,6 @@ import brcddb.classes.util as util
 # on Python garbage collection to clean it up. If delete becomes common, I'll have to revist this but for now, I took
 # the easy way out. It may be a good thing that Python threw an exception because I didn't really think through what
 # objects that might be sharing a resource with other objects.
-
-
-def version():
-    """Returns the module version number
-    :return: Version
-    :rtype: str
-    """
-    return __version__
 
 
 class IOCPObj:

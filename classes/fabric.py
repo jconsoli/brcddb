@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -40,16 +39,18 @@ Version Control::
     | 3.0.2     | 22 Jan 2021   | Fixed potential mutable list in s_add_zonecfg(), s_add_eff_zonecfg(),             |
     |           |               | s_add_zone(), s_add_eff_zone, and s_add_alias()                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '22 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -326,8 +327,7 @@ class FabricObj:
         except:
             zonecfg_obj = zone_class.ZoneCfgObj(name, self.r_project_obj(), self.r_obj_key())
             self._zonecfg_objs.update({name: zonecfg_obj})
-        for member in util.convert_to_list(mem):
-            zonecfg_obj.s_add_member(member)
+        zonecfg_obj.s_add_member(mem)
         return zonecfg_obj
 
     def s_del_zonecfg(self, members):
@@ -336,11 +336,8 @@ class FabricObj:
         :param members: Name or list of zone configurations to be deleted
         :type members: None, str, list, tuple
         """
-        for mem in util.convert_to_list(members):
-            try:
-                del self._zonecfg_objs[mem]
-            except:
-                pass
+        for mem in [m for m in util.convert_to_list(members) if m in self._zonecfg_objs]:
+            del self._zonecfg_objs[mem]
 
     def r_zonecfg_obj(self, name):
         """Returns the zone configuration object for a given zone configuration
@@ -350,10 +347,7 @@ class FabricObj:
         :return: Zone configuration object. None if not found.
         :rtype: brcddb.classes.zone.ZoneCfgObj, None
         """
-        try:
-            return self._zonecfg_objs[name]
-        except:
-            return None
+        return self._zonecfg_objs[name] if name in self._zonecfg_objs else None
 
     def r_zonecfg_keys(self):
         """Returns a list of zone configurations, by name, in this fabric
@@ -405,8 +399,7 @@ class FabricObj:
         :return: Zone configuration object for the defined effective zone configuration. None if no effective zone cfg
         :rtype: brcddb.classes.zone.ZoneCfgObj, None
         """
-        eff_name = self.r_defined_eff_zonecfg_key
-        return None if eff_name is None else self.r_zonecfg_obj(eff_name)
+        return None if self.r_defined_eff_zonecfg_key is None else self.r_zonecfg_obj(self.r_defined_eff_zonecfg_key)
 
     def s_add_eff_zonecfg(self, in_members=None):
         """Adds a special zone configuration named '_effective_zone_cfg' if it doesn't already exist.
@@ -422,8 +415,7 @@ class FabricObj:
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        members = list() if in_members is None else in_members
-        return self.s_add_zonecfg('_effective_zone_cfg', members)
+        return self.s_add_zonecfg('_effective_zone_cfg', list() if in_members is None else in_members)
 
     def r_eff_zone_cfg_obj(self):
         """Returns the zone configuration object for the effective zone.
@@ -453,10 +445,8 @@ class FabricObj:
         if zone_obj is None:
             zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
             self._zone_objs.update({name: zone_obj})
-        for member in util.convert_to_list(mem):
-            zone_obj.s_add_member(member)
-        for member in util.convert_to_list(pmem):
-            zone_obj.s_add_pmember(member)
+        zone_obj.s_add_member(mem)
+        zone_obj.s_add_pmember(pmem)
         return zone_obj
 
     def r_zones_for_alias(self, alias):
@@ -504,20 +494,20 @@ class FabricObj:
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        mem = list() if in_mem is None else in_mem
-        pmem = list() if in_pmem is None else in_pmem
+        mem = list() if in_mem is None else util.convert_to_list(in_mem)
+        pmem = list() if in_pmem is None else util.convert_to_list(in_pmem)
         zone_obj = self.r_eff_zone_obj(name)
         if zone_obj is None:
             zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
             self._eff_zone_objs.update({name: zone_obj})
         zone_obj.s_or_flags(brcddb_common.zone_flag_effective)
-        for member in util.convert_to_list(mem):
+        for member in mem:
             zone_obj.s_add_member(member)
             if ',' in member:
                 zone_obj.s_or_flags(brcddb_common.zone_flag_di)
             else:
                 zone_obj.s_or_flags(brcddb_common.zone_flag_wwn)
-        for member in util.convert_to_list(pmem):
+        for member in pmem:
             zone_obj.s_add_pmember(member)
             if ',' in member:
                 zone_obj.s_or_flags(brcddb_common.zone_flag_di)
@@ -533,10 +523,7 @@ class FabricObj:
         :return: Zone object None if not found.
         :rtype: brcddb.classes.zone.ZoneObj, None
         """
-        try:
-            return self._eff_zone_objs[name]
-        except:
-            return None
+        return self._eff_zone_objs[name] if name in self._eff_zone_objs else None
 
     def r_eff_zone_objs(self):
         """Returns the effective zone object list. Typically used for internal purposes only
@@ -574,9 +561,7 @@ class FabricObj:
         """
         ret_list = list()
         for zone_obj in self.r_eff_zone_objects():
-            if wwn in zone_obj.r_members():
-                ret_list.append(zone_obj)
-            elif wwn in zone_obj.r_pmembers():
+            if wwn in zone_obj.r_members() or wwn in zone_obj.r_pmembers():
                 ret_list.append(zone_obj)
         return ret_list
 
@@ -596,11 +581,8 @@ class FabricObj:
         :param members: Zone name or list of zone names to be deleted
         :type members: None, str, list, tuple
         """
-        for mem in util.convert_to_list(members):
-            try:
-                del self._zone_objs[mem]
-            except:
-                pass
+        for mem in [m for m in util.convert_to_list(members) if m in self._zone_objs]:
+            del self._zone_objs[mem]
 
     def r_zone_obj(self, name):
         """Returns a zone object for a given zone
@@ -610,10 +592,7 @@ class FabricObj:
         :return: Zone object None if not found.
         :rtype: brcddb.classes.zone.ZoneObj, None
         """
-        try:
-            return self._zone_objs[name]
-        except:
-            return None
+        return self._zone_objs[name] if name in self._zone_objs else None
 
     def r_zone_keys(self):
         """Returns all the defined zones in the fabric
@@ -653,15 +632,14 @@ class FabricObj:
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        mem = list() if in_mem is None else in_mem
+        mem = list() if in_mem is None else util.convert_to_list(in_mem)
         if name in self._alias_objs:
             alias_obj = self._alias_objs[name]
         else:
             alias_obj = zone_class.AliasObj(name, self.r_project_obj(), self.r_obj_key())
             self._alias_objs.update({name: alias_obj})
-        for wwn in util.convert_to_list(mem):
-            if wwn not in alias_obj.r_members():  # No one should try to add the same member twice, but just in case
-                alias_obj.s_add_member(wwn)
+        # No one should try to add the same member twice, but just in case
+        alias_obj.s_add_member([wwn for wwn in mem if wwn not in alias_obj.r_members()])
         return alias_obj
 
     def s_del_alias(self, members):
@@ -670,11 +648,8 @@ class FabricObj:
         :param members: Name or list of the aliases to be deleted
         :type members: None, str, list, tuple
         """
-        for mem in util.convert_to_list(members):
-            try:
-                del self._alias_objs[mem]
-            except:
-                pass
+        for mem in [m for m in util.convert_to_list(members) if m in self._alias_objs]:
+            del self._alias_objs[mem]
 
     def r_alias_obj(self, name):
         """Returns the alias object for a given alias
@@ -684,10 +659,7 @@ class FabricObj:
         :return: Alias object. None if not found.
         :rtype: brcddb.classes.zone.AliasObj, None
         """
-        try:
-            return self._alias_objs[name]
-        except:
-            return None
+        return self._alias_objs[name] if name in self._alias_objs else None
 
     def r_alias_keys(self):
         """Returns the list of aliases defined in the fabric
@@ -750,15 +722,13 @@ class FabricObj:
         return fdmi_obj
 
     def s_del_fdmi_node(self, wwn):
-        """Deletes and FDMI node
+        """Deletes an FDMI node
 
         :param wwn: WWN
         :type wwn: str
         """
-        try:
+        if wwn in self._fdmi_node_objs:
             del self._fdmi_node_objs[wwn]
-        except:
-            pass
 
     def r_fdmi_node_obj(self, wwn):
         """Returns the FDMI node object for a given WWN login
@@ -768,10 +738,7 @@ class FabricObj:
         :return: FDMI node object. None if not found.
         :rtype: FdmiObj, None
         """
-        try:
-            return self._fdmi_node_objs[wwn]
-        except:
-            return None
+        return self._fdmi_node_objs[wwn] if wwn in self._fdmi_node_objs else None
 
     def r_fdmi_node_keys(self):
         """Returns the list of FDMI nodes (by WWN) in the fabric
@@ -818,10 +785,8 @@ class FabricObj:
         :param wwn: WWN
         :type wwn: str
         """
-        try:
+        if wwn in self._fdmi_port_objs:
             del self._fdmi_port_objs[wwn]
-        except:
-            pass
 
     def r_fdmi_port_obj(self, wwn):
         """Returns the FDMI port object for a given WWN login
@@ -831,10 +796,7 @@ class FabricObj:
         :return: FDMI node object. None if not found.
         :rtype: FdmiObj, None
         """
-        try:
-            return self._fdmi_port_objs[wwn]
-        except:
-            return None
+        return self._fdmi_port_objs[wwn] if wwn in self._fdmi_port_objs else None
 
     def r_fdmi_port_keys(self):
         """Returns the list of FDMI ports (by WWN) in the fabric
@@ -911,9 +873,7 @@ class FabricObj:
         :rtype: PortObj, None
         """
         login_obj = self.r_login_obj(wwn)
-        if login_obj is not None:
-            return login_obj.r_port_obj()
-        return None
+        return None if login_obj is None else  login_obj.r_port_obj()
 
     def r_port_obj_for_pid(self, pid):
         """Returns the port object matching a port FC addr

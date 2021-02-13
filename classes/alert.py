@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# Copyright 2019 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -29,16 +28,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.1     | 13 Feb 2021   | Removed the shebang line                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '19 Jul 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.0'
+__version__ = '3.0.1'
 
 import copy
 import brcddb.brcddb_common as brcddb_common
@@ -49,6 +50,9 @@ class ALERT_SEV:
 
     Tyipically used for determining how to display alerts. See report.py for an example. Test using methods is_error() \
     and is_warn(). Raw code is returned with sev().
+
+    Note: This was origionally more complex, hence it being in a class. After I sipmlified it, I didn't want to change
+    all the code that was using the alert levels out of this class.
     """
     GENERAL = 0
     WARN = 1

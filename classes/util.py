@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -33,16 +32,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '26 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcdapi.log as brcdapi_log
 
@@ -179,44 +180,44 @@ def _maps_groups(obj):
     return obj._maps_groups
 
 
-_class_reserved_case = {
-    '_alerts': _alerts,
-    '_reserved_keys': _reserved_keys,
-    '_project_obj': _project_obj,
-    '_obj_key': _obj_key,
-    '_flags': _flags,
-    '_date': _date,
-    '_python_version': _python_version,
-    '_description': _description,
-    '_switch_objs': _switch_objs,
-    '_switch_keys': _switch_keys,
-    '_chassis_objs': _chassis_objs,
-    '_port_objs': _port_objs,
-    '_fabric_key': _fabric_key,
-    '_login_objs': _login_objs,
-    '_fabric_objs': _fabric_objs,
-    '_login_keys': _login_keys,
-    '_zonecfg_objs': _zonecfg_objs,
-    '_eff_zone_objs': _eff_zone_objs,
-    '_eff_zonecfg': _eff_zonecfg,
-    '_alias_objs': _alias_objs,
-    '_zone_objs': _zone_objs,
-    '_switch': _switch,
-    '_members': _members,
-    '_pmembers': _pmembers,
-    '_chassis_key': _chassis_key,
-    '_fdmiPortObj': _fdmiPortObj,
-    '_fdmi_node_objs': _fdmi_node_objs,
-    '_fdmi_port_objs': _fdmi_port_objs,
-    '_zonecfg': _zonecfg,
-    '_base_logins': _base_logins,
-    '_port_map': _port_map,
-    '_maps_fc_port_group': _maps_fc_port_group,
-    '_maps_sfp_group': _maps_sfp_group,
-    '_maps_rules': _maps_rules,
-    '_maps_group_rules': _maps_group_rules,
-    '_maps_groups': _maps_groups,
-}
+_class_reserved_case = dict(
+    _alerts=_alerts,
+    _reserved_keys=_reserved_keys,
+    _project_obj=_project_obj,
+    _obj_key=_obj_key,
+    _flags=_flags,
+    _date=_date,
+    _python_version=_python_version,
+    _description=_description,
+    _switch_objs=_switch_objs,
+    _switch_keys=_switch_keys,
+    _chassis_objs=_chassis_objs,
+    _port_objs=_port_objs,
+    _fabric_key=_fabric_key,
+    _login_objs=_login_objs,
+    _fabric_objs=_fabric_objs,
+    _login_keys=_login_keys,
+    _zonecfg_objs=_zonecfg_objs,
+    _eff_zone_objs=_eff_zone_objs,
+    _eff_zonecfg=_eff_zonecfg,
+    _alias_objs=_alias_objs,
+    _zone_objs=_zone_objs,
+    _switch=_switch,
+    _members=_members,
+    _pmembers=_pmembers,
+    _chassis_key=_chassis_key,
+    _fdmiPortObj=_fdmiPortObj,
+    _fdmi_node_objs=_fdmi_node_objs,
+    _fdmi_port_objs=_fdmi_port_objs,
+    _zonecfg=_zonecfg,
+    _base_logins=_base_logins,
+    _port_map=_port_map,
+    _maps_fc_port_group=_maps_fc_port_group,
+    _maps_sfp_group=_maps_sfp_group,
+    _maps_rules=_maps_rules,
+    _maps_group_rules=_maps_group_rules,
+    _maps_groups=_maps_groups,
+)
 
 
 def _class_reserved(obj, k):

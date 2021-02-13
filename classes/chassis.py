@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -33,16 +32,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '26 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Development'
-__version__ = '3.0.3'
+__status__ = 'Released'
+__version__ = '3.0.4'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
@@ -430,8 +431,7 @@ class ChassisObj:
         :return: The blade dictionary for a specific blade as returned from the API
         :rtype: dict
         """
-        l = util.convert_to_list(self.util.r_get('brocade-fru/blade'))
-        for b in l:
+        for b in util.convert_to_list(self.util.r_get('brocade-fru/blade')):
             if isinstance(b.get('slot_number'), int) and b.get('slot_number') == s:
                 return b
         return None

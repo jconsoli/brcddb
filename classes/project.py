@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -31,16 +30,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '26 Jan 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -576,13 +577,10 @@ class ProjectObj:
         
         :param key: Chassis WWN
         :type key: str
-        :return: Chassis object
-        :rtype: ChassisObj
+        :return: Chassis object matching the key. None if not found
+        :rtype: ChassisObj, None
         """
-        try:
-            return self._chassis_objs[key]
-        except:
-            return
+        return self._chassis_objs[key] if key in self._chassis_objs else None
 
     def r_chassis_keys(self):
         """Returns the WWNs for all the chassis in this project

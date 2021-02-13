@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -31,16 +30,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '26 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -206,9 +207,7 @@ class ZoneCfgObj:
         :param members: Member or members to add
         :type members: list, str
         """
-        for mem in util.convert_to_list(members):
-            if mem not in self._members:
-                self._members.append(mem)
+        self._members.extend([mem for mem in util.convert_to_list(members) if mem not in self._members])
 
     def s_del_member(self, members):
         """Deletes zone members from the zone configuration
@@ -544,9 +543,7 @@ class ZoneObj:
         :param members: Member
         :type members: str, list
         """
-        for mem in util.convert_to_list(members):
-            if mem not in self._members:
-                self._members.append(mem)
+        self._members.extend([mem for mem in util.convert_to_list(members) if mem not in self._members])
 
     def s_del_member(self, members):
         """Deletes members from the zone
@@ -583,9 +580,7 @@ class ZoneObj:
         :param members: Member
         :type members: str, list
         """
-        for mem in util.convert_to_list(members):
-            if mem not in self._pmembers:
-                self._pmembers.append(mem)
+        self._pmembers.extend([mem for mem in util.convert_to_list(members) if mem not in self._pmembers])
 
     def s_del_pmember(self, members):
         """Deletes principal members from the zone
@@ -825,9 +820,7 @@ class AliasObj:
         :param members: Member
         :type members: str, list
         """
-        for mem in util.convert_to_list(members):
-            if mem not in self._members:
-                self._members.append(mem)
+        self._members.extend([mem for mem in util.convert_to_list(members) if mem not in self._members])
 
     def s_del_member(self, members):
         """Deletes members from the alias
