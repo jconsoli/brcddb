@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -37,16 +36,18 @@ Version Control::
     |           |               | port_conversion_tbl in favor of calculating speed so as to accomodate all speeds  |
     |           |               | in code.                                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 13 Feb 2021   | Fixed PORT_TYPE_L                                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '14 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 #################################################################################
 #                                   Project                                     #
@@ -285,7 +286,7 @@ port_conversion_tbl = {
         PORT_TYPE_G: 'G-Port',
         PORT_TYPE_U: 'U-Port',
         PORT_TYPE_F: 'F-Port',
-        PORT_TYPE_L: 'L_Port',
+        PORT_TYPE_L: 'L-Port',
         PORT_TYPE_FCOE: 'FCoE-Port',
         PORT_TYPE_EX: 'EX-Port,',
         PORT_TYPE_D: 'D-Port',

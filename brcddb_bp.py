@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -46,16 +45,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 26 Jan 2021   | Use standardized brcddb object types                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 13 Feb 2021   | Removed the shebang line                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '26 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import collections
 import brcddb.util.util as brcddb_util
@@ -300,7 +301,7 @@ def _isl_fru(obj, t_obj):
             for trunk in tl:
                 if trunk[0] is not None:
                     slots.append(trunk[0].r_obj_key().split('/')[0])
-        if len(brcddb_util.remove_duplicates(slots)) == 1 and slots[0] is not '0':
+        if len(brcddb_util.remove_duplicates(slots)) == 1 and slots[0] != '0':
             r_list.append({'a': t_obj.get('m'),
                            'p0': brcddb_switch.best_switch_name(obj),
                            'p1': brcddb_switch.best_switch_name(proj_obj.r_switch_obj(k)),

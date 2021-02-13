@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -39,16 +38,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 26 Jan 2021   | Removed code for pre-FOS 8.2.1c in best_fab_name()                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 13 Feb 2021   | Fixed bug in the case where a zone has an invalid WWN, Added member to            |
+    |           |               | ALERT_NUM.ZONE_DUP_ALIAS warnings, and added number of participating zones to     |
+    |           |               | ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION.                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '26 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -118,7 +121,8 @@ def alias_analysis(fabric_obj):
                         alias_members[0] == c_obj.r_members()[0]:
                     bl.append(c_obj.r_obj_key())
             if len(bl) > 0:
-                a_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_DUP_ALIAS, None, ', '.join(bl), None)
+                a_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_DUP_ALIAS, None, ', '.join(bl),
+                                  a_obj.r_members()[0])
 
 
 def wwn_zone_speed_check(fab_obj):
@@ -276,10 +280,11 @@ def zone_analysis(fab_obj):
     other_fabrics = fab_obj.r_project_obj().r_fabric_objects()
     other_fabrics.remove(fab_obj)
     flag = 0b0
+
     # Zone analysis
     for zone_obj in fab_obj.r_zone_objects():
         pmem_list = list()  # pmem_list and nmem_list was an after thought to save time resolving them again in the
-        nmem_list = list()  # effective zone to defined zone comparison. These are de-referenced (alias converted to WWN)
+        nmem_list = list()  # effective zone to defined zone comparison. These are the aliases converted to WWN
         flag &= ~(_IN_DEFINED_ZONECFG | _WWN_IN_ZONE | _ALIAS_IN_ZONE | _DI_IN_ZONE)
 
         # Is the zone used in any configuration?
@@ -290,6 +295,7 @@ def zone_analysis(fab_obj):
         for i in range(0, 2):   # 0 - Get the members, 1 - get the principal members
             zmem_list = zone_obj.r_members() if i == 0 else zone_obj.r_pmembers()
             for zmem in zmem_list:
+                mem_list = list()  # List of zone members to work on. Initialized empty in case there are no members
                 if brcddb_util.is_wwn(zmem):
                     flag |= _WWN_MEM | _WWN_IN_ZONE
                     mem_list = [zmem]
@@ -302,7 +308,6 @@ def zone_analysis(fab_obj):
                     if a_obj is None:
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_UNDEFINED_ALIAS, None, zmem,
                                              zone_obj.r_obj_key())
-                        mem_list = list()
                     else:
                         mem_list = a_obj.r_members()
                 for mem in mem_list:
@@ -432,7 +437,7 @@ def zone_analysis(fab_obj):
             eList.remove(wwn)
         if len(eList) > bt.MAX_ZONE_PARTICIPATION:
             login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION, None,
-                                  bt.MAX_ZONE_PARTICIPATION)
+                                  bt.MAX_ZONE_PARTICIPATION, len(eList))
 
     # Alias analysis
     alias_analysis(fab_obj)

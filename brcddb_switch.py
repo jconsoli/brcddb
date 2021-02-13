@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -16,6 +15,12 @@
 """
 :mod:`brcddb.brcddb_switch` - Methods and tables to support the class SwitchObj.
 
+**Note**
+
+    The chassis types, often refered to as switch type, would make more sense in brcddb_chassis.py. The fact that they
+    are in this module is due to some now irrelevant history. I wish I cleaned it up a long time ago but at thie point
+    I'm limiting the amount of working code I'm changing so I left it here.
+
 Version Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -32,22 +37,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 13 Feb 2021   | Corrected switch types for X7-4 and X7-8.                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = 'xx xxx 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Development'
-__version__ = '3.0.3'
+__status__ = 'Released'
+__version__ = '3.0.4'
 
 import brcddb.util.copy as brcddb_copy
 import brcddb.util.util as brcddb_util
 
 # This is <model> in switch/fibrechannel-switch. Note that it is returned as a string (str) representing a floating
-# point numbers. Anything after the decimal point represents a version change. Only the integer portion is useful for
+# point number. Anything after the decimal point represents a version change. Only the integer portion is useful for
 # determining a switch type. Switch types used herein are the integer portion only so your code should do something
 #  like:
 # switch_type = int(float( <model> returned from switch/fibrechannel-switch))
@@ -74,8 +81,8 @@ class SWITCH_TYPE:
     S_AMP_2_0 = 171
     S_MXG610 = 175
     S_7810 = 178
-    S_X7_8 = 179
-    S_X7_4 = 180
+    S_X7_4 = 179
+    S_X7_8 = 180
     S_G720 = 181
     S_G620_2 = 183
     S_G630_2 = 184
@@ -335,13 +342,13 @@ st_gen = {
     SWITCH_TYPE.S_G620_2: 'Gen6',
     SWITCH_TYPE.S_G630: 'Gen6',
     SWITCH_TYPE.S_G630_2: 'Gen6',
-    SWITCH_TYPE.S_X6_8: 'Gen6',
     SWITCH_TYPE.S_X6_4: 'Gen6',
+    SWITCH_TYPE.S_X6_8: 'Gen6',
     SWITCH_TYPE.S_AMP_2_0: 'Gen6',
     SWITCH_TYPE.S_7810: 'Gen6',
     SWITCH_TYPE.S_G720: 'Gen7',
-    SWITCH_TYPE.S_X7_8: 'Gen7',
     SWITCH_TYPE.S_X7_4: 'Gen7',
+    SWITCH_TYPE.S_X7_8: 'Gen7',
 }
 
 st_eos = {  # EOS date format is yyyy/mm/dd
@@ -511,8 +518,8 @@ def add_rest_port_data(switch_obj, pobj, flag_obj=None, skip_list=list()):
         for pdict in brcddb_util.convert_to_list(pobj.get(k)):
             if k == 'media-rdp':
                 # The media name is in the format type/s/p, but for everything else, it's just s/p, which is how the key
-                # is created for the port object in the switch object. I can't think of a reason why just stripping off the
-                # type won't work but, if you're in here debugging code, I may have overlooked something
+                # is created for the port object in the switch object. By splitting on '/', removing the first list
+                # element, and joining the rest with '/', I end up with just s/p.
                 port_obj = switch_obj.s_add_port('/'.join(pdict.get('name').split('/')[1:]))
             else:
                 port_obj = switch_obj.s_add_port(pdict.get('name'))

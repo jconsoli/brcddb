@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,16 +35,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes.                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 13 Feb 2021   | Removed the shebang line                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '26 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
