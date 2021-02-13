@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
@@ -47,16 +46,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 09 Jan 2021   | Fixed: get_batch() only made API requests if the FID was None.                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 13 Feb 2021   | Removed the shebang line                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '09 Jan 2021'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.pyfos_auth as pyfos_auth
@@ -101,14 +102,14 @@ def _process_errors(session, uri, obj, wobj):
         return
     proj_obj = wobj.r_project_obj()
     proj_obj.s_api_error_flag()
-    error_table = {
-        'ProjectObj': {
-            'p0': ip_addr,
-            'al_num': al.ALERT_NUM.PROJ_FAILED_LOGIN if '/rest/login' in uri else al.ALERT_NUM.PROJ_CHASSIS_API_ERROR
-        },
-        'ChassisObj': {'p0': brcddb_chassis.best_chassis_name(wobj), 'al_num': al.ALERT_NUM.PROJ_CHASSIS_API_ERROR},
-        'SwitchObj': {'p0': brcddb_switch.best_switch_name(wobj), 'al_num': al.ALERT_NUM.PROJ_SWITCH_API_ERROR}
-    }
+    error_table = dict(
+        ProjectObj=dict(
+            p0=ip_addr,
+            al_num=al.ALERT_NUM.PROJ_FAILED_LOGIN if '/rest/login' in uri else al.ALERT_NUM.PROJ_CHASSIS_API_ERROR
+        ),
+        ChassisObj=dict(p0=brcddb_chassis.best_chassis_name(wobj), al_num=al.ALERT_NUM.PROJ_CHASSIS_API_ERROR),
+        SwitchObj=dict(p0=brcddb_switch.best_switch_name(wobj), al_num=al.ALERT_NUM.PROJ_SWITCH_API_ERROR)
+    )
     simple_type = brcddb_class_util.get_simple_class_type(wobj)
     if simple_type in error_table:
         p0 = error_table[simple_type]['p0']
@@ -583,7 +584,7 @@ def _fru_blade_case(objx, obj, uri):
 
 
 _custom_rest_methods = {  # Normally, all data returned from the API is stored in the object by calling the methods in
-                # _rest_methods. These methods are for non-standard handling of URIs.
+                # _rest_methods(). These methods are for non-standard handling of URIs.
     # Fabric
     'brocade-fabric/fabric-switch': _add_fab_switch_to_chassis_case,
     'brocade-fibrechannel-switch/fibrechannel-switch': _switch_from_list_case,
