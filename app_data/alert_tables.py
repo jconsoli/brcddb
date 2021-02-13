@@ -1,5 +1,4 @@
-#!/usr/bin/python
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -40,16 +39,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 01 Nov 2020   | Added ZONE_PEER_PROPERTY                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 13 Feb 2021   | Added member to ALERT_NUM.ZONE_DUP_ALIAS text message.                            |
+    |           |               | Added number of devices zoned to ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '01 Nov 2020'
+__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
+__date__ = '13 Feb 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.classes.alert as al
 
@@ -299,7 +301,8 @@ class AlertTable:
         ALERT_NUM.LOGIN_DUP_LOGIN: dict(m='Duplicate WWN. Also found in fabric $p0', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.LOGIN_NOT_ZONED: dict(m='Inaccessible. Not in any zone.', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_BASE_ZONED: dict(m='Base NPIV login address in zone', s=al.ALERT_SEV.WARN),
-        ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION: dict(m='Max zone participation allowed is $p0', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION: dict(m='$p1 devices zoned to this login. Maximum allowed is $p0.',
+                                                     s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SIM: dict(m='SIM port', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_AMP: dict(m='AMP', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_FDMI_NOT_ENABLED: dict(m='FDMI on attached HBA is not enabled', s=al.ALERT_SEV.GENERAL),
@@ -334,7 +337,7 @@ class AlertTable:
         ALERT_NUM.ZONE_NOT_FOUND: dict(m='Not found', s=al.ALERT_SEV.GENERAL, f=True),
         ALERT_NUM.ZONE_BASE_ZONED: dict(m='Base NPIV zoned', s=al.ALERT_SEV.ERROR, f=True),
         ALERT_NUM.ZONE_MAX_PARTICIPATION: dict(m='Maximum zone participation excceded', s=al.ALERT_SEV.WARN),
-        ALERT_NUM.ZONE_DUP_ALIAS: dict(m='Duplicate alias. Same as $p0', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.ZONE_DUP_ALIAS: dict(m='Duplicate alias for $p1. Same as $p0', s=al.ALERT_SEV.WARN),
         ALERT_NUM.ZONE_NULL_ALIAS: dict(m='Alias has no member', s=al.ALERT_SEV.WARN),
         ALERT_NUM.ZONE_NULL_ALIAS_USED: dict(m='Null alias used in $p0)', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.ZONE_ALIAS_NOT_USED: dict(m='Not used', s=al.ALERT_SEV.GENERAL),
