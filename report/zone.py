@@ -35,16 +35,18 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 13 Mar 2021   | Added login speed to the zone report.                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '13 Mar 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -60,39 +62,39 @@ import brcddb.report.utils as report_utils
 ##################################################################
 
 
-def zone_comment_case(obj):
+def _zone_comment_case(obj):
     return '\n'.join([a.fmt_msg() for a in obj.r_alert_objects() if not a.is_flag()])
 
 
-def zone_zone_case(obj):
+def _zone_zone_case(obj):
     return obj.r_obj_key()
 
 
-def zone_effective_case(obj):
+def _zone_effective_case(obj):
     return '\u221A' if obj.r_is_effective() else ''
 
 
-def zone_peer_case(obj):
+def _zone_peer_case(obj):
     return '\u221A' if obj.r_is_peer() else ''
 
 
-def zone_target_case(obj):
+def _zone_target_case(obj):
     return '\u221A' if obj.r_is_target_driven() else ''
 
 
-def zone_cfg_case(obj):
+def _zone_cfg_case(obj):
     return '\n'.join(obj.r_zone_configurations())
 
 
-def zone_member_case(obj):
+def _zone_member_case(obj):
     return len(obj.r_members()) + len(obj.r_pmembers())
 
 
-def zone_null_case(obj):
+def _zone_null_case(obj):
     return ''
 
 
-def zone_member_wwn_case(obj):
+def _zone_member_wwn_case(obj):
     members = list(obj.r_members())
     members.extend(list(obj.r_pmembers()))
     fab_obj = obj.r_fabric_obj()
@@ -102,15 +104,15 @@ def zone_member_wwn_case(obj):
     return i
 
 
-def mem_null_case(obj, mem, wwn, port_obj):
+def _mem_null_case(obj, mem, wwn, port_obj):
     return ''
 
 
-def mem_member_case(obj, mem, wwn, port_obj):
+def _mem_member_case(obj, mem, wwn, port_obj):
     return mem
 
 
-def mem_comment_case(obj, mem, wwn, port_obj):
+def _mem_comment_case(obj, mem, wwn, port_obj):
     # Get any comments for this WWN in the zone object
     al = [a.fmt_msg() for a in obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
     # If there is a login, add any comments associated with the login that are zoning specific
@@ -122,23 +124,28 @@ def mem_comment_case(obj, mem, wwn, port_obj):
     return '\n'.join(al)
 
 
-def mem_principal_case(obj, mem, wwn, port_obj):
+def _mem_principal_case(obj, mem, wwn, port_obj):
     return '\u221A' if mem in obj.r_pmembers() else ''
 
 
-def mem_member_wwn_case(obj, mem, wwn, port_obj):
+def _mem_member_wwn_case(obj, mem, wwn, port_obj):
     return '' if wwn is None else '' if ',' in wwn else wwn
 
 
-def mem_switch_case(obj, mem, wwn, port_obj):
+def _mem_switch_case(obj, mem, wwn, port_obj):
     return '' if port_obj is None else brcddb_switch.best_switch_name(port_obj.r_switch_obj())
 
 
-def mem_port_case(obj, mem, wwn, port_obj):
+def _mem_port_case(obj, mem, wwn, port_obj):
     return '' if port_obj is None else port_obj.r_obj_key()
 
 
-def mem_desc_case(obj, mem, wwn, port_obj):
+def _mem_speed_case(obj, mem, wwn, port_obj):
+    speed = None if port_obj is None else port_obj.r_get('fibrechannel/speed')
+    return '' if speed is None else speed/1000000000
+
+
+def _mem_desc_case(obj, mem, wwn, port_obj):
     try:
         t_wwn = port_obj.r_get('fibrechannel/neighbor')[0] if ',' in wwn else wwn
         return brcddb_login.login_best_port_desc(obj.r_fabric_obj().r_login_obj(t_wwn))
@@ -152,18 +159,19 @@ _zone_hdr = {
     #   'z' Case method to fill in the cell for basic zone information
     #   'm' Case method to fill the cell for member information
     #   'v' True - display centered in column. Headers vertical, Otherwise, use default wrap alignment
-    'Comments': {'c': 30, 'z': zone_comment_case, 'm': mem_comment_case},
-    'Zone': {'c': 22, 'z': zone_zone_case, 'm': mem_null_case},
-    'Effectve': {'c': 5, 'v': True, 'z': zone_effective_case, 'm': mem_null_case},
-    'Peer': {'c': 5, 'v': True, 'z': zone_peer_case, 'm': mem_null_case},
-    'Target Driven': {'c': 5, 'v': True, 'z': zone_target_case, 'm': mem_null_case},
-    'Principal': {'c': 5, 'v': True, 'z': zone_null_case, 'm': mem_principal_case},
-    'Configurations': {'c': 22, 'z': zone_cfg_case, 'm': mem_null_case},
-    'Member': {'c': 22, 'z': zone_member_case, 'm': mem_member_case},
-    'Member WWN': {'c':  22, 'z': zone_member_wwn_case, 'm': mem_member_wwn_case},
-    'Switch': {'c': 22, 'z': zone_null_case, 'm': mem_switch_case},
-    'Port': {'c': 7, 'z': zone_null_case, 'm': mem_port_case},
-    'Description': {'c': 50, 'z': zone_null_case, 'm': mem_desc_case},
+    'Comments': {'c': 30, 'z': _zone_comment_case, 'm': _mem_comment_case},
+    'Zone': {'c': 22, 'z': _zone_zone_case, 'm': _mem_null_case},
+    'Effectve': {'c': 5, 'v': True, 'z': _zone_effective_case, 'm': _mem_null_case},
+    'Peer': {'c': 5, 'v': True, 'z': _zone_peer_case, 'm': _mem_null_case},
+    'Target Driven': {'c': 5, 'v': True, 'z': _zone_target_case, 'm': _mem_null_case},
+    'Principal': {'c': 5, 'v': True, 'z': _zone_null_case, 'm': _mem_principal_case},
+    'Configurations': {'c': 22, 'z': _zone_cfg_case, 'm': _mem_null_case},
+    'Member': {'c': 22, 'z': _zone_member_case, 'm': _mem_member_case},
+    'Member WWN': {'c':  22, 'z': _zone_member_wwn_case, 'm': _mem_member_wwn_case},
+    'Switch': {'c': 22, 'z': _zone_null_case, 'm': _mem_switch_case},
+    'Port': {'c': 7, 'z': _zone_null_case, 'm': _mem_port_case},
+    'Speed Gbps': {'c': 7, 'z': _zone_null_case, 'm': _mem_speed_case},
+    'Description': {'c': 50, 'z': _zone_null_case, 'm': _mem_desc_case},
 }
 
 
@@ -287,18 +295,18 @@ def alias_comment_case(obj, mem):
     return '\n'.join([a.fmt_msg() for a in obj.r_alert_objects() if not a.is_flag()])
 
 
-def alais_name_case(obj, mem):
+def _alais_name_case(obj, mem):
     return obj.r_obj_key()
 
 
-def alias_node_desc_case(obj, mem):
+def _alias_node_desc_case(obj, mem):
     try:
         return brcddb_login.login_best_node_desc(obj.r_fabric_obj().r_login_obj(mem))
     except:
         return ''
 
 
-def alias_mem_member_case(obj, mem):
+def _alias_mem_member_case(obj, mem):
     return mem
 
 
@@ -306,36 +314,36 @@ def alias_mem_null_case(obj, mem):
     return ''
 
 
-def alias_mem_switch_case(obj, mem):
+def _alias_mem_switch_case(obj, mem):
     try:
         return brcddb_switch.best_switch_name(obj.r_fabric_obj().r_login_obj(mem).r_switch_obj(), False)
     except:
         return ''
 
 
-def alias_mem_port_case(obj, mem):
+def _alias_mem_port_case(obj, mem):
     try:
         return obj.r_fabric_obj().r_login_obj(mem).r_port_obj().r_obj_key()
     except:
         return ''
 
 
-def alias_mem_desc_case(obj, mem):
+def _alias_mem_desc_case(obj, mem):
     try:
         return brcddb_login.login_best_port_desc(obj.r_fabric_obj().r_login_obj(mem))
     except:
         return ''
 
 
-def alias_used_in_zone_case(obj, mem):
+def _alias_used_in_zone_case(obj, mem):
     return ', '.join([zobj.r_obj_key() for zobj in obj.r_zone_objects()])
 
 
-def alias_member_case(obj, mem):
+def _alias_member_case(obj, mem):
     return obj.r_members()[0] if len(obj.r_members()) > 0 else ''
 
 
-def alias_null_case(obj, mem):
+def _alias_null_case(obj, mem):
     return ''
 
 
@@ -344,13 +352,13 @@ def alias_null_case(obj, mem):
 #   'v' Case method to fill in the cell for alias and first member
 #   'm' Case method to fill the cell for remaining member information
 alias_hdr = collections.OrderedDict()
-alias_hdr['Comments'] = {'c': 40, 'v': alias_comment_case, 'm': alias_null_case}
-alias_hdr['Alias'] = {'c': 32, 'v': alais_name_case, 'm': alias_null_case}
-alias_hdr['Used in Zone'] = {'c': 32, 'v': alias_used_in_zone_case, 'm': alias_null_case}
-alias_hdr['Member'] = {'c': 32, 'v': alias_member_case, 'm': alias_mem_member_case}
-alias_hdr['Switch'] = {'c': 22, 'v': alias_mem_switch_case, 'm': alias_mem_switch_case}
-alias_hdr['Port'] = {'c': 7, 'v': alias_mem_port_case, 'm': alias_mem_port_case}
-alias_hdr['Description'] = {'c': 50, 'v': alias_node_desc_case, 'm': alias_mem_desc_case}
+alias_hdr['Comments'] = {'c': 40, 'v': alias_comment_case, 'm': _alias_null_case}
+alias_hdr['Alias'] = {'c': 32, 'v': _alais_name_case, 'm': _alias_null_case}
+alias_hdr['Used in Zone'] = {'c': 32, 'v': _alias_used_in_zone_case, 'm': _alias_null_case}
+alias_hdr['Member'] = {'c': 32, 'v': _alias_member_case, 'm': _alias_mem_member_case}
+alias_hdr['Switch'] = {'c': 22, 'v': _alias_mem_switch_case, 'm': _alias_mem_switch_case}
+alias_hdr['Port'] = {'c': 7, 'v': _alias_mem_port_case, 'm': _alias_mem_port_case}
+alias_hdr['Description'] = {'c': 50, 'v': _alias_node_desc_case, 'm': _alias_mem_desc_case}
 
 
 def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
