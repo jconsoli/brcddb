@@ -71,16 +71,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 13 Mar 2021   | Added 'fibrechannel/speed' to port_zone_tbl                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '13 Mar 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 
 class Chassis:
@@ -791,6 +793,7 @@ class Port:
         '_SWITCH_NAME',
         '_PORT_NUMBER',
         'fibrechannel/operational-status',
+        'fibrechannel/speed',
         '_LOGIN_ADDR',
         '_LOGIN_WWN',
         '_ALIAS',
