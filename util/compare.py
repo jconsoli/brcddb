@@ -18,11 +18,37 @@
 Although primarily developed to support comparing brcddb objects, those objects also contain standard Python data
 structures so this module can be used to compare anything.
 
+**Description**
+
+compare(), the only public method in this module, returns a dictionary as noted below.
+
+change_rec = compare(b_obj, c_obj, control_tbl)
+  b_obj       Can be any object. This is the base (what you are comparing against)
+  c_obj       The compare object.
+  control_tbl Controls the comparision. Note that you typically don't want a report cluttered with minor changes. For
+              example, if the temperature of an SFP rises by 0.5 degrees, you probably don't care.
+              List of dictionaries as follows:
+                  'something': {      ReGex sear h string. The search string is built by the dictionary keys
+                                      types seperated '/' for each nested level.
+                      'skip': flag    If flag is True, skip this test. Assume flag=False if omitted
+                      'gt': v         Only report a change if c_obj - b_obj > v. Assume v=0 if omitted
+                      'lt': v         Only report a change if b_obj - c_obj > v. Assume v=0 if omitted
+                  }
+
+c, change_rec = compare(b_obj, c_obj, control_tbl)
+
+  c           Total number of differences found
+  change_rec  A dict as follows:
+              {
+                  'b':    Base value (numbers are converted to a str, str is left as is, all else is str(type(val))
+                  'c':    Compare value (see notes with Base value)
+                  'r':    Change. Output depends on type
+              }
+
 Important Notes::
 
-    * int & float types are treated as the same type so as to avoid getting a type mismatch.
-    * List compares are simple index for index comparisons.
-    * If there is a change to any element of a list, the entire list is return with empty dict where there is no change
+    * int & float types are treated as the same type so as to avoid getting a type mismatch. This means 5 and 5.0 are
+      considered the same.
     * Base ('b') and compare ('c') values are always converted to a str in the output
 
 Version Control::
@@ -43,48 +69,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 13 Mar 2021   | Added a better check for list containing only str                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '13 Mar 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import copy
 import re
 import brcdapi.log as brcdapi_log
 import brcddb.classes.util as class_util
-
-# Returns a dictionary as noted below.
-#
-# change_rec = compare(b_obj, c_obj, control_tbl)
-#   b_obj       Can be any object. This is the base (what you are comparing against)
-#   c_obj       The compare object.
-#   control_tbl Controls the comparision. Note that you typically don't want a report cluttered with minor changes. For
-#               example, if the temperature of an SFP rises by 0.5 degrees, you probably don't care.
-#               List of dictionaries as follows:
-#                   'something': {      ReGex sear h string. The search string is built by the dictionary keys
-#                                       types seperated '/' for each nested level.
-#                       'skip': flag    If flag is True, skip this test. Assume flag=False if omitted
-#                       'gt': v         Only report a change if c_obj - b_obj > v. Assume v=0 if omitted
-#                       'lt': v         Only report a change if b_obj - c_obj > v. Assume v=0 if omitted
-#                   }
-#
-# c, change_rec = compare(b_obj, c_obj, control_tbl)
-#
-#   c           Total number of differences found
-#   change_rec  A dict as follows:
-#               {
-#                   'b':    Base value (numbers are converted to a str, str is left as is, all else is str(type(val))
-#                   'c':    Compare value (see notes with Base value)
-#                   'r':    Change. Output depends on type
-#               }
-#
-# See capture_test.py for additional detail.
 
 _REMOVED = 'Removed'
 _NEW = 'Added'
@@ -160,6 +161,8 @@ def _str_compare(r_obj, ref, b_str, c_str, control_tbl):
     :return: Change counter
     :rtype: int
     """
+    global _REMOVED, _CHANGED
+
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
         return 0
@@ -191,6 +194,8 @@ def _num_compare(r_obj, ref, b_num, c_num, control_tbl):
     :return: Change counter
     :rtype: int
     """
+    global _REMOVED
+
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
         return 0
@@ -208,7 +213,7 @@ def _num_compare(r_obj, ref, b_num, c_num, control_tbl):
 
 
 def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
-    """Compares two project objects
+    """Compares two brcddb objects
 
     :param r_obj: Return object - Dictionary of changes
     :type r_obj: dict
@@ -223,6 +228,8 @@ def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     :return: Change counter
     :rtype: int
     """
+    global _REMOVED
+
     c = 0
 
     # Compare all the class objects
@@ -233,7 +240,7 @@ def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
             new_r_obj = list() if isinstance(b_obj_r, (list, tuple)) else dict()
             x = _compare(new_r_obj, '/' + k, b_obj_r, c_obj.r_get_reserved(k), control_tbl)
             if x > 0:
-                r_obj.update({k: copy.deepcopy(new_r_obj)})
+                r_obj.update({k: copy.deepcopy(new_r_obj)})  # Copy shouldn't be necessary but not changing working code
                 c += x
 
     # Compare all the added objects
@@ -255,7 +262,7 @@ def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
 
 
 def _brcddb_compare(r_obj, ref, b_obj, c_obj, control_tbl):
-    """Compares two project objects
+    """Compares two brcddb objects
 
     :param r_obj: Return object - Dictionary of changes
     :type r_obj: dict
@@ -303,6 +310,8 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     :return: Change counter
     :rtype: int
     """
+    global _REMOVED, _NEW, _MISMATCH
+
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
         return 0
@@ -336,7 +345,7 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
 
 
 def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
-    """Compare boolean objects
+    """Compare list objects
 
     :param r_obj: Return object - Dictionary of changes
     :type r_obj: dict
@@ -351,6 +360,8 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     :return: Change counter
     :rtype: int
     """
+    global _REMOVED, _NEW, _MISMATCH
+
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
         return 0
@@ -358,39 +369,121 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     if not isinstance(c_obj, type(b_obj)):
         _update_r_obj(r_obj, {'b': str(type(b_obj)), 'c': str(type(c_obj)), 'r': _MISMATCH})
         return 1
+
+    # Setup the return values
     change_list = list()
     c = 0
-    len_c_obj = len(c_obj)
-    len_b_obj = len(b_obj)
-    for i in range(0, len_b_obj):
-        new_r_obj = dict()
-        if i < len_c_obj:
-            x = _compare(new_r_obj, ref, b_obj[i], c_obj[i], control_tbl)
-        else:
-            if isinstance(b_obj[i], (str, int, float)):
-                buf = b_obj[i]
-            elif isinstance(b_obj[i], dict):
-                buf = b_obj.get('name') if 'name' in c_obj else ref
+
+    # If members are all str, it's typically a list of WWNs or zones. We don't care if they are not in the same order.
+    # This was shoe horned in long after this module was written. I didn't want to mess with what was already working.
+    all_str_flag = True
+    obj_list = [b_obj, c_obj]
+    compare_obj = obj_list[1]
+    for i in range(0, len(obj_list)):
+        for buf in obj_list[i]:
+            if isinstance(buf, str):
+                if buf not in compare_obj:
+                    if i == 0:
+                        change_list.append({'b': buf, 'c': '', 'r': _REMOVED})
+                    else:
+                        change_list.append({'b': '', 'c': buf, 'r': _NEW})
+                    c += 1
             else:
-                buf = ref
-            new_r_obj = {'b': buf, 'c': '', 'r': _REMOVED}
-            x = 1
-        change_list.append(new_r_obj)
-        if x > 0:
-            c += x
-    # Anything new?
-    if len_c_obj > len_b_obj:
-        for i in range(len_b_obj, len_c_obj):
-            if isinstance(c_obj[i], (str, int, float)):
-                buf = c_obj[i]
-            elif isinstance(c_obj[i], dict):
-                buf = c_obj.get('name') if 'name' in c_obj else ref
+                all_str_flag = False
+                c = 0
+                change_list = list()
+                break
+        compare_obj = obj_list[i]
+
+    if not all_str_flag:
+        len_c_obj = len(c_obj)
+        len_b_obj = len(b_obj)
+        for i in range(0, len_b_obj):
+            new_r_obj = dict()
+            if i < len_c_obj:
+                x = _compare(new_r_obj, ref, b_obj[i], c_obj[i], control_tbl)
             else:
-                buf = ref
-            change_list.append({'b': '', 'c': str(buf), 'r': _NEW})
-            c += 1
+                if isinstance(b_obj[i], (str, int, float)):
+                    buf = b_obj[i]
+                elif isinstance(b_obj[i], dict):
+                    buf = b_obj.get('name') if 'name' in c_obj else ref
+                else:
+                    buf = ref
+                new_r_obj = {'b': buf, 'c': '', 'r': _REMOVED}
+                x = 1
+            change_list.append(new_r_obj)
+            if x > 0:
+                c += x
+
+        # Anything new?
+        if len_c_obj > len_b_obj:
+            for i in range(len_b_obj, len_c_obj):
+                if isinstance(c_obj[i], (str, int, float)):
+                    buf = c_obj[i]
+                elif isinstance(c_obj[i], dict):
+                    buf = c_obj.get('name') if 'name' in c_obj else ref
+                else:
+                    buf = ref
+                change_list.append({'b': '', 'c': str(buf), 'r': _NEW})
+                c += 1
+
     if c > 0:
         _update_r_obj(r_obj, change_list.copy())
+    return c
+
+
+def _zone_configuration(r_obj, ref, b_obj, c_obj, control_tbl):
+    """Compare the zone configurations
+
+    :param r_obj: Return object - Dictionary of changes
+    :type r_obj: dict
+    :param ref: Reference key (control_tbl look up).
+    :type ref: str
+    :param b_obj: Base list object.
+    :type b_obj: list, tuple
+    :param c_obj: Compare list object
+    :type c_obj: list, tuple
+    :param control_tbl: Control table.
+    :type control_tbl: dict
+    :return: Change counter
+    :rtype: int
+    """
+    global _REMOVED, _NEW
+
+    change_list = list()
+    c = 0
+
+    # Build a dictionary of base and compare configuration. The key is the configuration name and the value is the list
+    # of zone names in the configuraiton
+    b_cfg = dict()
+    c_cfg = dict()
+    obj_list = [dict(c=b_cfg, o=b_obj), dict(c=c_cfg, o=c_obj)]
+    for control_d in obj_list:
+        cfg_d = control_d['c']
+        for d in control_d['o']:
+            mem_l = list() if d.get('member-zone') is None or d['member-zone'].get('zone-name') is None else \
+                d['member-zone'].get('zone-name')
+            cfg_d.update({d['cfg-name']: mem_l})
+
+    # Now compare each zone configuration
+    ref = 'Zone configuration '
+    cfg_d = obj_list[1]['c']
+    for i in range(0, len(obj_list)):
+        for k, v in obj_list[i]['c'].items():
+            if k not in cfg_d:
+                if i == 0:
+                    change_list.append({'b': str(k), 'c': '', 'r': _REMOVED})
+                else:
+                    change_list.append({'b': '', 'c': str(k), 'r': _NEW})
+            elif i == 0:
+                # We're only comparing zone configuration member lists in common zone configurations so we only need to
+                # do this once.
+                c += _list_compare(r_obj, str(k) + ' zone config', v, cfg_d[k], control_tbl)
+
+    if len(change_list) > 0:
+        _update_r_obj(r_obj, change_list)
+        c += len(change_list)
+
     return c
 
 
@@ -432,11 +525,10 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
     :type c_obj: dict, list, tuple, brcddb.classes.*
     :param control_tbl: Control table.
     :type control_tbl: dict
-    :return sum: Summary of mismatches found
-    :rtype sum: int
-    :return: Change counter
+    :return: Number of mismatches found
     :rtype: int
     """
+    global _obj_type_action, _REMOVED, _NEW, _MISMATCH, _INVALID_REF
 
     # Make sure we have a valid reference.
     if not isinstance(ref, str):
@@ -454,8 +546,7 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
         _update_r_obj(r_obj, {'b': ref, 'c': '', 'r': _REMOVED})
         return 1
 
-    # Are we comparing the same types?
-    # There could be a mix of int and float.
+    # Are we comparing the same types? A mix of int and float is OK so that gets normalized to type 'num'
     b_type = class_util.get_simple_class_type(b_obj)
     if b_type is None:
         b_type = 'num' if isinstance(b_obj, (int, float)) else \
@@ -488,13 +579,15 @@ def compare(b_obj, c_obj, control_tbl=None, brcddb_control_tbl=None):
     :param brcddb_control_tbl: Same function as control_tbl but for brcddb class objects. See \
         applications.compare_report._control_tbl() for an example
     :type brcddb_control_tbl: dict, None
-    :return: Change counter - total number of changes found
-    :rtype: int
+    :return change_count: Number of changes found
+    :rtype change_count: int
+    :return change_d: Change structure as described in the Description section of the module header block
+    :rtype change_d: dict, list
     """
     global _brcddb_control_tables
 
     if isinstance(brcddb_control_tbl, dict):
-        _brcddb_control_tables = copy.deepcopy(brcddb_control_tbl)
+        _brcddb_control_tables = copy.deepcopy(brcddb_control_tbl)  # IDK why I made a copy
     r_obj = list() if isinstance(b_obj, (list, tuple)) else dict()
     return _compare(r_obj, '', b_obj, c_obj, control_tbl), r_obj
 
