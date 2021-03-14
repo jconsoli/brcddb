@@ -39,16 +39,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 13 Feb 2021   | Validated sheet name in title_page()                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 14 Mar 2021   | Only add printable values in read_sheet(). The problem emcountered was the        |
+    |           |               | datetime function in Excel.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Mar 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
@@ -107,7 +110,8 @@ def font_type_for_key(obj, k=None):
     :type k: str
     """
     font = report_fonts.font_type('std')
-    a_list = obj.r_alert_objects() if k is None else [alertObj for alertObj in obj.r_alert_objects() if alertObj.key() == k]
+    a_list = obj.r_alert_objects() if k is None else [alertObj for alertObj in obj.r_alert_objects()
+                                                      if alertObj.key() == k]
     for alertObj in a_list:
         if alertObj.is_error():
             return report_fonts.font_type('error')
@@ -420,7 +424,7 @@ def read_sheet(sheet, order='col'):
     +===============+=======================================================================================+
     | cell          | Cell reference.                                                                       |
     +---------------+---------------------------------------------------------------------------------------+
-    | val           | Value read from cell.                                                                 |
+    | val           | Value read from cell. Special types (not int, float, or str) are converted to None    |
     +---------------+---------------------------------------------------------------------------------------+
 
     Intended to be used by methods that will feed this list to brcddb.utils.search.match_test()
@@ -439,24 +443,24 @@ def read_sheet(sheet, order='col'):
     sl = list()
     al = list()
     if order.lower() == 'col':
-        for col in range(1, sheet.max_column):
+        for col in range(1, sheet.max_column+1):
             col_ref = xl_util.get_column_letter(col)
             rl = list()
-            for row in range(1, sheet.max_row):
+            for row in range(1, sheet.max_row+1):
                 cell = col_ref + str(row)
                 v = sheet[cell].value
                 rl.append(v)
-                if v is not None and col not in hidden_columns and row not in hidden_rows:
+                if isinstance(v, (bool, int, float, str)):
                     sl.append(dict(cell=cell, val=v))
             al.append(rl)
     else:
-        for row in range(1, sheet.max_row + 1):
+        for row in range(1, sheet.max_row+1):
             cl = list()
-            for col in range(1, sheet.max_column):
+            for col in range(1, sheet.max_column+1):
                 cell = xl_util.get_column_letter(col) + str(row)
                 v = sheet[cell].value
-                cl.append(v)
-                if v is not None:
+                cl.append(v if isinstance(v, (bool, int, float, str)) else None)
+                if isinstance(v, (bool, int, float, str)):
                     sl.append(dict(cell=cell, val=v))
             al.append(cl)
 
