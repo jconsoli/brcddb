@@ -35,16 +35,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 14 Mar 2021   | Added fab_obj_for_user_name()                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Mar 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcddb.classes.project as project_class
 import brcddb.brcddb_fabric as brcddb_fabric
@@ -54,6 +56,7 @@ import brcddb.util.file as brcddb_file
 import brcddb.util.util as brcddb_util
 import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_common as brcddb_common
+import brcddb.util.search as brcddb_search
 
 
 def new(name, date):
@@ -181,3 +184,18 @@ def add_custom_search_terms(proj_obj):
             v = brcddb_util.non_decimal.sub('', port_obj.c_login_speed())
             if len(v) > 0:
                 search.update({'speed': int(v)})
+
+
+def fab_obj_for_user_name(proj_obj, name):
+    """Returns a list of fabric objects matching a user friendly name
+
+    :param proj_obj: Project object
+    :type proj_obj: brcddb.classes.project.ProjectObj
+    :param fab_obj: List of brcddb fabric objects whose user friendly name matches name
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    """
+    sl = brcddb_search.match_test(
+        proj_obj.r_switch_objects(),
+        dict(k='brocade-fibrechannel-switch/fibrechannel-switch/fabric-user-friendly-name', v=name, t='exact', i=False)
+    )
+    return brcddb_util.remove_duplicates([switch_obj.r_fabric_obj() for switch_obj in sl])

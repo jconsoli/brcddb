@@ -42,16 +42,19 @@ Version Control::
     |           |               | ALERT_NUM.ZONE_DUP_ALIAS warnings, and added number of participating zones to     |
     |           |               | ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION.                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 13 Mar 2020   | Added switch_for_did(). Fixed bug in zone_analysis() whereby regular members, not |
+    |           |               | peer members were being reported.                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '13 Mar 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -62,6 +65,7 @@ import brcddb.brcddb_login as brcddb_login
 
 _MIN_SYMB_LEN = 10
 # _speed_to_gen converts the brocade-name-server/link-speed to a fibre channel generation bump.
+# $ToDo - Check below. It looks off by 1.
 _speed_to_gen = {'1G': 0, '2G': 1, '4G': 2, '8G': 3, '16G': 4, '32G': 5, '64G': 6, '128G': 7}
 special_login = {
     'SIM Port': al.ALERT_NUM.LOGIN_SIM,
@@ -78,7 +82,7 @@ def best_fab_name(fab_obj, wwn=False):
     :type fab_obj: FabricObj
     :param wwn: If True, append (wwn) to the fabric name
     :type wwn: bool
-    :return: Fabridc name
+    :return: Fabric name
     :rtype: str, None
     """
     if fab_obj is None:
@@ -89,6 +93,26 @@ def best_fab_name(fab_obj, wwn=False):
             return buf + ' (' + fab_obj.r_obj_key() + ')' if wwn else buf
 
     return fab_obj.r_obj_key()
+
+
+def switch_for_did(fab_obj, did):
+    """Returns the switch object in a fabric for a specified DID.
+
+    :param fab_obj: Fabric object
+    :type fab_obj: FabricObj
+    :param did: Domain ID
+    :type did: int
+    :return: Switch object matching did. None if not found
+    :rtype: brcddb.classes.switch.SwitchObj, None
+    """
+    if fab_obj is None:
+        return None
+    for switch_obj in fab_obj.r_switch_objects():  # The fabric information is stored with the switch
+        switch_did = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/domain-id')
+        if isinstance(switch_did, int) and switch_did == did:
+            return switch_obj
+
+    return None
 
 
 def alias_analysis(fabric_obj):
@@ -424,20 +448,20 @@ def zone_analysis(fab_obj):
             login_obj.s_add_alert(al.AlertTable.alertTbl, special_login[buf])
             continue
         # Figure out how many devices are zoned to this device
-        eList = list()  # List of effective zones this login participates in
+        e_list = list()  # List of effective zones this login participates in
         for zone_obj in fab_obj.r_eff_zone_objects_for_wwn(wwn):
             if zone_obj.r_is_peer():
                 if wwn in zone_obj.r_pmembers():
-                    eList.extend(zone_obj.r_members())
+                    e_list.extend(zone_obj.r_pmembers())
                 else:
-                    eList.extend(zone_obj.r_members())
+                    e_list.extend(zone_obj.r_members())
             else:
-                eList.extend(zone_obj.r_members())
-        if wwn in eList:  # If it's not zoned, it's not in eList
-            eList.remove(wwn)
-        if len(eList) > bt.MAX_ZONE_PARTICIPATION:
+                e_list.extend(zone_obj.r_members())
+        if wwn in e_list:  # If it's not zoned, it's not in e_list
+            e_list.remove(wwn)
+        if len(e_list) > bt.MAX_ZONE_PARTICIPATION:
             login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION, None,
-                                  bt.MAX_ZONE_PARTICIPATION, len(eList))
+                                  bt.MAX_ZONE_PARTICIPATION, len(e_list))
 
     # Alias analysis
     alias_analysis(fab_obj)
