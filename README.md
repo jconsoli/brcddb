@@ -14,8 +14,4 @@ Contains the following SAN automation applications:
 * Sample applications to use the search capabilities.
 
 
-Updates
-
-13 Feb 2021
-
-Primarily a clean up release. Some minor bug fixes and removed shebang lines from library methods.
+See applications for sample modules that use this library.
