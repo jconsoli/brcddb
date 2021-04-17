@@ -1,4 +1,4 @@
-# Copyright 2019, 2020 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -32,27 +32,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
-    | 2.x.x     |               |                                                                                   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
+    | 3.0.1-4   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020 Jack Consoli'
-__date__ = '13 Feb 2021'
+__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
+__date__ = '17 Apr 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import re
 import fnmatch
@@ -223,8 +216,7 @@ def match(search_objects, search_key, search_term, ignore_case=False, stype='exa
                     if len(match(sub_obj, list(sub_obj.keys()), search_term, ignore_case, stype)) > 0:
                         return_list.append(obj)
                 elif isinstance(sub_obj, (str, list, tuple)):
-                    sl = brcddb_util.convert_to_list(sub_obj)
-                    for buf in sl:  # Any match within that list is a match
+                    for buf in brcddb_util.convert_to_list(sub_obj):  # Any match within that list is a match
                         if isinstance(buf, str):
                             if stype == 'regex-m':
                                 if regex_obj.match(buf):
@@ -351,16 +343,11 @@ def match_test(obj_list, test_obj, logic=None):
             # All tests must evaluate True so modify w_list to only contain objects for tests that evaluated True
             w_list = m_list
         elif lg == 'nand':
-            # Any test that evaluates False means the object should be included in the return list and there is no
-            # point in performing additional tests so remove it from w_list.
-            r_list = [obj for obj in w_list if obj not in m_list]  # A list of all objects that evaluated False.
-            o_list.extend(r_list)
-            w_list = [obj for obj in w_list if obj not in r_list]
+            w_list = [obj for obj in w_list if obj not in m_list]
         elif lg == 'or':
             # Any test that evaluates True means the object should be included in the return list and there is no
             # point in performing additional tests so remove it from w_list.
             o_list.extend(m_list)
-            w_list = [obj for obj in w_list if obj not in m_list]
         elif lg == 'nor':
             # All tests must evaluate False so remove any test that evaluates True from w_list.
             w_list = [obj for obj in w_list if obj not in m_list]
@@ -368,7 +355,8 @@ def match_test(obj_list, test_obj, logic=None):
             brcdapi_log.exception('Invalid logic, ' + lg, True)
             return list()
 
-    if lg == 'nand' or lg == 'or':
+    if lg == 'or':
+    # if lg == 'nand' or lg == 'or':
         w_list = o_list
 
     return list(w_list)

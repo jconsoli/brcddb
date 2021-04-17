@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -20,34 +20,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
-    | 2.x.x     |               |                                                                                   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 22 Aug 2020   | Made sort_ports() more effecient                                                  |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 01 Nov 2020   | Consolidated regex matching to here. Added add_to_obj(), get_from_obj(),          |
-    |           |               | resolve_multiplier(), and dBm_to_absolute()                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 31 Dec 2020   | Added sp_port_sort().                                                             |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 13 Feb 2021   | Improved debug support and exception messages.                                    |
+    | 3.0.1-7   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
+__date__ = '17 Apr 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import re
 import brcdapi.log as brcdapi_log
@@ -110,22 +96,31 @@ def get_key_val(obj, keys):
     :type obj: dict, ProjectObj, FabricObj, SwitchObj, PortObj, ZoneCfgObj, ZoneObj, PortObj, LoginObj
     :param keys: Sting of keys to look through
     :type keys: str
-    :return: Value associated with last key
+    :return: Value associated with last key. None if not found
     :rtype: int, float, str, list, tuple, dict
     """
     global error_asserted
 
     if hasattr(obj, 'r_get') and callable(obj.r_get):
         return obj.r_get(keys)
+    if not isinstance(obj, dict):
+        brcdapi_log.exception('Object type, ' + str(type(obj)) + ', not a dict or brcddb object,', True)
+        error_asserted = True
+        return None
 
+    key_l = keys.split('/')
+    if len(key_l) == 0:
+        return None
+    last_key = key_l[len(key_l)-1]
     v = obj
-    for k in keys.split('/'):
+    for k in key_l:
         if isinstance(v, dict):
             v = v.get(k)
-        elif v is not None:
+        elif k != last_key:
             brcdapi_log.exception('Object type, ' + str(type(v)) + ', for ' + k + ', in ' + keys +
                                   ' not a dict or brcddb object ', True)
             error_asserted = True
+            return None
     return v
 
 

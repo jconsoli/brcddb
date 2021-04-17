@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -20,31 +20,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
-    | 2.x.x     |               |                                                                                   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 22 Aug 2020   | Stripped non-ascii characters and added blank line option in read_file()          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 02 Sep 2020   | Added read_full_directory()                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 13 Feb 2021   | Took try/except out of write_dump() and read_dump() to see error messages.        |
+    | 3.0.1-6   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
+__date__ = '17 Apr 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcdapi.log as brcdapi_log
 import json
@@ -57,7 +46,7 @@ def write_dump(obj, file):
     """Creates a file using json.dumps. Typical use is to convert a project object with brcddb_to_plain_copy to a plain
     Python dict.
     :param obj: Dictionary to write to file
-    :type obj: dict
+    :type obj: dict, list
     :param file: Name of file to write to
     :type file: str
     :rtype: None
@@ -75,7 +64,7 @@ def read_dump(file):
     :param file: Name of file to write to
     :type file: str
     :return:
-    :rtype: dict, None
+    :rtype: dict, list, None
     """
     brcdapi_log.log('CALL: brcddb_util.read_dump. File: ' + file)
     f = open(file, 'r')
@@ -120,7 +109,7 @@ def read_file(file, remove_blank=True, rc=True):
     f.close()
     content = data.replace('\r', '').split('\n')
     rl = [buf[:buf.find('#')].rstrip() if buf.find('#') >= 0 else buf.rstrip() for buf in content] if rc else content
-    return [buf for buf in rl if len(buf) > 0] if remove_blank else rl
+    return [buf for buf in rl if len(buf) > 0] if remove_blank else [buf for buf in rl]
 
 
 def read_full_directory(folder):

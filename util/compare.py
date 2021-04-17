@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -56,31 +56,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
-    | 2.x.x     |               |                                                                                   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 29 Nov 2020   | Fixed "ADDED" and "REMOVED" matching when the check should have been skipped.     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 13 Feb 2021   | Removed the shebang line                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 13 Mar 2021   | Added a better check for list containing only str                                 |
+    | 3.0.1-6   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Mar 2021'
+__date__ = '17 Apr 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import copy
 import re
@@ -90,12 +79,8 @@ import brcddb.classes.util as class_util
 _REMOVED = 'Removed'
 _NEW = 'Added'
 _CHANGED = 'Changed'
-_INCREASE = '+ '
-_DECREASE = '- '
 _MISMATCH = 'Different types'
-_MISSING_BASE = 'Missing base'
 _INVALID_REF = 'Programming error. Invalid reference. Check the log for details.'
-_BAD_OBJECT = 'Programming error. Bad brcddb object. Check the log for details.'
 
 _brcddb_control_tables = None
 
