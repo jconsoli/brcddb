@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -23,38 +23,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
-    | 2.x.x     |               |                                                                                   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 02 Aug 2020   | Removed unused varriables. Added check for when an alias is used in a zone but    |
-    |           |               | the alias does not exists (ZONE_UNDEFINED_ALIAS)                                  |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 22 Aug 2020   | Fixed check for logged in WWNs                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 01 Nov 2020   | Fixed check for duplicate aliases, added check for peer zone property in zone,    |
-    |           |               | and only check if a login is zoned if it's not a base login for NPIV.             |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 26 Jan 2021   | Removed code for pre-FOS 8.2.1c in best_fab_name()                                |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 13 Feb 2021   | Fixed bug in the case where a zone has an invalid WWN, Added member to            |
-    |           |               | ALERT_NUM.ZONE_DUP_ALIAS warnings, and added number of participating zones to     |
-    |           |               | ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION.                                           |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 13 Mar 2020   | Added switch_for_did(). Fixed bug in zone_analysis() whereby regular members, not |
-    |           |               | peer members were being reported.                                                 |
+    | 3.0.1-7   | 17 Apr 2021   | Added switch_for_did(), fab_obj_for_name(), and miscellaneous bug fixes.          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Mar 2021'
+__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
+__date__ = '17 Apr 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -468,3 +450,39 @@ def zone_analysis(fab_obj):
 
     # Zone speed analysis
     wwn_zone_speed_check(fab_obj)
+
+
+def fab_obj_for_name(proj_obj, fab_name):
+    """Finds the first fabric matching the user friendly fabric name
+
+    :param proj_obj: brcddb project object
+    :type proj_obj: brcddb.classes.project.ProjObj
+    :param fab_name: Fabric user friendly name
+    :type fab_name: str
+    :return: brcddb fabric object. None if not found
+    :rtype: brcddb.classes.fabric.FabricObj, None
+    """
+    for fab_obj in proj_obj.r_fabric_objects():
+        for switch_obj in fab_obj.r_switch_objects():  # The fabric name is returned with
+            buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/fabric-user-friendly-name')
+            if buf is not None and buf == fab_name:
+                return fab_obj
+
+    return None  # If we got this far, we didn't find it
+
+
+def fab_fids(fab_obj):
+    """Returns a list of FIDs in a fabric. Note that there can be multiple FIDs if FID check is disabled
+
+    :param fab_obj: Fabric object
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :return: List of FIDs as int
+    :rtype: list
+    """
+    rl = list()
+    for switch_obj in fab_obj.r_switch_objects():
+        fid = switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
+        if fid is not None and fid not in rl:
+            rl.append(fid)
+
+    return rl
