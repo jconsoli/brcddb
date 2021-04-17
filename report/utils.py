@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -21,41 +21,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
-    | 2.x.x     |               |                                                                                   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 29 Sep 2020   | Set type for col_width to list or tuple in title_page(), added valid_sheet_name.  |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 01 Nov 2020   | Fix bug if row was a list in cell_match_val(). Added read_sheet() and             |
-    |           |               | get_next_switch_d()                                                               |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 14 Nov 2020   | Made parse_sfp_file() more effecient and added protection against a malformed file|
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 31 Dec 2020   | Fixed exception case when a bad merge type was passed or merge was 0              |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 13 Feb 2021   | Validated sheet name in title_page()                                              |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 14 Mar 2021   | Only add printable values in read_sheet(). The problem emcountered was the        |
-    |           |               | datetime function in Excel.                                                       |
+    | 3.0.1-8   | 17 Apr 2021   | Miscellaneious bug fixes.                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Mar 2021'
+__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
+__date__ = '17 Apr 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
 import re
+import openpyxl.styles as xl_styles
 import brcdapi.log as brcdapi_log
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.util.util as brcddb_util
@@ -66,6 +50,9 @@ import brcddb.util.search as brcddb_search
 # sheet in Excel, there are additional restrictions on the sheet name. For example, it cannot contain a space. Sample
 # use: good_sheet_name = valid_sheet_name.sub('_', bad_sheet_name)
 valid_sheet_name = re.compile(r'[^\d\w_]')
+
+# Using datetime is clumsy. This is easier. Not that I need speed, but its also faster. Used in _datetime
+_num_to_month = ('Inv', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 
 #######################################################################
 #
@@ -271,15 +258,15 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     :type sheet_title: str
     :param content: Caller defined content. List or tuple of dictionaries to add to the title page. See comments above
     :type content: list, tuple
-    :param col_width: List of column widths to set on sheet
-    :type col_width: list, tuple
+    :param col_width: Column widths of list of column widths to set on sheet
+    :type col_width: int, list, tuple
     :rtype: None
     """
 
     # Set up the sheet
     col = 1
     sheet = wb.create_sheet(index=sheet_i, title=valid_sheet_name.sub('_', sheet_name))
-    for i in col_width:
+    for i in brcddb_util.convert_to_list(col_width):
         sheet.column_dimensions[xl_util.get_column_letter(col)].width = i
         col += 1
     max_col = col - 1
@@ -415,7 +402,31 @@ def cell_match_val(sheet, val, col=None, row=None, num=1):
         return ret
 
 
-def read_sheet(sheet, order='col'):
+def _datetime(v, granularity):
+    """Converts a datetime.datetime class object from Excel to formated text
+
+    :param v: Cell value of class type datetime.datetime
+    :type v: datetime
+    :param granularity: datetime conversion granularity 0: yyyy, 1: mm yyyy, 2: dd mm yyyy, 3: dd mm yyyy hh, \
+        4: dd mm yyyy hh:mm, 5: dd mm yyyy hh:mm:ss, 6: dd mm yyyy hh:mm:ss:uuu
+    :type granularity: int
+    """
+    msec = str(v.microsecond)
+    tl = [str(v.year),
+          _num_to_month[v.month] + ' ',
+          '0' + str(v.day) + ' ' if v.day < 10 else str(v.day) + ' ',
+          ' 0' + str(v.hour) if v.hour < 10 else ' ' + str(v.hour),
+          ':0' + str(v.minute) if v.minute < 10 else ':' + str(v.minute),
+          ':0' + str(v.second) if v.second < 10 else ':' + str(v.second),
+          ':00' + msec if len(msec) == 1 else ':0' + msec if len(msec) == 2 else ':' + msec[0:3]]
+    buf = ''
+    for i in range(0, min(granularity+1, len(tl))):
+        buf = buf + tl[i] if i > 2 else tl[i] + buf
+
+    return buf
+
+
+def read_sheet(sheet, order='col', granularity=2):
     """Reads the contents (values) of a worksheet into a list of dict of:
 
     sl Detail:
@@ -433,6 +444,8 @@ def read_sheet(sheet, order='col'):
     :type sheet: class
     :param order: Order in which to read. 'row' means read by row, then each individual column. 'col' for column 1st
     :type order: str
+    :param granularity: See description of granularity with _datetime()
+    :type granularity: int
     :return sl: List of dict as noted above
     :rtype sl: list
     :return al: List of lists. Contents of the worksheet referenced by al[col-1][row-1] if order is 'col' or
@@ -449,19 +462,32 @@ def read_sheet(sheet, order='col'):
             for row in range(1, sheet.max_row+1):
                 cell = col_ref + str(row)
                 v = sheet[cell].value
-                rl.append(v)
                 if isinstance(v, (bool, int, float, str)):
                     sl.append(dict(cell=cell, val=v))
+                    rl.append(v)
+                elif 'datetime.datetime' in str(type(v)):
+                    buf = _datetime(v, granularity)
+                    sl.append(dict(cell=cell, val=buf))
+                    rl.append(buf)
+                else:
+                    rl.append(None)
             al.append(rl)
     else:
         for row in range(1, sheet.max_row+1):
             cl = list()
             for col in range(1, sheet.max_column+1):
                 cell = xl_util.get_column_letter(col) + str(row)
-                v = sheet[cell].value
-                cl.append(v if isinstance(v, (bool, int, float, str)) else None)
+                sheet_cell = sheet[cell]
+                v = sheet_cell.value
                 if isinstance(v, (bool, int, float, str)):
                     sl.append(dict(cell=cell, val=v))
+                    cl.append(v)
+                elif 'datetime.datetime' in str(type(v)):
+                    buf = _datetime(v, granularity)
+                    sl.append(dict(cell=cell, val=buf))
+                    cl.append(buf)
+                else:
+                    cl.append(None)
             al.append(cl)
 
     return sl, al
