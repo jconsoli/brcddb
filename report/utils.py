@@ -25,16 +25,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1-8   | 17 Apr 2021   | Miscellaneious bug fixes.                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 14 May 2021   | Added parse_parameters(), replaced wb.get_sheet_by_name() with wb[sheet_name]     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '17 Apr 2021'
+__date__ = '14 May 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
@@ -105,6 +107,58 @@ def font_type_for_key(obj, k=None):
         elif alertObj.is_warn():
             font = report_fonts.font_type('warn')
     return font
+
+
+def parse_parameters(in_wb=None, sheet_name='parameters', hdr_row=0, wb_name=None):
+    """Parses a parameters Workbook. See sample_parameters.xlsx
+
+    Returned dictionary is as follows:
+
+    +-----------+-------+-------------------------------------------------------------------------------------------+
+    | key       | Value | Value                                                                                     |
+    |           | type  |                                                                                           |
+    +===========+=======+===========================================================================================+
+    | hdr_col   | dict  | key: Header, value: 0 based column number                                                 |
+    +-----------+-------+-------------------------------------------------------------------------------------------+
+    | content   | list  | A list of dictionaries. They key is the header and the value is the matching cell value   |
+    +-----------+-------+-------------------------------------------------------------------------------------------+
+
+    :param in_wb: Workbook object returned from openpyxl.load_workbook() to read if wb_name is None
+    :type in_wb: Workbook, None
+    :param sheet_name: Name of sheet to read
+    :type sheet_name: str
+    :param hdr_row: Header row. Rows below are assumed to be the content data
+    :type hdr_row: int
+    :param wb_name: Name of workbook to read. If None, assume wb is a valid Workbook object
+    :type wb_name: str, None
+    :return: Dictionary as described above
+    :rtype: dict
+    """
+    hdr_d = dict()
+    content_l = list()
+    rd = dict(hdr_col=hdr_d, content=content_l)  # Return dict
+    wb = in_wb if wb_name is None else xl.load_workbook(wb_name, data_only=True)
+
+    # Figure out what and where the headers are
+    try:
+        sheet = wb[sheet_name]
+    except:
+        brcdapi_log.exception('sheet ' + sheet_name + ' does not exist.', True)
+        return rd
+    sl, al = read_sheet(sheet, 'row')
+    hdr_row_l = al[hdr_row]
+    for i in range(0, len(hdr_row_l)):
+        if hdr_row_l[i] is not None:
+            hdr_d.update({hdr_row_l[i]: i})
+
+    # Read in the values for each column
+    for i in range(hdr_row+1, len(al)):
+        d = dict()
+        for key, col in hdr_d.items():
+            d.update({key: al[i][col]})
+        content_l.append(d)
+
+    return rd
 
 
 def comments_for_alerts(gobj, k=None, wwn=None):
@@ -496,7 +550,7 @@ def read_sheet(sheet, order='col', granularity=2):
 def get_next_switch_d(switch_list, val, test_type, ignore_case=False):
     """Finds the first match in an sl list returned from read_sheet() and returns the next entry in switch_list
 
-    :param switch_list: A list of dictionaries as returned from brcddb.report.utils.read_sheet()
+    :param switch_list: A list of dictionaries as returned from read_sheet()
     :type switch_list: list, tuple
     :param val: The value to look for
     :type val: str, int, float
@@ -720,39 +774,18 @@ def parse_sfp_file(file):
     :return: List of dictionaries. The key for each dictionary is the column header and the value is the cell value
     :rtype: list
     """
-    parsed_sfp_sheet = list()  # The list of rule dictionaries that will be returned
-
-    # Load the workbook
+    # Load the workbook & contents
     try:
-        wb = xl.load_workbook(file, data_only=True)
-        sheet = wb['new_SFP_rules']
+        parsed_sfp_sheet = parse_parameters(sheet_name='new_SFP_rules', hdr_row=0, wb_name=file)['content']
     except:
-        brcdapi_log.log('Error opening workbook: ' + 'None' if file is None else file, True)
-        return parsed_sfp_sheet
+        brcdapi_log.log('Error opening workbook: ' + str(file), True)
+        return list()
 
-    sl, al = read_sheet(sheet, 'row')
-
-    # We must have at least the 'Group' column
-    hdr = al[0]
-    for group_col in range(0, len(hdr)):
-        if hdr[group_col] == 'Group':
+    # Get rid of everything past '__END__'
+    for i in range(0, len(parsed_sfp_sheet)):
+        if parsed_sfp_sheet[i]['Group'] == '__END__':
             break
-    if hdr[group_col] != 'Group':
-        brcdapi_log.log('Could not find column with \'Group\'', True)
-        return parsed_sfp_sheet
-    max_columns = len(hdr)
-
-    # Parse all the rows
-    for row in range(1, len(al)):
-        row_data = al[row]
-        if row_data[group_col] == '__END__':
-            break
-        d = dict()
-        for i in range(0, max_columns):
-            d.update({hdr[i]: row_data[i]})
-        parsed_sfp_sheet.append(d)
-
-    return parsed_sfp_sheet
+    return parsed_sfp_sheet[0: i]
 
 
 """ _switch_find_d is used in _parse_switch_sheet() to determine what should be parsed out of the spreadsheet and how it
