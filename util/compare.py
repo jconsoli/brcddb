@@ -60,16 +60,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1-6   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 14 May 2021   | Updated comments                                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Apr 2021'
+__date__ = '14 May 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import copy
 import re
@@ -275,7 +276,7 @@ def _brcddb_compare(r_obj, ref, b_obj, c_obj, control_tbl):
         ct = None
     c = _brcddb_internal_compare(new_r_obj, '', b_obj, c_obj, ct)
     if c > 0:
-        r_obj.update(copy.deepcopy(new_r_obj))
+        r_obj.update(copy.deepcopy(new_r_obj))  # IDK why I did a copy here
     return c
 
 
@@ -318,7 +319,7 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
         else:
             x = _compare(new_r_obj, new_ref, b_obj_r, c_obj_r, control_tbl)
         if x > 0:
-            _update_r_obj(r_obj, {k: copy.deepcopy(new_r_obj)})
+            _update_r_obj(r_obj, {k: copy.deepcopy(new_r_obj)})  # IDK why I made all these copies
             c += x
     for k in c_obj.keys():  # Anything added?
         if k not in b_obj:
@@ -545,7 +546,7 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
         return 1
 
     if b_type in _obj_type_action:
-        return _obj_type_action.get(b_type)(r_obj, ref, b_obj, c_obj, control_tbl)
+        return _obj_type_action[b_type](r_obj, ref, b_obj, c_obj, control_tbl)
 
     brcdapi_log.log('Unknown base object type: ' + b_type, True)
     _update_r_obj(r_obj, {'b': b_type, 'c': '', 'r': _INVALID_REF})

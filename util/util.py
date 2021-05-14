@@ -24,16 +24,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1-7   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 14 May 2021   | Handled None object in get_key_val()                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '17 Apr 2021'
+__date__ = '14 May 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import re
 import brcdapi.log as brcdapi_log
@@ -101,6 +102,8 @@ def get_key_val(obj, keys):
     """
     global error_asserted
 
+    if obj is None:
+        return None  # Saves the calling method of having to determine they are working on a valid object
     if hasattr(obj, 'r_get') and callable(obj.r_get):
         return obj.r_get(keys)
     if not isinstance(obj, dict):
@@ -251,7 +254,7 @@ def remove_duplicates(obj_list):
     :rtype: list
     """
     seen = set()
-    seen_add = seen.add  # seen.add isn't changing so making it local makes the next line more effecient
+    seen_add = seen.add  # seen.add isn't changing so making it local makes the next line more efficient
     return [obj for obj in obj_list if not (obj in seen or seen_add(obj))]
 
 
