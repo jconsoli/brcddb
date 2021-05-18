@@ -26,7 +26,7 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 14 May 2021   | Handled None object in get_key_val()                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | 18 May 2021   | Removed reliance on brcddb.util.search which was causing a circular import issue. |
+    | 3.1.0     | 18 May 2021   | Removed reliance on brcddb.util.search which was causing a circular import issue. |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
@@ -88,7 +88,8 @@ def port_obj_for_wwn(objx, wwn):
     :rtype: brcddb.classes.port.PortObj, None
     """
     for port_obj in objx.r_port_objects():
-        if port_obj.r_get('wwn') == wwn:
+        port_wwn = port_obj.r_get('wwn')
+        if isinstance(port_wwn, str) and port_wwn == wwn:
             return port_obj
     return None
 
