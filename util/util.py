@@ -26,19 +26,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 14 May 2021   | Handled None object in get_key_val()                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 18 May 2021   | Removed reliance on brcddb.util.search which was causing a circular import issue. |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '14 May 2021'
+__date__ = '18 May 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import re
 import brcdapi.log as brcdapi_log
-import brcddb.util.search as brcddb_search
 import brcddb.classes.util as brcddb_class_util
 
 _DEBUG_FICON = False  # Intended for lab use only. Few, if any, will use this to zone a FICON switch
@@ -86,9 +87,10 @@ def port_obj_for_wwn(objx, wwn):
     :return: Port Object. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
-    l = brcddb_search.match(objx.r_port_objects(), 'wwn', wwn, ignore_case=True, stype='exact')
-    return l[0] if len(l) > 0 else None
-
+    for port_obj in objx.r_port_objects():
+        if port_obj.r_get('wwn') == wwn:
+            return port_obj
+    return None
 
 def get_key_val(obj, keys):
     """Spins through a list of keys separated by a '/' and returns the value associated with the last key.
