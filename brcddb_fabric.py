@@ -27,25 +27,35 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1-7   | 17 Apr 2021   | Added switch_for_did(), fab_obj_for_name(), and miscellaneous bug fixes.          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 17 Jul 2021   | Added check_ficon_zoning() and fixed buf in count of servers zoned to each target.|
+    |           |               | Added zone_by_target()                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '17 Apr 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
+import pprint
+import brcdapi.log
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.app_data.bp_tables as bt
 import brcddb.util.search as brcddb_search
 import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_login as brcddb_login
+import brcddb.brcddb_port as brcddb_port
+import brcddb.util.iocp as brcddb_iocp
+import brcddb.brcddb_zone as brcddb_zone
 
 _MIN_SYMB_LEN = 10
+_CHECK_PEER_PROPERTY = True if bt.custom_tbl.get('peer_property') is None else bt.custom_tbl.get('peer_property')
+_CHECK_ZONE_MISMATCH = True if bt.custom_tbl.get('zone_mismatch') is None else bt.custom_tbl.get('zone_mismatch')
 # _speed_to_gen converts the brocade-name-server/link-speed to a fibre channel generation bump.
 # $ToDo - Check below. It looks off by 1.
 _speed_to_gen = {'1G': 0, '2G': 1, '4G': 2, '8G': 3, '16G': 4, '32G': 5, '64G': 6, '128G': 7}
@@ -104,7 +114,7 @@ def alias_analysis(fabric_obj):
     * The alias contains no members
 
     :param fabric_obj: brcddb fabric object
-    :type fabric_obj: FabricObj class
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
     """
     alias_list = fabric_obj.r_alias_objects()
     for a_obj in alias_list:
@@ -131,132 +141,105 @@ def alias_analysis(fabric_obj):
                                   a_obj.r_members()[0])
 
 
-def wwn_zone_speed_check(fab_obj):
-    """For each target, finds each server in the effective zone zoned to that target and alerts on speed differences
+def check_ficon_zoning(fabric_obj):
+    """Check to make sure all control units in the channel path share a zone with the channel
 
-    Notes:
+    :param fabric_obj: brcddb fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    """
+    for iocp_obj in fabric_obj.r_project_obj().r_iocp_objects():
+        cec_sn = brcddb_iocp.full_cpc_sn(iocp_obj.r_obj_key())  # The SN is always the same for each IOCP
+        for tag, d in iocp_obj.r_path_objects().items():  # For every defined path
 
-    * Although the problem is the same regardless of how it was zoned, d,i is almost exclusively for FICON and
-      mainframe disk replication. The logic to determine this problem is the same but the method to pull the data out
-      is different. It wasn't a huge time savings to skip accounting for d,i zones but since mainframe environments are
-      typically very well structured (unlikely to have this problem) coupled with the fact that few mainframe people
-      will run scripts like this in their environment led me to not bother with it.
-    * Speed mis-matches with targets can be problematic as well. This method is limited to looking for server speed
-      mis-matches only. The intent is to add checking for target speed mis-matches at a future date.
-    * Any virtual device who's FC-4 type is both server and target are treated as targets. There isn't a good technical
-      explanation for this. I just wasn't sure what to do with them at the time of this writting and treating them as
-      targets was just a coding expedient.
+            # Find the port objects for the CHPID and get a list of zones the CHPID is in
+            chpid_port_obj = brcddb_port.port_obj_for_chpid(fabric_obj, cec_sn, tag)
+            if chpid_port_obj is None:
+                continue
+            chpid_zone_l = fabric_obj.r_zones_for_di(chpid_port_obj.r_switch_obj().r_did(), chpid_port_obj.r_index())
+
+            # For each link address, get the corresponding port object and check for at least one common zone
+            for link_addr in d['link']:
+
+                # Get the port object for the port corresponding to the link address
+                port_obj = brcddb_port.port_obj_for_addr(fabric_obj, '0x' + link_addr + '00')
+                if port_obj is None:
+                    chpid_port_obj.s_add_alert(al.AlertTable.alertTbl,
+                                               al.ALERT_NUM.ZONE_LINK_NO_ADDR,
+                                               None,
+                                               iocp_obj.r_obj_key(),
+                                               tag)
+                    continue
+
+                # See if the port for the link address and port for the CHPID share a zone
+                not_found = True
+                for zone in fabric_obj.r_zones_for_di(port_obj.r_switch_obj().r_did(), port_obj.r_index()):
+                    if zone in chpid_zone_l:
+                        not_found = False
+                        break
+                if not_found:
+                    port_obj.s_add_alert(al.AlertTable.alertTbl,
+                                         al.ALERT_NUM.ZONE_LINK_ADDR,
+                                         None,
+                                         iocp_obj.r_obj_key(),
+                                         tag)
+
+    return
+
+
+def zone_by_target(fab_obj):
+    """Finds all servers in the effective zone that are zoned to each target, does a speed check, and adds
+    _zoned_servers to each target login object. _zoned_servers is a dictionary. Key = server WWN, value = list of zones
+    that server and target are in.
 
     :param fab_obj: brcddb fabric object
     :type fab_obj: FabricObj class
     """
     global _speed_to_gen
 
-    """**alert_d Definition**
-    
-    List in alert_d contains two dictionaries. alert_d[0] are the error level alerts and [1] are the warn level alerts.
-    An error level alerts is 2 or more FC generations apart and a warn level alert is just one FC generation apart. The
-    key for the dictionaries in this list are the WWNs of the faster (newer generation) server and the value is a
-    dictionary whose key is the WWN of the slower server. The value in this dictionary is a list of target WWNs the two
-    servers are zonedd to. The purpose of setting this up is to ensure duplicate alerts are not attached to the
-    associated login objects. If the customer is following good zoning practices, duplicates should never happen but in
-    practice, that's not always achievable."""
-    alert_d = [dict(), dict()]  # See comments above
-    server_alert = [al.ALERT_NUM.LOGIN_SPEED_DIFF_E, al.ALERT_NUM.LOGIN_SPEED_DIFF_W]
-    target_alert = [al.ALERT_NUM.LOGIN_SPEED_IMP_E, al.ALERT_NUM.LOGIN_SPEED_IMP_W]
-
     # Get a list of all the target (storage) logins
     t_obj_l = brcddb_search.match(fab_obj.r_login_objects(), 'brocade-name-server/fc4-features', 'Target',
-                                 ignore_case=True, stype='regex-s')  # List of target objects
-    t_wwn_l = [t_obj.r_obj_key() for t_obj in t_obj_l]  # List of the WWNs associated with the targets
+                                  ignore_case=True, stype='regex-s')  # List of target objects in the fabric
 
-    # For each target, find all servers zoned to it.
-    for t_obj in t_obj_l:
-        t_wwn = t_obj.r_obj_key()  # Store the target WWN we're working on in a local variable for effeciency
-        l = list()  # Working list of WWNs zoned to the target, t_obj
-        
-        # Determine all WWNs zoned to this target
-        for z_obj in fab_obj.r_eff_zone_objects_for_wwn(t_wwn):
-            if z_obj.r_is_di():  # Not checking d,i zones
-                continue
-            if z_obj.r_is_peer() or z_obj.r_is_target_driven():  # Is it a peer zone?
-                if z_obj.r_has_pmember(t_wwn):  # If the target is a principal member, it's zoned to all the members
-                    l.extend(z_obj.r_members())
-                else:  # Otherwise, it's zoned to all the principal members
-                    l.extend(z_obj.r_pmembers())
-            else:  # It's a traditional zone
-                l.extend(z_obj.r_members())
-        if len(l) == 0:
-            continue  # l is empty when t_wwn is not in the effective zone
-        brcddb_util.remove_duplicates(l)
-        wwn_list = [wwn for wwn in l if wwn not in t_wwn_l]
+    for t_login_obj in t_obj_l:
 
-        # Figure out the FC speed generation difference between each login and the target. I toyed with a more effecient
-        # algorithm but time is not of the essence here. Handling each possible FC generation keeps it simple.
-        gen_l = [list() for i in range(0, len(_speed_to_gen))]
-        try:
-            t_gen = _speed_to_gen[t_obj.r_get('brocade-name-server/link-speed')]  # FC gen of the target
-        except:
-            continue  # Something went wrong in the data collection if we get here but stuff goes wrong sometimes
-        for obj in [fab_obj.r_login_obj(wwn) for wwn in wwn_list if fab_obj.r_login_obj(wwn) is not None]:
-            try:  # Mixed speeds only matter if they are slower than the storage, I think, so cap it at the target gen
-                gen_l[min(_speed_to_gen[obj.r_get('brocade-name-server/link-speed')], t_gen)].append(obj)
-            except:  # Name server data may not always be distributed throughout the fabric
-                pass
+        # Get the target port object and speed
+        t_wwn = t_login_obj.r_obj_key()
+        t_port_obj = t_login_obj.r_port_obj()
+        x = None if t_port_obj is None else t_port_obj.r_get('_search/speed')
+        t_speed = x if isinstance(x, (int, float)) else 0
 
-        # Figure out if an alert is needed.
-        for i in range(0, len(gen_l) - 1):
+        # Get a list of all the server login objects zoned to this target
+        s_wwn_l = brcddb_zone.eff_zoned_to_wwn(fab_obj, t_wwn, target=False, initiator=True)
+        if len(s_wwn_l) > bt.MAX_ZONE_PARTICIPATION:
+            t_login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MAX_PARTICIPATION)
+        t_login_obj.s_new_key('_zoned_servers', s_wwn_l)
 
-            # Get a list of server objects that are 2 or more FC generations apart (error level alerts) and a list of
-            # server objects that are just one FC generation apart (warn level alerts).
-            for obj in gen_l[i]:  # obj is the slower server (older gen)
-                # Error lvel alerts - Any time there are multiple servers more then 2 FC generations apart
-                l = [list(), list()]  # l[0] are the objects 2 or more gen levels apart and l[1] just one gen apart
-                x = i + 2
-                while x < len(gen_l):
-                    l[0].extend(gen_l[x])
-                    x += 1
-                l[1] = gen_l[i+1] if i + 1 < len(gen_l) else list()
+        # Figure out what all the login speeds of the target and servers zoned to this target
+        s_speed_l = list()
+        for s_login_obj in brcddb_util.remove_none([fab_obj.r_login_obj(wwn) for wwn in s_wwn_l]):
+            s_port_obj = s_login_obj.r_port_obj()
+            x = None if s_port_obj is None else s_port_obj.r_get('_search/speed')
+            if isinstance(x, (int, float)):
+                s_speed_l.append(dict(obj=s_login_obj, s=x))
 
-                for x in range(0, len(l)):
-                    for obj_n in l[x]:  # obj_n is the faster server (newer gen)
-                        wwn = obj_n.r_obj_key()  # wwn is the faster server (newer gen)
-                        if wwn == obj.r_obj_key():
-                            continue  # This can happen because server speed is capped at the storage speed. The same
-                                      # server zoned to two different storage devices can result in the same server
-                                      # appearing to be two different speeds.
-                        if wwn in alert_d[x]:
-                            a_obj = alert_d[x].get(wwn)
-                        else:
-                            a_obj = dict()
-                            alert_d[x].update({wwn: a_obj})
-                        wwn = obj.r_obj_key()
-                        tl = a_obj.get(wwn)
-                        if tl is None:
-                            tl = list()
-                            a_obj.update({wwn: tl})
-                        if t_wwn not in tl:
-                            tl.append(t_wwn)
+        # Perform speed checks and add alerts when applicable
+        alert_l = [obj.alert_num() for obj in t_login_obj.r_alert_objects()]
+        speed_l = [d['s'] for d in s_speed_l]
+        if len(speed_l) > 0:
+            max_s_speed = max(speed_l)
+            min_s_speed = min(speed_l)
+            if min_s_speed != max_s_speed and al.ALERT_NUM.LOGIN_MIXED_SPEED_T not in alert_l:
+                t_login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_MIXED_SPEED_T)
+            if max_s_speed > t_speed and al.ALERT_NUM.LOGIN_FASTER_S not in alert_l:
+                t_login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_FASTER_S)
 
-    # Now add the alerts
-    for x in range(0, len(alert_d)):
-        d = alert_d[x]
-        for wwn in d.keys():  # wwn is the faster (newer gen) server WWN
-            sd = d.get(wwn)
-            for s_wwn in sd.keys():  # s_wwn is the slower server WWN
-                p0 = brcddb_login.best_login_name(fab_obj, s_wwn, True)
-                l = list()
-                for t_wwn in sd.get(s_wwn):
-                    fab_obj.r_login_obj(t_wwn).s_add_alert(al.AlertTable.alertTbl, target_alert[x], None, p0, \
-                                                           brcddb_login.best_login_name(fab_obj, wwn, True))
-                    l.append(brcddb_login.best_login_name(fab_obj, t_wwn, True))
-                fab_obj.r_login_obj(wwn).s_add_alert(al.AlertTable.alertTbl, server_alert[x], None, p0, ', '.join(l))
+    return
 
 
 def zone_analysis(fab_obj):
     """Analyzes zoning. Finds where all members are. Adds an alert if any of the following conditions exist:
     * Calls alias_analysis() - multiple identical aliases, unused alias, and alias with no members
-    * Calls wwn_zone_speed_check() - Checks for speed mismatches, potential slow drain device
+    * Calls zone_by_target() - Checks for speed mismatches, potential slow drain device
     * Zone has less than 2 members
     * Peer zone doesn't have at least one principal and one regular member
     * Mixed d,i and WWN zones
@@ -269,10 +252,13 @@ def zone_analysis(fab_obj):
     * Mix of WWN and alias in the same zone
     * Peer zone property member in zone
     * Duplicate aliases
+    * Calls check_ficon_zoning() - Ensures all CHPID paths are in the same zone as the CHPID
 
     :param fab_obj: brcddb fabric object
     :type fab_obj: brcddb.classes.fabric.FabricObj
     """
+    global _CHECK_ZONE_MISMATCH, _CHECK_PEER_PROPERTY
+
     # $ToDo - Break this up into multiple methods or review to shorten. This is way too long
     _WWN_MEM = 0b1  # The member was entered as a WWN or d,i, not an alias
     _WWN_IN_ZONE = _WWN_MEM << 1  # A zone contains a WWN member
@@ -297,72 +283,78 @@ def zone_analysis(fab_obj):
         if len(zone_obj.r_zone_configurations()) == 0:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_USED, None, None, None)
 
-        # Check for d,i zones, mixed d,i & WWN zones, and make sure the member is in the fabric
+        # Check for mixed d,i & WWN zones and make sure the member is in the fabric
         for i in range(0, 2):   # 0 - Get the members, 1 - get the principal members
+            mem_list = list()
             zmem_list = zone_obj.r_members() if i == 0 else zone_obj.r_pmembers()
             for zmem in zmem_list:
-                mem_list = list()  # List of zone members to work on. Initialized empty in case there are no members
-                if brcddb_util.is_wwn(zmem):
-                    flag |= _WWN_MEM | _WWN_IN_ZONE
-                    mem_list = [zmem]
-                elif brcddb_util.is_wwn(zmem, False):
-                    zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_PROPERTY, None, zmem, None)
-                else:
-                    flag &= ~_WWN_MEM
+                if brcddb_util.is_wwn(zmem, full_check=False):
+                    flag |= _WWN_MEM
+                    mem_list.append(zmem)
+                    if len(fab_obj.r_alias_for_wwn(zmem)) > 0:
+                        # An alias was defined for this WWN, but the WWN was used to define the zone
+                        zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_ALIAS_USE, None, zmem,
+                                             ', '.join(fab_obj.r_alias_for_wwn(zmem)))
+                elif brcddb_util.is_di(zmem):
+                    mem_list.append(zmem)
+                else:  # It must be an alias
                     flag |= _ALIAS_IN_ZONE
                     a_obj = fab_obj.r_alias_obj(zmem)
                     if a_obj is None:
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_UNDEFINED_ALIAS, None, zmem,
                                              zone_obj.r_obj_key())
                     else:
-                        mem_list = a_obj.r_members()
-                for mem in mem_list:
-                    if i == 0:
-                        nmem_list.append(mem)
-                    else:
-                        pmem_list.append(mem)
-                    # FOS won't allow the user to configure a bad zone member so it's either d,i or WWN
-                    if brcddb_util.is_di(mem):
-                        # It's a d,i member - typically FICON
-                        flag |= _DI_IN_ZONE
-                        t = mem.split(',')
-                        zone_obj.s_or_flags(brcddb_common.zone_flag_di)
-                        found_flag = False
-                        for switch_obj in fab_obj.r_switch_objects():
-                            if isinstance(switch_obj.r_get('domain_id'), int) and switch_obj.r_get('domain_id') == t[0]:
-                                found_flag = True
-                                break
-                        if not found_flag:
+                        mem_list.extend(a_obj.r_members())
+
+            for mem in mem_list:
+                if i == 0:
+                    nmem_list.append(mem)
+                else:
+                    pmem_list.append(mem)
+
+                if brcddb_util.is_di(mem):
+                    flag |= _DI_IN_ZONE  # It's a d,i member - typically FICON
+                    t = mem.split(',')
+
+                    # Is it in the fabric?
+                    found_flag = False
+                    for switch_obj in fab_obj.r_switch_objects():
+                        if isinstance(switch_obj.r_get('domain_id'), int) and switch_obj.r_get('domain_id') == t[0]:
+                            found_flag = True
+                            break
+                    if not found_flag:
+                        zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_FOUND, None, mem)
+
+                elif brcddb_util.is_wwn(mem, full_check=False):
+                    flag |= _WWN_IN_ZONE
+                    if _CHECK_PEER_PROPERTY and not brcddb_util.is_wwn(zmem, full_check=True):
+                        zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_PROPERTY, None, zmem, None)
+                    # Is the member in this fabric?
+                    if fab_obj.r_port_obj(mem) is None:
+                        # Is it in a different fabric?
+                        port_list = brcddb_util.global_port_list(other_fabrics, mem)
+                        if len(port_list) > 0:
+                            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_DIFF_FABRIC, None, mem,
+                                                 best_fab_name(port_list[0].r_fabric_obj()))
+                        else:
                             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_FOUND, None, mem)
-                    else:
-                        # It's a WWN
-                        zone_obj.s_or_flags(brcddb_common.zone_flag_wwn)
-                        if flag & _WWN_MEM and len(fab_obj.r_alias_for_wwn(mem)) > 0:
-                            # An alias was defined for this WWN, but the WWN was used to define the zone
-                            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_ALIAS_USE, None, mem,
-                                               ', '.join(fab_obj.r_alias_for_wwn(mem)))
-                        # Is the member in this fabric?
-                        if fab_obj.r_port_obj(mem) is None:
-                            # Is it in a different fabric?
-                            port_list = brcddb_util.global_port_list(other_fabrics, mem)
-                            if len(port_list) > 0:
-                                zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_DIFF_FABRIC, None, mem,
-                                                     best_fab_name(port_list[0].r_fabric_obj()))
-                            else:
-                                zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_FOUND, None, mem)
+                else:
+                    brcdapi.log.exception('Zone member type undetermined: ' + str(mem), True)
 
         # Do all the zone membership count checks
-        if zone_obj.r_is_peer():
+        if zone_obj.r_is_peer():  # It's a peer zone
+            # Make sure there is at least one member and one principal member
             if len(pmem_list) == 0:
                 zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_NO_PMEM)
             if len(nmem_list) == 0:
                 zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_NO_NMEM)
-        else:
+        else:  # It's an old style zone (not a peer zone)
+            # Make sure there are at least 2 members
             if len(nmem_list) == 0:
                 zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NO_MEMBERS)
             elif len(nmem_list) == 1:
                 zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_ONE_MEMBER)
-        if zone_obj.r_is_wwn() and zone_obj.r_is_di():
+        if flag and ():
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MIXED)
 
         # Check for single initiator zoning.
@@ -393,21 +385,22 @@ def zone_analysis(fab_obj):
         # Check for mixed zone members
         if flag & _DI_IN_ZONE and flag & _WWN_IN_ZONE:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MIXED)
-        if flag & _WWN_IN_ZONE and flag & _ALIAS_IN_ZONE:
+        if flag & _WWN_MEM and flag & _ALIAS_IN_ZONE:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_WWN_ALIAS)
 
         # Make sure the defined zone matches the effective zone
-        effZoneObj = fab_obj.r_eff_zone_obj(zone_obj.r_obj_key())
-        if effZoneObj is not None:
-            zone_obj.s_or_flags(brcddb_common.zone_flag_effective)
-            if set(effZoneObj.r_pmembers()) != set(pmem_list):
-                zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MISMATCH)
-                flag |= _ZONE_MISMATCH
-            if set(effZoneObj.r_members()) != set(nmem_list):
-                zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MISMATCH)
-                flag |= _ZONE_MISMATCH
+        if _CHECK_ZONE_MISMATCH:
+            eff_zone_obj = fab_obj.r_eff_zone_obj(zone_obj.r_obj_key())
+            if eff_zone_obj is not None:
+                zone_obj.s_or_flags(brcddb_common.zone_flag_effective)
+                if set(eff_zone_obj.r_pmembers()) != set(pmem_list):
+                    zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MISMATCH)
+                    flag |= _ZONE_MISMATCH
+                if set(eff_zone_obj.r_members()) != set(nmem_list):
+                    zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MISMATCH)
+                    flag |= _ZONE_MISMATCH
 
-    if flag & _ZONE_MISMATCH:
+    if flag & _ZONE_MISMATCH and _CHECK_ZONE_MISMATCH:
         try:
             fab_obj.r_defined_eff_zonecfg_obj().s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MISMATCH)
         except:
@@ -429,27 +422,11 @@ def zone_analysis(fab_obj):
         if buf is not None and buf in special_login:
             login_obj.s_add_alert(al.AlertTable.alertTbl, special_login[buf])
             continue
-        # Figure out how many devices are zoned to this device
-        e_list = list()  # List of effective zones this login participates in
-        for zone_obj in fab_obj.r_eff_zone_objects_for_wwn(wwn):
-            if zone_obj.r_is_peer():
-                if wwn in zone_obj.r_pmembers():
-                    e_list.extend(zone_obj.r_pmembers())
-                else:
-                    e_list.extend(zone_obj.r_members())
-            else:
-                e_list.extend(zone_obj.r_members())
-        if wwn in e_list:  # If it's not zoned, it's not in e_list
-            e_list.remove(wwn)
-        if len(e_list) > bt.MAX_ZONE_PARTICIPATION:
-            login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION, None,
-                                  bt.MAX_ZONE_PARTICIPATION, len(e_list))
 
-    # Alias analysis
+    # Alias analysis, zone speed analysis, and FICON analysis
     alias_analysis(fab_obj)
-
-    # Zone speed analysis
-    wwn_zone_speed_check(fab_obj)
+    zone_by_target(fab_obj)
+    check_ficon_zoning(fab_obj)
 
 
 def fab_obj_for_name(proj_obj, fab_name):

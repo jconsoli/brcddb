@@ -39,344 +39,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 13 Feb 2021   | Corrected switch types for X7-4 and X7-8.                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 17 Jul 2021   | Referenced brcddb_chassis for all chassis specific stuff.                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcddb.util.copy as brcddb_copy
 import brcddb.util.util as brcddb_util
-
-# This is <model> in switch/fibrechannel-switch. Note that it is returned as a string (str) representing a floating
-# point number. Anything after the decimal point represents a version change. Only the integer portion is useful for
-# determining a switch type. Switch types used herein are the integer portion only so your code should do something
-#  like:
-# switch_type = int(float( <model> returned from switch/fibrechannel-switch))
-class SWITCH_TYPE:
-    S_FCR_Front = 40
-    S_FCR_Xlate = 41
-    S_6510 = 109
-    S_6746 = 112
-    S_6710 = 116
-    S_6547 = 117
-    S_6505 = 118
-    S_8510_8 = 120
-    S_8510_4 = 121
-    S_6548 = 129
-    S_6505 = 130
-    S_6520 = 133
-    S_7840 = 148
-    S_G620 = 162
-    S_X6_4 = 165
-    S_X6_8 = 166
-    S_6542 = 167
-    S_G610 = 170
-    S_G630 = 173
-    S_AMP_2_0 = 171
-    S_MXG610 = 175
-    S_7810 = 178
-    S_X7_4 = 179
-    S_X7_8 = 180
-    S_G720 = 181
-    S_G620_2 = 183
-    S_G630_2 = 184
-
-class SWITCH_BRAND:  # The custom index in FOS. Not yet implemented in the API as of 8.2.1b
- Brocade = 0
- IBM = 1
- HPE = 2
- EMC = 3
- HDS = 4
-
-st_name = {
-    SWITCH_TYPE.S_FCR_Front: {
-        SWITCH_TYPE.S_FCR_Front: {
-        SWITCH_BRAND.Brocade: 'FCR Front Domain',
-        SWITCH_BRAND.IBM: 'SWITCH_BRAND.IBM',
-        SWITCH_BRAND.HPE: 'FCR Front Domain',
-        SWITCH_BRAND.EMC: 'FCR Front Domain',
-        SWITCH_BRAND.HDS: 'FCR Front Domain'}
-    },
-    SWITCH_TYPE.S_FCR_Xlate: {
-        SWITCH_BRAND.Brocade: 'FCR Xlate Domain',
-        SWITCH_BRAND.IBM: '',
-        SWITCH_BRAND.HPE: 'FCR Xlate Domain',
-        SWITCH_BRAND.EMC: 'FCR Xlate Domain',
-        SWITCH_BRAND.HDS: 'FCR Xlate Domain'},
-    SWITCH_TYPE.S_6510: {
-        SWITCH_BRAND.Brocade: '6510',
-        SWITCH_BRAND.IBM: 'SAN48B-5',
-        SWITCH_BRAND.HPE: 'SN6000B',
-        SWITCH_BRAND.EMC: 'DS-6510B',
-        SWITCH_BRAND.HDS: '6510'},
-    SWITCH_TYPE.S_6505: {
-        SWITCH_BRAND.Brocade: '6505',
-        SWITCH_BRAND.IBM: 'SAN24B-5',
-        SWITCH_BRAND.HPE: '6505',
-        SWITCH_BRAND.EMC: 'DS-6505B',
-        SWITCH_BRAND.HDS: '6505'},
-    SWITCH_TYPE.S_8510_8: {
-        SWITCH_BRAND.Brocade: 'DCX8510-8',
-        SWITCH_BRAND.IBM: 'SAN768B-2',
-        SWITCH_BRAND.HPE: 'SN8000B 8-slot',
-        SWITCH_BRAND.EMC: 'ED-DCX8510-8B',
-        SWITCH_BRAND.HDS: 'DCX8510-8'},
-    SWITCH_TYPE.S_8510_4: {
-        SWITCH_BRAND.Brocade: 'DCX8510-4',
-        SWITCH_BRAND.IBM: 'SAN384B-2',
-        SWITCH_BRAND.HPE: 'SN8000B 4-slot',
-        SWITCH_BRAND.EMC: '1ED-DCX8510-4B000',
-        SWITCH_BRAND.HDS: 'DCX8510-4'},
-    SWITCH_TYPE.S_6548: {
-        SWITCH_BRAND.Brocade: '6548',
-        SWITCH_BRAND.IBM: '',
-        SWITCH_BRAND.HPE: '16Gb SAN switch for HP BladeSystem',
-        SWITCH_BRAND.EMC: '6548',
-        SWITCH_BRAND.HDS: '6548'},
-    SWITCH_TYPE.S_6520: {
-        SWITCH_BRAND.Brocade: '6520',
-        SWITCH_BRAND.IBM: 'SAN96B-5',
-        SWITCH_BRAND.HPE: 'SN6500B',
-        SWITCH_BRAND.EMC: 'DS-6520B',
-        SWITCH_BRAND.HDS: '6520'},
-    SWITCH_TYPE.S_7840: {
-        SWITCH_BRAND.Brocade: '7840',
-        SWITCH_BRAND.IBM: 'SAN42B-R',
-        SWITCH_BRAND.HPE: '7840',
-        SWITCH_BRAND.EMC: 'MP-7840B',
-        SWITCH_BRAND.HDS: '7840'},
-    SWITCH_TYPE.S_6542: {
-        SWITCH_BRAND.Brocade: 'Blade_6542',
-        SWITCH_BRAND.IBM: 'Blade_6542',
-        SWITCH_BRAND.HPE: 'Blade_6542',
-        SWITCH_BRAND.EMC: 'Blade_6542'
-        ,SWITCH_BRAND.HDS: 'Blade_6542'},
-    SWITCH_TYPE.S_G610: {
-        SWITCH_BRAND.Brocade: 'G610',
-        SWITCH_BRAND.IBM: 'SAN24B-6',
-        SWITCH_BRAND.HPE: 'SN3600B',
-        SWITCH_BRAND.EMC: 'DS-6610B'
-        ,SWITCH_BRAND.HDS: 'G610'},
-    SWITCH_TYPE.S_MXG610: {
-        SWITCH_BRAND.Brocade: 'MXG610',
-        SWITCH_BRAND.IBM: 'MXG610',
-        SWITCH_BRAND.HPE: 'MXG610',
-        SWITCH_BRAND.EMC: 'MXG610'
-        ,SWITCH_BRAND.HDS: 'MXG610'},
-    SWITCH_TYPE.S_G620: {
-        SWITCH_BRAND.Brocade: 'G620',
-        SWITCH_BRAND.IBM: 'SAN64B-6',
-        SWITCH_BRAND.HPE: 'SN6600B',
-        SWITCH_BRAND.EMC: 'DS-6620B',
-        SWITCH_BRAND.HDS: 'G620'},
-    SWITCH_TYPE.S_G620_2: {
-        SWITCH_BRAND.Brocade: 'G620_C5',
-        SWITCH_BRAND.IBM: 'SAN64B-6',
-        SWITCH_BRAND.HPE: 'SN6600B',
-        SWITCH_BRAND.EMC: 'DS-6620B',
-        SWITCH_BRAND.HDS: 'G620'},
-    SWITCH_TYPE.S_G630: {
-        SWITCH_BRAND.Brocade: 'G630',
-        SWITCH_BRAND.IBM: 'SAN96B-6',
-        SWITCH_BRAND.HPE: 'SN6650B',
-        SWITCH_BRAND.EMC: 'DS-6630B',
-        SWITCH_BRAND.HDS: 'G630'},
-    SWITCH_TYPE.S_G630_2: {
-        SWITCH_BRAND.Brocade: 'G630_C5',
-        SWITCH_BRAND.IBM: 'SAN96B-6',
-        SWITCH_BRAND.HPE: 'SN6650B',
-        SWITCH_BRAND.EMC: 'DS-6630B',
-        SWITCH_BRAND.HDS: 'G630'},
-    SWITCH_TYPE.S_X6_8: {
-        SWITCH_BRAND.Brocade: 'X6-8',
-        SWITCH_BRAND.IBM: 'SAN512B-6',
-        SWITCH_BRAND.HPE: 'SN8600B 8-Slot',
-        SWITCH_BRAND.EMC: 'ED-DCX6-8B',
-        SWITCH_BRAND.HDS: 'X6-8'},
-    SWITCH_TYPE.S_X6_4: {
-        SWITCH_BRAND.Brocade: 'X6-4',
-        SWITCH_BRAND.IBM: 'SAN256B-6',
-        SWITCH_BRAND.HPE: 'SN8600B 4-Slot',
-        SWITCH_BRAND.EMC: 'ED-DCX6-4B',
-        SWITCH_BRAND.HDS: 'X6-4'},
-    SWITCH_TYPE.S_AMP_2_0: {
-        SWITCH_BRAND.Brocade: 'AMP_2_0',
-        SWITCH_BRAND.IBM: '',
-        SWITCH_BRAND.HPE: '',
-        SWITCH_BRAND.EMC: '',
-        SWITCH_BRAND.HDS: ''},
-    SWITCH_TYPE.S_7810: {
-        SWITCH_BRAND.Brocade: '7810',
-        SWITCH_BRAND.IBM: 'Unknwon',
-        SWITCH_BRAND.HPE: '7810',
-        SWITCH_BRAND.EMC: 'MP-7810B',
-        SWITCH_BRAND.HDS: '7810'},
-    SWITCH_TYPE.S_G720: {
-        SWITCH_BRAND.Brocade: 'G720',
-        SWITCH_BRAND.IBM: 'SAN64B-7',
-        SWITCH_BRAND.HPE: 'G720',
-        SWITCH_BRAND.EMC: 'DS-7720B',
-        SWITCH_BRAND.HDS: 'HD-G720'},
-    SWITCH_TYPE.S_X7_4: {
-        SWITCH_BRAND.Brocade: 'X7-4',
-        SWITCH_BRAND.IBM: 'SAN512B-7',
-        SWITCH_BRAND.HPE: 'X7-4',
-        SWITCH_BRAND.EMC: 'ED-DCX7-4B',
-        SWITCH_BRAND.HDS: 'HD-X74-0002'},
-    SWITCH_TYPE.S_X7_8: {
-        SWITCH_BRAND.Brocade: 'X7-8',
-        SWITCH_BRAND.IBM: 'SAN256B-7',
-        SWITCH_BRAND.HPE: 'X7-8',
-        SWITCH_BRAND.EMC: 'ED-DCX7-8B',
-        SWITCH_BRAND.HDS: 'HD-X78-0002'},
-}
-
-st_type = {
-    SWITCH_TYPE.S_6510: '2498-F48',
-    SWITCH_TYPE.S_6505: '2498-F24',
-    SWITCH_TYPE.S_8510_8: '2499-816',
-    SWITCH_TYPE.S_8510_4: '2499-416',
-    SWITCH_TYPE.S_6520: '2498-F96 / N96',
-    SWITCH_TYPE.S_7840: '2498-R42',
-    SWITCH_TYPE.S_G610: '8960-F24/N24',
-    SWITCH_TYPE.S_G620: '8960-F64/N64',
-    SWITCH_TYPE.S_G620_2: '8960-F65/8960-N65',
-    SWITCH_TYPE.S_G630: '8960-F128/N128',
-    SWITCH_TYPE.S_G630_2: '8960-F97/8960-N97',
-    SWITCH_TYPE.S_X6_8: '8961-F08',
-    SWITCH_TYPE.S_X6_4: '8961-F04',
-    SWITCH_TYPE.S_G720: '8960-P64/R64',
-    SWITCH_TYPE.S_X7_4: '8961-F04',
-    SWITCH_TYPE.S_X7_8: '8961-F08',
-}
-
-st_speed = {
-    SWITCH_TYPE.S_6510: 16,
-    SWITCH_TYPE.S_6547: 16,
-    SWITCH_TYPE.S_6505: 16,
-    SWITCH_TYPE.S_8510_8: 16,
-    SWITCH_TYPE.S_8510_4: 16,
-    SWITCH_TYPE.S_6548: 16,
-    SWITCH_TYPE.S_6505: 16,
-    SWITCH_TYPE.S_6520: 16,
-    SWITCH_TYPE.S_7840: 16,
-    SWITCH_TYPE.S_G610: 32,
-    SWITCH_TYPE.S_MXG610: 32,
-    SWITCH_TYPE.S_G620: 32,
-    SWITCH_TYPE.S_G620_2: 32,
-    SWITCH_TYPE.S_G630: 32,
-    SWITCH_TYPE.S_G630_2: 32,
-    SWITCH_TYPE.S_X6_8: 32,
-    SWITCH_TYPE.S_X6_4: 32,
-    SWITCH_TYPE.S_7810: 32,
-    SWITCH_TYPE.S_AMP_2_0: 32,
-    SWITCH_TYPE.S_G720: 64,
-    SWITCH_TYPE.S_X7_8: 64,
-    SWITCH_TYPE.S_X7_4: 64,
-}
-
-st_sys_z = {
-    SWITCH_TYPE.S_6510: True,
-    SWITCH_TYPE.S_6547: False,
-    SWITCH_TYPE.S_8510_8: True,
-    SWITCH_TYPE.S_8510_4: True,
-    SWITCH_TYPE.S_6520: False,
-    SWITCH_TYPE.S_7840: True,
-    SWITCH_TYPE.S_G610: False,
-    SWITCH_TYPE.S_G620: True,
-    SWITCH_TYPE.S_G620_2: True,
-    SWITCH_TYPE.S_G630: False,
-    SWITCH_TYPE.S_G630_2: False,
-    SWITCH_TYPE.S_X6_8: True,
-    SWITCH_TYPE.S_X6_4: True,
-    SWITCH_TYPE.S_AMP_2_0: True,
-    SWITCH_TYPE.S_7810: False,
-    SWITCH_TYPE.S_G720: True,
-    SWITCH_TYPE.S_X7_8: True,
-    SWITCH_TYPE.S_X7_4: True,
-}
-
-st_slots = {
-    SWITCH_TYPE.S_6510: 0,
-    SWITCH_TYPE.S_6710: 0,
-    SWITCH_TYPE.S_6547: 0,
-    SWITCH_TYPE.S_6505: 0,
-    SWITCH_TYPE.S_8510_8: 8,
-    SWITCH_TYPE.S_8510_4: 4,
-    SWITCH_TYPE.S_6548: 0,
-    SWITCH_TYPE.S_6505: 0,
-    SWITCH_TYPE.S_6520: 0,
-    SWITCH_TYPE.S_7840: 0,
-    SWITCH_TYPE.S_G610: 0,
-    SWITCH_TYPE.S_MXG610: 0,
-    SWITCH_TYPE.S_G620: 0,
-    SWITCH_TYPE.S_G620_2: 0,
-    SWITCH_TYPE.S_G630: 0,
-    SWITCH_TYPE.S_G630_2: 0,
-    SWITCH_TYPE.S_X6_8: 8,
-    SWITCH_TYPE.S_X6_4: 4,
-    SWITCH_TYPE.S_AMP_2_0: 0,
-    SWITCH_TYPE.S_7810: 0,
-    SWITCH_TYPE.S_G720: 0,
-    SWITCH_TYPE.S_X7_8: 8,
-    SWITCH_TYPE.S_X7_4: 4,
-}
-
-st_gen = {
-    SWITCH_TYPE.S_6510: 'Gen5',
-    SWITCH_TYPE.S_6547: 'Gen5',
-    SWITCH_TYPE.S_6505: 'Gen5',
-    SWITCH_TYPE.S_8510_8: 'Gen5',
-    SWITCH_TYPE.S_8510_4: 'Gen5',
-    SWITCH_TYPE.S_6520: 'Gen5',
-    SWITCH_TYPE.S_7840: 'Gen5',
-    SWITCH_TYPE.S_G610: 'Gen6',
-    SWITCH_TYPE.S_MXG610: 'Gen6',
-    SWITCH_TYPE.S_G620: 'Gen6',
-    SWITCH_TYPE.S_G620_2: 'Gen6',
-    SWITCH_TYPE.S_G630: 'Gen6',
-    SWITCH_TYPE.S_G630_2: 'Gen6',
-    SWITCH_TYPE.S_X6_4: 'Gen6',
-    SWITCH_TYPE.S_X6_8: 'Gen6',
-    SWITCH_TYPE.S_AMP_2_0: 'Gen6',
-    SWITCH_TYPE.S_7810: 'Gen6',
-    SWITCH_TYPE.S_G720: 'Gen7',
-    SWITCH_TYPE.S_X7_4: 'Gen7',
-    SWITCH_TYPE.S_X7_8: 'Gen7',
-}
-
-st_eos = {  # EOS date format is yyyy/mm/dd
-    SWITCH_TYPE.S_FCR_Front: 'Current',
-    SWITCH_TYPE.S_FCR_Xlate: 'Current',
-    SWITCH_TYPE.S_6510: '2025/04/30',
-    SWITCH_TYPE.S_6746: 'Current',
-    SWITCH_TYPE.S_6505: '2025/04/30',
-    SWITCH_TYPE.S_8510_8: '2025/04/30',
-    SWITCH_TYPE.S_8510_4: '2025/04/30',
-    SWITCH_TYPE.S_6548: 'Current',
-    SWITCH_TYPE.S_6505: 'Current',
-    SWITCH_TYPE.S_6520: 'Current',
-    SWITCH_TYPE.S_7840: 'Current',
-    SWITCH_TYPE.S_G610: 'Current',
-    SWITCH_TYPE.S_MXG610: 'Current',
-    SWITCH_TYPE.S_G620: 'Current',
-    SWITCH_TYPE.S_G620_2: 'Current',
-    SWITCH_TYPE.S_G630: 'Current',
-    SWITCH_TYPE.S_G630_2: 'Current',
-    SWITCH_TYPE.S_X6_8: 'Current',
-    SWITCH_TYPE.S_X6_4: 'Current',
-    SWITCH_TYPE.S_AMP_2_0: '2024/10/31',
-    SWITCH_TYPE.S_7810: 'Current',
-    SWITCH_TYPE.S_G720: 'Current',
-    SWITCH_TYPE.S_X7_8: 'Current',
-    SWITCH_TYPE.S_X7_4: 'Current',
-}
+import brcddb.brcddb_chassis as brcddb_chassis  # To support deprecated methods
+import time
 
 area_mode = {
     0: ' 10-bit addressing mode',
@@ -385,117 +64,96 @@ area_mode = {
 }
 
 
+def _chassis_d(switch):
+    """Returns the dictionary associated with this switch number from brcddb_chassis.chassis_type_d
+
+    :param switch: fibrechannel-switch/model
+    :type switch: str
+    :return: Chassis dicrionary
+    :rtype: dict
+    """
+    d = brcddb_chassis.chassis_type_d.get(int(float(switch)))
+    return brcddb_chassis.chassis_type_d[0] if d is None else d
+
+
+
 def eos(switch):
-    """Returns the End of Support (EOS) date
+    """Deprecated. Use brcddb.brcddb_chassis.eos()
 
     :param switch: fibrechannel-switch/model
     :type switch: str
     :return: EOS_date
     :rtype: str
     """
-    try:
-        return st_eos[int(float(switch))]
-    except:
-        return ''
+    d = _chassis_d(switch)
+    return 'EOS not announced' if d['eos'] is None else time.strftime('%Y-%m-%d', d['eos'])
 
 
 def gen(switch):
-    """Returns the gen type
+    """Deprecated. Use brcddb.brcddb_chassis.gen()
 
     :param switch: fibrechannel-switch/model
     :type switch: str
     :return: Generation
     :rtype: str
     """
-    try:
-        return st_gen[int(float(switch))]
-    except:
-        return ''
+    return _chassis_d(switch)['gen']
 
 
 def slots(switch):
-    """Returns the number of slots for the switch
+    """Deprecated. Use brcddb.brcddb_chassis.slots()
 
     :param switch: fibrechannel-switch/model
     :type switch: str
     :return: Num slots
     :rtype: int
     """
-    try:
-        return st_slots[int(float(switch))]
-    except:
-        return 0
+    cfg = _chassis_d(switch)['cfg']
+    return 4 if cfg == brcddb_chassis.cfg_4_slot else 8 if cfg == brcddb_chassis.cfg_8_slot else 0
 
 
 def ibm_machine_type(switch):
-    """Returns the IBM machine type for the switch
+    """Deprecated. Use brcddb.brcddb_chassis.ibm_machine_type()
 
     :param switch: fibrechannel-switch/model
     :type switch: str
     :return: machine_type
     :rtype: str
     """
-    try:
-        return st_type[int(float(switch))]
-    except:
-        return ''
+    return _chassis_d(switch)['ibm_t']
 
 
 def sys_z_supported(switch):
-    """Returns True if z systems supported
+    """Deprecated. Use brcddb.brcddb_chassis.sys_z_supported()
 
     :param switch: fibrechannel-switch/model
     :type switch: str
     :return: True if z Systems supported
     :rtype: bool
     """
-    try:
-        return st_sys_z[int(float(switch))]
-    except:
-        return False
+    return _chassis_d(switch)['z']
 
 
 def switch_speed(switch):
-    """Converts the switch type number to the max speed the switch is capable of
+    """Deprecated. Use brcddb.brcddb_chassis.chassis_speed()
 
     :param switch: fibrechannel-switch/model
     :type switch: str
     :return: Maximum speed switch is capable of
     :rtype: int
     """
-    try:
-        return st_speed[int(float(switch))]
-    except:
-        return 0
-
-
-def model_oem(switch, oem):
-    """Returns the OEM branded switch model type.
-
-    Note: As of FOS 8.2.1b, the custom-index was not yet available
-    :param switch: fibrechannel-switch/model
-    :type switch: float, int, str
-    :param oem: Custom index - I'm assuming this will be 'custom-index' in fibrechannel-switch
-    :return: OEM branded witch model
-    :rtype: str
-    """
-    global st_name
-
-    try:
-        return st_name[int(switch)][oem]
-    except:
-        return 'Unknown'
+    return _chassis_d(switch)['spd']
 
 
 def model_broadcom(switch):
-    """Returns the Broadcom  branded switch model type
+    """Deprecated. Use brcddb.brcddb_chassis.chassis_type()
 
     :param switch: fibrechannel-switch/model
     :type switch: str
     :return: Switch model
     :rtype: str
     """
-    return model_oem(switch, SWITCH_BRAND.Brocade)
+    return _chassis_d(switch)['brcd']
 
 
 def add_rest_port_data(switch_obj, pobj, flag_obj=None, skip_list=list()):

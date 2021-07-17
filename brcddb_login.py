@@ -46,6 +46,34 @@ __version__ = '3.0.2'
 _MIN_SYMB_LEN = 10
 
 
+def fdmi_node_name(fdmi_obj, wwn):
+    """Returns the FDMI node symbolic name
+
+    :param fdmi_obj: Login Object
+    :type fdmi_obj: brcddb.classes.login.FdmiNodeObj
+    :param wwn: WWN
+    :type wwn: str
+    :return: Node name
+    :rtype: str, None
+    """
+    if fdmi_obj is not None and isinstance(wwn, str):
+        buf = fdmi_obj.r_get('brocade-fdmi/node-symbolic-name')
+        if isinstance(buf, str) and len(buf) < _MIN_SYMB_LEN:
+            return buf
+    return None
+
+
+def ns_node_name(login_obj):
+    """Returns the Name Server node symbolic name
+
+    :param login_obj: Login Object
+    :type login_obj: brcddb.classes.login.LoginObj
+    :return: Node name
+    :rtype: str, None
+    """
+    return None if login_obj is None else login_obj.r_get('brocade-name-server/node-symbolic-name')
+
+
 def login_best_node_desc(login_obj):
     """Finds the first descriptor for what's attached to the port in this order:
         1   FDMI  Node (HBA) descriptor
@@ -63,18 +91,15 @@ def login_best_node_desc(login_obj):
     wwn = login_obj.r_obj_key()
 
     # Try FDMI node (HBA) data
-    try:
-        buf = fab_obj.r_fdmi_node_obj(wwn).r_get('brocade-fdmi/node-symbolic-name')
-        if buf is not None:
-            if len(buf) < _MIN_SYMB_LEN:
-                maybe = buf
-            else:
-                return buf
-    except:
-        pass
+    buf = fdmi_node_name(fab_obj.r_fdmi_node_obj(wwn), wwn)
+    if buf is not None:
+        if len(buf) < _MIN_SYMB_LEN:
+            maybe = buf
+        else:
+            return buf
 
     # Try the name server Node data
-    buf = login_obj.r_get('brocade-name-server/node-symbolic-name')
+    buf = ns_node_name(login_obj)
     if buf is not None:
         if len(buf) < _MIN_SYMB_LEN:
             maybe = buf
@@ -138,10 +163,7 @@ def best_login_name(fab_obj, name, flag=False):
     """
     try:
         l = fab_obj.r_alias_for_wwn(name)
-        if len(l) == 0:
-            return name
-        else:
-            return l[0] + ' (' + name + ')' if flag else l[0]
+        return name if len(l) == 0 else l[0] + ' (' + name + ')' if flag else l[0]
     except:
         return ''
 
@@ -150,7 +172,7 @@ def login_type(login_obj):
     """Returns the login type, if available. Otherwise ''
 
     :param login_obj: Chassis Object
-    :type login_obj: brcddb_classes.chassis.ChassisObj
+    :type login_obj: brcddb_classes.login.LoginObj
     :return: Login type
     :rtype: str
     """

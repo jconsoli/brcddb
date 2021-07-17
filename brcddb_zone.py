@@ -31,18 +31,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 17 Jul 2021   | Added check_ficon_zoning() and eff_zoned_to_wwn()                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 import brcddb.brcddb_common as brcddb_common
+import brcddb.util.iocp as brcddb_iocp
+import brcddb.brcddb_port as brcddb_port
 
 
 def alias_compare(base_alias_obj, comp_alias_obj):
@@ -81,13 +85,13 @@ def zone_compare(base_zone_obj, comp_zone_obj):
 
     :param base_zone_obj: Zone object to compare against
     :type base_zone_obj: brcddb.classes.zone.ZoneObj
-    :param comp_zone_obj: New alias object
+    :param comp_zone_obj: New zone object
     :type comp_zone_obj: brcddb.classes.zone.ZoneObj
     :return type_flag: True if the zone type is the same, False if not
     :rtype type_flag: bool
-    :return add_members: Members is comp_alias_obj that do not exist in base_alias_obj
+    :return add_members: Members is comp_zone_obj that do not exist in base_zone_obj
     :rtype add_members: list
-    :return del_members: Members is base_alias_obj that do not exist in comp_alias_obj
+    :return del_members: Members is base_zone_obj that do not exist in comp_zone_obj
     :rtype del_members: list
     :return add_pmembers: Principal members is comp_zone_obj that do not exist in base_zone_obj
     :rtype add_pmembers: list
@@ -164,3 +168,46 @@ def zone_type(zone_obj, num_flag=False):
         return buf + '(' + str(type) + ')' if num_flag else buf
     except:
         return 'Unknown (' + str(type) + ')'
+
+
+def eff_zoned_to_wwn(fab_obj, wwn, target, initiator):
+    """Finds all WWNs in the effective zone that are zoned to the parameter.
+
+    :param fab_obj: Fabric object
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param wwn: WWN to look for
+    :type wwn: str
+    :param target: If True, include targets in the response
+    :type target: bool
+    :param initiator: If True, include anything that is not a target in the output
+    :type initiator: bool
+    :return: Dictionary - Key: WWN of device zoned to wwn (passed in parameter). Value is the list of zone names
+    :rtype: dict
+    """
+    rd = dict()
+    for zone_obj in fab_obj.r_eff_zone_objects_for_wwn(wwn):
+        pmem_l = zone_obj.c_pmembers()
+        pmem_obj_l = [fab_obj.r_login_obj(t_wwn) for t_wwn in pmem_l if fab_obj.r_login_obj(t_wwn) is not None]
+        mem_l = zone_obj.c_members()
+        mem_obj_l = [fab_obj.r_login_obj(t_wwn) for t_wwn in mem_l if fab_obj.r_login_obj(t_wwn) is not None]
+        check_obj_l = mem_obj_l if not zone_obj.r_is_peer() else mem_obj_l if wwn in pmem_l else pmem_obj_l
+        for login_obj in check_obj_l:
+            if wwn == login_obj.r_obj_key():
+                continue
+            add_wwn = None
+            fc4 = login_obj.r_get('brocade-name-server/fc4-features')
+            if fc4 is None:
+                continue
+            if 'target' in fc4.lower():
+                if target:
+                    add_wwn = login_obj.r_obj_key()
+            elif initiator:
+                add_wwn = login_obj.r_obj_key()
+            if add_wwn is not None:
+                zone_l = rd.get(add_wwn)
+                if zone_l is None:
+                    zone_l = list()
+                    rd.update({add_wwn: zone_l})
+                zone_l.append(zone_obj.r_obj_key())
+
+    return rd

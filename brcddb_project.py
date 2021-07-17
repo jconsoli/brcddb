@@ -37,16 +37,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 14 Mar 2021   | Added fab_obj_for_user_name()                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 17 Jul 2021   | Get _DUP_WWN_CHECK from brcddb/app_data.bp_tables.                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Mar 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.classes.project as project_class
 import brcddb.brcddb_fabric as brcddb_fabric
@@ -57,6 +59,9 @@ import brcddb.util.util as brcddb_util
 import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.search as brcddb_search
+import brcddb.app_data.bp_tables as bt
+
+_DUP_WWN_CHECK = True if bt.custom_tbl.get('dup_wwn') is None else bt.custom_tbl.get('dup_wwn')
 
 
 def new(name, date):
@@ -76,8 +81,10 @@ def dup_wwn(proj_obj):
     :return: List of login objects for the duplicate WWNS. None entry seperates multiple duplicates
     :rtype: list
     """
-    dup_wwn = list()
     dup_login = list()
+    if not _DUP_WWN_CHECK:
+        return dup_login
+    dup_wwn = list()
     for fabObj in proj_obj.r_fabric_objects():
         other_fab_list = proj_obj.r_fabric_objects()
         other_fab_list.remove(fabObj)

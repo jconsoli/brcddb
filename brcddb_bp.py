@@ -47,16 +47,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 17 Jul 2021   | Updated comments only.                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import collections
 import brcddb.util.util as brcddb_util
@@ -83,24 +85,24 @@ _alert_tbl = dict()
 #       to find documentation for it.
 _rule_template = {
     'media-rdp/current': {
-        'Current High (mA)': {'t': '>=', 'a': al.ALERT_NUM.PORT_H_CUR_A, 'l': False},
-        'Current Low (mA)': {'t': '<=', 'a': al.ALERT_NUM.PORT_L_CUR_A, 'l': True},
+        'Current High (mA)': dict(t='>=', a=al.ALERT_NUM.PORT_H_CUR_A, l=False),
+        'Current Low (mA)': dict(t='<=', a=al.ALERT_NUM.PORT_L_CUR_A, l=True),
     },
     'media-rdp/voltage': {
-        'Voltage High (mV)': {'t': '>=', 'a': al.ALERT_NUM.PORT_H_VLT_A, 'l': False},
-        'Voltage Low (mV)': {'t': '<=', 'a': al.ALERT_NUM.PORT_L_VLT_A, 'l': False},
+        'Voltage High (mV)': dict(t='>=', a=al.ALERT_NUM.PORT_H_VLT_A, l= False),
+        'Voltage Low (mV)': dict(t='<=', a=al.ALERT_NUM.PORT_L_VLT_A, l=False),
     },
     'media-rdp/temperature': {
-        'Temp High (C)': {'t': '>=', 'a': al.ALERT_NUM.PORT_H_TEMP_A, 'l': False},
-        'Temp Low (C)': {'t': '<=', 'a': al.ALERT_NUM.PORT_L_TXP_A, 'l': False},
+        'Temp High (C)': dict(t='>=', a=al.ALERT_NUM.PORT_H_TEMP_A, l=False),
+        'Temp Low (C)': dict(t='<=', a=al.ALERT_NUM.PORT_L_TXP_A, l=False),
     },
     'media-rdp/tx-power': {
-        'Tx High (uW)': {'t': '>=', 'a': al.ALERT_NUM.PORT_H_TXP_A, 'l': False},
-        'Tx Low (uW)': {'t': '<=', 'a': al.ALERT_NUM.PORT_L_TXP_A, 'l': True},
+        'Tx High (uW)': dict(t='>=', a=al.ALERT_NUM.PORT_H_TXP_A, l=False),
+        'Tx Low (uW)': dict(t='<=', a=al.ALERT_NUM.PORT_L_TXP_A, l=True),
     },
     'media-rdp/rx-power': {
-        'Rx High (uW)': {'t': '>=', 'a': al.ALERT_NUM.PORT_H_RXP_A, 'l': True},
-        'Rx Low (uW)': {'t': '<=', 'a': al.ALERT_NUM.PORT_L_RXP_A, 'l': True},
+        'Rx High (uW)': dict(t='>=', a=al.ALERT_NUM.PORT_H_RXP_A, l=True),
+        'Rx Low (uW)': dict(t='<=', a=al.ALERT_NUM.PORT_L_RXP_A, l=True),
     }
 }
 # The remote SFPs still return the old alarm and warning levels so that's what we will use for the remote media tests.
@@ -108,49 +110,45 @@ _rule_template = {
 # prevent a warning alert if an alarm was already found.
 _remote_current_rules = collections.OrderedDict()
 _remote_current_rules['media-rdp/remote-media-tx-bias-alert/high-alarm'] =\
-    {'t': '>=', 'a': al.ALERT_NUM.REMOTE_PORT_H_CUR_A}
+    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_CUR_A)
 _remote_current_rules['media-rdp/remote-media-tx-bias-alert/high-warning'] =\
-    {'t': '>=', 'a': al.ALERT_NUM.REMOTE_PORT_H_CUR_W}
+    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_CUR_W)
 _remote_current_rules['media-rdp/remote-media-tx-bias-alert/low-alarm'] =\
-    {'t': '<=', 'a': al.ALERT_NUM.REMOTE_PORT_L_CUR_A}
+    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_CUR_A)
 _remote_current_rules['media-rdp/remote-media-tx-bias-alert/low-warning'] =\
-    {'t': '<=', 'a': al.ALERT_NUM.REMOTE_PORT_L_CUR_W}
+    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_CUR_W)
 _remote_voltage_rules = collections.OrderedDict()
 _remote_voltage_rules['media-rdp/remote-media-voltage-alert/high-alarm'] =\
-    {'t': '>=', 'a': al.ALERT_NUM.REMOTE_PORT_H_VLT_A}
+    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_VLT_A)
 _remote_voltage_rules['media-rdp/remote-media-voltage-alert/high-warning'] =\
-    {'t': '>=', 'a': al.ALERT_NUM.REMOTE_PORT_H_VLT_W}
+    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_VLT_W)
 _remote_voltage_rules['media-rdp/remote-media-voltage-alert/low-alarm'] =\
-    {'t': '<=', 'a': al.ALERT_NUM.REMOTE_PORT_L_VLT_A}
+    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_VLT_A)
 _remote_voltage_rules['media-rdp/remote-media-voltage-alert/low-warning'] =\
-    {'t': '<=', 'a': al.ALERT_NUM.REMOTE_PORT_L_VLT_W}
+    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_VLT_W)
 _remote_temp_rules = collections.OrderedDict()
 _remote_temp_rules['media-rdp/remote-media-temperature-alert/high-alarm'] =\
-    {'t': '>=', 'a': al.ALERT_NUM.REMOTE_PORT_H_TEMP_A}
+    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TEMP_A)
 _remote_temp_rules['media-rdp/remote-media-temperature-alert/high-warning'] =\
-    {'t': '>=', 'a': al.ALERT_NUM.REMOTE_PORT_H_TEMP_W}
+    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TEMP_W)
 _remote_temp_rules['media-rdp/remote-media-temperature-alert/low-alarm'] =\
-    {'t': '<=', 'a': al.ALERT_NUM.REMOTE_PORT_L_TEMP_A}
+    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TEMP_A)
 _remote_temp_rules['media-rdp/remote-media-temperature-alert/low-warning'] =\
-    {'t': '<=', 'a': al.ALERT_NUM.REMOTE_PORT_L_TEMP_W}
+    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TEMP_W)
 _remote_tpx_rules = collections.OrderedDict()
-_remote_tpx_rules['media-rdp/remote-media-tx-power-alert/high-alarm'] =\
-    {'t': '>=', 'a': al.ALERT_NUM.REMOTE_PORT_H_TXP_A}
+_remote_tpx_rules['media-rdp/remote-media-tx-power-alert/high-alarm'] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TXP_A)
 _remote_tpx_rules['media-rdp/remote-media-tx-power-alert/high-warning'] =\
-    {'t': '>=', 'a': al.ALERT_NUM.REMOTE_PORT_H_TXP_W}
-_remote_tpx_rules['media-rdp/remote-media-tx-power-alert/low-alarm'] =\
-    {'t': '<=', 'a': al.ALERT_NUM.REMOTE_PORT_L_TXP_A}
+    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TXP_W)
+_remote_tpx_rules['media-rdp/remote-media-tx-power-alert/low-alarm'] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TXP_A)
 _remote_tpx_rules['media-rdp/remote-media-tx-power-alert/low-warning'] =\
-    {'t': '<=', 'a': al.ALERT_NUM.REMOTE_PORT_L_TXP_W}
+    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TXP_W)
 _remote_rpx_rules = collections.OrderedDict()
-_remote_rpx_rules['media-rdp/remote-media-rx-power-alert/high-alarm'] =\
-    {'t': '>=', 'a': al.ALERT_NUM.REMOTE_PORT_H_RXP_A}
+_remote_rpx_rules['media-rdp/remote-media-rx-power-alert/high-alarm'] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_RXP_A)
 _remote_rpx_rules['media-rdp/remote-media-rx-power-alert/high-warning'] =\
-    {'t': '>=', 'a': al.ALERT_NUM.REMOTE_PORT_H_RXP_W}
-_remote_rpx_rules['media-rdp/remote-media-rx-power-alert/low-alarm'] =\
-    {'t': '<=', 'a': al.ALERT_NUM.REMOTE_PORT_L_RXP_A}
+    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_RXP_W)
+_remote_rpx_rules['media-rdp/remote-media-rx-power-alert/low-alarm'] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_RXP_A)
 _remote_rpx_rules['media-rdp/remote-media-rx-power-alert/low-warning'] =\
-    {'t': '<=', 'a': al.ALERT_NUM.REMOTE_PORT_L_RXP_W}
+    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_RXP_W)
 _remote_rule_template = {
     # There is either a defect or bad documentation with 'media-rdp/remote-media-current' and
     # 'media-rdp/remote-media-temperature'. Skipping those checks until those leaves are better understood.

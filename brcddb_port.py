@@ -37,21 +37,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 17 Jul 2021   | Added port_obj_for_chpid() and port_obj_for_addr()                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_login as brcddb_login
+import brcddb.util.search as brcddb_search
 
 
 def port_best_desc(port_obj):
@@ -165,3 +168,50 @@ def port_obj_for_wwn(obj, wwn):
                 return port_obj
 
     return None  # If we got this far, we didn't find it.
+
+
+def port_obj_for_chpid(obj, seq, tag):
+    """Returns the port object matching the rnid/sequence-numbber and rnid/tag. Used for finding CHPIDs
+
+    :param obj: Object with port objects, obj.r_port_objects()
+    :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
+                brcddb.classes.chassis.ChassisObj
+    :param seq: Serial number (sequence number) for CEC
+    :type seq: str
+    :param tag: CHPID tag
+    :type tag: str
+    :rturn: Port object where this CHPID is connected. None if not found
+    :rtype: brcddb.classes.port.PortObj, None
+    """
+    # The tag from the IOCP will never have '0x' prefix so below is just in case I ever use this for something else.
+    test_tag = tag if '0x' in tag else '0x' + tag
+    port_list = brcddb_search.match_test(
+        obj.r_port_objects(),
+        {
+            'l': (
+                dict(k='rnid/sequence-number', t='exact', v=seq, i=True),
+                dict(k='rnid/tag', t='exact', v=test_tag, i=True),
+                dict(k='rnid/flags', t='exact', v='0x10'),  # Indicates the RNID data is valid for a channel
+            ),
+            'logic': 'and'  # 'and' is the default logic so this is just for clarity for the reader
+        }
+    )
+    return port_list[0] if len(port_list) > 0 else None
+
+
+def port_obj_for_addr(obj, addr):
+    """Returns the port object for a port in a given fabric matching a link address. Used for finding control units
+
+    :param obj: Object with port objects, obj.r_port_objects()
+    :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
+                brcddb.classes.chassis.ChassisObj
+    :param addr: Hex FC address (format is 0x123400)
+    :type addr: str
+    :rturn: Port object matching the link address. None if not found
+    :rtype: brcddb.classes.port.PortObj, None
+    """
+    port_list = brcddb_search.match_test(
+        obj.r_port_objects(),
+        dict(k='fibrechannel/fcid-hex', t='exact', v=addr, i=True)
+    )
+    return port_list[0] if len(port_list) > 0 else None

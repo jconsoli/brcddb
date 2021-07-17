@@ -38,16 +38,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 13 Feb 2021   | Fixed PORT_TYPE_L                                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 17 Jul 2021   | Removed zone_flag_wwn and zone_flag_di                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 #################################################################################
 #                                   Project                                     #
@@ -140,8 +142,6 @@ zonecfg_conversion_tbl = {
 # obj._flags - read and set with obj.flags(), obj.and_flags(), and obj.or_flags
 # There are no zone flags returned from the Rest API. These only get set if brcddb_fabric.zone_analysis() is called
 zone_flag_effective    = 0b1 # This is the effective zone object
-zone_flag_wwn          = zone_flag_effective << 1 # If set, zone contains WWN zones
-zone_flag_di           = zone_flag_wwn << 1 # If set, zone contains d,i members
 
 ZONE_STANDARD_ZONE = 0
 ZONE_USER_PEER = 1
