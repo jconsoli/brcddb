@@ -1,5 +1,13 @@
 # brcddb
 
+**Updates: 17 July 2021
+
+* Miscellaneous bug fixes
+* Added zone by target analysis to repor
+* Several FICON improvements
+
+**Description**
+
 A hierarchical relational database using Python data types. Used by the reporting and searching functions.
 
 A simple copy of this folder to you Python Library Lib folder is dequate. In Unix environments, remember to set the executable attribute
