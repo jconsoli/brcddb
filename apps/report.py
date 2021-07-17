@@ -37,16 +37,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 13 Feb 2021   | Really fixed sheet name too long                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 17 Jul 2021   | Used 'Unknown Fabric' when the fabric name and WWN is unknown                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import collections
 import brcddb.app_data.report_tables as rt
@@ -84,6 +86,7 @@ _report_pages = dict(
     port_rnid=dict(s=False, d='Port RNID page. Typically only used for FICON'),
     port_rnid_error=dict(s=False, d='Port RNID alert summary page. Not yet implemented.'),
     zone_page=dict(s=True, d='Zone analysis page'),
+    t_zone_page=dict(s=True, d='Zone by target page'),
     zone_error=dict(s=False, d='Alias alert summary page. Not yet implemented.'),
     alias=dict(s=True, d='Alias detail page'),
     alias_error=dict(s=False, d='Alias alert summary page. Not yet implemented.'),
@@ -116,7 +119,7 @@ def proj_title_page(proj_obj, tc, wb, sheet_index, sheet_name, sheet_title, cont
     """Creates the project title page
     
     :param proj_obj: Project object
-    :type proj_obj: ProjectObj
+    :type proj_obj: brcddb.classes.project.ProjectObj
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param wb: Workbook object
@@ -233,6 +236,8 @@ def customize_help():
     :return: List of help messages
     :rtype: list
     """
+    global _report_pages
+
     # Figure out which key is the longest
     lkey = 0
     for k in _report_pages.keys():
@@ -255,8 +260,8 @@ def customize_help():
 def report(proj_obj, outf, remove_pages=None, add_pages=None):
     """Creates an Excel report. Sort of a SAN Health like report.
 
-    :param proj_obj: The project object
-    :type proj_obj: brcddb.classes.ProjectObj
+    :param proj_obj: Project object
+    :type proj_obj: brcddb.classes.project.ProjectObj
     :param outf: Output file name
     :type outf: str
     :param remove_pages: List of default pages to remove. Done first so you can clear all then add pages.
@@ -264,6 +269,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
     :param add_pages: Pages, in addition to the defaults, to add to the report
     :type add_pages: None, str, list
     """
+    global _report_pages
 
     # Figure out what pages to include in the report
     for key in brcddb_util.convert_to_list(remove_pages):
@@ -309,20 +315,21 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
     """
     port_pages = [
         dict(c='port_config', sc=1, s='_config', t=rt.Port.port_config_tbl, d='Port Configurations', l=False),
-        dict(c='port_config_error', sc=1, s='_config_error', t=rt.Port.port_config_tbl, d='Port Configurations Error Summary',
-             l=False),
+        dict(c='port_config_error', sc=1, s='_config_error', t=rt.Port.port_config_tbl,
+             d='Port Configurations Error Summary', l=False),
         dict(c='port_stats', sc=1, s='_stats', t=rt.Port.port_stats_tbl, d='Port Statistics', l=False),
         dict(c='port_stats_error', sc=1, s='_stats_error', t=rt.Port.port_stats_tbl, d='Port Statistics Error Summary',
              l=False),
         dict(c='port_zone', sc=1, s='_zl', t=rt.Port.port_zone_tbl, d='Ports by Zone and Login', l=True),
-        dict(c='port_zone_error', sc=1, s='_zl_error', t=rt.Port.port_zone_tbl, d='Ports by Zone and Login Error Summary',
-             l=True),
+        dict(c='port_zone_error', sc=1, s='_zl_error', t=rt.Port.port_zone_tbl,
+             d='Ports by Zone and Login Error Summary', l=True),
         dict(c='port_sfp', sc=1, s='_sfp', t=rt.Port.port_sfp_tbl, d='SFP report', l=False),
         dict(c='port_sfp_error', sc=1, s='_sfp_error', t=rt.Port.port_sfp_tbl, d='SFP Error Summary', l=False),
         dict(c='port_rnid', sc=1, s='_ficon', t=rt.Port.port_rnid_tbl, d='Port RNID data', l=False),
     ]
 
-    tc_page = proj_obj.r_obj_key()  # Just to save some typing
+    # tc_page = report_utils.valid_sheet_name.sub('', proj_obj.r_obj_key())[:29] + '_xx'
+    tc_page = 'Table_of_Contents'
     tbl_contents = list()
 
     # Set up the workbook
@@ -365,6 +372,8 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
     # Add all the fabrics
     for fab_obj in proj_obj.r_fabric_objects():
         fab_name = brcddb_fabric.best_fab_name(fab_obj)
+        if len(fab_name) == 0:
+            fab_name = 'Unknown Fabric'
         brcdapi_log.log('Processing fabric: ' + fab_name, True)
         tbl_contents.append(dict(h=True, d=fab_name))
         prefix = report_utils.valid_sheet_name.sub('', fab_name.replace(' ', '_'))[:20] + '_' + str(sheet_index)
@@ -411,6 +420,14 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
             sname = prefix + '_zone'
             report_zone.zone_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name + ' Zone Analysis')
             tbl_contents.append(dict(sc=1, s=sname, d='Zone Analysis'))
+            sheet_index += 1
+
+        #  Taget Zone Page
+        if _report_pages['t_zone_page']['s']:
+            brcdapi_log.log('    Building target zone page', True)
+            sname = prefix + '_tzone'
+            report_zone.target_zone_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name + ' Zone by Target')
+            tbl_contents.append(dict(sc=1, s=sname, d='Zone by Target'))
             sheet_index += 1
 
         #  Alias Page
