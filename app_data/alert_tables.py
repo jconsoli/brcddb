@@ -14,7 +14,6 @@
 # limitations under the License.
 
 """
-
 :mod:`alert_tables` - Alert definitions for class AlertTable
 
 Version Control::
@@ -42,16 +41,18 @@ Version Control::
     | 3.0.6     | 13 Feb 2021   | Added member to ALERT_NUM.ZONE_DUP_ALIAS text message.                            |
     |           |               | Added number of devices zoned to ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 17 Jul 2021   | Added ZONE_LINK_ADDR and ZONE_LINK_NO_ADDR                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.classes.alert as al
 
@@ -144,8 +145,6 @@ class ALERT_NUM:
     LOGIN_SPEED_NOT_MAX_W = REMOTE_PORT_L_TEMP_A + 1
     PORT_SFP_HAA_F16_32_P8 = LOGIN_SPEED_NOT_MAX_W + 1
 
-    _DEBUG_A = 900
-
     # Login level alerts
     LOGIN_BASE = 500
     LOGIN_DUP_LOGIN = LOGIN_BASE + 1
@@ -155,10 +154,12 @@ class ALERT_NUM:
     LOGIN_SIM = LOGIN_MAX_ZONE_PARTICIPATION + 1
     LOGIN_AMP = LOGIN_SIM + 1
     LOGIN_FDMI_NOT_ENABLED = LOGIN_AMP + 1
-    LOGIN_SPEED_DIFF_W = LOGIN_FDMI_NOT_ENABLED + 1
-    LOGIN_SPEED_DIFF_E = LOGIN_SPEED_DIFF_W + 1
-    LOGIN_SPEED_IMP_W = LOGIN_SPEED_DIFF_E + 1
-    LOGIN_SPEED_IMP_E = LOGIN_SPEED_IMP_W + 1
+    LOGIN_MIXED_SPEED_T = LOGIN_FDMI_NOT_ENABLED + 1
+    LOGIN_FASTER_S = LOGIN_MIXED_SPEED_T + 1
+    LOGIN_SPEED_DIFF_W = LOGIN_FASTER_S + 1  # Deprecated
+    LOGIN_SPEED_DIFF_E = LOGIN_SPEED_DIFF_W + 1  # Deprecated
+    LOGIN_SPEED_IMP_W = LOGIN_SPEED_DIFF_E + 1  # Deprecated
+    LOGIN_SPEED_IMP_E = LOGIN_SPEED_IMP_W + 1  # Deprecated
 
     # Zoning alerts
     ZONE_BASE = 600
@@ -183,8 +184,10 @@ class ALERT_NUM:
     ZONE_MULTI_INITIATOR = ZONE_ALIAS_NOT_USED + 1
     ZONE_UNDEFINED_ALIAS = ZONE_MULTI_INITIATOR + 1
     ZONE_PEER_PROPERTY = ZONE_UNDEFINED_ALIAS + 1  # A WWN beginning with 00 is in the zone. Typically a properties WWN
+    ZONE_LINK_ADDR = ZONE_PEER_PROPERTY + 1  # Port associated with link address not in same zone as CHPID
+    ZONE_LINK_NO_ADDR = ZONE_LINK_ADDR + 1
     # The remaining zone alerts are support applications that modify zones
-    ZONE_ADD_ZONE = ZONE_PEER_PROPERTY + 1  # Newly created zone
+    ZONE_ADD_ZONE = ZONE_LINK_NO_ADDR + 1  # Newly created zone
     ZONE_KEPT = ZONE_ADD_ZONE + 1  # Existing zone kept
     ZONE_REMOVED = ZONE_KEPT + 1  # Zone removed/not needed
 
@@ -301,17 +304,19 @@ class AlertTable:
         ALERT_NUM.LOGIN_DUP_LOGIN: dict(m='Duplicate WWN. Also found in fabric $p0', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.LOGIN_NOT_ZONED: dict(m='Inaccessible. Not in any zone.', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_BASE_ZONED: dict(m='Base NPIV login address in zone', s=al.ALERT_SEV.WARN),
-        ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION: dict(m='$p1 devices zoned to this login. Maximum allowed is $p0.',
+        ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION: dict(m='$p1 devices zoned to this target. Maximum allowed is $p0.',
                                                      s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SIM: dict(m='SIM port', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_AMP: dict(m='AMP', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_FDMI_NOT_ENABLED: dict(m='FDMI on attached HBA is not enabled', s=al.ALERT_SEV.GENERAL),
+        ALERT_NUM.LOGIN_MIXED_SPEED_T: dict(m='Mixed server login speeds zoned to this target.', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.LOGIN_FASTER_S: dict(m='Faster server(s) zoned to this target.', s=al.ALERT_SEV.WARN),
+        # Deprecated
         ALERT_NUM.LOGIN_SPEED_DIFF_W: dict(m='$p0 logged in at slower speed also zonned to target(s): $p1.',
                                            s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SPEED_DIFF_E: dict(m='$p0 logged in at slower speed also zonned to target(s): $p1.',
                                            s=al.ALERT_SEV.ERROR),
-        ALERT_NUM.LOGIN_SPEED_IMP_W: dict(m='Mixed speeds zoned to this target. Search for $p0 and $p1',
-                                          s=al.ALERT_SEV.WARN),
+        ALERT_NUM.LOGIN_SPEED_IMP_W: dict(m='Mixed server login speeds zoned to this target.', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SPEED_IMP_E: dict(m='Mixed speeds zoned to this target. Search for $p0 and $p1',
                                           s=al.ALERT_SEV.ERROR),
 
@@ -327,6 +332,10 @@ class AlertTable:
         ALERT_NUM.ZONE_MISMATCH: dict(m='Effective zone does not match defined zone', s=al.ALERT_SEV.WARN),
         ALERT_NUM.ZONE_PEER_PROPERTY: dict(m='Peer property WWN, $p0, should not be included in the zone definition',
                                            s=al.ALERT_SEV.GENERAL),
+        # In ZONE_LINK_ADDR below: $p0 - CPC serial (sequence) number, $p1 CHPID tag
+        ALERT_NUM.ZONE_LINK_ADDR: dict(m='Not in same zone for CPC $p0 CHPID tag $p1', s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.ZONE_LINK_NO_ADDR: dict(m='Matching link addres in path CPC $p0 CHPID tag $p1 not in fabric',
+                                          s=al.ALERT_SEV.ERROR),
 
         # Zone members. In all cases, p0 must be the WWN because that is how the report associates an alert with a
         # member rather than the zone itself. 'f' = True is used to indicate the alert is relevant to the member.

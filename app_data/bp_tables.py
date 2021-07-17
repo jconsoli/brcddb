@@ -15,17 +15,26 @@
 """
 :mod:`brcddb.app_data.bp_tables` - Best practice definitions.
 
+WARNING::
+
+    I have plans to depricate this table. It grew well beyond the original intended purpose.
+
+     Editing a library to customize a report is not good. In some controlled environments, script writters don't have
+     access to the Python lib folder making it impossible to customize reports but until I get around to modifying
+     report.py, this file needs to be edited to customize reports.
+
+     This table is read by brcddb.brcddb_bp.best_practice() and brcddb_fabric.py. The intended solution is for report.py
+     to read in a table from a user specified file during invocaiton.
+
+     To net it out, the "Description" section is incorrect. It is what was intended, not what was implemented.
+
+Programmer Note::
+
+    If you add an alert number, don't forget to update brcddb\app_data\alert_tables.py.
+
 Description::
 
-     These tables are passed to brcddb.brcddb_bp.best_practice(). End users are expected to edit these tables to suite
-     their needs. As with all useful code, this module grew well beyond the origional intent. On my to do list is to
-     read in a table with these rules dynamically with applications/report.py so that the rules can be modified without
-     having to change a Python library. That also makes it easier to maintain a seperate set of rules for different
-     environments.
-
-    The tables herein define the best practices. Since best practice violations require and alert number, the
-    brcddb\app_data\alert_tables.py module must be updated ith any new alert numbers. The intent is to eventually
-    deprecate the alert table as well.
+    The tables herein define the default best practices.
 
 Table Definitions::
 
@@ -74,16 +83,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | PEP8 clean up. No functional changes.                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 17 Jul 2021   | Added custom_tbl and modified comments.                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.app_data.alert_tables as al
@@ -289,4 +300,12 @@ chassis_tbl = (
         m=al.ALERT_NUM.PORT_SFP_HAA_F16_32_P8,
         s='FC16_32_HAA_SFP_P8',
     ),
+)
+
+custom_tbl = dict(
+    # Used in brcddb_fabric
+    peer_property=False,  # peer property WWNs in a zone. Typically True but False for sh_capture output
+    zone_mismatch=False,  # defined zone matches the effective zone. Typically True but False for sh_capture output
+    # Used in brcddb_project.py
+    dup_wwn=True,  # Duplicate WWNs in project
 )
