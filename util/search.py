@@ -36,56 +36,78 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1-4   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 17 Jul 2021   | Fixed match_test() to accept a dict instead of list. Fixed ignore_case in match().|
+    |           |               | Added common search terms.                                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '17 Apr 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import re
 import fnmatch
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
+import brcddb.brcddb_common as brcddb_common
+
+
+# Common search terms
+disabled_ports = dict(k='fibrechannel/is-enabled-state', t='bool', v=False)
+enabled_ports = dict(k='fibrechannel/is-enabled-state', t='bool', v=True)
+f_ports = dict(k='fibrechannel/port-type', t='==', v=brcddb_common.PORT_TYPE_F)
+e_ports = dict(k='fibrechannel/port-type', t='==', v=brcddb_common.PORT_TYPE_E)
+target = dict(k='brocade-name-server/fc4-features', v='FCP-Target', t='exact', i=False)
+initiator = dict(k='brocade-name-server/fc4-features', v='FCP-Initiator', t='exact', i=False)
+port_online = dict(k='fibrechannel/operational-status', t='==', v=2)
+port_offline = dict(k='fibrechannel/operational-status', t='==', v=3)
+# Reminder: The login speed is only valid if the port is online. Use the port_online filter in conjunction with these:
+login_1G = dict(k='fibrechannel/speed', t='==', v=1000000000)  # 1G
+login_2G = dict(k='fibrechannel/speed', t='==', v=2000000000)  # 2G
+login_4G = dict(k='fibrechannel/speed', t='==', v=4000000000)  # 4G
+login_8G = dict(k='fibrechannel/speed', t='==', v=8000000000)  # 8G
+login_16G = dict(k='fibrechannel/speed', t='==', v=16000000000)  # 16G
+login_32G = dict(k='fibrechannel/speed', t='==', v=32000000000)  # 32G
+login_64G = dict(k='fibrechannel/speed', t='==', v=64000000000)  # 64G
 
 
 # The case statements for numerical_test_case used in test_threshold()
-def test_greater(v1, v2):
+def _test_greater(v1, v2):
     return True if v1 > v2 else False
 
 
-def test_less(v1, v2):
+def _test_less(v1, v2):
     return True if v1 < v2 else False
 
 
-def test_equal(v1, v2):
+def _test_equal(v1, v2):
     return True if v1 == v2 else False
 
 
-def test_greater_equal(v1, v2):
+def _test_greater_equal(v1, v2):
     return True if v1 >= v2 else False
 
 
-def test_lss_equal(v1, v2):
+def _test_lss_equal(v1, v2):
     return True if v1 <= v2 else False
 
 
-def test_not_equal(v1, v2):
+def _test_not_equal(v1, v2):
     return True if v1 != v2 else False
 
 
 numerical_test_case = {
-    '>': test_greater,
-    '<': test_less,
-    '=': test_equal,
-    '==': test_equal,
-    '>=': test_greater_equal,
-    '<=': test_lss_equal,
-    '!=': test_not_equal,
+    '>': _test_greater,
+    '<': _test_less,
+    '=': _test_equal,
+    '==': _test_equal,
+    '>=': _test_greater_equal,
+    '<=': _test_lss_equal,
+    '!=': _test_not_equal,
 }
 
 
@@ -131,7 +153,7 @@ def test_threshold(obj_list, key, test, val):
 
     return return_list
 
-def match(search_objects, search_key, search_term, ignore_case=False, stype='exact'):
+def match(search_objects, search_key, in_search_term, ignore_case=False, stype='exact'):
     """Performs a regex match/search or wild card search in dict or brcddb class object(s). If search_key is a list of
         more than one, OR logic applies. Performs an iteritive search on any list, tuple, dict, or brcddb object found
         after the last search key. If a list is encountered, an iteritive search is performed on the list. If the search
@@ -143,8 +165,8 @@ def match(search_objects, search_key, search_term, ignore_case=False, stype='exa
     :type search_objects: str, tuple, list, dict or any brcddb object
     :param search_key: Required. The key, or list of keys, in the objects in search_objects to match against. OR logic
     :type search_key: str, list, tuple
-    :param search_term: Required. This is what to look for.
-    :type search_term: str, list, tuple, bool
+    :param in_search_term: Required. This is what to look for.
+    :type in_search_term: str, list, tuple, bool
     :param ignore_case: Default is False. If True, ignores case in search_term. Not that keys are always case sensitive
     :type ignore_case: bool
     :param stype: Valid options are: 'exact', 'wild', 'regex-m', or 'regex-s' ('-m' for match and -s for search)
@@ -190,6 +212,7 @@ def match(search_objects, search_key, search_term, ignore_case=False, stype='exa
     # a seperate method for a more specific purpose and leave this as a general purpose search and match method.
 
     return_list = list()
+    search_term = in_search_term.lower() if ignore_case else in_search_term
 
     # Validate user input
     if not isinstance(search_term, (str, list, tuple, bool)):
@@ -218,28 +241,23 @@ def match(search_objects, search_key, search_term, ignore_case=False, stype='exa
                 elif isinstance(sub_obj, (str, list, tuple)):
                     for buf in brcddb_util.convert_to_list(sub_obj):  # Any match within that list is a match
                         if isinstance(buf, str):
+                            test_buf = buf.lower() if ignore_case else buf
                             if stype == 'regex-m':
-                                if regex_obj.match(buf):
+                                if regex_obj.match(test_buf):
                                     return_list.append(obj)
                                     break
                             elif stype == 'regex-s':
-                                if regex_obj.search(buf):
+                                if regex_obj.search(test_buf):
                                     return_list.append(obj)
                                     break
                             elif stype == 'exact':
-                                if search_term == buf:
+                                if search_term == test_buf:
                                     return_list.append(obj)
                                     break
                             elif stype == 'wild':
-                                if ignore_case:
-                                    # I want this to be operating system independent, so convert all to lower case
-                                    if fnmatch.fnmatch(buf.lower(), search_term.lower()):
-                                        return_list.append(obj)
-                                        break
-                                else:
-                                    if fnmatch.fnmatchcase(buf, search_term):
-                                        return_list.append(obj)
-                                        break
+                                if fnmatch.fnmatch(test_buf, search_term):
+                                    return_list.append(obj)
+                                    break
                             elif stype == 'bool':
                                 if isinstance(buf, bool) and isinstance(search_term, bool):
                                     if bool({search_term: buf}):
@@ -315,7 +333,7 @@ def match_test(obj_list, test_obj, logic=None):
     #           'nand'  Opposite of 'and'.
     #           'nor'   Opposfite of 'or'
 
-    w_list = list(obj_list)  # w_list is the working list. To start, the working list is the obj_list. This is returned
+    w_list = list() if obj_list is None else [obj_list] if not isinstance(obj_list, (list, tuple)) else obj_list
     lg = 'and' if logic is None else logic
     t_list = brcddb_util.convert_to_list(test_obj)  # This is the list of objects to test against
     o_list = list()  # This is the NAND and OR list when 'nand' or 'or' logic is specified

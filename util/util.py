@@ -28,15 +28,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 18 May 2021   | Removed reliance on brcddb.util.search which was causing a circular import issue. |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 17 Jul 2021   | Added: int_list_to_range(), remove_none()                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '18 May 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import re
 import brcdapi.log as brcdapi_log
@@ -164,10 +166,10 @@ def sort_obj_num (obj_list, key, r=False, h=False):
 
 
 def convert_to_list(obj):
-    """Intended for API calls that return a container (dict) for single entry lists of containers. Depending on the type
-    of the passed object, returns:
+    """Depending on the type of the passed object, returns:
+
     obj         Return
-    None        List with no members
+    None        Empty list
     list        The same passed object, obj, is returned - NOT A COPY
     tuple       Tuple copied to a list
     All else    List with the passed obj as the only member
@@ -261,6 +263,17 @@ def remove_duplicates(obj_list):
     return [obj for obj in obj_list if not (obj in seen or seen_add(obj))]
 
 
+def remove_none(obj_list):
+    """Removes None items from a list
+
+    :param obj_list: List of items.
+    :type obj_list: list, tuple
+    :return return_list: Input list less items that were None
+    :rtype: list
+    """
+    return [obj for obj in obj_list if obj is not None]
+
+
 def is_wwn(wwn, full_check=True):
     """Validates that the wwn is a properly formed WWN
 
@@ -297,9 +310,9 @@ def is_valid_zone_name(zone_obj):
         return False
     if len(zone_obj) < 2 or len(zone_obj) > _MAX_ZONE_NAME_LEN:  # At least 1 character and less than or = 64
         return False
-    if not re.match("^[A-Za-z0-9]*$", zone_obj[0:1]):
+    if not re.match("^[A-Za-z0-9]*$", zone_obj[0:1]):  # Must begin with letter or number
         return False
-    if not re.match("^[A-Za-z0-9_-]*$", zone_obj[1:]):
+    if not re.match("^[A-Za-z0-9_-]*$", zone_obj[1:]):  # Remaining characters must be letters, numbers, '_', or '-'
         return False
     return True
 
@@ -825,7 +838,7 @@ def dBm_to_absolute(val, r=1):
 
     :param val: dBm value
     :type val: str, float
-    :param r: Number of digits to the left of the decimal point to round off to
+    :param r: Number of digits to the right of the decimal point to round off to
     :type r: int
     :return: val converted to it's absolute value. None if val cannot be converted to a float.
     :rtype: float, None
@@ -835,3 +848,30 @@ def dBm_to_absolute(val, r=1):
     except:
         pass
     return None
+
+
+def int_list_to_range(num_list):
+    """Converts a list of integers to ranges as text. For example: 0, 1, 2, 5, 6, 9 is returned as:
+
+    0:  '0-2'
+    1:  '5-6'
+    2:  '9'
+
+    :param num_list: List of numeric values, int or float
+    :type num_list: list
+    :return: List of str as described above
+    :rtype: list
+    """
+    rl = list()
+    range_l = list()
+    for i in num_list:
+        ri = len(range_l)
+        if ri > 0 and i != range_l[ri-1] + 1:
+            rl.append(str(range_l[0]) if ri == 1 else str(range_l[0]) + '-' + str(range_l[ri-1]))
+            range_l = list()
+        range_l.append(i)
+    ri = len(range_l)
+    if ri > 0:
+        rl.append(str(range_l[0]) if ri == 1 else str(range_l[0]) + '-' + str(range_l[ri-1]))
+
+    return rl

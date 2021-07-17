@@ -47,16 +47,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 17 Jul 2021   |  Added full_cpc_sn(). Added device 9074. Added tag_to_text()                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import collections
 import brcddb.brcddb_common as brcddb_common
@@ -70,70 +71,73 @@ import brcddb.util.file as brcddb_file
 # to convert RNID log in data. Comments indicate the generic types.
 _ibm_type = {
     # CECs
-    '9672': {'d': 'G5 & G6', 't': 'CPU'},
-    '2066': {'d': 'z800', 't': 'CPU'},
-    '2064': {'d': 'z900', 't': 'CPU'},
-    '2084': {'d': 'z990', 't': 'CPU'},
-    '2086': {'d': 'z890', 't': 'CPU'},
-    '2094': {'d': 'z9 EC (z9-109)', 't': 'CPU'},
-    '2096': {'d': 'z9 BC', 't': 'CPU'},
-    '2097': {'d': 'z10 EC', 't': 'CPU'},
-    '2098': {'d': 'z10 BC', 't': 'CPU'},
-    '2817': {'d': 'z196', 't': 'CPU'},
-    '2818': {'d': 'z114', 't': 'CPU'},
-    '2827': {'d': 'EC12', 't': 'CPU'},
-    '2828': {'d': 'BC12', 't': 'CPU'},
-    '2964': {'d': 'z13', 't': 'CPU'},
-    '2965': {'d': 'z13s', 't': 'CPU'},
-    '3906': {'d': 'z14', 't': 'CPU'},
-    '3907': {'d': 'z14s', 't': 'CPU'},	# I guess. z14s not announced at the time I wrote this.
-    '8561': {'d': 'z15 T01', 't': 'CPU'},
-    '8562': {'d': 'z15 T02', 't': 'CPU'},
+    '9672': dict(d='G5 & G6', t='CPU'),
+    '2066': dict(d='z800', t='CPU'),
+    '2064': dict(d='z900', t='CPU'),
+    '2084': dict(d='z990', t='CPU'),
+    '2086': dict(d='z890', t='CPU'),
+    '2094': dict(d='z9 EC (z9-109)', t='CPU'),
+    '2096': dict(d='z9 BC', t='CPU'),
+    '2097': dict(d='z10 EC', t='CPU'),
+    '2098': dict(d='z10 BC', t='CPU'),
+    '2817': dict(d='z196', t='CPU'),
+    '2818': dict(d='z114', t='CPU'),
+    '2827': dict(d='EC12', t='CPU'),
+    '2828': dict(d='BC12', t='CPU'),
+    '2964': dict(d='z13', t='CPU'),
+    '2965': dict(d='z13s', t='CPU'),
+    '3906': dict(d='z14', t='CPU'),
+    '3907': dict(d='z14s', t='CPU'),	# I guess. z14s not announced at the time I wrote this.
+    '8561': dict(d='z15 T01', t='CPU'),
+    '8562': dict(d='z15 T02', t='CPU'),
 
     # CTC
-    'FCTC': {'d': 'CTC', 't': 'CTC'},
+    'FCTC': dict(d='CTC', t='CTC'),
 
     # DASD - RNID log in is generic
-    '1750': {'d': 'DS6800', 't': 'DASD'},
-    '3990': {'d': '3990', 't': 'DASD'},
-    '2105': {'d': 'Model 800 DASD', 't': 'DASD'},  # Generic
-    '2107': {'d': 'DS88xx DASD', 't': 'DASD'},  # Generic DS8000 but RNID data for all 8xxxx DASD is 2107
-    '2396': {'d': 'DS8870', 't': 'DASD'},
-    '2397': {'d': 'DS8870', 't': 'DASD'},
-    '2398': {'d': 'S8870', 't': 'DASD'},
-    '2399': {'d': 'DS8870', 't': 'DASD'},
-    '2421': {'d': 'DS8870', 't': 'DASD'},
-    '2422': {'d': 'DS8870', 't': 'DASD'},
-    '2423': {'d': 'DS8870', 't': 'DASD'},
-    '2424': {'d': 'DS8870', 't': 'DASD'},
-    '5332': {'d': 'DS8900F', 't': 'DASD'},
+    '1750': dict(d='DS6800', t='DASD'),
+    '3990': dict(d='3990', t='DASD'),
+    '2105': dict(d='Model 800 DASD', t='DASD'),  # Generic
+    '2107': dict(d='DS88xx DASD', t='DASD'),  # Generic DS8000 but RNID data for all 8xxxx DASD is 2107
+    '2396': dict(d='DS8870', t='DASD'),
+    '2397': dict(d='DS8870', t='DASD'),
+    '2398': dict(d='S8870', t='DASD'),
+    '2399': dict(d='DS8870', t='DASD'),
+    '2421': dict(d='DS8870', t='DASD'),
+    '2422': dict(d='DS8870', t='DASD'),
+    '2423': dict(d='DS8870', t='DASD'),
+    '2424': dict(d='DS8870', t='DASD'),
+    '5332': dict(d='DS8900F', t='DASD'),
 
     # Tape - I think the RNID login is as represented in this table
-    '3480': {'d': '3480', 't': 'Tape'},
-    '4': {'d': 'BTI Tape', 't': 'Tape'},
-    '3490': {'d': '3480 Tape', 't': 'Tape'},
-    '3494': {'d': '3480 Tape', 't': 'Tape'},
-    '3590': {'d': '3590 Tape', 't': 'Tape'},
-    '3592': {'d': '3592 Tape', 't': 'Tape'},
-    '3957': {'d': 'TS77xx', 't': 'Tape'},
+    '3480': dict(d='3480', t='Tape'),
+    '4': dict(d='BTI Tape', t='Tape'),
+    '3490': dict(d='3480 Tape', t='Tape'),
+    '3494': dict(d='3480 Tape', t='Tape'),
+    '3590': dict(d='3590 Tape', t='Tape'),
+    '3592': dict(d='3592 Tape', t='Tape'),
+    '3957': dict(d='TS77xx', t='Tape'),
 
     # Switches - RNID login is the generic 2499
-    '2005': {'d': 'Brocade Gen2', 't': 'Switch'},
-    '2031': {'d': '6064', 't': 'Switch'},
-    '2032': {'d': 'McData', 't': 'Switch'},  # This is all switch types in the IOCP. 6140 or i10K. Also old generic type
-    '2053': {'d': 'Cisco', 't': 'Switch'},
-    '2054': {'d': 'Cisco', 't': 'Switch'},
-    '2061': {'d': 'Cisco', 't': 'Switch'},
-    '2062': {'d': 'Cisco', 't': 'Switch'},
-    '2109': {'d': 'Brocade Gen3', 't': 'Switch'},  # 2400, 2800, 48000
-    '2498': {'d': 'Brocade Gen5 Switch', 't': 'Switch'},  # Fixed port (7800, 300, 5100, 5300, 6506, 6510, 6520 & Encyp Switch)
-    '2499': {'d': 'Brocade Gen5 Director', 't': 'Switch'},  # Generic. Bladed (8510-8, 8510-4)
-    '8960': {'d': 'Brocade Gen6 Switch', 't': 'Switch'},  # Fixed port (G630, G620, G610)
-    '8961': {'d': 'Brocade Gen6 Director', 't': 'Switch'},  # Bladed (X6-8, X6-4)
+    '2005': dict(d='Brocade Gen2', t='Switch'),
+    '2031': dict(d='6064', t='Switch'),
+    '2032': dict(d='McData', t='Switch'),  # This is all switch types in the IOCP. 6140 or i10K. Also old generic type
+    '2053': dict(d='Cisco', t='Switch'),
+    '2054': dict(d='Cisco', t='Switch'),
+    '2061': dict(d='Cisco', t='Switch'),
+    '2062': dict(d='Cisco', t='Switch'),
+    '2109': dict(d='Brocade Gen3', t='Switch'),  # 2400, 2800, 48000
+    '2498': dict(d='Brocade Gen5 Switch', t='Switch'),  # Fixed port (7800, 300, 5100, 5300, 6506, 6510, 6520 & Encyp Switch)
+    '2499': dict(d='Brocade Gen5 Director', t='Switch'),  # Generic. Bladed (8510-8, 8510-4)
+    '8960': dict(d='Brocade Gen6 Switch', t='Switch'),  # Fixed port (G630, G620, G610)
+    '8961': dict(d='Brocade Gen6 Director', t='Switch'),  # Bladed (X6-8, X6-4)
+
+    # Other
+    '9074': dict(d='Secure Controller', t='IDG'),
 
     # Test
-    'XTV': {'d': 'XTV', 't': 'Test'},  # Generic Switch. DCX, DCX-4S, 8510-8, 8510-4
-    '3868': {'d': '3868', 't': 'Test'},  # Generic Switch. DCX, DCX-4S, 8510-8, 8510-4
+    'XTV': dict(d='XTV', t='Test'),  # Generic Switch. DCX, DCX-4S, 8510-8, 8510-4
+    '3868': dict(d='3868', t='Test'),  # Generic Switch. DCX, DCX-4S, 8510-8, 8510-4
 }
 _rnid_flag = {
     0x00: 'Storage - Current',
@@ -143,6 +147,31 @@ _rnid_flag = {
     0x40: 'Storage - Invalid',
     0x50: 'Channel - Invalid',
 }
+_sn_pad = (
+    '000000000000',  # len(sn) is 0
+    '00000000000',  # len(sn) is 1
+    '0000000000',  # len(sn) is 2
+    '000000000',  # len(sn) is 3
+    '00000000',  # len(sn) is 4
+    '0000000',  # len(sn) is 5
+    '000000',  # len(sn) is 6
+    '00000',  # len(sn) is 7
+    '0000',  # len(sn) is 8
+    '000',  # len(sn) is 9
+    '00',  # len(sn) is 10
+    '0'  # len(sn) is 11
+)
+
+
+def full_cpc_sn(sn):
+    """Prepends a CPC SN with 0 such that it is padded to a full 12 character serial number to match RNID sequence.
+
+    :param sn: Serial number
+    :type sn: str
+    :return: Padded serial number
+    :rtype: str
+    """
+    return sn if len(sn) >= len(_sn_pad) else _sn_pad[len(sn)] + sn
 
 
 def dev_type_to_name(dev_type):
@@ -197,13 +226,14 @@ def _condition_iocp(iocp):
             working_buf += buf[0: 71]
             if len(buf) > 71 and buf[71] != ' ':
                 continue
+            working_buf = working_buf.strip().replace(' ', '')
             line_continue = False
             if chpid_flag:
                 if 'TYPE=FC' in working_buf and 'SWITCH=' in working_buf:
-                    chpids.append(brcddb_util.remove_duplicate_space(working_buf.strip()))
+                    chpids.append(working_buf)
                 chpid_flag = False
             elif cntlunit_flag:
-                cntlunits.append(brcddb_util.remove_duplicate_space(working_buf.strip()))
+                cntlunits.append(working_buf)
                 cntlunit_flag = False
             else:
                 brcdapi_log.exception('Programming error', True)
@@ -217,7 +247,7 @@ def _condition_iocp(iocp):
                 line_continue = True
                 chpid_flag = True
             elif 'TYPE=FC' in working_buf and 'SWITCH=' in working_buf:
-                chpids.append(brcddb_util.remove_duplicate_space(working_buf.strip()))
+                chpids.append(working_buf.strip().replace(' ', ''))
             continue
 
         x = buf.find('CNTLUNIT CUNUMBR=')
@@ -227,7 +257,7 @@ def _condition_iocp(iocp):
                 line_continue = True
                 cntlunit_flag = True
             else:
-                cntlunits.append(brcddb_util.remove_duplicate_space(working_buf.strip()))
+                cntlunits.append(working_buf.strip().replace(' ', ''))
             continue
 
     return chpids, cntlunits
@@ -305,8 +335,19 @@ def tag_to_css_list(tag):
     return css_list
 
 
+def tag_to_text(tag):
+    """Converts a CHPID tag to human readable format (as displayed in the IOCP)
+
+    :param tag: CHPID RNID tag
+    :type tag: str
+    :return: Text representing the CSS & CHPID. Example: CSS(0),50
+    :rtype: str
+    """
+    return 'CSS(' + ','.join([str(i) for i in tag_to_css_list(tag)]) + '),' + tag[2:]
+
+
 def rnid_flag_to_text(rnid_flag, flag=False):
-    """Converts a tag to a list of CSS bits
+    """Converts the RNID flag to human readable text
 
     :param rnid_flag: RNID data flag (from: brocade-ficon/rnid/flags)
     :type rnid_flag: str, int
