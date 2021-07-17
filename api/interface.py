@@ -48,16 +48,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 17 Jul 2021   | Documentation changes only                                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.pyfos_auth as pyfos_auth
@@ -126,7 +128,7 @@ def get_chassis(session, proj_obj):
     :param session: Session object returned from brcdapi.pyfos_auth.login()
     :type session: dict
     :param proj_obj: The project object
-    :type: brcddb.classes.project.ProjectObj
+    :type proj_obj: brcddb.classes.project.ProjectObj
     :return: Chassis object
     :rtype: brcddb.classes.ChassisObj
     """
@@ -173,15 +175,15 @@ def login(user_id, pw, ip_addr, https='none', proj_obj=None):
     """Log in and capture a list of supported modules.
 
     :param user_id: User ID
+    :type user_id: str
     :param pw: Password
+    :type pw: str
     :param ip_addr: IP address
+    :type ip_addr: str
     :param https: If 'CA' or 'self', uses https to login. Otherwise, http.
+    :type https: None, str
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj, None
-    :type user_id: str
-    :type pw: str
-    :type ip_addr: str
-    :type https: str
     :return: session
     :rtype: dict
     """
