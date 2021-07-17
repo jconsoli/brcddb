@@ -28,16 +28,17 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 17 Jul 2021   | Added 'Comment' column. Used libraries in brcddb_port.                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import openpyxl.utils.cell as xl
 import brcddb.brcddb_switch as brcddb_switch
@@ -45,16 +46,16 @@ import brcddb.report.fonts as report_fonts
 import brcddb.report.utils as report_utils
 import brcddb.util.search as brcddb_search
 import brcddb.util.iocp as brcddb_iocp
+import brcddb.brcddb_port as brcddb_port
 
-_cu_lookup = None
+_cu_lookup = dict()
+
 
 ##################################################################
 #
 #              Case methods for _iocp_case
 #
 ##################################################################
-
-
 def _null_case(id, port_obj, chpid, link_addr=None):
     """Returns ''
     
@@ -221,7 +222,7 @@ _chpid_hdr = {
     # Key   Column header
     # 'c'   Column width
     # 'm'   Method to call to fill in the cell data
-    # 'Comments': dict(c=30, m=_comment_case),
+    'Comments': dict(c=30, m=_comment_case),
     'PCHID': dict(c=7, m=_pchid_case),
     'CSS': dict(c=10, m=_css_case),
     'CHPID': dict(c=7, m=_chpid_case),
@@ -245,7 +246,7 @@ _chpid_hdr = {
 }
 _cu_hdr = {
     # Key is the column header. Value is the method to call to fill in the cell data. Keys must match _chpid_hdr keys
-    # 'Comments': _comment_case,
+    'Comments': _comment_case,
     'Link Addr': _link_addr_case,
     'Unit Type': _unit_type_case,
     'CU Number': _cu_number,
@@ -262,51 +263,6 @@ _cu_hdr = {
     'Tag': _tag_case,
     # 'Zone': _zone_case,
 }
-
-
-def port_obj_for_chipid(port_objects, seq, tag):
-    """Returns the port object matching the rnid/sequence-numbber and rnid/tag. Used for finding CHPIDs
-
-    :param port_objects: List of port objects to search. Typically proj_obj.r_port_objects()
-    :type port_objects: list, tuple
-    :param seq: Serial number (sequence number) for CEC
-    :type seq: str
-    :param tag: CHPID tag
-    :type tag: str
-    :rturn: Port object where this CHPID is connected. None if not found
-    :rtype: brcddb.classes.port.PortObj, None
-    """
-    # The tag from the IOCP will never have '0x' prefix so below is just in case I ever use this for something else.
-    test_tag = tag if '0x' in tag else '0x' + tag
-    port_list = brcddb_search.match_test(
-        port_objects,
-        {
-            'l': (
-                dict(k='rnid/sequence-number', t='exact', v=seq, i=True),
-                dict(k='rnid/tag', t='exact', v=test_tag, i=True),
-                dict(k='rnid/flags', t='exact', v='0x10'),  # Indicates the RNID data is valid for a channel
-            ),
-            'logic': 'and'  # 'and' is the default logic so this is just for clarity for the reader
-        }
-    )
-    return port_list[0] if len(port_list) > 0 else None
-
-
-def port_obj_for_link_addr(port_objects, link_addr):
-    """Returns the port object for a port in a given fabric matching a link address. Used for finding control units
-
-    :param port_objects: List of port objects to search. Typically fab_obj.r_port_objects()
-    :type port_objects: list, tuple
-    :param link_addr: Channel path link address
-    :type link_addr: str
-    :rturn: Port object matching the link address. None if not found
-    :rtype: brcddb.classes.port.PortObj, None
-    """
-    port_list = brcddb_search.match_test(
-        port_objects,
-        dict(k='fibrechannel/fcid-hex', t='exact', v='0x' + link_addr + '00')
-    )
-    return port_list[0] if len(port_list) > 0 else None
 
 
 def iocp_page(iocp_obj, tc, wb, sheet_name, sheet_i, sheet_title):
@@ -370,14 +326,11 @@ def iocp_page(iocp_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         col += 1
 
     # Fill out all the CHPID information
-    cec_sn = iocp_obj.r_obj_key()
-    for i in range(len(cec_sn), 12):
-        cec_sn = '0' + cec_sn  # The sequence number is always returned as a 12 charater str with leading '0'
+    cec_sn = brcddb_iocp.full_cpc_sn(iocp_obj.r_obj_key())
     d = iocp_obj.r_path_objects()
     if isinstance(d, dict):
 
         # Build a table to look up the control unit by a hash of CHPID tag + '_' + link address
-        _cu_lookup = dict()
         cu_list = iocp_obj.r_cu_objects()
         for tag, chpid in d.items():
             for k, v in cu_list.items():  # K is the CU Number
@@ -388,10 +341,11 @@ def iocp_page(iocp_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
         # Add the CHPID and Control Units to the report
         for tag, chpid in d.items():
+
             # Display the CHPID information
             pchid = chpid.get('pchid')
             row += 1
-            chpid_port_obj = port_obj_for_chipid(proj_obj.r_port_objects(), cec_sn, tag)
+            chpid_port_obj = brcddb_port.port_obj_for_chpid(proj_obj, cec_sn, tag)
             fabric_obj = None if chpid_port_obj is None else chpid_port_obj.r_fabric_obj()
             for k in _chpid_hdr.keys():
                 cell = xl.get_column_letter(key_to_col[k]) + str(row)
@@ -406,8 +360,8 @@ def iocp_page(iocp_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             # Display the link addresses
             row += 1
             for link_addr in chpid.get('link'):
-                port_obj = None if chpid_port_obj is None else \
-                    port_obj_for_link_addr(fabric_obj.r_port_objects(), link_addr)
+                port_obj = None if fabric_obj is None else \
+                    brcddb_port.port_obj_for_addr(fabric_obj, '0x' + link_addr + '00')
                 for k in _cu_hdr.keys():
                     cell = xl.get_column_letter(key_to_col[k]) + str(row)
                     if k == 'Comments' and port_obj is not None:

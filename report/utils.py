@@ -206,7 +206,7 @@ def combined_login_alert_objects(login_obj):
 
 def combined_login_alerts(login_obj, wwn):
     """Converts alerts associated with a login object and the login and FDMI objects for lwwn to a human readable string
-combined_login_alerts
+
     :param login_obj: Port object
     :type login_obj: brcddb.classes.port.PortObj
     :param wwn: Login wwn

@@ -31,16 +31,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 17 Jul 2021   | Get switch type from brcddb_chassis instead of brcddb_switch                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -48,6 +49,7 @@ import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
+import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.report.utils as report_utils
 import brcddb.report.fonts as report_fonts
 import brcddb.app_data.alert_tables as al
@@ -107,12 +109,8 @@ def s_switch_area_mode_case(switch_obj, k):
 
 
 def s_switch_model_case(switch_obj, k):
-    oem = brcddb_switch.SWITCH_BRAND.Brocade  # Custom OEM index not yet available as of 8.2.1b
-    x = switch_obj.c_switch_model()
-    if oem == brcddb_switch.SWITCH_BRAND.Brocade:
-        return str(x) + ' (' + brcddb_switch.model_broadcom(x) + ')'
-    else:
-        return str(x) + ' (' + brcddb_switch.model_oem(x, oem)  + ', ' + brcddb_switch.model_broadcom(x) + ')'
+    # Custom OEM index not yet available as of 9.0.1b
+    return brcddb_chassis.chassis_type(switch_obj.r_chassis_obj(), type_num=True, in_oem='brcd')
 
 
 def s_switch_up_time_case(switch_obj, k):

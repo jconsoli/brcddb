@@ -37,16 +37,17 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 13 Mar 2021   | Added login speed to the zone report.                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 17 Jul 2021   | Added target_zone_page()                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Mar 2021'
+__date__ = '17 Jul 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -54,20 +55,37 @@ import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.fonts as report_fonts
 import brcddb.brcddb_login as brcddb_login
 import brcddb.report.utils as report_utils
+import brcddb.app_data.alert_tables as al
+
+_std_font = report_fonts.font_type('std')
+_bold_font = report_fonts.font_type('bold')
+_align_wrap = report_fonts.align_type('wrap')
+_border_thin = report_fonts.border_type('thin')
+
+##################################################################
+#
+#              Generic case methods
+#
+##################################################################
+
+
+def _comment_case(obj, p0=None, p1=None, p2=None):
+    return '\n'.join([a.fmt_msg() for a in obj.r_alert_objects() if not a.is_flag()])
+
+
+def _name_case(obj, p0=None, p1=None, p2=None):
+    return obj.r_obj_key()
+
+
+def _null_case(obj, p0=None, p1=None, p2=None):
+    return ''
+
 
 ##################################################################
 #
 #              Case methods for hdr in zone_page()
 #
 ##################################################################
-
-
-def _zone_comment_case(obj):
-    return '\n'.join([a.fmt_msg() for a in obj.r_alert_objects() if not a.is_flag()])
-
-
-def _zone_zone_case(obj):
-    return obj.r_obj_key()
 
 
 def _zone_effective_case(obj):
@@ -90,10 +108,6 @@ def _zone_member_case(obj):
     return len(obj.r_members()) + len(obj.r_pmembers())
 
 
-def _zone_null_case(obj):
-    return ''
-
-
 def _zone_member_wwn_case(obj):
     members = list(obj.r_members())
     members.extend(list(obj.r_pmembers()))
@@ -102,10 +116,6 @@ def _zone_member_wwn_case(obj):
     for mem in members:
         i += 1 if fab_obj.r_alias_obj(mem) is None else len(fab_obj.r_alias_obj(mem).r_members())
     return i
-
-
-def _mem_null_case(obj, mem, wwn, port_obj):
-    return ''
 
 
 def _mem_member_case(obj, mem, wwn, port_obj):
@@ -159,19 +169,19 @@ _zone_hdr = {
     #   'z' Case method to fill in the cell for basic zone information
     #   'm' Case method to fill the cell for member information
     #   'v' True - display centered in column. Headers vertical, Otherwise, use default wrap alignment
-    'Comments': {'c': 30, 'z': _zone_comment_case, 'm': _mem_comment_case},
-    'Zone': {'c': 22, 'z': _zone_zone_case, 'm': _mem_null_case},
-    'Effectve': {'c': 5, 'v': True, 'z': _zone_effective_case, 'm': _mem_null_case},
-    'Peer': {'c': 5, 'v': True, 'z': _zone_peer_case, 'm': _mem_null_case},
-    'Target Driven': {'c': 5, 'v': True, 'z': _zone_target_case, 'm': _mem_null_case},
-    'Principal': {'c': 5, 'v': True, 'z': _zone_null_case, 'm': _mem_principal_case},
-    'Configurations': {'c': 22, 'z': _zone_cfg_case, 'm': _mem_null_case},
-    'Member': {'c': 22, 'z': _zone_member_case, 'm': _mem_member_case},
-    'Member WWN': {'c':  22, 'z': _zone_member_wwn_case, 'm': _mem_member_wwn_case},
-    'Switch': {'c': 22, 'z': _zone_null_case, 'm': _mem_switch_case},
-    'Port': {'c': 7, 'z': _zone_null_case, 'm': _mem_port_case},
-    'Speed Gbps': {'c': 7, 'z': _zone_null_case, 'm': _mem_speed_case},
-    'Description': {'c': 50, 'z': _zone_null_case, 'm': _mem_desc_case},
+    'Comments': dict(c=30, z=_comment_case, m=_mem_comment_case),
+    'Zone': dict(c=22, z=_name_case, m=_null_case),
+    'Effectve': dict(c=5, v=True, z=_zone_effective_case, m=_null_case),
+    'Peer': dict(c=5, v=True, z=_zone_peer_case, m=_null_case),
+    'Target Driven': dict(c=5, v=True, z=_zone_target_case, m=_null_case),
+    'Principal': dict(c=5, v=True, z=_null_case, m=_mem_principal_case),
+    'Configurations': dict(c=22, z=_zone_cfg_case, m=_null_case),
+    'Member': dict(c=22, z=_zone_member_case, m=_mem_member_case),
+    'Member WWN': dict(c= 22, z=_zone_member_wwn_case, m=_mem_member_wwn_case),
+    'Switch': dict(c=22, z=_null_case, m=_mem_switch_case),
+    'Port': dict(c=7, z=_null_case, m=_mem_port_case),
+    'Speed Gbps': dict(c=7, z=_null_case, m=_mem_speed_case),
+    'Description': dict(c=50, z=_null_case, m=_mem_desc_case),
 }
 
 
@@ -213,16 +223,13 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     col = 1
     sheet.freeze_panes = sheet['A4']
     font = report_fonts.font_type('hdr_2')
-    border = report_fonts.border_type('thin')
     for k in _zone_hdr:
         sheet.column_dimensions[xl.get_column_letter(col)].width = _zone_hdr[k]['c']
         cell = xl.get_column_letter(col) + str(row)
         sheet[cell].font = font
-        sheet[cell].border = border
-        if 'v' in _zone_hdr[k] and _zone_hdr[k]['v']:
-            sheet[cell].alignment = report_fonts.align_type('wrap_vert_center')
-        else:
-            sheet[cell].alignment = report_fonts.align_type('wrap')
+        sheet[cell].border = _border_thin
+        sheet[cell].alignment = report_fonts.align_type('wrap_vert_center') \
+            if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
         sheet[cell] = k
         col += 1
 
@@ -237,12 +244,10 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             if k == 'Comments':
                 sheet[cell].font = report_utils.font_type(zone_obj.r_alert_objects())
             else:
-                sheet[cell].font = report_fonts.font_type('bold')
-            sheet[cell].border = border
-            if 'v' in _zone_hdr[k] and _zone_hdr[k]['v']:
-                sheet[cell].alignment = report_fonts.align_type('wrap_center')
-            else:
-                sheet[cell].alignment = report_fonts.align_type('wrap')
+                sheet[cell].font = _bold_font
+            sheet[cell].border = _border_thin
+            sheet[cell].alignment = report_fonts.align_type('wrap_vert_center') \
+                if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
             sheet[cell].fill = fill
             sheet[cell] = _zone_hdr[k]['z'](zone_obj)
             col += 1
@@ -279,24 +284,14 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                         alerts = [a for a in zone_obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
                         sheet[cell].font = report_utils.font_type(alerts)
                     else:
-                        sheet[cell].font = report_fonts.font_type('std')
-                    sheet[cell].border = border
-                    if 'v' in _zone_hdr[k] and _zone_hdr[k]['v']:
-                        sheet[cell].alignment = report_fonts.align_type('wrap_center')
-                    else:
-                        sheet[cell].alignment = report_fonts.align_type('wrap')
+                        sheet[cell].font = _std_font
+                    sheet[cell].border = _border_thin
+                    sheet[cell].alignment = report_fonts.align_type('wrap_vert_center') \
+                        if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
                     sheet[cell] = _zone_hdr[k]['m'](zone_obj, mem, wwn, port_obj)
                     col += 1
                 col = 1
                 row += 1
-
-
-def alias_comment_case(obj, mem):
-    return '\n'.join([a.fmt_msg() for a in obj.r_alert_objects() if not a.is_flag()])
-
-
-def _alais_name_case(obj, mem):
-    return obj.r_obj_key()
 
 
 def _alias_node_desc_case(obj, mem):
@@ -308,10 +303,6 @@ def _alias_node_desc_case(obj, mem):
 
 def _alias_mem_member_case(obj, mem):
     return mem
-
-
-def alias_mem_null_case(obj, mem):
-    return ''
 
 
 def _alias_mem_switch_case(obj, mem):
@@ -343,22 +334,18 @@ def _alias_member_case(obj, mem):
     return obj.r_members()[0] if len(obj.r_members()) > 0 else ''
 
 
-def _alias_null_case(obj, mem):
-    return ''
-
-
 # Key is the column header. Value is a dict as follows:
 #   'c' Column width
 #   'v' Case method to fill in the cell for alias and first member
 #   'm' Case method to fill the cell for remaining member information
 alias_hdr = collections.OrderedDict()
-alias_hdr['Comments'] = {'c': 40, 'v': alias_comment_case, 'm': _alias_null_case}
-alias_hdr['Alias'] = {'c': 32, 'v': _alais_name_case, 'm': _alias_null_case}
-alias_hdr['Used in Zone'] = {'c': 32, 'v': _alias_used_in_zone_case, 'm': _alias_null_case}
-alias_hdr['Member'] = {'c': 32, 'v': _alias_member_case, 'm': _alias_mem_member_case}
-alias_hdr['Switch'] = {'c': 22, 'v': _alias_mem_switch_case, 'm': _alias_mem_switch_case}
-alias_hdr['Port'] = {'c': 7, 'v': _alias_mem_port_case, 'm': _alias_mem_port_case}
-alias_hdr['Description'] = {'c': 50, 'v': _alias_node_desc_case, 'm': _alias_mem_desc_case}
+alias_hdr['Comments'] = dict(c=40, v=_comment_case, m=_null_case)
+alias_hdr['Alias'] = dict(c=32, v=_name_case, m=_null_case)
+alias_hdr['Used in Zone'] = dict(c=32, v=_alias_used_in_zone_case, m=_null_case)
+alias_hdr['Member'] = dict(c=32, v=_alias_member_case, m=_alias_mem_member_case)
+alias_hdr['Switch'] = dict(c=22, v=_alias_mem_switch_case, m=_alias_mem_switch_case)
+alias_hdr['Port'] = dict(c=7, v=_alias_mem_port_case, m=_alias_mem_port_case)
+alias_hdr['Description'] = dict(c=50, v=_alias_node_desc_case, m=_alias_mem_desc_case)
 
 
 def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
@@ -393,9 +380,7 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         sheet[cell] = 'Contents'
         col += 1
     cell = xl.get_column_letter(col) + str(row)
-    border = report_fonts.border_type('thin')
-    alignment = report_fonts.align_type('wrap')
-    sheet[cell].border = border
+    sheet[cell].border = _border_thin
     sheet[cell].font = report_fonts.font_type('hdr_1')
     sheet[cell] = sheet_title
     row += 2
@@ -405,13 +390,12 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         sheet.column_dimensions[xl.get_column_letter(col)].width = alias_hdr[k]['c']
         cell = xl.get_column_letter(col) + str(row)
         sheet[cell].font = report_fonts.font_type('hdr_2')
-        sheet[cell].border = border
-        sheet[cell].alignment = alignment
+        sheet[cell].border = _border_thin
+        sheet[cell].alignment = _align_wrap
         sheet[cell] = k
         col += 1
 
     # Fill out the alias information
-    std_font = report_fonts.font_type('std')
     for alias_obj in fab_obj.r_alias_objects():
         mem_list = alias_obj.r_members().copy()
         mem = mem_list.pop(0) if len(mem_list) > 0 else None
@@ -419,12 +403,9 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         col = 1
         for k in alias_hdr:
             cell = xl.get_column_letter(col) + str(row)
-            if k == 'Comments':
-                sheet[cell].font = report_utils.font_type(alias_obj.r_alert_objects())
-            else:
-                sheet[cell].font = report_fonts.font_type('std')
-            sheet[cell].border = border
-            sheet[cell].alignment = alignment
+            sheet[cell].font = report_utils.font_type(alias_obj.r_alert_objects()) if k == 'Comments' else _std_font
+            sheet[cell].border = _border_thin
+            sheet[cell].alignment = _align_wrap
             sheet[cell] = alias_hdr[k]['v'](alias_obj, mem)
             col += 1
 
@@ -435,8 +416,152 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             col = 1
             for k in alias_hdr:
                 cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].font = std_font
-                sheet[cell].border = border
-                sheet[cell].alignment = alignment
+                sheet[cell].font = _std_font
+                sheet[cell].border = _border_thin
+                sheet[cell].alignment = _align_wrap
                 sheet[cell] = alias_hdr[k]['m'](alias_obj, mem)
                 col += 1
+
+##################################################################
+#
+#            Case methods for hdr in target_zone_page()
+#
+##################################################################
+_t_skip = [_i for _i in range(al.ALERT_NUM.LOGIN_BASE, al.ALERT_NUM.ZONE_BASE)
+           if _i != al.ALERT_NUM.LOGIN_MIXED_SPEED_T and _i != al.ALERT_NUM.LOGIN_FASTER_S]
+
+
+def _filter_alerts(a_obj_l):
+    rl = list()
+    for obj in a_obj_l:
+        if obj is not None:
+            rl.extend([a for a in obj.r_alert_objects() if a.alert_num() not in _t_skip and not a.is_flag()])
+    return rl
+
+
+def _tzone_comment_case(obj, obj2, zone_l):
+    return '\n'.join([a_obj.fmt_msg() for a_obj in _filter_alerts([obj, obj2])])
+
+
+def _tzone_name_case(obj, obj2, zone_l):
+    return brcddb_login.best_login_name(obj.r_fabric_obj(), obj.r_obj_key(), True)
+
+
+def _tzone_zone_case(obj, obj2, zone_l):
+    return ', '.join(zone_l)
+
+
+def _tzone_switch_case(obj, obj2, zone_l):
+    return brcddb_switch.best_switch_name(obj.r_switch_obj())
+
+
+def _tzone_port_case(obj, obj2, zone_l):
+    return '' if obj2 is None else obj2.r_obj_key()
+
+
+def _tzone_speed_case(obj, obj2, zone_l):
+    port_obj = obj.r_port_obj()
+    speed = None if port_obj is None else port_obj.r_get('fibrechannel/speed')
+    return '' if speed is None else speed/1000000000
+
+
+def _tzone_desc_case(obj, obj2, zone_l):
+    return brcddb_login.login_best_node_desc(obj)
+
+
+_target_zone_hdr = {
+    # Key is the column header. Value is a dict as follows:
+    #   'c' Column width
+    #   'a' Case method to fill in the cell for the item associated with the header
+    'Comments': dict(c=30, a=_tzone_comment_case),
+    'Target': dict(c=30, a=_tzone_name_case),
+    'Server': dict(c=30, a=_tzone_name_case),
+    'Zones': dict(c=22, a=_tzone_zone_case),
+    'Switch': dict(c=22, a=_tzone_switch_case),
+    'Port': dict(c= 22, a=_tzone_port_case),
+    'Speed Gbps': dict(c=7, a=_tzone_speed_case),
+    'Description': dict(c=50, a=_tzone_desc_case),
+}
+
+
+def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
+    """Creates a target zone detail worksheet for the Excel report.
+
+    :param fab_obj: Fabric object
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param tc: Table of context page. A link to this page is place in cell A1
+    :type tc: str, None
+    :param wb: Workbook object
+    :type wb: class
+    :param sheet_name: Sheet (tab) name
+    :type sheet_name: str
+    :param sheet_i: Sheet index where page is to be placed.
+    :type sheet_i: int
+    :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
+    :type sheet_title: str
+    :rtype: None
+    """
+    global _target_zone_hdr
+
+    # Create the worksheet, add the headers, and set up the column widths
+    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
+    sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
+    col = 1
+    row = 1
+    if isinstance(tc, str):
+        cell = xl.get_column_letter(col) + str(row)
+        sheet[cell].hyperlink = '#' + tc + '!A1'
+        sheet[cell].font = report_fonts.font_type('link')
+        sheet[cell] = 'Contents'
+        col += 1
+    cell = xl.get_column_letter(col) + str(row)
+    sheet[cell].font = report_fonts.font_type('hdr_1')
+    sheet[cell] = sheet_title
+    row += 2
+    col = 1
+    sheet.freeze_panes = sheet['A4']
+    font = report_fonts.font_type('hdr_2')
+    for k, d in _target_zone_hdr.items():
+        sheet.column_dimensions[xl.get_column_letter(col)].width = d['c']
+        cell = xl.get_column_letter(col) + str(row)
+        sheet[cell].font = font
+        sheet[cell].border = _border_thin
+        sheet[cell].alignment = _align_wrap
+        sheet[cell] = k
+        col += 1
+
+    # Fill out all the zone information for each target
+    for t_login_obj in fab_obj.r_login_objects():
+        server_l = t_login_obj.r_get('_zoned_servers')
+        if server_l is None or len(server_l) == 0:
+            continue
+
+        # The target information
+        row += 1
+        col = 1
+        for k, d in _target_zone_hdr.items():
+            cell = xl.get_column_letter(col) + str(row)
+            sheet[cell].font = report_utils.font_type(_filter_alerts([t_login_obj, t_login_obj.r_port_obj()])) \
+                if k == 'Comments' else _bold_font
+            sheet[cell].border = _border_thin
+            sheet[cell].alignment = _align_wrap
+            sheet[cell] = len(server_l) if k == 'Server' else d['a'](t_login_obj, t_login_obj.r_port_obj(), list())
+            col += 1
+
+        # The server information
+        for wwn, zone_l in server_l.items():
+            login_obj = fab_obj.r_login_obj(wwn)
+            col = 1
+            row += 1
+            for k in _target_zone_hdr:
+                cell = xl.get_column_letter(col) + str(row)
+                sheet[cell].font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) \
+                    if k == 'Comments' else _std_font
+                sheet[cell].border = _border_thin
+                sheet[cell].alignment = _align_wrap
+                sheet[cell] = '' if k == 'Target' else \
+                    _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                col += 1
+
+        row += 1
