@@ -30,16 +30,18 @@ Version Control::
     | 3.0.8     | 17 Jul 2021   | Added check_ficon_zoning() and fixed buf in count of servers zoned to each target.|
     |           |               | Added zone_by_target()                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 07 Aug 2021   | Return fabric WWN in best_fab_name() if wwn=False but the fabric is not named.    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '07 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import pprint
 import brcdapi.log
@@ -81,7 +83,7 @@ def best_fab_name(fab_obj, wwn=False):
         return 'Unknown'
     for switch_obj in fab_obj.r_switch_objects():  # The fabric information is stored with the switch
         buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/fabric-user-friendly-name')
-        if buf is not None:
+        if buf is not None and len(buf) > 0:
             return buf + ' (' + fab_obj.r_obj_key() + ')' if wwn else buf
 
     return fab_obj.r_obj_key()
