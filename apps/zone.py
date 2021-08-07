@@ -208,19 +208,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 07 Aug 2021   | Fixed bad call to api_int.get_batch()                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '07 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import sys
 import datetime
-import itertools
 
 import brcdapi.util as brcdapi_util
 import brcdapi.zone as brcdapi_zone
@@ -251,7 +252,7 @@ b_flag = False  # True - perform bulk zoning
 fab_obj = None
 checksum = None
 skip_pend_flag = False
-pending = []    # List of pending zoning actions in the FOS zone transaction buffer
+pending = list()    # List of pending zoning actions in the FOS zone transaction buffer
 _good_test_return = {'status': brcdapi_util.HTTP_OK, 'io': False, 'changed': True, 'fail': False}
 _good_force_nop_return = {'status': brcdapi_util.HTTP_OK, 'io': False, 'changed': False, 'fail': False}
 _def_zone_access_tbl = {
@@ -353,7 +354,7 @@ def _no_operand_check(cmd, strict=False):
     p0 = brcddb_util.convert_to_list(cmd.get('p0'))
     p1 = brcddb_util.convert_to_list(cmd.get('p1'))
     if strict:
-        err_msg = []
+        err_msg = list()
         if operand is not None:
             err_msg.append('operand: ' + str(operand) )
         if len(p0) > 0:
@@ -400,7 +401,7 @@ def _operand_check(cmd, strict=False):
         return {'status': brcdapi_util.HTTP_BAD_REQUEST, 'reason': 'Invalid zone object name',
                 'err_msg': [str(operand)], 'io': False, 'changed': False, 'fail': True}, operand, p0, p1
     if strict:
-        err_msg = []
+        err_msg = list()
         if len(p0) > 0:
             err_msg.append('p0:\n  ' + '  \n'.join(p0))
         if len(p1) > 0:
@@ -460,7 +461,7 @@ def _p0_p1_check(cmd, strict=False):
     if obj is not None:
         return obj, operand, p0, p1
     if strict:
-        err_msg = []
+        err_msg = list()
         if len(p0) == 0:
             err_msg.append('members: p0')
         if len(p1) == 0:
@@ -470,7 +471,7 @@ def _p0_p1_check(cmd, strict=False):
                     'err_msg': err_msg, 'io': False, 'changed': False, 'fail': True}, operand, p0, p1
     elif len(p0) + len(p1) == 0:
         return {'status': brcdapi_util.HTTP_BAD_REQUEST, 'reason': str(operand) + ' requires p0 or p1',
-                'err_msg': [], 'io': False, 'changed': False, 'fail': True}, operand, p0, p1
+                'err_msg': list(), 'io': False, 'changed': False, 'fail': True}, operand, p0, p1
     return None, operand, p0, p1
 
 
@@ -517,7 +518,7 @@ def refresh_zoning(session, fab_id, fabric_obj):
         fabric_obj.s_add_switch(wwn)
 
     # Capture the current zoning information
-    api_int.get_batch(session, proj_obj, [], zone_uris, fid)
+    api_int.get_batch(session, proj_obj, zone_uris, fid)
     if len(fabric_obj.r_project_obj().r_alert_objects()) > 0:
         return _API_ERROR
     return None
@@ -603,7 +604,8 @@ def _alias_create(session, cmd):
         fab_obj.s_add_alias(alias, p0)
         if t_flag or b_flag:
             return _good_test_return
-        obj = _alias_delete(session, {'operand': cmd.get('operand'), 'p0': [], 'p1': [], 'peer': cmd.get('peer')})
+        obj = _alias_delete(session, {'operand': cmd.get('operand'), 'p0': list(), 'p1': list(),
+                                      'peer': cmd.get('peer')})
         if obj['fail']:
             return obj
         return _format_return(brcdapi_zone.create_aliases(session, fid, [_format_cmd_for_brcdapi(cmd)]))
@@ -657,7 +659,7 @@ def _alias_remove(session, cmd):
         if f_flag:
             return _good_force_nop_return
         return {'status': brcdapi_util.HTTP_NOT_FOUND, 'reason': alias + ' does not exist',
-                'err_msg': [], 'io': False, 'changed': False, 'fail': True}
+                'err_msg': list(), 'io': False, 'changed': False, 'fail': True}
     members = alias_obj.r_members()
     if not f_flag:
         t_members = [mem for mem in p0 if mem not in members]  # Get a list of members to remove that don't exist
@@ -669,7 +671,7 @@ def _alias_remove(session, cmd):
     # Execute the command. The only way to remove a member via the API is to delete and create it
     if t_flag or b_flag:
         return _good_test_return
-    obj = _alias_delete(session, {'operand': cmd.get('operand'), 'p0': [], 'p1': [], 'peer': cmd.get('peer')})
+    obj = _alias_delete(session, {'operand': cmd.get('operand'), 'p0': list(), 'p1': list(), 'peer': cmd.get('peer')})
     if obj['fail']:
         return obj
     return _alias_create(session, cmd)
@@ -753,7 +755,7 @@ def _cfg_create(session, cmd):
         fab_obj.s_add_zonecfg(zonecfg, p0)
         if t_flag or b_flag:
             return _good_test_return
-        obj = _cfg_delete(session, {'operand': cmd.get('operand'), 'p0': [], 'p1': [], 'peer': cmd.get('peer')})
+        obj = _cfg_delete(session, {'operand': cmd.get('operand'), 'p0': list(), 'p1': list(), 'peer': cmd.get('peer')})
         if obj['fail']:
             return obj
         return _format_return(brcdapi_zone.create_zonecfg(session, fid, [_format_cmd_for_brcdapi(cmd)]))
@@ -818,7 +820,7 @@ def _cfg_enable(session, cmd):
             return {'status': brcdapi_util.HTTP_BAD_REQUEST,
                     'reason': 'API error occured while refreshing the zone DB',
                     'err_msg': [msg], 'io': False, 'changed': False, 'fail': True}
-        pending = []  # A cfgsave is inherent when a zone configuration is enabled.
+        pending = list()  # A cfgsave is inherent when a zone configuration is enabled.
         skip_pend_flag = True
         checksum, obj = brcdapi_zone.checksum(session, fid)  # Need a new checksum in case there are additional changes
         if pyfos_auth.is_error(obj):
@@ -889,7 +891,7 @@ def _cfg_save(session, cmd):
     obj = brcdapi_zone.save(session, fid, checksum)
     if pyfos_auth.is_error(obj):
         return _format_api_error(obj, True, False, True)
-    pending = []
+    pending = list()
     checksum, obj = brcdapi_zone.checksum(session, fid)  # Need a new checksum in case there are additional changes
     return _format_return(obj)
 
@@ -972,7 +974,7 @@ def _zone_add(session, cmd):
         return {'status': brcdapi_util.HTTP_REQUEST_CONFLICT,
                 'reason': 'Members and principal members must be exclusive',
                 'err_msg': err_msg, 'io': False, 'changed': False, 'fail': True}
-    new_cmd = {}
+    new_cmd = dict()
     for k in cmd.keys():
         v = new_p0 if k == 'p0' else new_p1 if k == 'p1' else cmd.get(k)
         new_cmd.update({k: v})
@@ -1020,8 +1022,8 @@ def _zone_create(session, cmd):
     # often is with aliases. If two different aliases have the same member, a duplicate member error is returned from
     # FOS but you have no idea which one. The above check would be covered in this check but by doing two seperate
     # checks, the error message(s) can articulate the error.
-    err_msg = []
-    resolved = [[], []]  # Members in d,i or WWN - 0: members in p0, 1: members in p1
+    err_msg = list()
+    resolved = [list(), list()]  # Members in d,i or WWN - 0: members in p0, 1: members in p1
     desc = ['p0', 'p1']
     px = [p0, p1]
     for i in range(0, 2):
@@ -1035,7 +1037,7 @@ def _zone_create(session, cmd):
             else:
                 resolved.append(mem)
     # Now check for duplicates
-    found = [[], []]
+    found = [list(), list()]
     for i in range(0, 2):
         for mem in resolved[i]:
             x = 0 if i == 1 else 1
@@ -1046,8 +1048,8 @@ def _zone_create(session, cmd):
                 err_msg.append('Duplicate member ' + mem + ' in ' + desc[i] + '. Ailas(es): ' +
                                ', '.join(fab_obj.r_alias_for_wwn(mem)))
 
-    err_msg = []
-    resolved = []
+    err_msg = list()
+    resolved = list()
     for mem in p0 + p1:
         if ',' not in mem and not brcddb_util.is_wwn(mem):
             alias_obj = fab_obj.r_alias_obj(mem)
@@ -1078,7 +1080,8 @@ def _zone_create(session, cmd):
         fab_obj.s_add_zone(zone, zone_type, p0, p1)
         if t_flag or b_flag:
             return _good_test_return
-        obj = _zone_delete(session, {'operand': cmd.get('operand'), 'p0': [], 'p1': [], 'peer': cmd.get('peer')})
+        obj = _zone_delete(session, {'operand': cmd.get('operand'), 'p0': list(), 'p1': list(),
+                                     'peer': cmd.get('peer')})
         if obj['fail']:
             return obj
         return _format_return(brcdapi_zone.create_zonees(session, fid, [_format_cmd_for_brcdapi(cmd)]))
@@ -1182,13 +1185,13 @@ def _alias_replace_int(session, old, new):
             zone_obj = fab_obj.r_zone_obj(zone)
             if old in zone_obj.r_members():
                 del_members = [old]
-                del_pmembers = []
+                del_pmembers = list()
                 add_members = [new]
-                add_pmembers = []
+                add_pmembers = list()
             else:   # If it's not a member so it must be a pmember
-                del_members = []
+                del_members = list()
                 del_pmembers = [old]
-                add_members = []
+                add_members = list()
                 add_pmembers = [new]
             obj = brcdapi_zone.modify_zone(session, fid, zone, add_members, del_members, add_pmembers, del_pmembers)
             if pyfos_auth.is_error(obj):
@@ -1198,7 +1201,7 @@ def _alias_replace_int(session, old, new):
             fab_obj.s_del_alias(old)
         return obj
     else:  # The alias isn't used if we get here
-        return {}  # I only check for bad status. No status is not "good", but it's not "bad" so this is good enough
+        return dict()  # I only check for bad status. No status is not "good", but it's not "bad" so this is good enough
 
 def _zone_replace_int(session, old, new):
     """Used by _zone_object_rename() to replace a zone in all zone configurations with a new zone name
@@ -1227,7 +1230,7 @@ def _zone_replace_int(session, old, new):
             return obj
         fab_obj.s_del_zone(old)  # Delete the zone from the database
 
-    return {}  # I only check for bad status. No status is not "good", but it's not "bad" so this is good enough
+    return dict()  # I only check for bad status. No status is not "good", but it's not "bad" so this is good enough
 
 
 def _zonecfg_replace_int(session, old, new):
@@ -1290,7 +1293,7 @@ def _zone_copy_rename_param(session, cmd):
             if copied_obj is None:
                 err_obj = {'status': brcdapi_util.HTTP_REQUEST_CONFLICT,
                            'reason': buf + ' ' + p0[0] + ' already exists',
-                           'err_msg': [], 'io': False, 'changed': False, 'fail': True}
+                           'err_msg': list(), 'io': False, 'changed': False, 'fail': True}
                 return err_obj, None, None, buf
             else:
                 return None, obj, copied_obj, buf
@@ -1361,7 +1364,7 @@ def _zone_remove(session, cmd):
         if f_flag:
             return _good_force_nop_return
         return {'status': brcdapi_util.HTTP_NOT_FOUND, 'reason': zone + ' does not exist',
-                'err_msg': [], 'io': False, 'changed': False, 'fail': True}
+                'err_msg': list(), 'io': False, 'changed': False, 'fail': True}
     members = zone_obj.r_members()
     if not f_flag:
         t_members = [mem for mem in p0 if mem not in members]  # Get a list of members to remove that don't exist
@@ -1375,7 +1378,7 @@ def _zone_remove(session, cmd):
     # Execute the command. The only way to remove a member via the API is to delete and create it
     if t_flag or b_flag:
         return _good_test_return
-    obj = _zone_delete(session, {'operand': cmd.get('operand'), 'p0': [], 'p1': [], 'peer': cmd.get('peer')})
+    obj = _zone_delete(session, {'operand': cmd.get('operand'), 'p0': list(), 'p1': list(), 'peer': cmd.get('peer')})
     if obj['fail']:
         return obj
     return _zone_create(session, cmd)
@@ -1422,7 +1425,7 @@ def send_zoning(content, cur_session=None):
         _RESPONSE_ERROR, _RESPONSE_WARN, fab_obj, checksum, skip_pend_flag, zone_uris, b_flag
 
     # Initialize application control and validate request
-    response = []
+    response = list()
     must_have = {
         'ip-addr': content.get('ip-addr'),
         'id': content.get('id'),
@@ -1460,7 +1463,7 @@ def send_zoning(content, cur_session=None):
             response.append(_format_api_error(session, False, False, True))
             return response
         # We'll need some basic information about the chassis, switch, fabric, and current zoning
-        api_int.get_batch(session, proj_obj, [], zone_uris, fid)
+        api_int.get_batch(session, proj_obj, zone_uris, fid)
         if proj_obj.r_is_api_error():
             response.append({'status': brcdapi_util.HTTP_BAD_REQUEST,
                              'reason': 'Error processing the commands in err_msg',
@@ -1479,7 +1482,7 @@ def send_zoning(content, cur_session=None):
     if switch_obj is None:
         response.append({'status': brcdapi_util.HTTP_NOT_FOUND,
                          'reason': 'Switch matching FID ' + str(fid),
-                         'err_msg': [],
+                         'err_msg': list(),
                          'io': False,
                          'changed': False,
                          'fail': True})
@@ -1487,7 +1490,7 @@ def send_zoning(content, cur_session=None):
     if fab_obj is None:
         response.append({'status': brcdapi_util.HTTP_NOT_FOUND,
                          'reason': 'Fabric object for FID ' + str(fid),
-                         'err_msg': [],
+                         'err_msg': list(),
                          'io': False,
                          'changed': False,
                          'fail': True})
@@ -1569,8 +1572,8 @@ def send_zoning(content, cur_session=None):
         except:
             buf = 'Programming error in api_zone.replace_zoning()'
             brcdapi_log.exception(buf, True)
-            response.append({'status': brcdapi_util.HTTP_INT_SERVER_ERROR, 'reason': buf, 'err_msg': [], 'io': False,
-                             'changed': False, 'fail': True})
+            response.append({'status': brcdapi_util.HTTP_INT_SERVER_ERROR, 'reason': buf, 'err_msg': list(),
+                             'io': False, 'changed': False, 'fail': True})
 
     # Wrap up
     if len(pending) > 0:

@@ -39,16 +39,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 17 Jul 2021   | Used 'Unknown Fabric' when the fabric name and WWN is unknown                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 07 Aug 2021   | Added WWN to the fabric name on the Table of Contents page.                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '07 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import collections
 import brcddb.app_data.report_tables as rt
@@ -313,7 +315,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
     |   l   | When true, displays all the logins. Otherwise, just the base WWN is reported. |
     +-------+-------------------------------------------------------------------------------+
     """
-    port_pages = [
+    port_pages = [  # See notes above
         dict(c='port_config', sc=1, s='_config', t=rt.Port.port_config_tbl, d='Port Configurations', l=False),
         dict(c='port_config_error', sc=1, s='_config_error', t=rt.Port.port_config_tbl,
              d='Port Configurations Error Summary', l=False),
@@ -371,7 +373,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
 
     # Add all the fabrics
     for fab_obj in proj_obj.r_fabric_objects():
-        fab_name = brcddb_fabric.best_fab_name(fab_obj)
+        fab_name = brcddb_fabric.best_fab_name(fab_obj, wwn=True)
         if len(fab_name) == 0:
             fab_name = 'Unknown Fabric'
         brcdapi_log.log('Processing fabric: ' + fab_name, True)
@@ -462,11 +464,11 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
     # Add the Best Practice page
     if _report_pages['bp']['s']:
         sname = 'Best_Practice'
-        fab_name = 'Best Practice Violations'  # Just borrowing fab_name for the title
-        report_bp.bp_page(wb, tc_page, sname, 0, fab_name, proj_obj, rt.BestPractice.bp_tbl,
+        buf = 'Best Practice Violations'
+        report_bp.bp_page(wb, tc_page, sname, 0, buf, proj_obj, rt.BestPractice.bp_tbl,
                           rt.BestPractice.bp_display_tbl)
-        tbl_contents.insert(0, dict(sc=1, s=sname, d=fab_name))
-        tbl_contents.insert(0, dict(h=True, d=fab_name))
+        tbl_contents.insert(0, dict(sc=1, s=sname, d=buf))
+        tbl_contents.insert(0, dict(h=True, d=buf))
 
     # Add the missing chassis (chassis not polled) to the title & contents page
     i = 0
