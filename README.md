@@ -1,10 +1,17 @@
 # brcddb
 
-**Updates: 17 July 2021
+**Updates: 17 July 2021**
 
 * Miscellaneous bug fixes
 * Added zone by target analysis to repor
 * Several FICON improvements
+
+**Updates: 7 Aug 2021**
+
+* brcddb_fabric.py - Return fabric WWN in best_fab_name() if wwn=False but the fabric is not named.
+* apps/report.py - Added WWN to the fabric name on the Table of Contents page
+* apps/zone.py - Fixed bad call to api_int.get_batch()
+* report/zone.py - Minor display issues cleaned up.
 
 **Description**
 
