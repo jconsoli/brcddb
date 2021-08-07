@@ -39,15 +39,17 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 17 Jul 2021   | Added target_zone_page()                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 07 Aug 2021   | Minor display issues cleaned up.                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '07 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -246,7 +248,7 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             else:
                 sheet[cell].font = _bold_font
             sheet[cell].border = _border_thin
-            sheet[cell].alignment = report_fonts.align_type('wrap_vert_center') \
+            sheet[cell].alignment = report_fonts.align_type('wrap_center') \
                 if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
             sheet[cell].fill = fill
             sheet[cell] = _zone_hdr[k]['z'](zone_obj)
@@ -286,7 +288,7 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                     else:
                         sheet[cell].font = _std_font
                     sheet[cell].border = _border_thin
-                    sheet[cell].alignment = report_fonts.align_type('wrap_vert_center') \
+                    sheet[cell].alignment = report_fonts.align_type('wrap_center') \
                         if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
                     sheet[cell] = _zone_hdr[k]['m'](zone_obj, mem, wwn, port_obj)
                     col += 1
