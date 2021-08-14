@@ -32,16 +32,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 07 Aug 2021   | Return fabric WWN in best_fab_name() if wwn=False but the fabric is not named.    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 14 Aug 2021   | Commented out alert for LOGIN_BASE_ZONED.                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '07 Aug 2021'
+__date__ = '14 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import pprint
 import brcdapi.log
@@ -414,7 +416,8 @@ def zone_analysis(fab_obj):
         # Make sure that all logins are zoned.
         if len(fab_obj.r_zones_for_wwn(wwn)) > 0:
             if wwn in fab_obj.r_base_logins():
-                login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_BASE_ZONED)
+                pass  # I need to think this through
+                # login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_BASE_ZONED)
         elif wwn not in fab_obj.r_base_logins():
             login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_NOT_ZONED)
 
