@@ -39,15 +39,17 @@ Version Control::
     | 3.0.5     | 17 Jul 2021   | Fixed match_test() to accept a dict instead of list. Fixed ignore_case in match().|
     |           |               | Added common search terms.                                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 14 Aug 2021   | Added common search terms.                                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '14 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import re
 import fnmatch
@@ -348,12 +350,12 @@ def match_test(obj_list, test_obj, logic=None):
             ic = False if t_obj.get('i') is None else t_obj.get('i')
 
             # Perform the test and put results in m_list
-            if t_obj.get('t') in ('bool', 'wild', 'regex-m', 'regex-s', 'exact'):
-                m_list = match(w_list, t_obj.get('k'), t_obj.get('v'), ic, t_obj.get('t'))
-            elif t_obj.get('t') in ('>', '<', '<=', '>=', '==', '=', '!='):
-                m_list = test_threshold(w_list, t_obj.get('k'), t_obj.get('t'), t_obj.get('v'))
+            if t_obj['t'] in ('bool', 'wild', 'regex-m', 'regex-s', 'exact'):
+                m_list = match(w_list, t_obj['k'], t_obj['v'], ic, t_obj['t'])
+            elif t_obj['t'] in ('>', '<', '<=', '>=', '==', '=', '!='):
+                m_list = test_threshold(w_list, t_obj['k'], t_obj['t'], t_obj['v'])
             else:
-                brcdapi_log.exception('Invalid search key, ' + t_obj.get('t'), True)
+                brcdapi_log.exception('Invalid search key, ' + t_obj['t'], True)
                 return list()
 
         # Apply the test logic
