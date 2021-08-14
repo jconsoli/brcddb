@@ -25,22 +25,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 14 Aug 2021   | Added enable_zonecfg()                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
 import brcdapi.zone as brcdapi_zone
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.api.interface as api_int
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.pyfos_auth as pyfos_auth
+import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
 
 _MAX_ZONE_SAVE_TRY = 12  # The maximum number of times to try saving zoning changes
@@ -55,20 +57,17 @@ def build_alias_content(fabObj):
     :return: Dict of requests
     :rtype: dict
     """
-    content = {
-        'defined-configuration': {
-        }
-    }
+    content = {'defined-configuration': dict()}
     wd = content['defined-configuration']
 
     # Add the aliases
-    l = []
+    l = list()
     for obj in fabObj.r_alias_objects():
         members = obj.r_members()
         if len(members) > 0:
             l.append({'alias-name': obj.r_obj_key(), 'member-entry': {'alias-entry-name': members}})
     if len(l) > 0:
-        wd.update({'alias': l})
+        wd.update(dict(alias=l))
 
     return None if len(wd.keys()) == 0 else content
 
@@ -81,17 +80,14 @@ def build_zone_content(fabObj):
     :return: Dict of requests
     :rtype: dict
     """
-    content = {
-        'defined-configuration': {
-        }
-    }
+    content = {'defined-configuration': dict()}
     wd = content['defined-configuration']
 
     # Add the zones
-    l = []
+    l = list()
     for obj in fabObj.r_zone_objects():
         if obj.r_get('zone-type') is not brcddb_common.ZONE_TARGET_PEER:
-            d = {'zone-name': obj.r_obj_key(), 'zone-type': obj.r_type(), 'member-entry': {}}
+            d = {'zone-name': obj.r_obj_key(), 'zone-type': obj.r_type(), 'member-entry': dict()}
             me = d.get('member-entry')
             members = obj.r_members()
             if len(members) > 0:
@@ -100,7 +96,7 @@ def build_zone_content(fabObj):
             if len(members) > 0:
                 me.update({'principal-entry-name': members})
             l.append(d)
-        wd.update({'zone': l})
+        wd.update(dict(zone=l))
 
     return None if len(wd.keys()) == 0 else content
 
@@ -113,21 +109,18 @@ def build_zonecfg_content(fabObj):
     :return: Dict of requests
     :rtype: dict
     """
-    content = {
-        'defined-configuration': {
-        }
-    }
+    content = {'defined-configuration': dict()}
     wd = content['defined-configuration']
 
     # Add the zone configurations
-    l = []
+    l = list()
     for obj in fabObj.r_zonecfg_objects():
-        if obj.r_obj_key() != '_effective_zone_cfg':
+        if not obj.r_is_effective():
             members = obj.r_members()
             if len(members) > 0:
                 l.append({'cfg-name': obj.r_obj_key(), 'member-zone': {'zone-name': members}})
     if len(l) > 0:
-        wd.update({'cfg': l})
+        wd.update(dict(cfg=l))
 
     return None if len(wd.keys()) == 0 else content
 
@@ -140,21 +133,18 @@ def build_all_zone_content(fab_obj):
     :return: Dict of requests
     :rtype: dict
     """
-    content = {
-        'defined-configuration': {
-        }
-    }
+    content = {'defined-configuration': dict()}
     wd = content['defined-configuration']
 
     temp_content = build_alias_content(fab_obj)
     if temp_content is not None:
-        wd.update({'alias': temp_content.get('defined-configuration').get('alias')})
+        wd.update(dict(alias=temp_content.get('defined-configuration').get('alias')))
     temp_content = build_zone_content(fab_obj)
     if temp_content is not None:
-        wd.update({'zone': temp_content.get('defined-configuration').get('zone')})
+        wd.update(dict(zone=temp_content.get('defined-configuration').get('zone')))
     temp_content = build_zonecfg_content(fab_obj)
     if temp_content is not None:
-        wd.update({'cfg': temp_content.get('defined-configuration').get('cfg')})
+        wd.update(dict(cfg=temp_content.get('defined-configuration').get('cfg')))
 
     return content
 
@@ -177,7 +167,7 @@ def replace_zoning(session, fab_obj, fid):
     # Get the dict to be converted to JSON and sent to the switch
     content = build_all_zone_content(fab_obj)
     if content is None:
-        return pyfos_auth.create_error(400, 'No zone database in ' +
+        return pyfos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST, 'No zone database in ' +
                                           brcddb_fabric.best_fab_name(obj.r_fabric_obj()), '')
 
     # Get the checksum - this is needed to save the configuration.
@@ -191,8 +181,33 @@ def replace_zoning(session, fab_obj, fid):
         # Send the zoning request
         obj = brcdapi_rest.send_request(session, 'brocade-zone/defined-configuration', 'PATCH', content, fid)
         if not pyfos_auth.is_error(obj):
-            return brcdapi_zone.save(session, fid, checksum)
+            obj = brcdapi_zone.save(session, fid, checksum)
+            if not pyfos_auth.is_error(obj):
+                return obj
 
     # If we got this far, something went wrong so abort the transaction.
     brcdapi_zone.abort(session, fid)
     return obj
+
+
+def enable_zonecfg(session, fab_obj, fid, eff_cfg):
+    """Activates a zone configuration (make a zone configuration effective)
+
+    :param session: Login session object from brcdapi.brcdapi_rest.login()
+    :type session: dict
+    :param fab_obj: Fabric object for the fabric where the effective zone is to be activated
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param fid: Fabric ID. Note that we can't just take it out of the fabric object because FID check may be disabled
+    :type fid: int
+    :param eff_cfg: Name of the zone configuration to enable. None = no zone configuration to enable
+    :type eff_cfg: str, None
+    :return: Object returned from FOS API
+    :rtype: dict
+    """
+    # Get the checksum - this is needed to save the configuration.
+    checksum, obj = brcdapi_zone.checksum(session, fid, fab_obj)
+    if pyfos_auth.is_error(obj):
+        return obj
+
+    # Actiavate the zone configuartion.
+    return brcdapi_zone.enable_zonecfg(session, checksum, fid, eff_cfg, True)
