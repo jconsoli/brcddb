@@ -43,19 +43,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 17 Jul 2021   | Added ZONE_LINK_ADDR and ZONE_LINK_NO_ADDR                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 14 Aug 2021   | Added current firmware level to SWITCH_FIRMWARE_8_2                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '14 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import brcddb.classes.alert as al
-
 
 class ALERT_NUM:
     # MAPS alerts
@@ -233,7 +234,7 @@ class AlertTable:
         # Switch
         ALERT_NUM.SWITCH_IDID: dict(m='Insistent Domain ID not set', s=al.ALERT_SEV.WARN,
                                     k='insistent-domain-id-enabled'),
-        ALERT_NUM.SWITCH_FIRMWARE_8_2: dict(m='Firmware must be v8.2.1c or higher', s=al.ALERT_SEV.ERROR,
+        ALERT_NUM.SWITCH_FIRMWARE_8_2: dict(m='Firmware is $p0. It should be v8.2.1c or higher', s=al.ALERT_SEV.ERROR,
                                             k='firmware-version'),
         ALERT_NUM.HANDLE_DUP_WWN: dict(m='Login enforcement must be 2. Refer to $key', s=al.ALERT_SEV.ERROR,
                                        k='f-port-login-settings/enforce-login'),
