@@ -30,15 +30,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.1     | 17 Jul 2021   | Added: int_list_to_range(), remove_none()                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 21 Aug 2021   | Added zone_cli()                                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '21 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.2'
 
 import re
 import brcdapi.log as brcdapi_log
@@ -47,6 +49,8 @@ import brcddb.classes.util as brcddb_class_util
 _DEBUG_FICON = False  # Intended for lab use only. Few, if any, will use this to zone a FICON switch
 _MAX_ZONE_NAME_LEN = 64
 error_asserted = False  # Set True any time an error is encountered. Use for debug only.
+_MAX_LINE_COUNT = 20  # Maximum number of lines before inserting a space when generating CLI
+_MAX_MEM = 3  # Maximum number of members to add to a zone object in a single FOS command (CLI)
 
 # ReGex matching
 non_decimal = re.compile(r'[^\d.]+')
@@ -873,5 +877,102 @@ def int_list_to_range(num_list):
     ri = len(range_l)
     if ri > 0:
         rl.append(str(range_l[0]) if ri == 1 else str(range_l[0]) + '-' + str(range_l[ri-1]))
+
+    return rl
+
+
+def zone_cli(fab_obj, filter_fab_obj=None):
+    """Creates CLI commands for fabric zoning
+
+    :param fab_obj: Fabric object whose zoning information is to be converted to CLI
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param filter_fab_obj: Output does not include CLI for zones in this object. Useful for zone merging.
+    :type filter_fab_obj: brcddb.classes.fabric.FabricObj
+    :return: List of CLI commands
+    :rtype: list
+    """
+    global _MAX_LINE_COUNT, _MAX_MEM
+
+    buf = fab_obj.r_obj_key() if filter_fab_obj is None else filter_fab_obj.r_obj_key()
+    rl = ['', '# Zone CLI commands for: ' + buf]
+
+    # Aliases
+    filter = list() if filter_fab_obj is None else filter_fab_obj.r_alias_keys()
+    rl.extend(['', '# Aliases'])
+    line_count = 0
+    for obj in fab_obj.r_alias_objects():
+        if obj.r_obj_key() in filter:
+            continue
+        mem_l = obj.r_members()
+        buf_0 =  ' "' + obj.r_obj_key() + '", '
+        buf = 'alicreate' + buf_0
+        while len(mem_l) > 0:
+            line_count = 0 if line_count >= _MAX_LINE_COUNT else line_count + 1
+            if line_count == 0:
+                rl.append('')
+            x = min(len(mem_l), _MAX_MEM)
+            rl.append(buf + '"' + ';'.join(mem_l[0:x]) + '"')
+            mem_l = mem_l[x:]
+            buf = 'aliadd'
+
+    # Zones
+    filter = list() if filter_fab_obj is None else filter_fab_obj.r_zone_keys()
+    rl.extend(['', '# Zones'])
+    line_count = 0
+    for obj in fab_obj.r_zone_objects():
+        if obj.r_obj_key() in filter:
+            continue
+
+        # All the regular members first
+        mem_l = obj.r_members()
+        if len(mem_l) > 0:
+            buf = 'zonecreate --peerzone "' + obj.r_obj_key() + '" -members ' if obj.r_is_peer() else\
+                'zonecreate "' + obj.r_obj_key() + '", '
+            while len(mem_l) > 0:
+                line_count = 0 if line_count >= _MAX_LINE_COUNT else line_count + 1
+                if line_count == 0:
+                    rl.append('')
+                x = min(len(mem_l), _MAX_MEM)
+                rl.append(buf + '"' + ';'.join(mem_l[0:x]) + '"')
+                mem_l = mem_l[x:]
+                buf = 'zoneadd --peerzone "' + obj.r_obj_key() + '" -members ' if obj.r_is_peer() else \
+                    'zoneadd "' + obj.r_obj_key() + '", '
+            buf = 'zoneadd --peerzone "' + obj.r_obj_key() + '" -principal ' if obj.r_is_peer() else \
+                'zoneadd "' + obj.r_obj_key() + '", '
+        else:
+            buf = 'zonecreate --peerzone "' + obj.r_obj_key() + '" -principal ' if obj.r_is_peer() else \
+                'zonecreate "' + obj.r_obj_key() + '", '
+
+        # Now all the principal members
+        mem_l = obj.r_pmembers()  # This will be empty if it's not a peer zone
+        while len(mem_l) > 0:
+            line_count = 0 if line_count >= _MAX_LINE_COUNT else line_count + 1
+            if line_count == 0:
+                rl.append('')
+            x = min(len(mem_l), _MAX_MEM)
+            rl.append(buf + '"' + ';'.join(mem_l[0:x]))
+            mem_l = mem_l[x:]
+
+    # Zone configurations
+    filter = list() if filter_fab_obj is None else filter_fab_obj.r_zonecfg_keys()
+    filter.append('_effective_zone_cfg')
+    rl.extend(['', '# Zone configurations'])
+    line_count = 0
+    for obj in fab_obj.r_zonecfg_objects():
+        if obj.r_obj_key() in filter:
+            continue
+        buf_0 =  ' "' + obj.r_obj_key() + '", '
+        buf = 'cfgcreate' + buf_0
+        mem_l = obj.r_members()
+        while len(mem_l) > 0:
+            line_count = 0 if line_count >= _MAX_LINE_COUNT else line_count + 1
+            if line_count == 0:
+                rl.append('')
+            x = min(len(mem_l), _MAX_MEM)
+            rl.append(buf + '"' + ';'.join(mem_l[0:x]) + '"')
+            mem_l = mem_l[x:]
+            buf = 'cfgadd' + buf_0
+
+    rl.append('')
 
     return rl
