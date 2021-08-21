@@ -34,16 +34,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 14 Aug 2021   | Commented out alert for LOGIN_BASE_ZONED.                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 21 Aug 2021   | Added copy_fab_obj()                                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '14 Aug 2021'
+__date__ = '21 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import pprint
 import brcdapi.log
@@ -214,8 +216,8 @@ def zone_by_target(fab_obj):
 
         # Get a list of all the server login objects zoned to this target
         s_wwn_l = brcddb_zone.eff_zoned_to_wwn(fab_obj, t_wwn, target=False, initiator=True)
-        if len(s_wwn_l) > bt.MAX_ZONE_PARTICIPATION:
-            t_login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MAX_PARTICIPATION)
+        # if len(s_wwn_l) > bt.MAX_ZONE_PARTICIPATION:
+        #     t_login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MAX_PARTICIPATION)
         t_login_obj.s_new_key('_zoned_servers', s_wwn_l)
 
         # Figure out what all the login speeds of the target and servers zoned to this target
@@ -247,7 +249,7 @@ def zone_analysis(fab_obj):
     * Zone has less than 2 members
     * Peer zone doesn't have at least one principal and one regular member
     * Mixed d,i and WWN zones
-    * Zone member in another fabric
+    * Zone member found in another fabric
     * Zone is not used in any zone configuration
     * Effective zone doesn't match defined zone
     * Zone member not found
@@ -256,6 +258,7 @@ def zone_analysis(fab_obj):
     * Mix of WWN and alias in the same zone
     * Peer zone property member in zone
     * Duplicate aliases
+    * WWN instead of an alias used in zone definition when an alias for the WWN exists
     * Calls check_ficon_zoning() - Ensures all CHPID paths are in the same zone as the CHPID
 
     :param fab_obj: brcddb fabric object
@@ -468,3 +471,42 @@ def fab_fids(fab_obj):
             rl.append(fid)
 
     return rl
+
+
+def copy_fab_obj(fab_obj, fab_key=None, full_copy=False):
+    """Makes a copy of a fabric object
+
+    :param fab_obj: The fabric object to be copied
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param fab_key: Name for the copied fabric. If None, the key is the same as for fab_obj with "_copy" appended
+    :type fab_key: str, None
+    :param full_copy: If True, copies all data added with s_new_key(). Otherwise, just the private members are copied
+    :type full_copy: bool
+    """
+    proj_obj = fab_obj.r_project_obj()
+    new_key = fab_obj.r_obj_key() + '_copy' if fab_key is None else fab_key
+    fab_obj_copy = proj_obj.s_add_fabric(new_key, add_switch=False)
+    fab_obj_copy.s_or_flags(fab_obj.r_flags())
+    for obj in fab_obj.r_switch_keys():
+        fab_obj_copy.s_add_switch(obj)
+    for obj in fab_obj.r_login_keys():
+        fab_obj_copy.s_add_login(obj)
+    for obj in fab_obj.r_alias_objects():
+        fab_obj_copy.s_add_alias(obj.r_obj_key(), obj.r_members())
+    for obj in fab_obj.r_zone_objects():
+        fab_obj_copy.s_add_zone(obj.r_obj_key(), obj.r_type(), obj.r_members(), obj.r_pmembers())
+    for obj in fab_obj.r_zonecfg_objects():
+        if obj.r_obj_key() == '_effective_zone_cfg':
+            fab_obj_copy.s_add_eff_zonecfg(obj.r_members())
+        else:
+            fab_obj_copy.s_add_zonecfg(obj.r_obj_key(), obj.r_members())
+    for obj in fab_obj.r_fdmi_node_keys():
+        fab_obj_copy.s_add_fdmi_node(obj)
+    for obj in fab_obj.r_fdmi_port_keys():
+        fab_obj_copy.s_add_fdmi_port(obj)
+    if full_copy:
+        for obj in fab_obj.r_keys():
+            fab_obj_copy.s_new_key(obj, fab_obj.r_get(obj))
+
+    return fab_obj_copy
+
