@@ -45,16 +45,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 14 Aug 2021   | Added s_del_eff_zonecfg()                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 21 Aug 2021   | Bug in r_defined_eff_zonecfg_obj(). Added add_switch flag to __init__             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Aug 2021'
+__date__ = '21 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -98,10 +100,10 @@ class FabricObj:
         _port_map (dict): List of base NPIV login WWNs. Filled in my brcddb.util.util.build_login_port_map()
     """
 
-    def __init__(self, name, project_obj):  # name is the WWN of the fabric principal switch
+    def __init__(self, name, project_obj, add_switch=True):  # name is the WWN of the fabric principal switch
         self._obj_key = name
         self._flags = 0
-        self._switch_keys = [name]
+        self._switch_keys = [name] if add_switch else list()
         self._login_objs = dict()
         self._zonecfg_objs = dict()
         self._alias_objs = dict()
@@ -122,6 +124,8 @@ class FabricObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
+        if k is None:
+            return None
         # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
         _reserved_keys = dict(
             _obj_key=self.r_obj_key(),
@@ -139,15 +143,11 @@ class FabricObj:
             _base_logins=self.r_base_logins(),
             _port_map=self.r_port_map(),
         )
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        if k == '_reserved_keys':
+            rl = list(_reserved_keys.keys())
+            rl.append('_reserved_keys')
+            return rl
+        return _reserved_keys.get(k)
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
@@ -260,9 +260,8 @@ class FabricObj:
         :return: Login object
         :rtype: LoginObj
         """
-        try:
-            login_obj = self._login_objs[wwn]
-        except:
+        login_obj = self._login_objs.get(wwn)
+        if login_obj is None:
             login_obj = login_class.LoginObj(wwn, self.r_project_obj(), self.r_obj_key())
             self._login_objs.update({wwn : login_obj})
         return login_obj
@@ -273,10 +272,8 @@ class FabricObj:
         :param wwn: WWN of the login
         :type wwn: str
         """
-        try:
+        if wwn in self._login_objs:
             del self._login_objs[wwn]
-        except:
-            pass
 
     def r_login_obj(self, wwn):
         """Gets the login object for a given WWN
@@ -326,9 +323,8 @@ class FabricObj:
         :rtype: zone_class.brcddb.classes.zone.ZoneCfgObj
         """
         mem = list() if in_mem is None else in_mem
-        try:
-            zonecfg_obj = self._zonecfg_objs[name]
-        except:
+        zonecfg_obj = self._zonecfg_objs.get(name)
+        if zonecfg_obj is None:
             zonecfg_obj = zone_class.ZoneCfgObj(name, self.r_project_obj(), self.r_obj_key())
             self._zonecfg_objs.update({name: zonecfg_obj})
         zonecfg_obj.s_add_member(mem)
@@ -351,7 +347,7 @@ class FabricObj:
         :return: Zone configuration object. None if not found.
         :rtype: brcddb.classes.zone.ZoneCfgObj, None
         """
-        return self._zonecfg_objs[name] if name in self._zonecfg_objs else None
+        return self._zonecfg_objs.get(name)
 
     def r_zonecfg_keys(self):
         """Returns a list of zone configurations, by name, in this fabric
@@ -403,7 +399,7 @@ class FabricObj:
         :return: Zone configuration object for the defined effective zone configuration. None if no effective zone cfg
         :rtype: brcddb.classes.zone.ZoneCfgObj, None
         """
-        return None if self.r_defined_eff_zonecfg_key is None else self.r_zonecfg_obj(self.r_defined_eff_zonecfg_key)
+        return None if self.r_defined_eff_zonecfg_key() is None else self.r_zonecfg_obj(self.r_defined_eff_zonecfg_key)
 
     def s_add_eff_zonecfg(self, in_members=None):
         """Adds a special zone configuration named '_effective_zone_cfg' if it doesn't already exist.
@@ -543,7 +539,7 @@ class FabricObj:
         :return: Zone object None if not found.
         :rtype: brcddb.classes.zone.ZoneObj, None
         """
-        return self._eff_zone_objs[name] if name in self._eff_zone_objs else None
+        return self._eff_zone_objs.get(name)
 
     def r_eff_zone_objs(self):
         """Returns the effective zone object list. Typically used for internal purposes only
@@ -615,7 +611,7 @@ class FabricObj:
         :return: Zone object None if not found.
         :rtype: brcddb.classes.zone.ZoneObj, None
         """
-        return self._zone_objs[name] if name in self._zone_objs else None
+        return self._zone_objs.get(name)
 
     def r_zone_keys(self):
         """Returns all the defined zones in the fabric
@@ -682,7 +678,7 @@ class FabricObj:
         :return: Alias object. None if not found.
         :rtype: brcddb.classes.zone.AliasObj, None
         """
-        return self._alias_objs[name] if name in self._alias_objs else None
+        return self._alias_objs.get(name)
 
     def r_alias_keys(self):
         """Returns the list of aliases defined in the fabric
@@ -786,7 +782,7 @@ class FabricObj:
         :return: FDMI node object. None if not found.
         :rtype: FdmiObj, None
         """
-        return self._fdmi_node_objs[wwn] if wwn in self._fdmi_node_objs else None
+        return self._fdmi_node_objs.get(wwn)
 
     def r_fdmi_node_keys(self):
         """Returns the list of FDMI nodes (by WWN) in the fabric
@@ -844,7 +840,7 @@ class FabricObj:
         :return: FDMI node object. None if not found.
         :rtype: FdmiObj, None
         """
-        return self._fdmi_port_objs[wwn] if wwn in self._fdmi_port_objs else None
+        return self._fdmi_port_objs.get(wwn)
 
     def r_fdmi_port_keys(self):
         """Returns the list of FDMI ports (by WWN) in the fabric
@@ -946,16 +942,16 @@ class FabricObj:
         :return: PortObj or None if not found
         :rtype: PortObj, None
         """
-        try:
-            buf = di
-            buf.replace(' ', '')
-            tl = buf.split(',')
-            for switch_obj in self.r_switch_objects():
-                if switch_obj.r_get('brocade-fabric/fabric-switch/domain-id') == int(tl[0]):
-                    return switch_obj.r_port_object_for_index(int(tl[1]))
+        buf = di
+        buf.replace(' ', '')
+        tl = [int(c) for c in buf.split(',') if c.isnumeric()]
+        if len(tl) != 2:
             return None
-        except:
-            return None
+        for switch_obj in self.r_switch_objects():
+            did = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
+            if isinstance(did, int) and did == tl[0]:
+                return switch_obj.r_port_object_for_index(tl[1])
+        return None
 
     def r_fabric_obj(self):
         return self

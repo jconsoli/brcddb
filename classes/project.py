@@ -32,16 +32,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Improved some method effecienceis                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 21 Aug 2021   | Added flag for automatic switch add in s_add_fabric().                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '21 Aug 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -100,6 +102,8 @@ class ProjectObj:
         :rtype: *
         """
         # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
+        if k is None:
+            return None
         _reserved_keys = {
             '_obj_key': self.r_obj_key(),
             '_flags': self.r_flags(),
@@ -111,15 +115,11 @@ class ProjectObj:
             '_chassis_objs': self.r_chassis_objs(),
             '_alerts': self.r_alert_objects(),
         }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        if k == '_reserved_keys':
+            rl = list(_reserved_keys.keys())
+            rl.append('_reserved_keys')
+            return rl
+        return _reserved_keys.get(k)
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
@@ -366,7 +366,7 @@ class ProjectObj:
         """
         return '' if self._description is None else self._description
 
-    def s_add_fabric(self, principal_wwn):
+    def s_add_fabric(self, principal_wwn, add_switch=True):
         """Add a faric to the project if the fabric doesn't already exist
 
         :param principal_wwn: Principal WWN of the fabric
@@ -376,9 +376,10 @@ class ProjectObj:
         """
         fab_obj = self.r_fabric_obj(principal_wwn)
         if fab_obj is None:
-            fab_obj = fabric_class.FabricObj(principal_wwn, self)
+            fab_obj = fabric_class.FabricObj(principal_wwn, self, add_switch)
             self._fabric_objs.update({principal_wwn: fab_obj})
-        self.s_add_switch(principal_wwn).s_fabric_key(principal_wwn)
+        if add_switch:
+            self.s_add_switch(principal_wwn).s_fabric_key(principal_wwn)
         return fab_obj
 
     def s_del_fabric(self, principal_wwn):
@@ -397,10 +398,7 @@ class ProjectObj:
         :return: Fabric object
         :rtype: FabricObj, None
         """
-        try:
-            return self._fabric_objs[key]
-        except:
-            return
+        return self._fabric_objs.get(key)
 
     def r_fabric_keys(self):
         """Returns the list of fabric keys (principal fabric switch WWN) added to this project
@@ -527,10 +525,7 @@ class ProjectObj:
         :return: Switch object
         :rtype: SwitchObj, None
         """
-        try:
-            return self._switch_objs[key]
-        except:
-            return None
+        return self._switch_objs.get(key)
 
     def r_switch_keys(self):
         """Returns the list of switch WWNs of switches added to this project
