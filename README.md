@@ -20,8 +20,18 @@ The primary purpose of these updates was to support the zone_merge.py applicatio
 * app_data/alert_tables.py - Added current firmware version to software version alert
 * api/zone.py - Added enable_zonecfg()
 * classes/fabric.py - Added s_del_eff_zonecfg()
-* util/search.py - Added Added common search terms.
+* util/search.py - Added common search terms.
 * brcddb_fabric.py - Commented out alert for LOGIN_BASE_ZONED
+
+**Updates: 21 Aug 2021**
+
+The purpose of these updates was to support the ability to generate CLI zone commands
+with the zone_merge.py application.
+
+* brcddb_fabric.py - Added Added copy_fab_obj()
+* classes/project.py - Added flag for automatic switch add in s_add_fabric()
+* classes/fabric.py - Bug in r_defined_eff_zonecfg_obj(). Added add_switch flag to __init__
+* util/util.py - Added zone_cli().
 
 **Description**
 
