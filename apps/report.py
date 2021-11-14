@@ -41,16 +41,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 07 Aug 2021   | Added WWN to the fabric name on the Table of Contents page.                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 14 Nov 2021   | Added server and target zone pages.                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '07 Aug 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import collections
 import brcddb.app_data.report_tables as rt
@@ -89,6 +91,7 @@ _report_pages = dict(
     port_rnid_error=dict(s=False, d='Port RNID alert summary page. Not yet implemented.'),
     zone_page=dict(s=True, d='Zone analysis page'),
     t_zone_page=dict(s=True, d='Zone by target page'),
+    s_zone_page=dict(s=True, d='Zone by server page'),
     zone_error=dict(s=False, d='Alias alert summary page. Not yet implemented.'),
     alias=dict(s=True, d='Alias detail page'),
     alias_error=dict(s=False, d='Alias alert summary page. Not yet implemented.'),
@@ -373,7 +376,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
 
     # Add all the fabrics
     for fab_obj in proj_obj.r_fabric_objects():
-        fab_name = brcddb_fabric.best_fab_name(fab_obj, wwn=True)
+        fab_name = brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True)
         if len(fab_name) == 0:
             fab_name = 'Unknown Fabric'
         brcdapi_log.log('Processing fabric: ' + fab_name, True)
@@ -428,8 +431,18 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
         if _report_pages['t_zone_page']['s']:
             brcdapi_log.log('    Building target zone page', True)
             sname = prefix + '_tzone'
-            report_zone.target_zone_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name + ' Zone by Target')
+            report_zone.target_zone_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name +
+                                         ' Zone by Target (effective zone only)')
             tbl_contents.append(dict(sc=1, s=sname, d='Zone by Target'))
+            sheet_index += 1
+
+        #  Server Zone Page
+        if _report_pages['s_zone_page']['s']:
+            brcdapi_log.log('    Building server zone page', True)
+            sname = prefix + '_szone'
+            report_zone.non_target_zone_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name +
+                                         ' Zone by Non-Targets (effective zone only)')
+            tbl_contents.append(dict(sc=1, s=sname, d='Zone by Non-Targets'))
             sheet_index += 1
 
         #  Alias Page
