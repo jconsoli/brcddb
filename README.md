@@ -33,6 +33,11 @@ with the zone_merge.py application.
 * classes/fabric.py - Bug in r_defined_eff_zonecfg_obj(). Added add_switch flag to __init__
 * util/util.py - Added zone_cli().
 
+**Updates: 14 NOv 2021**
+
+* Deprecated pyfos_auth - previously only used in name only.
+* Added util.parse_cli.py
+
 **Description**
 
 A hierarchical relational database using Python data types. Used by the reporting and searching functions.
