@@ -31,16 +31,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 14 Nov 2021   | No funcitonal changes. Prepended "_" for private methods and defaulted index to 0 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -52,6 +53,7 @@ import brcddb.report.fonts as report_fonts
 import brcddb.report.switch as report_switch
 import brcddb.app_data.alert_tables as al
 import brcddb.classes.util as brcddb_class_util
+import brcddb.app_data.report_tables as rt
 
 sheet = None
 row = 1
@@ -76,12 +78,12 @@ _fru_hdr = {
     'brocade-fru/power-supply': {'h': 'Power Supplies', 's': 'unit-number'},
 }
 
-switch_hdr = collections.OrderedDict()
+_switch_hdr = collections.OrderedDict()
 # Key is the column header and value is key used in the reference to the brcddb.report.switch_key_case table
-switch_hdr['Name'] = '_SWITCH_NAME'
-switch_hdr['WWN'] = '_SWITCH_WWN'
-switch_hdr['Fabric ID'] = 'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id'
-switch_hdr['Domain ID'] = 'brocade-fabric/fabric-switch/domain-id'
+_switch_hdr['Name'] = '_SWITCH_NAME'
+_switch_hdr['WWN'] = '_SWITCH_WWN'
+_switch_hdr['Fabric ID'] = 'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id'
+_switch_hdr['Domain ID'] = 'brocade-fabric/fabric-switch/domain-id'
 
 
 def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
@@ -93,8 +95,8 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
-    :type sheet_i: int
+    :param sheet_i: Sheet index where page is to be placed. Default is 0
+    :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
     :param chassis_obj: Chassis object
@@ -104,7 +106,7 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
     global row, sheet, hdr
 
     # Create the worksheet and set up the column widths
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     row = 1
@@ -193,15 +195,15 @@ def _maps_dashboard(chassis_obj):
 ###################################################################
 
 
-def cfru_blade_id_case(v):
+def _cfru_blade_id_case(v):
     return brcddb_chassis.blade_name(v) + ' (' + str(v) + ')'
 
 
-chassis_key_case = dict()  # This is consistent with all  other reports. I just don't have anything chassis custom
+_chassis_key_case = dict()  # This is consistent with all  other reports. I just don't have anything chassis custom
 
 
 chassis_fru_key_case = {
-    'blade-id': cfru_blade_id_case,
+    'blade-id': _cfru_blade_id_case,
 }
 
 _bladed_chassis_only = (
@@ -256,8 +258,8 @@ def _chassis_detail(chassis_obj, display):
             sheet[cell].font = font
             sheet[cell].border = border
             sheet[cell].alignment = alignment
-            if k in chassis_key_case:
-                sheet[cell] = chassis_key_case[k](chassis_obj, k)
+            if k in _chassis_key_case:
+                sheet[cell] = _chassis_key_case[k](chassis_obj, k)
             else:
                 if not chassis_obj.r_is_bladded() and k in _bladed_chassis_only:
                     sheet[cell] = 'n/a'
@@ -337,7 +339,7 @@ def _logical_switches(chassis_obj, display):
     :type display: dict
     :rtype: None
     """
-    global row, sheet, switch_hdr
+    global row, sheet, _switch_hdr
 
     border = report_fonts.border_type('thin')
     alignment = report_fonts.align_type('wrap')
@@ -351,29 +353,29 @@ def _logical_switches(chassis_obj, display):
     sheet[cell] = 'Logical Switches'
     row += 1
     # The column headers
-    for k in switch_hdr:
+    for k in _switch_hdr:
         cell = xl.get_column_letter(col) + str(row)
         sheet[cell].font = font
         sheet[cell] = k
         col += 1
     # The values
-    for switchObj in chassis_obj.r_switch_objects():
+    for switch_obj in chassis_obj.r_switch_objects():
         row += 1
         col = 1
         font = report_fonts.font_type('std')
-        for k in switch_hdr:
+        for k in _switch_hdr:
             cell = xl.get_column_letter(col) + str(row)
             sheet[cell].font = font
             sheet[cell].alignment = alignment
-            k0 = switch_hdr[k]
+            k0 = _switch_hdr[k]
             if k0 in report_switch.switch_key_case:
-                sheet[cell] = report_switch.switch_key_case[k0](switchObj, k0)
+                sheet[cell] = report_switch.switch_key_case[k0](switch_obj, k0)
             else:  # It can only be the domain ID
-                sheet[cell] = switchObj.r_get(k0)
+                sheet[cell] = switch_obj.r_get(k0)
             col += 1
 
 
-def chassis_page(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj, display):
+def chassis_page(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj, in_display):
     """Creates a chassis detail worksheet for the Excel report.
 
     :param wb: Workbook object
@@ -382,14 +384,14 @@ def chassis_page(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj, display)
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
-    :type sheet_i: int
+    :param sheet_i: Sheet index where page is to be placed. Default is 0
+    :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
     :param chassis_obj: Chassis object
     :type chassis_obj: brcddb.classes.chassis.ChassisObj
-    :param display: List of keys to display. Similar to switch_page()
-    :type display: dict
+    :param in_display: List of keys to display. Default is brcddb.app_data.report_tables.chassis_display_tbl
+    :type in_display: dict, None
     :rtype: None
     """
     # Validate the user input
@@ -398,14 +400,13 @@ def chassis_page(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj, display)
         err_msg.append('chassis_obj was not defined.')
     elif brcddb_class_util.get_simple_class_type(chassis_obj) != 'ChassisObj':
         err_msg.append('Wrong object type, ' + str(type(chassis_obj)) + 'Must be brcddb.classes.chassis.ChassisObj.')
-    if display is None:
-        err_msg.append('display not defined.')
+    display = rt.Chassis.chassis_display_tbl if in_display is None else in_display
     if len(err_msg) > 0:
         brcdapi_log.exception(err_msg, True)
         return
 
     # Create the worksheet and add the chassis information
-    _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj)
+    _setup_worksheet(wb, tc, sheet_name, 0 if sheet_i is None else sheet_i, sheet_title, chassis_obj)
     _chassis_detail(chassis_obj, display)
     _maps_dashboard(chassis_obj)
     _chassis_frus(chassis_obj, display)

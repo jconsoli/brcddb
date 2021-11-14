@@ -27,16 +27,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 14 May 2021   | Added parse_parameters(), replaced wb.get_sheet_by_name() with wb[sheet_name]     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 14 Nov 2021   | No funcitonal changes. Defaulted sheet index to 0                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '14 May 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
@@ -99,12 +101,11 @@ def font_type_for_key(obj, k=None):
     :type k: str
     """
     font = report_fonts.font_type('std')
-    a_list = obj.r_alert_objects() if k is None else [alertObj for alertObj in obj.r_alert_objects()
-                                                      if alertObj.key() == k]
-    for alertObj in a_list:
-        if alertObj.is_error():
+    a_list = obj.r_alert_objects() if k is None else [a_obj for a_obj in obj.r_alert_objects() if a_obj.key() == k]
+    for a_obj in a_list:
+        if a_obj.is_error():
             return report_fonts.font_type('error')
-        elif alertObj.is_warn():
+        elif a_obj.is_warn():
             font = report_fonts.font_type('warn')
     return font
 
@@ -120,7 +121,8 @@ def parse_parameters(in_wb=None, sheet_name='parameters', hdr_row=0, wb_name=Non
     +===========+=======+===========================================================================================+
     | hdr_col   | dict  | key: Header, value: 0 based column number                                                 |
     +-----------+-------+-------------------------------------------------------------------------------------------+
-    | content   | list  | A list of dictionaries. They key is the header and the value is the matching cell value   |
+    | content   | list  | A list of dictionaries. For each dictionary, the key is the header and the value is the   |
+    |           |       | matching cell value. The list order is as the data was entered in the worksheet.          |
     +-----------+-------+-------------------------------------------------------------------------------------------+
 
     :param in_wb: Workbook object returned from openpyxl.load_workbook() to read if wb_name is None
@@ -176,9 +178,8 @@ def comments_for_alerts(gobj, k=None, wwn=None):
     obj = gobj if wwn is None else gobj.r_fabric_obj().r_login_obj(wwn)
     if obj is None:
         return ''
-    a_list = obj.r_alert_objects() if k is None else [alertObj for alertObj in obj.r_alert_objects() if
-                                                      alertObj.key() == k]
-    return '\n'.join([alertObj.fmt_msg() for alertObj in a_list])
+    a_list = obj.r_alert_objects() if k is None else [a_obj for a_obj in obj.r_alert_objects() if a_obj.key() == k]
+    return '\n'.join([a_obja_obj.fmt_msg() for a_obja_obj in a_list])
 
 
 def combined_login_alert_objects(login_obj):
@@ -306,8 +307,8 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed. Typically 0
-    :type sheet_i: int
+    :param sheet_i: Sheet index where page is to be placed. Typically 0. Default is 0
+    :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, with light blue fill at the top of the sheet
     :type sheet_title: str
     :param content: Caller defined content. List or tuple of dictionaries to add to the title page. See comments above
@@ -319,7 +320,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
 
     # Set up the sheet
     col = 1
-    sheet = wb.create_sheet(index=sheet_i, title=valid_sheet_name.sub('_', sheet_name))
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=valid_sheet_name.sub('_', sheet_name))
     for i in brcddb_util.convert_to_list(col_width):
         sheet.column_dimensions[xl_util.get_column_letter(col)].width = i
         col += 1

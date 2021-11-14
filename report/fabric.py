@@ -31,16 +31,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Added FID to fabric summary.                                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 14 Nov 2021   | No funcitonal changes. Added defaults for display tables and sheet indicies.      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -82,7 +83,7 @@ def _setup_worksheet(wb, tc, sheet_i, sheet_name, sheet_title):
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
+    :param sheet_i: Sheet index where page is to be placed. Default is 0
     :type sheet_i: int
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
@@ -91,7 +92,7 @@ def _setup_worksheet(wb, tc, sheet_i, sheet_name, sheet_title):
     global _row, _sheet, _hdr
 
     # Create the worksheet, add the headers, and set up the column widths
-    _sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    _sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     _sheet.page_setup.paperSize = _sheet.PAPERSIZE_LETTER
     _sheet.page_setup.orientation = _sheet.ORIENTATION_LANDSCAPE
     _row = 1
@@ -334,7 +335,7 @@ def fabric_page(wb, tc, sheet_i, sheet_name, sheet_title, fabric_obj):
     :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
-    :param sheet_i: Relative location for this worksheet
+    :param sheet_i: Relative location for this worksheet. Default is 0
     :type sheet_i: int
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
@@ -355,7 +356,7 @@ def fabric_page(wb, tc, sheet_i, sheet_name, sheet_title, fabric_obj):
         return
 
     # Set up the worksheet and add the fabric
-    _setup_worksheet(wb, tc, sheet_i, sheet_name, sheet_title)
+    _setup_worksheet(wb, tc, 0 if sheet_i is None else sheet_i, sheet_name, sheet_title)
     _fabric_summary(fabric_obj)
     _maps_dashboard(fabric_obj)
     _zone_configuration(fabric_obj)

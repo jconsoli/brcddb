@@ -33,15 +33,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 17 Jul 2021   | Get switch type from brcddb_chassis instead of brcddb_switch                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 14 Nov 2021   | No funcitonal changes. Added defaults for display tables and sheet indicies.      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -53,6 +55,7 @@ import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.report.utils as report_utils
 import brcddb.report.fonts as report_fonts
 import brcddb.app_data.alert_tables as al
+import brcddb.app_data.report_tables as rt
 
 sheet = None
 row = 1
@@ -69,29 +72,29 @@ hdr['Setting'] = 29
 #
 ###################################################################
 
-def s_switch_name_case(switch_obj, k=None):
+def _s_switch_name_case(switch_obj, k=None):
     return brcddb_switch.best_switch_name(switch_obj, False)
 
 
-def s_switch_name_and_wwn_case(switch_obj, k=None):
+def _s_switch_name_and_wwn_case(switch_obj, k=None):
     return brcddb_switch.best_switch_name(switch_obj, True)
 
 
-def s_switch_wwn_case(switch_obj, k=None):
+def _s_switch_wwn_case(switch_obj, k=None):
     return switch_obj.r_obj_key()
 
 
-def s_switch_did_case(switch_obj, k):
+def _s_switch_did_case(switch_obj, k):
     did = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
     return '0x00' if did is None else '0x' + f'{did:X}' + ' (' + str(did) + ')'
 
 
-def s_switch_list_case(switch_obj, k):
+def _s_switch_list_case(switch_obj, k):
     sl = switch_obj.r_get(k)
     return None if sl is None else '\n'.join(sl)
 
 
-def s_switch_trunk_case(switch_obj, k):  # Not used yet
+def _s_switch_trunk_case(switch_obj, k):  # Not used yet
     rl = list()
     for obj in brcddb_util.convert_to_list(switch_obj.r_get(k)):
         port_obj = switch_obj.r_port_object_for_index(obj.get('source-port'))
@@ -103,22 +106,22 @@ def s_switch_trunk_case(switch_obj, k):  # Not used yet
     return '\n'.join(rl)
 
 
-def s_switch_area_mode_case(switch_obj, k):
+def _s_switch_area_mode_case(switch_obj, k):
     x = switch_obj.r_get(k)
     return str(x) + ' (' + brcddb_switch.area_mode[x] + ')' if x in brcddb_switch.area_mode else str(x) + '(Unknown)'
 
 
-def s_switch_model_case(switch_obj, k):
+def _s_switch_model_case(switch_obj, k):
     # Custom OEM index not yet available as of 9.0.1b
     return brcddb_chassis.chassis_type(switch_obj.r_chassis_obj(), type_num=True, in_oem='brcd')
 
 
-def s_switch_up_time_case(switch_obj, k):
+def _s_switch_up_time_case(switch_obj, k):
     x = switch_obj.r_get(k)
     return int(x / 86400 + 0.5) if isinstance(x, int) else 'Unknown'
 
 
-def s_maps_active_policy_name(switch_obj, k):
+def _s_maps_active_policy_name(switch_obj, k):
     try:
         return switch_obj.r_active_maps_policy().get('name')
     except:
@@ -130,16 +133,16 @@ switch_key_case = {
     '_FABRIC_NAME': report_utils.fabric_name_case,
     '_FABRIC_NAME_AND_WWN': report_utils.fabric_name_or_wwn_case,
     '_FABRIC_WWN': report_utils.fabric_wwn_case,
-    '_SWITCH_NAME': s_switch_name_case,
-    '_SWITCH_NAME_AND_WWN': s_switch_name_and_wwn_case,
-    '_SWITCH_WWN': s_switch_wwn_case,
-    '_SWITCH_ACTIVE_MAPS_POLICY_NAME': s_maps_active_policy_name,
+    '_SWITCH_NAME': _s_switch_name_case,
+    '_SWITCH_NAME_AND_WWN': _s_switch_name_and_wwn_case,
+    '_SWITCH_WWN': _s_switch_wwn_case,
+    '_SWITCH_ACTIVE_MAPS_POLICY_NAME': _s_maps_active_policy_name,
     # Root level API
-    'brocade-fabric/fabric-switch/domain-id': s_switch_did_case,
-    'brocade-fibrechannel-switch/fibrechannel-switch/ip-static-gateway-list/ip-static-gateway': s_switch_list_case,
-    'brocade-fibrechannel-switch/fibrechannel-switch/model': s_switch_model_case,
-    'brocade-fibrechannel-configuration/switch-configuration/area-mode': s_switch_area_mode_case,
-    'brocade-fibrechannel-switch/fibrechannel-switch/up-time': s_switch_up_time_case,
+    'brocade-fabric/fabric-switch/domain-id': _s_switch_did_case,
+    'brocade-fibrechannel-switch/fibrechannel-switch/ip-static-gateway-list/ip-static-gateway': _s_switch_list_case,
+    'brocade-fibrechannel-switch/fibrechannel-switch/model': _s_switch_model_case,
+    'brocade-fibrechannel-configuration/switch-configuration/area-mode': _s_switch_area_mode_case,
+    'brocade-fibrechannel-switch/fibrechannel-switch/up-time': _s_switch_up_time_case,
     # f-port-login-settings
     # 'zone-configuration': ?, This is a dict, but I don't know what the members are yet
 }
@@ -154,8 +157,8 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title):
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
-    :type sheet_i: int
+    :param sheet_i: Sheet index where page is to be placed. Default s 0
+    :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
     :rtype: None
@@ -163,7 +166,7 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title):
     global row, sheet, hdr
 
     # Create the worksheet, add the headers, and set up the column widths
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     row = 1
@@ -299,7 +302,7 @@ def _add_switch(switch_obj, display):
                 sheet[cell] = v if isinstance(v, (str, int, float)) else '' if v is None else str(v)
 
 
-def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list, display):
+def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list, in_display=None):
     """Creates a switch detail worksheet for the Excel report.
     :param wb: Workbook object
     :type wb: class
@@ -307,14 +310,14 @@ def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list, display):
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
-    :type sheet_i: int
+    :param sheet_i: Sheet index where page is to be placed. Default is 0
+    :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
     :param s_list: List of switch objects (SwitchObj) to display
     :type s_list: list, tuple
-    :param display: List of keys to display. Find next instance of switch_key_case. Much less complex than port_page()
-    :type display: dict
+    :param in_display: List of keys to display. d
+    :type in_display: dict
     :rtype: None
     """
     # Validate the user input
@@ -323,13 +326,12 @@ def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list, display):
         err_msg.append('s_list was not defined.')
     elif not isinstance(s_list, (list, tuple)):
         err_msg.append('s_list was type ' + str(type(s_list)) + '. Must be a list or tuple.')
-    if display is None:
-        err_msg.append('display not defined.')
     if len(err_msg) > 0:
         brcdapi_log.exception(err_msg, True)
         return
+    display = rt.Switch.switch_display_tbl if in_display is None else in_display
 
-    # Set up the worksheed and add each switch
-    _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title)
+    # Set up the worksheet and add each switch
+    _setup_worksheet(wb, tc, sheet_name, 0 if sheet_i is None else sheet_i, sheet_title)
     for switch_obj in s_list:
         _add_switch(switch_obj, display)

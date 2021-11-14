@@ -31,15 +31,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 14 May 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 14 Nov 2021   | No funcitonal changes. Added defaults for display tables and sheet indicies.      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 May 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import openpyxl.utils.cell as xl
 import brcddb.brcddb_fabric as brcddb_fabric
@@ -134,8 +136,8 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
-    :type sheet_i: int
+    :param sheet_i: Sheet index where page is to be placed. Default is 0
+    :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
     :param obj: Project or fabric object.
@@ -158,7 +160,7 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
         return
 
     # Create the worksheet, add the headers, and set up the column widths
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     col = 1

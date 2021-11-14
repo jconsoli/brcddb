@@ -15,7 +15,7 @@
 """
 :mod:`report.zone` - Creates a zoning page to be added to an Excel Workbook
 
-VVersion Control::
+Version Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
@@ -41,23 +41,27 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 07 Aug 2021   | Minor display issues cleaned up.                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 14 Nov 2021   | Added non_target_zone_page() and defaults.                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '07 Aug 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import collections
 import openpyxl.utils.cell as xl
 import brcddb.brcddb_switch as brcddb_switch
+import brcddb.brcddb_zone as brcddb_zone
 import brcddb.report.fonts as report_fonts
 import brcddb.brcddb_login as brcddb_login
 import brcddb.report.utils as report_utils
 import brcddb.app_data.alert_tables as al
+import brcddb.util.search as brcddb_search
 
 _std_font = report_fonts.font_type('std')
 _bold_font = report_fonts.font_type('bold')
@@ -127,7 +131,7 @@ def _mem_member_case(obj, mem, wwn, port_obj):
 def _mem_comment_case(obj, mem, wwn, port_obj):
     # Get any comments for this WWN in the zone object
     al = [a.fmt_msg() for a in obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
-    # If there is a login, add any comments associated with the login that are zoning specific
+    # If there is a login, add any comments associated with the login that are zone specific
     if obj.r_fabric_obj() is not None and obj.r_fabric_obj().r_login_obj(wwn) is not None:
         al.extend('\n'.join([a.fmt_msg() for a in obj.r_fabric_obj().r_login_obj(wwn).r_alert_objects()
                              if a.is_flag() and a.p0() == mem]))
@@ -198,8 +202,8 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     :type wb: class
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
-    :type sheet_i: int
+    :param sheet_i: Sheet index where page is to be placed. Default is 0.
+    :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
     :rtype: None
@@ -207,7 +211,7 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     global _zone_hdr
 
     # Create the worksheet, add the headers, and set up the column widths
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     col = 1
@@ -361,8 +365,8 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     :type wb: class
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
-    :type sheet_i: int
+    :param sheet_i: Sheet index where page is to be placed. Default is 0.
+    :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
     :rtype: None
@@ -370,7 +374,7 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     global alias_hdr
 
     # Create the worksheet, add the headers, and set up the column widths
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     col = 1
@@ -426,7 +430,7 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
 ##################################################################
 #
-#            Case methods for hdr in target_zone_page()
+# Case methods for hdr in target_zone_page() & non_target_zone_page()
 #
 ##################################################################
 _t_skip = [_i for _i in range(al.ALERT_NUM.LOGIN_BASE, al.ALERT_NUM.ZONE_BASE)
@@ -471,22 +475,31 @@ def _tzone_desc_case(obj, obj2, zone_l):
     return brcddb_login.login_best_node_desc(obj)
 
 
-_target_zone_hdr = {
-    # Key is the column header. Value is a dict as follows:
-    #   'c' Column width
-    #   'a' Case method to fill in the cell for the item associated with the header
-    'Comments': dict(c=30, a=_tzone_comment_case),
-    'Target': dict(c=30, a=_tzone_name_case),
-    'Server': dict(c=30, a=_tzone_name_case),
-    'Zones': dict(c=22, a=_tzone_zone_case),
-    'Switch': dict(c=22, a=_tzone_switch_case),
-    'Port': dict(c= 22, a=_tzone_port_case),
-    'Speed Gbps': dict(c=7, a=_tzone_speed_case),
-    'Description': dict(c=50, a=_tzone_desc_case),
-}
+_target_zone_hdr = collections.OrderedDict()
+# Key is the column header. Value is a dict as follows:
+#   'c' Column width
+#   'a' Case method to fill in the cell for the item associated with the header
+_target_zone_hdr['Comments'] = dict(c=30, a=_tzone_comment_case)
+_target_zone_hdr['Target'] = dict(c=30, a=_tzone_name_case)
+_target_zone_hdr['Non-Target'] = dict(c=30, a=_tzone_name_case)
+_target_zone_hdr['Zoned Target'] = dict(c=30, a=_tzone_name_case)
+_target_zone_hdr['Switch'] = dict(c=22, a=_tzone_switch_case)
+_target_zone_hdr['Port'] = dict(c=22, a=_tzone_port_case)
+_target_zone_hdr['Speed Gbps'] = dict(c=7, a=_tzone_speed_case)
+_target_zone_hdr['Description'] = dict(c=50, a=_tzone_desc_case)
+
+_server_zone_hdr = collections.OrderedDict()
+_server_zone_hdr['Comments'] = dict(c=30, a=_tzone_comment_case)
+_server_zone_hdr['Non-Target'] = dict(c=30, a=_tzone_name_case)
+_server_zone_hdr['Target'] = dict(c=30, a=_tzone_name_case)
+_server_zone_hdr['Zoned Server'] = dict(c=30, a=_tzone_name_case)
+_server_zone_hdr['Switch'] = dict(c=22, a=_tzone_switch_case)
+_server_zone_hdr['Port'] = dict(c=22, a=_tzone_port_case)
+_server_zone_hdr['Speed Gbps'] = dict(c=7, a=_tzone_speed_case)
+_server_zone_hdr['Description'] = dict(c=50, a=_tzone_desc_case)
 
 
-def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
+def _common_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title, hdr):
     """Creates a target zone detail worksheet for the Excel report.
 
     :param fab_obj: Fabric object
@@ -497,16 +510,18 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     :type wb: class
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
-    :type sheet_i: int
+    :param sheet_i: Sheet index where page is to be placed. Default is 0.
+    :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
-    :rtype: None
+    :param hdr: Either _target_zone_hdr or _server_zone_hdr
+    :return sheet: Sheet (page) added to the workbook (wb)
+    :rtype sheet: class
+    :return row: Next available row on the worksheet
+    :rtype row: int
     """
-    global _target_zone_hdr
-
     # Create the worksheet, add the headers, and set up the column widths
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     col = 1
@@ -524,7 +539,7 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     col = 1
     sheet.freeze_panes = sheet['A4']
     font = report_fonts.font_type('hdr_2')
-    for k, d in _target_zone_hdr.items():
+    for k, d in hdr.items():
         sheet.column_dimensions[xl.get_column_letter(col)].width = d['c']
         cell = xl.get_column_letter(col) + str(row)
         sheet[cell].font = font
@@ -532,12 +547,69 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         sheet[cell].alignment = _align_wrap
         sheet[cell] = k
         col += 1
+    row += 1
+
+    return sheet, row
+
+
+def _get_zoned_to(fab_obj, wwn):
+    """Get the targets and all else in the effective zone configuration zoned to a WWN.
+
+    :param fab_obj: Fabric object
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param wwn: WWN to find what's zoned to it
+    :type wwn: str, None
+    :return target_d: Dictionary from brcddb_zone.eff_zoned_to_wwn() with all but target FC4 types filtered out
+    :rtype target_d: dict
+    :return all_else_d: Dictionary from brcddb_zone.eff_zoned_to_wwn() with target FC4 types filtered out
+    :rtype all_else_d: dict
+    """
+    target_d = brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, target=True, initiator=False)
+    all_else_d = dict()
+    for k, d in brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True).items():
+        if k not in target_d:
+            all_else_d.update({k: d})
+
+    return target_d, all_else_d
+
+
+
+def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
+    """Creates a target zone detail worksheet for the Excel report.
+
+    Note: Adding non_target_zone_page() wasn an after thought. I created _common_zone_page() to set up the worksheet but
+    I certainly could have written target_zone_page() and non_target_zone_page() to share more code.
+
+    :param fab_obj: Fabric object
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param tc: Table of context page. A link to this page is place in cell A1
+    :type tc: str, None
+    :param wb: Workbook object
+    :type wb: class
+    :param sheet_name: Sheet (tab) name
+    :type sheet_name: str
+    :param sheet_i: Sheet index where page is to be placed. Default is 0.
+    :type sheet_i: int, None
+    :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
+    :type sheet_title: str
+    :rtype: None
+    """
+    global _target_zone_hdr
+
+    sheet, row = _common_zone_page(fab_obj, tc, wb, sheet_name, 0 if sheet_i is None else sheet_i, sheet_title,
+                                   _target_zone_hdr)
 
     # Fill out all the zone information for each target
-    for t_login_obj in fab_obj.r_login_objects():
-        server_l = t_login_obj.r_get('_zoned_servers')
-        if server_l is None or len(server_l) == 0:
-            continue
+    t_obj_l = brcddb_search.match(fab_obj.r_login_objects(),
+                                  'brocade-name-server/fc4-features',
+                                  'Target',
+                                  ignore_case=True,
+                                  stype='regex-s')  # List of target objects in the fabric
+    for t_login_obj in t_obj_l:
+        wwn = t_login_obj.r_obj_key()
+        target_d, all_else_d = _get_zoned_to(fab_obj, wwn)
+        if len(all_else_d) + len(target_d) == 0:
+            continue  # This is a single member zone if we get here
 
         # The target information
         row += 1
@@ -548,11 +620,12 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                 if k == 'Comments' else _bold_font
             sheet[cell].border = _border_thin
             sheet[cell].alignment = _align_wrap
-            sheet[cell] = len(server_l) if k == 'Server' else d['a'](t_login_obj, t_login_obj.r_port_obj(), list())
+            sheet[cell] = len(all_else_d) if k == 'Non-Target' else len(target_d) if k == 'Zoned Target' else \
+                d['a'](t_login_obj, t_login_obj.r_port_obj(), list())
             col += 1
 
         # The server information
-        for wwn, zone_l in server_l.items():
+        for wwn, zone_l in all_else_d.items():
             login_obj = fab_obj.r_login_obj(wwn)
             col = 1
             row += 1
@@ -562,7 +635,90 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                     if k == 'Comments' else _std_font
                 sheet[cell].border = _border_thin
                 sheet[cell].alignment = _align_wrap
-                sheet[cell] = '' if k == 'Target' else \
+                sheet[cell] = '' if 'Target' in k else \
+                    _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                col += 1
+
+        # Add any targets zoned to this target
+        for wwn, zone_l in target_d.items():
+            login_obj = fab_obj.r_login_obj(wwn)
+            col = 1
+            row += 1
+            for k in _target_zone_hdr:
+                cell = xl.get_column_letter(col) + str(row)
+                sheet[cell].font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) \
+                    if k == 'Comments' else _std_font
+                sheet[cell].border = _border_thin
+                sheet[cell].alignment = _align_wrap
+                sheet[cell] = '' if k == 'Non-Target' or k == 'Target' else \
+                    _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                col += 1
+
+        row += 1
+
+
+def non_target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
+    """Creates a non-target zone detail worksheet for the Excel report.
+
+    See comments with target_zone_page() for additional notes and input parameter definitions.
+    """
+    global _server_zone_hdr
+
+    sheet, row = _common_zone_page(fab_obj, tc, wb, sheet_name, 0 if sheet_i is None else sheet_i, sheet_title,
+                                   _target_zone_hdr)
+
+    # Fill out all the zone information for each target
+    t_obj_l = brcddb_search.match(fab_obj.r_login_objects(),
+                                  'brocade-name-server/fc4-features',
+                                  'Target',
+                                  ignore_case=True,
+                                  stype='regex-s')  # List of target objects in the fabric
+    for s_login_obj in [obj for obj in fab_obj.r_login_objects() if obj not in t_obj_l]:
+        wwn = s_login_obj.r_obj_key()
+        target_d, all_else_d = _get_zoned_to(fab_obj, wwn)
+        if len(all_else_d) + len(target_d) == 0:
+            continue  # This is a single member zone if we get here.
+
+        # The server information (really anything that's not a target)
+        row += 1
+        col = 1
+        for k, d in _server_zone_hdr.items():
+            cell = xl.get_column_letter(col) + str(row)
+            sheet[cell].font = report_utils.font_type(_filter_alerts([s_login_obj, s_login_obj.r_port_obj()])) \
+                if k == 'Comments' else _bold_font
+            sheet[cell].border = _border_thin
+            sheet[cell].alignment = _align_wrap
+            sheet[cell] = len(all_else_d) if k == 'Target' else len(target_d) if k == 'Zoned Server' else \
+                d['a'](s_login_obj, s_login_obj.r_port_obj(), list())
+            col += 1
+
+        # The server information
+        for wwn, zone_l in all_else_d.items():
+            login_obj = fab_obj.r_login_obj(wwn)
+            col = 1
+            row += 1
+            for k in _target_zone_hdr:
+                cell = xl.get_column_letter(col) + str(row)
+                sheet[cell].font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) \
+                    if k == 'Comments' else _std_font
+                sheet[cell].border = _border_thin
+                sheet[cell].alignment = _align_wrap
+                sheet[cell] = '' if 'Target' in k else \
+                    _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                col += 1
+
+        # Add any targets zoned to this target
+        for wwn, zone_l in target_d.items():
+            login_obj = fab_obj.r_login_obj(wwn)
+            col = 1
+            row += 1
+            for k in _target_zone_hdr:
+                cell = xl.get_column_letter(col) + str(row)
+                sheet[cell].font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) \
+                    if k == 'Comments' else _std_font
+                sheet[cell].border = _border_thin
+                sheet[cell].alignment = _align_wrap
+                sheet[cell] = '' if k == 'Non-Target' or k == 'Target' else \
                     _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
                 col += 1
 

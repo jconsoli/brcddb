@@ -32,16 +32,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 14 Nov 2021   | No funcitonal changes. Added defaults for display tables and sheet indicies.      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import openpyxl.utils.cell as xl
 import brcddb.brcddb_common as brcddb_common
@@ -50,6 +51,7 @@ import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.utils as report_utils
 import brcddb.report.fonts as report_fonts
+import brcddb.app_data.report_tables as brcddb_rt
 
 
 ##################################################################
@@ -59,40 +61,40 @@ import brcddb.report.fonts as report_fonts
 ###################################################################
 
 # Custom
-def l_switch_name_case(login_obj):
+def _l_switch_name_case(login_obj):
     return brcddb_switch.best_switch_name(login_obj.r_switch_obj(), False)
 
 
-def l_switch_name_and_wwn_case(login_obj):
+def _l_switch_name_and_wwn_case(login_obj):
     return brcddb_switch.best_switch_name(login_obj.r_switch_obj(), True)
 
 
-def l_switch_wwn_case(login_obj):
+def _l_switch_wwn_case(login_obj):
     switch_obj = login_obj.r_switch_obj()
     return '' if switch_obj is None else switch_obj.r_obj_key()
 
 
-def l_port_number_case(login_obj):
+def _l_port_number_case(login_obj):
     port_obj = login_obj.r_port_obj()
     return '' if port_obj is None else port_obj.r_obj_key()
 
 
-def l_alias_case(login_obj):
+def _l_alias_case(login_obj):
     return '\n'.join(login_obj.r_fabric_obj().r_alias_for_wwn(login_obj.r_obj_key()))
 
 
-def l_zones_def_case(login_obj):
+def _l_zones_def_case(login_obj):
     # You can have an alias that includes a WWN + the same WWN as a WWN in the zone in which case this would return
     # the same zone twice. As a practical matter, I've never seen it done and nothing breaks in the code so this is
     # good enough
     return '\n'.join(login_obj.r_fabric_obj().r_zones_for_wwn(login_obj.r_obj_key()))
 
 
-def l_zones_eff_case(login_obj):
+def _l_zones_eff_case(login_obj):
     return '\n'.join(login_obj.r_fabric_obj().r_eff_zones_for_wwn(login_obj.r_obj_key()))
 
 
-def l_fdmi_node_case(login_obj, k):
+def _l_fdmi_node_case(login_obj, k):
     # Remember, it's the base WWN we want for the node (hba), not the login WWN
     try:
         wwn = login_obj.r_port_obj().r_get('fibrechannel/neighbor/wwn')[0]
@@ -102,7 +104,7 @@ def l_fdmi_node_case(login_obj, k):
         return ''
 
 
-def l_fdmi_port_case(login_obj, k):
+def _l_fdmi_port_case(login_obj, k):
     try:
         buf = login_obj.r_fabric_obj().r_fdmi_port_obj(login_obj.r_obj_key()).r_get(k)
         if isinstance(buf, str):
@@ -116,38 +118,38 @@ def l_fdmi_port_case(login_obj, k):
         return ''
 
 
-def l_port_name_case(login_obj):
+def _l_port_name_case(login_obj):
     port_name = login_obj.r_get('port-name')  # There isn't anything in here if it's AMP
     return login_obj.r_obj_key() if port_name is None else login_obj.r_get('port-name')
 
 
-def l_comment_case(login_obj):
+def _l_comment_case(login_obj):
     a_list = report_utils.combined_login_alert_objects(login_obj)
     return '\n'.join([obj.fmt_msg() for obj in a_list]) if len(a_list) > 0 else ''
 
 
-login_case = {
+_login_case = {
     '_FABRIC_NAME': report_utils.fabric_name_case,
     '_FABRIC_NAME_AND_WWN': report_utils.fabric_name_or_wwn_case,
     '_FABRIC_WWN': report_utils.fabric_wwn_case,
-    '_LOGIN_COMMENTS': l_comment_case,
-    '_PORT_NUMBER': l_port_number_case,
-    '_SWITCH_NAME': l_switch_name_case,
-    '_SWITCH_NAME_AND_WWN': l_switch_name_and_wwn_case,
-    '_SWITCH_WWN': l_switch_wwn_case,
-    '_ALIAS': l_alias_case,
-    '_ZONES_DEF': l_zones_def_case,
-    '_ZONES_EFF': l_zones_eff_case,
-    'port-name': l_port_name_case,
+    '_LOGIN_COMMENTS': _l_comment_case,
+    '_PORT_NUMBER': _l_port_number_case,
+    '_SWITCH_NAME': _l_switch_name_case,
+    '_SWITCH_NAME_AND_WWN': _l_switch_name_and_wwn_case,
+    '_SWITCH_WWN': _l_switch_wwn_case,
+    '_ALIAS': _l_alias_case,
+    '_ZONES_DEF': _l_zones_def_case,
+    '_ZONES_EFF': _l_zones_eff_case,
+    'port-name': _l_port_name_case,
 }
 
-fdmi_case = {
-    '_FDMI_NODE': l_fdmi_node_case,
-    '_FDMI_PORT': l_fdmi_port_case,
+_fdmi_case = {
+    '_FDMI_NODE': _l_fdmi_node_case,
+    '_FDMI_PORT': _l_fdmi_port_case,
 }
 
 
-def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, display, login_display_tbl, s=True):
+def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display, in_login_display_tbl, s=True):
     """Creates a login detail worksheet for the Excel report.
 
     :param wb: Workbook object
@@ -156,8 +158,8 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, display, login_
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
-    :type sheet_i: int
+    :param sheet_i: Sheet index where page is to be placed. Default is 0
+    :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
     :param l_list: List of login objects (LoginObj) to display
@@ -169,7 +171,7 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, display, login_
     :param s: If True, sorts the logins by port-id (port address where the login was found)
     :rtype: None
     """
-    global login_case, fdmi_case
+    global _login_case, _fdmi_case
 
     # Validate the user input
     err_msg = list()
@@ -177,15 +179,15 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, display, login_
         err_msg.append('l_list was not defined.')
     elif not isinstance(l_list, (list, tuple)):
         err_msg.append('l_list was type ' + str(type(l_list)) + '. Must be a list or tuple.')
-    if display is None:
-        err_msg.append('display not defined.')
     if len(err_msg) > 0:
         err_msg.append('Failed to create login_page().')
         brcdapi_log.exception(err_msg, True)
         return
+    login_display_tbl = brcddb_rt.Login.login_display_tbl if in_login_display_tbl is None else in_login_display_tbl
+    display = brcddb_rt.Login.login_tbl if in_display is None else in_display
 
     # Create the worksheet, add the headers, and set up the column widths
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     col = 1
@@ -255,12 +257,12 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, display, login_
             k_list = k.split('.')
             if len(k_list) > 1:
                 try:
-                    sheet[cell] = fdmi_case[k_list[0]](login_obj, k_list[1])
+                    sheet[cell] = _fdmi_case[k_list[0]](login_obj, k_list[1])
                 except:
                     sheet[cell] = ''
                     brcdapi_log.exception('Unknown key: ' + k_list[0])
-            elif k in login_case:
-                sheet[cell] = login_case[k](login_obj)
+            elif k in _login_case:
+                sheet[cell] = _login_case[k](login_obj)
             elif k in login_display_tbl:
                 v = login_obj.r_get(k)
                 if v is None:

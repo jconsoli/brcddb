@@ -33,16 +33,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 14 Nov 2021   | Added configuration workbook fill types                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcdapi.log as brcdapi_log
 import openpyxl.styles as xl_styles
@@ -138,14 +139,24 @@ font_tbl = dict(
 #################################################################
 #   Fill Types                                                  #
 #                                                               #
-#   If you add a fill type, remember to add it to fill_tbl      #
+#   If you add a fill type, remember to add it to _fill_tbl      #
 #################################################################
-lightblue_fill = xl_styles.PatternFill(
+_lightblue_fill = xl_styles.PatternFill(  # Fill used in reports
     fill_type='solid',
     start_color='FFCCE5FF',
 )
-fill_tbl = dict(
-    lightblue=lightblue_fill,
+_config_asic_0 = xl_styles.PatternFill(  # orange color used in switch configuration workbook for ASIC 0
+    fill_type='solid',
+    start_color='FFFCD5B4',
+)
+_config_asic_1 = xl_styles.PatternFill(  # grey-blue color used in switch configuration workbook for ASIC 1
+    fill_type='solid',
+    start_color='FFDCE6F1',
+)
+_fill_tbl = dict(
+    lightblue=_lightblue_fill,
+    config_asic_0=_config_asic_0,
+    config_asic_1=_config_asic_1,
 )
 
 #################################################################
@@ -229,11 +240,11 @@ def fill_type(x):
     :return: Fill defintions for openpyxl library
     :rtype: tuple
     """
-    if x in fill_tbl:
-        return fill_tbl[x]
+    if x in _fill_tbl:
+        return _fill_tbl[x]
     else:
         brcdapi_log.exception('Unknown fill type: ' + x, True)
-        return lightblue_fill
+        return _lightblue_fill
 
 
 def border_type(x):

@@ -30,15 +30,17 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 17 Jul 2021   | Added 'Comment' column. Used libraries in brcddb_port.                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 14 Nov 2021   | No funcitonal changes. Added defaults for display tables and sheet indicies.      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import openpyxl.utils.cell as xl
 import brcddb.brcddb_switch as brcddb_switch
@@ -178,11 +180,9 @@ def _rnid_case(id, port_obj, chpid, link_addr=None):
 
 
 def _type_case(id, port_obj, chpid, link_addr=None):
-    """Returns the port type. See _null_case() for parameter definitions"""
-    if port_obj is None:
-        return ''
-    port_type = port_obj.r_get('rnid/type-number')
-    return '' if port_type is None else port_type
+    """Returns the port type and type description. See _null_case() for parameter definitions"""
+    return '' if port_obj is None else \
+        brcddb_iocp.dev_type_desc(port_obj.r_get('rnid/type-number'), True, True, True, ' (', ')')
 
 
 def _mfg_case(id, port_obj, chpid, link_addr=None):
@@ -238,7 +238,7 @@ _chpid_hdr = {
     'Status': dict(c=8, m=_status_case),
     'FC Addr': dict(c=8, m=_fc_addr_case),
     'RNID': dict(c=22, m=_rnid_case),
-    'Type': dict(c=8, m=_type_case),
+    'Type': dict(c=28, m=_type_case),
     'Mfg': dict(c=8, m=_mfg_case),
     'Sequence': dict(c=15, m=_seq_case),
     'Tag': dict(c=7, m=_tag_case),
@@ -276,7 +276,7 @@ def iocp_page(iocp_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     :type wb: class
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed.
+    :param sheet_i: Sheet index where page is to be placed. Default is 0
     :type sheet_i: int
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
@@ -294,7 +294,7 @@ def iocp_page(iocp_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         i += 1
 
     # Create the worksheet, add the headers, and set up the column widths
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     col = 1
