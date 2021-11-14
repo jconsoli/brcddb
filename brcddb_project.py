@@ -39,16 +39,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 17 Jul 2021   | Get _DUP_WWN_CHECK from brcddb/app_data.bp_tables.                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 14 Nov 2021   | Improved readability and updated comments. No functional changes                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.classes.project as project_class
 import brcddb.brcddb_fabric as brcddb_fabric
@@ -156,8 +158,7 @@ def add_custom_search_terms(proj_obj):
     """
     for port_obj in proj_obj.r_port_objects():
         # Find the maximum speed & add something to the port & login objects we can search against.
-        max_r_sfp = None
-        max_sfp = None
+        max_sfp = max_r_sfp = None
         search = port_obj.r_get('_search')
         if search is None:
             search = dict()
@@ -168,29 +169,29 @@ def add_custom_search_terms(proj_obj):
         if isinstance(l, (list, tuple)):
             max_sfp = max(l)
             if 'sfp_max_speed' not in search:
-                search.update({'sfp_max_speed': max_sfp})
+                search.update(dict(sfp_max_speed=max_sfp))
             if 'sfp_min_speed' not in search:
-                search.update({'sfp_min_speed': min(l)})
+                search.update(dict(sfp_min_speed=min(l)))
 
         # Get the maximum and minimum speeds supported by the remote (attached device) SFP
         l = port_obj.r_get('media-rdp/remote-media-speed-capability/speed')
         if isinstance(l, (list, tuple)):
             max_r_sfp = max(l)
             if 'remote_sfp_max_speed' not in search:
-                search.update({'remote_sfp_max_speed': max_r_sfp})
+                search.update(dict(remote_sfp_max_speed=max_r_sfp))
             if 'remote_sfp_min_speed' not in search:
-                search.update({'remote_sfp_min_speed': min(l)})
+                search.update(dict(remote_sfp_min_speed=min(l)))
 
         # Get the maximum supported speed (the lesser of the maximum local speed and maximum attached speed)
         if isinstance(max_sfp, int) and isinstance(max_r_sfp, int):
             if 'max_login_speed' not in search:
-                search.update({'max_login_speed': min([max_sfp, max_r_sfp])})
+                search.update(dict(max_login_speed=min([max_sfp, max_r_sfp])))
 
         # Convert the actual login speed, which is bps, to Gbps for easier comparisons to the SFP speed capabilities
         if 'speed' not in search:
             v = brcddb_util.non_decimal.sub('', port_obj.c_login_speed())
             if len(v) > 0:
-                search.update({'speed': int(v)})
+                search.update(dict(speed=int(v)))
 
 
 def fab_obj_for_user_name(proj_obj, name):

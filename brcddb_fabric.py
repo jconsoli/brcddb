@@ -36,18 +36,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.1     | 21 Aug 2021   | Added copy_fab_obj()                                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 14 Nov 2021   | Added zone_merge_group(). Added FID to best_fab_name()                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '21 Aug 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.2'
 
-import pprint
 import brcdapi.log
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -72,7 +73,7 @@ special_login = {
 }
 
 
-def best_fab_name(fab_obj, wwn=False):
+def best_fab_name(fab_obj, wwn=False, fid=False):
     """Returns the user friendly fabric name, optionally with the WWN of just the WWN if a user friendly name wasn't
     defined.
 
@@ -80,17 +81,21 @@ def best_fab_name(fab_obj, wwn=False):
     :type fab_obj: FabricObj
     :param wwn: If True, append (wwn) to the fabric name
     :type wwn: bool
+    :param fid: If True, append (fid) to the fabric name
     :return: Fabric name
     :rtype: str, None
     """
     if fab_obj is None:
         return 'Unknown'
+    rbuf = fab_obj.r_obj_key()
     for switch_obj in fab_obj.r_switch_objects():  # The fabric information is stored with the switch
         buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/fabric-user-friendly-name')
         if buf is not None and len(buf) > 0:
-            return buf + ' (' + fab_obj.r_obj_key() + ')' if wwn else buf
+            rbuf = buf + ' (' + rbuf + ')' if wwn else buf
+            break
+    rbuf += ' (' + ', '.join([str(i) for i in fab_fids(fab_obj)]) + ')' if fid else ''
 
-    return fab_obj.r_obj_key()
+    return rbuf
 
 
 def switch_for_did(fab_obj, did):
@@ -215,14 +220,13 @@ def zone_by_target(fab_obj):
         t_speed = x if isinstance(x, (int, float)) else 0
 
         # Get a list of all the server login objects zoned to this target
-        s_wwn_l = brcddb_zone.eff_zoned_to_wwn(fab_obj, t_wwn, target=False, initiator=True)
-        # if len(s_wwn_l) > bt.MAX_ZONE_PARTICIPATION:
-        #     t_login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MAX_PARTICIPATION)
-        t_login_obj.s_new_key('_zoned_servers', s_wwn_l)
+        s_wwn_d = brcddb_zone.eff_zoned_to_wwn(fab_obj, t_wwn, target=False, initiator=True)
+        if len(s_wwn_d) > bt.MAX_ZONE_PARTICIPATION:
+            t_login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MAX_PARTICIPATION)
 
         # Figure out what all the login speeds of the target and servers zoned to this target
         s_speed_l = list()
-        for s_login_obj in brcddb_util.remove_none([fab_obj.r_login_obj(wwn) for wwn in s_wwn_l]):
+        for s_login_obj in brcddb_util.remove_none([fab_obj.r_login_obj(wwn) for wwn in s_wwn_d]):
             s_port_obj = s_login_obj.r_port_obj()
             x = None if s_port_obj is None else s_port_obj.r_get('_search/speed')
             if isinstance(x, (int, float)):
@@ -510,3 +514,94 @@ def copy_fab_obj(fab_obj, fab_key=None, full_copy=False):
 
     return fab_obj_copy
 
+
+def _zone_merge_group(wwn_d, missing_l, fab_obj, in_wwn):
+    """Internal for zone_merge_group()
+
+    This method was written to support scripts that determine zone migration groups. Keep in mind that has to be
+    iterative because everything associated with every login has to move.
+
+    :param wwn_d: Used to track WWNs already taken into account
+    :type wwn_d: dict
+    :param missing_l: Running list of WWNs not found
+    :type missing_l: list
+    :param fab_obj: The fabric object to be copied
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param in_wwn: WWN of the device you want to move
+    :type in_wwn: str, None
+    :return: List of WWNs need to be grouped together
+    :type: list
+    """
+    rl = list()  # List of WWNs in the zone merge group
+
+    # The user is moving the device off the port so all logins on the port must be considered
+    port_obj = fab_obj.r_login_obj(in_wwn).r_port_obj()
+    # The WWN may be zoned by not logged into the fabric in which case, it won't be associated with a port
+    if port_obj is None:
+        missing_l.append(in_wwn)
+        wwn_l = [wwn]  # We still need to process it because there may be other dependancies
+    else:
+        wwn_l = port_obj.r_login_keys()
+
+    # Figure out all the zone dependancies for each WWN
+    for wwn in wwn_l:
+        rl.append(wwn)
+        wwn_d.update({wwn: True})
+        for d_wwn, zone_l in brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, target=True, initiator=True).items():
+            for zone in zone_l:
+                for next_wwn in brcddb_zone.eff_zoned_to_wwn(fab_obj, d_wwn, target=True, initiator=True).keys():
+                    if next_wwn not in wwn_d:
+                        rl.extend(_zone_merge_group(wwn_d, missing_l, fab_obj, next_wwn))
+
+    return rl
+
+
+def zone_merge_group(wwn_d, fab_obj, wwn):
+    """Determines all logins that would be effected a result of removing a WWN from a fabric.
+
+    This method was written to support scripts that determine zone migration groups. Keep in mind that has to be
+    iterative because everything associated with every login has to move.
+
+    :param wwn_d: Used to track WWNs already taken into account
+    :type wwn_d: dict
+    :param fab_obj: The fabric object to be copied
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param wwn: WWN of the device you want to move
+    :type wwn: str, None
+    :return wwn_l: List of WWNs need to be grouped together
+    :rtype wwn_l: list
+    :return missing_l: List of WWNs not found
+    :rtype missing_l: list
+    """
+    missing_l = list()
+    wwn_l = brcddb_util.remove_duplicates(_zone_merge_group(wwn_d, missing_l, fab_obj, wwn))
+    return wwn_l, brcddb_util.remove_duplicates(missing_l)
+
+
+def fab_match(fab_obj, search_term_l_in, s_type_in):
+    """Returns a list of WWNs matching the search criteria
+
+    :param fab_obj: The fabric object to be copied.
+    :type fab_obj: brcddb.classes.fabric.FabricObj, None
+    :param search_term_l_in: List of search terms either by WWN or alias
+    :type search_term_l_in: list, None
+    :param s_type_in: Search type: None, 'exact', 'wild', 'regex-m', or 'regex-s'. Applied to search_l. None defaults \
+        to 'exact'
+    :type s_type_in: str
+    :return: List of matching WWNs
+    :rtype: list()
+    """
+    # Condition the input
+    search_term_l = brcddb_util.convert_to_list(search_term_l_in)
+    if len(search_term_l) == 0 or fab_obj is None:
+        return list()
+    s_type = 'exact' if s_type_in is None else s_type_in
+
+    # Perform the search - Get a list of all the matching WWNs
+    search_l = [dict(w=wwn, a=fab_obj.r_alias_for_wwn(wwn)) for wwn in fab_obj.r_login_keys()]
+    rl = list()
+    for search_term in search_term_l:
+        rl.extend(brcddb_search.match(search_l, 'w', search_term, ignore_case=False, stype=s_type))  # Matching WWNs
+        rl.extend(brcddb_search.match(search_l, 'a', search_term, ignore_case=False, stype=s_type))  # Matching aliases
+
+    return brcddb_util.remove_duplicates([d['w'] for d in rl])

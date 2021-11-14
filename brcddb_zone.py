@@ -33,16 +33,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 17 Jul 2021   | Added check_ficon_zoning() and eff_zoned_to_wwn()                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 14 Nov 2021   | Added all parameter to eff_zoned_to_wwn()                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.iocp as brcddb_iocp
@@ -170,17 +172,19 @@ def zone_type(zone_obj, num_flag=False):
         return 'Unknown (' + str(type) + ')'
 
 
-def eff_zoned_to_wwn(fab_obj, wwn, target, initiator):
-    """Finds all WWNs in the effective zone that are zoned to the parameter.
+def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=False):
+    """Finds all WWNs in the effective zone that are zoned to wwn.
 
     :param fab_obj: Fabric object
     :type fab_obj: brcddb.classes.fabric.FabricObj
     :param wwn: WWN to look for
     :type wwn: str
-    :param target: If True, include targets in the response
+    :param target: If True, include all online targets
     :type target: bool
-    :param initiator: If True, include anything that is not a target in the output
+    :param initiator: If True, include any online port that is not a target
     :type initiator: bool
+    :param all_types: If True, include all ports, online or offline.
+    :type all_types: bool
     :return: Dictionary - Key: WWN of device zoned to wwn (passed in parameter). Value is the list of zone names
     :rtype: dict
     """
@@ -197,8 +201,9 @@ def eff_zoned_to_wwn(fab_obj, wwn, target, initiator):
             add_wwn = None
             fc4 = login_obj.r_get('brocade-name-server/fc4-features')
             if fc4 is None:
-                continue
-            if 'target' in fc4.lower():
+                if all_types:
+                    add_wwn = login_obj.r_obj_key()
+            elif 'target' in fc4.lower():
                 if target:
                     add_wwn = login_obj.r_obj_key()
             elif initiator:
