@@ -32,16 +32,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 13 Feb 2021   | Improved some method effecienceis                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 17 Jul 2021   | Removed obsolete r_is_wwm(), r_is_di(), and r_is_mixed methods                    |
+    |           |               | Added c_members() and c_pmembers() to ZoneObj                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved(). Added s_type() to ZoneObj     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.6'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -75,31 +80,24 @@ class ZoneCfgObj:
         self._project_obj = project_obj
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
 
         :param k: Reserved key
         :type k: str
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        _reserved_keys = {
-            '_obj_key': self.r_obj_key(),
-            '_flags': self.r_flags(),
-            '_alerts': self.r_alert_objects(),
-            '_project_obj': self.r_project_obj(),
-            '_members': self.r_members(),
-            '_fabric_key': self.r_fabric_key(),
-        }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _alerts=self.r_alert_objects(),
+                _project_obj=self.r_project_obj(),
+                _members=self.r_members(),
+                _fabric_key=self.r_fabric_key(),
+            ),
+            k
+        )
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
@@ -332,8 +330,8 @@ class ZoneObj:
         _obj_key (str): Name of the zone.
         _flags (int): Flags for each class are defined in brcddb.brcddb_common
         _project_obj (ProjectObj): The project object this fabric belongs to.
-        _members (list): List of zone members. Effective zone is WWN. Defined zone as defined(alias or WWN)
-        _pmembers (list): List of principal zone members. Effective zone is WWN. Defined zone as defined(alias or WWN)
+        _members (list): List of zone members.
+        _pmembers (list): List of principal zone members.
         _fabric_key (str): WWN of fabric this zone configuration belongs to.
         _alerts (list): List of AlertObj objects associated with this object.
     """
@@ -349,33 +347,26 @@ class ZoneObj:
         self._project_obj = project_obj
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
 
         :param k: Reserved key
         :type k: str
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        _reserved_keys = {
-            '_obj_key': self.r_obj_key(),
-            '_flags': self.r_flags(),
-            '_alerts': self.r_alert_objects(),
-            '_project_obj': self.r_project_obj(),
-            '_fabric_key': self.r_fabric_key(),
-            '_members': self.r_members(),
-            '_pmembers': self.r_pmembers(),
-            '_type': self.r_type(),
-        }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _alerts=self.r_alert_objects(),
+                _project_obj=self.r_project_obj(),
+                _fabric_key=self.r_fabric_key(),
+                _members=self.r_members(),
+                _pmembers=self.r_pmembers(),
+                _type=self.r_type(),
+            ),
+            k
+        )
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
@@ -488,30 +479,6 @@ class ZoneObj:
         """
         return bool(self._flags & brcddb_common.zone_flag_effective)
 
-    def r_is_wwn(self):
-        """Test to determine if the zone is a WWN zone
-
-        :return: True: zone contains only WWN members, False: zone does not contain only WWN members
-        :rtype: bool
-        """
-        return bool(self._flags & brcddb_common.zone_flag_wwn)
-
-    def r_is_di(self):
-        """Test to determine if the zone is a d,i zone
-
-        :return: True: zone contains only d,i members, False zone does not contain only d,i memners
-        :rtype: bool
-        """
-        return bool(self._flags & brcddb_common.zone_flag_di)
-
-    def r_is_mixed(self):
-        """Test to determine if the zone is a mixed WWN and d,i zone
-
-        :return: True: zone includes WWNs and d,i members, False zone does not include both WWN and d,i members
-        :rtype: bool
-        """
-        return True if self._flags & brcddb_common.zone_flag_wwn and self._flags & brcddb_common.zone_flag_di else False
-
     def r_zone_obj(self):
         return self
 
@@ -564,6 +531,22 @@ class ZoneObj:
         """
         return self._members.copy()
 
+    def c_members(self):
+        """Same as r_members() but with aliases resolved
+
+        :return: Members
+        :rtype: list
+        """
+        fab_obj = self.r_fabric_obj()
+        rl = list()
+        for mem in self._members:
+            alias_obj = fab_obj.r_alias_obj(mem)
+            if alias_obj is None:
+                rl.append(mem)
+            else:
+                rl.extend(alias_obj.r_members())
+        return rl
+
     def r_has_member(self, mem):
         """Checks to see if a member exists in the zone
 
@@ -602,6 +585,22 @@ class ZoneObj:
         """
         return self._pmembers.copy()
 
+    def c_pmembers(self):
+        """Same as r_pmembers() but with aliases resolved
+
+        :return: Members
+        :rtype: list
+        """
+        fab_obj = self.r_fabric_obj()
+        rl = list()
+        for mem in self._pmembers:
+            alias_obj = fab_obj.r_alias_obj(mem)
+            if alias_obj is None:
+                rl.append(mem)
+            else:
+                rl.extend(alias_obj.r_members())
+        return rl
+
     def r_has_pmember(self, mem):
         """Checks to see if a principal member exists in the zone
 
@@ -637,6 +636,14 @@ class ZoneObj:
         :rtype: int
         """
         return self._type
+
+    def s_type(self, zone_type):
+        """Set the zone type
+
+        :return: Zone type
+        :rtype: int
+        """
+        self._type = zone_type
 
     def s_copy(self, zone):
         """Copy self to a new zone
@@ -707,31 +714,24 @@ class AliasObj:
         self._project_obj = project_obj
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
 
         :param k: Reserved key
         :type k: str
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        _reserved_keys = {
-            '_obj_key': self.r_obj_key(),
-            '_flags': self.r_flags(),
-            '_alerts': self.r_alert_objects(),
-            '_project_obj': self.r_project_obj(),
-            '_fabric_key': self.r_fabric_key(),
-            '_members': self.r_members(),
-        }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _alerts=self.r_alert_objects(),
+                _project_obj=self.r_project_obj(),
+                _fabric_key=self.r_fabric_key(),
+                _members=self.r_members(),
+            ),
+            k
+        )
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object

@@ -34,16 +34,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 13 Feb 2021   | Improved some method effecienceis                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved(). Added                         |
+    |           |               | r_port_object_for_index()                                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
@@ -81,30 +84,23 @@ class ChassisObj:
         self._project_obj = project_obj
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
 
-        :param k: Reserved key
-        :type k: str
-        :return: Value associated with k. None if k is not present
-        :rtype: *
-        """
-        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        _reserved_keys = {
-            '_obj_key': self.r_obj_key(),
-            '_flags': self.r_flags(),
-            '_alerts': self.r_alert_objects(),
-            '_project_obj': self.r_project_obj(),
-            '_switch_keys': self.r_switch_keys(),
-        }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+         :param k: Reserved key
+         :type k: str
+         :return: Value associated with k. None if k is not present
+         :rtype: *
+         """
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _alerts=self.r_alert_objects(),
+                _project_obj=self.r_project_obj(),
+                _switch_keys=self.r_switch_keys(),
+            ),
+            k
+        )
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
@@ -466,6 +462,20 @@ class ChassisObj:
                 return port_obj
         return None
 
+    def r_port_object_for_index(self, i):
+        """Returns the port object matching a port index
+        :param i: Port index
+        :type i: int
+        :return: PortObj or None if not found
+        :rtype: PortObj, None
+        """
+        if isinstance(i, int):
+            for port_obj in self.r_port_objects():
+                port_index = port_obj.r_index()
+                if isinstance(port_index, int) and port_index == i:
+                    return port_obj
+        return None
+
     def c_fru_blade_map(self):
         """Sorts brocade-fru/blade into a list that can be indexed by slot number
 
@@ -473,12 +483,9 @@ class ChassisObj:
         :rtype: list
         """
         tl = [None, None, None, None, None, None, None, None, None, None, None, None, None]
-        try:
-            blade_list = self.r_get('brocade-fru/blade')
-            for blade in blade_list:
-                tl[blade.get('slot-number')] = blade
-        except:
-            pass
+        for blade in [b for b in util.convert_to_list(self.r_get('brocade-fru/blade')) if \
+                      isinstance(b, int) and b < len(tl)]:
+            tl[blade.get('slot-number')] = blade
         return tl
 
     def r_chassis_obj(self):

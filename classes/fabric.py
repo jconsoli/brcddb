@@ -47,16 +47,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 21 Aug 2021   | Bug in r_defined_eff_zonecfg_obj(). Added add_switch flag to __init__             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 14 Nov 2021   | Create _effective_zonecfg when adding zones in s_add_eff_zone() and add the zone  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '21 Aug 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -117,37 +119,32 @@ class FabricObj:
         self._port_map = dict()
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
 
-        :param k: Reserved key
-        :type k: str
-        :return: Value associated with k. None if k is not present
-        :rtype: *
-        """
-        if k is None:
-            return None
-        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        _reserved_keys = dict(
-            _obj_key=self.r_obj_key(),
-            _flags=self.r_flags(),
-            _alerts=self.r_alert_objects(),
-            _project_obj=self.r_project_obj(),
-            _switch_keys=self.r_switch_keys(),
-            _login_objs=self.r_login_objs(),
-            _zonecfg_objs=self.r_zonecfg_objs(),
-            _alias_objs=self.r_alias_objs(),
-            _zone_objs=self.r_zone_objs(),
-            _eff_zone_objs=self.r_eff_zone_objs(),
-            _fdmi_node_objs=self.r_fdmi_node_objs(),
-            _fdmi_port_objs=self.r_fdmi_port_objs(),
-            _base_logins=self.r_base_logins(),
-            _port_map=self.r_port_map(),
+         :param k: Reserved key
+         :type k: str
+         :return: Value associated with k. None if k is not present
+         :rtype: *
+         """
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _alerts=self.r_alert_objects(),
+                _project_obj=self.r_project_obj(),
+                _switch_keys=self.r_switch_keys(),
+                _login_objs=self.r_login_objs(),
+                _zonecfg_objs=self.r_zonecfg_objs(),
+                _alias_objs=self.r_alias_objs(),
+                _zone_objs=self.r_zone_objs(),
+                _eff_zone_objs=self.r_eff_zone_objs(),
+                _fdmi_node_objs=self.r_fdmi_node_objs(),
+                _fdmi_port_objs=self.r_fdmi_port_objs(),
+                _base_logins=self.r_base_logins(),
+                _port_map=self.r_port_map(),
+            ),
+            k
         )
-        if k == '_reserved_keys':
-            rl = list(_reserved_keys.keys())
-            rl.append('_reserved_keys')
-            return rl
-        return _reserved_keys.get(k)
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
@@ -430,7 +427,7 @@ class FabricObj:
         return self.r_zonecfg_obj('_effective_zone_cfg')
 
     def s_add_zone(self, name, zone_type, in_mem=None, in_pmem=None):
-        """Adds a zone to the fabric if it doesn't already exist. See zone in 'zoning/defined-configuration'
+        """Adds a zone to the fabric if it doesn't already exist. Otherwise, just adds members may change zone type
 
         :param name: Zone name
         :type name: str
@@ -449,6 +446,8 @@ class FabricObj:
         if zone_obj is None:
             zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
             self._zone_objs.update({name: zone_obj})
+        if zone_type is not None:
+            zone_obj.s_type(zone_type)  # This is redundant when creating a zone for the first time
         zone_obj.s_add_member(mem)
         zone_obj.s_add_pmember(pmem)
         return zone_obj
@@ -515,8 +514,8 @@ class FabricObj:
         :type in_mem: str, list, tuple, None
         :param in_pmem: Principal zone members (this should be WWN). Only relavant to peer zones
         :type in_pmem: str, list, tuple, None
-        :return: Zone configuration object for the effective zone configuration
-        :rtype: brcddb.classes.zone.ZoneCfgObj
+        :return: Zone object for this zone
+        :rtype: brcddb.classes.zone.ZoneObj
         """
         mem = util.convert_to_list(in_mem)
         pmem = util.convert_to_list(in_pmem)
@@ -525,10 +524,13 @@ class FabricObj:
             zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
             self._eff_zone_objs.update({name: zone_obj})
         zone_obj.s_or_flags(brcddb_common.zone_flag_effective)
+        if zone_type is not None:
+            zone_obj.s_type(zone_type)  # This is redundant when creating a zone for the first time
         for member in mem:
             zone_obj.s_add_member(member)
         for member in pmem:
             zone_obj.s_add_pmember(member)
+        self.s_add_eff_zonecfg(name)
         return zone_obj
 
     def r_eff_zone_obj(self, name):
@@ -909,7 +911,7 @@ class FabricObj:
         return [v for k in self.r_switch_keys() for v in proj_obj.r_switch_obj(k).r_port_objects()]
 
     def r_port_obj_for_wwn(self, wwn):
-        """Returns the port object matching a port index
+        """Returns the port object associated with a login WWN
 
         :param wwn: WWN of attached device
         :type wwn: str

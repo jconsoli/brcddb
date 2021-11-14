@@ -34,16 +34,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 21 Aug 2021   | Added flag for automatic switch add in s_add_fabric().                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '21 Aug 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -94,32 +96,27 @@ class ProjectObj:
         self._alerts = list()
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
 
         :param k: Reserved key
         :type k: str
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        if k is None:
-            return None
-        _reserved_keys = {
-            '_obj_key': self.r_obj_key(),
-            '_flags': self.r_flags(),
-            '_date': self.r_date(),
-            '_python_version': self.r_python_version(),
-            '_description': self.r_description(),
-            '_fabric_objs': self.r_fabric_objs(),
-            '_switch_objs': self.r_switch_objs(),
-            '_chassis_objs': self.r_chassis_objs(),
-            '_alerts': self.r_alert_objects(),
-        }
-        if k == '_reserved_keys':
-            rl = list(_reserved_keys.keys())
-            rl.append('_reserved_keys')
-            return rl
-        return _reserved_keys.get(k)
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _date=self.r_date(),
+                _python_version=self.r_python_version(),
+                _description=self.r_description(),
+                _fabric_objs=self.r_fabric_objs(),
+                _switch_objs=self.r_switch_objs(),
+                _chassis_objs=self.r_chassis_objs(),
+                _alerts=self.r_alert_objects(),
+            ),
+            k
+        )
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object

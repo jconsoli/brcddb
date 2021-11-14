@@ -34,16 +34,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 13 Feb 2021   | Improved some method effecienceis                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 14 Nov 2021   | Added get_reserved()                                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcdapi.log as brcdapi_log
 
@@ -60,7 +62,7 @@ def get_simple_class_type(obj):
     :param obj: Any brcddb object.
     :type obj: All brcddb.classes
     :return: Simple class type
-    :rtype: str
+    :rtype: str, None
     """
     global simple_class_type
 
@@ -240,10 +242,7 @@ def _class_reserved(obj, k):
     # it. This was something I learned the hard way.
     global _class_reserved_case
 
-    try:
-        return _class_reserved_case[k](obj)
-    except:
-        return None
+    return _class_reserved_case[k](obj) if k in _class_reserved_case else None
 
 
 # Case statements for special in s_new_key_for_class
@@ -561,3 +560,23 @@ def class_getkeys(obj):
         if e in obj.r_reserved_keys():
             a.pop(i)
     return a
+
+
+def get_reserved(rd, k):
+    """A common method for r_get_reserved() in all classes
+
+    :param rd: Dictionary of reserved keys and values
+    :type rd: dict
+    :param k: Key into rd
+    :type k: str
+    :return: Value associated with key
+    :rtype: None, str, int, float, bool, list, tuple, dict, class
+    """
+    if k is None:
+        return None
+    if k == '_reserved_keys':
+        rl = list(rd.keys())
+        rl.append('_reserved_keys')
+        return rl
+    return rd.get(k)
+

@@ -30,16 +30,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 17 Jul 2021   | Use index instead of default index in r_port_object_for_index()                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.5'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -86,35 +90,29 @@ class SwitchObj:
         self._maps_groups = dict()
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
+
         :param k: Reserved key
         :type k: str
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        _reserved_keys = {
-            '_obj_key': self.r_obj_key(),
-            '_flags': self.r_flags(),
-            '_alerts': self.r_alert_objects(),
-            '_project_obj': self.r_project_obj(),
-            '_port_objs': self.r_port_objs(),
-            '_ge_port_objs': self.r_ge_port_objs(),
-            '_fabric_key': self.r_fabric_key(),
-            '_chassis_key': self.r_chassis_key(),
-            '_maps_rules': self.r_maps_rules(),
-            '_maps_group_rules': self.r_maps_group_rules(),
-            '_maps_groups': self.r_maps_groups(),
-        }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _alerts=self.r_alert_objects(),
+                _project_obj=self.r_project_obj(),
+                _port_objs=self.r_port_objs(),
+                _ge_port_objs=self.r_ge_port_objs(),
+                _fabric_key=self.r_fabric_key(),
+                _chassis_key=self.r_chassis_key(),
+                _maps_rules=self.r_maps_rules(),
+                _maps_group_rules=self.r_maps_group_rules(),
+                _maps_groups=self.r_maps_groups(),
+            ),
+            k
+        )
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
@@ -243,7 +241,8 @@ class SwitchObj:
         :return: True: Switch is the fabric principal switch. False: Switch is not the fabric principal switch
         :rtype: bool
         """
-        return bool(self.r_get('brocade-fabric/fabric-switch/principal'))
+        p = self.r_get('brocade-fibrechannel-switch/fibrechannel-switch/principal')
+        return bool(self.r_get('brocade-fabric/fabric-switch/principal') if p is None else p)
 
     def r_is_xisl(self):
         """Test to determine is logical ISLs is enabled in the switch, 'fibrechannel-switch/logical-isl-enabled'
@@ -265,6 +264,14 @@ class SwitchObj:
         :rtype: bool
         """
         return bool(self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/default-switch-status'))
+
+    def r_did(self):
+        """Returns the domain ID, in decimal
+        :return: Domain ID. None if unavailable
+        :rtype: int, None
+        """
+        did = self.r_get('brocade-fibrechannel-switch/fibrechannel-switch/domain-id')
+        return self.r_get('brocade-fabric/fabric-switch/domain-id') if did is None else did
 
     def s_fabric_key(self, wwn):
         """Set the fabric key to the WWN of the fabric
@@ -452,7 +459,8 @@ class SwitchObj:
         """
         if isinstance(i, int):
             for port_obj in self.r_port_objects():
-                if port_obj.r_get('fibrechannel/default-index') == i:
+                port_index = port_obj.r_index()
+                if isinstance(port_index, int) and port_index == i:
                     return port_obj
         return None
 

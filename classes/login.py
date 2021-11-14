@@ -32,16 +32,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Improved some method effecienceis                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
@@ -69,30 +71,23 @@ class LoginObj:
         self._project_obj = project_obj
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
 
         :param k: Reserved key
         :type k: str
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        _reserved_keys = {
-            '_obj_key': self.r_obj_key(),
-            '_flags': self.r_flags(),
-            '_alerts': self.r_alert_objects(),
-            '_project_obj': self.r_project_obj(),
-            '_fabric_key': self.r_fabric_key(),
-        }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _alerts=self.r_alert_objects(),
+                _project_obj=self.r_project_obj(),
+                _fabric_key=self.r_fabric_key(),
+            ),
+            k
+        )
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
@@ -377,7 +372,7 @@ class FdmiNodeObj:
         self._project_obj = project_obj
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
 
         :param k: Reserved key
         :type k: str
@@ -385,22 +380,16 @@ class FdmiNodeObj:
         :rtype: *
         """
         # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        _reserved_keys = {
-            '_obj_key': self.r_obj_key(),
-            '_flags': self.r_flags(),
-            '_alerts': self.r_alert_objects(),
-            '_project_obj': self.r_project_obj(),
-            '_fabric_key': self.r_fabric_key(),
-        }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _alerts=self.r_alert_objects(),
+                _project_obj=self.r_project_obj(),
+                _fabric_key=self.r_fabric_key(),
+            ),
+            k
+        )
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
@@ -591,30 +580,23 @@ class FdmiPortObj:
         self._project_obj = project_obj
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
 
         :param k: Reserved key
         :type k: str
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        _reserved_keys = {
-            '_obj_key': self.r_obj_key(),
-            '_flags': self.r_flags(),
-            '_alerts': self.r_alert_objects(),
-            '_project_obj': self.r_project_obj(),
-            '_fabric_key': self.r_fabric_key(),
-        }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _alerts=self.r_alert_objects(),
+                _project_obj=self.r_project_obj(),
+                _fabric_key=self.r_fabric_key(),
+            ),
+            k
+        )
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object

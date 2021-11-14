@@ -30,19 +30,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 17 Jul 2021   | Fixed duplicate alias message.                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.3'
 
 import copy
 import brcddb.brcddb_common as brcddb_common
+import brcddb.classes.util as util
 
 class ALERT_SEV:
     """
@@ -111,28 +116,22 @@ class AlertObj:
         self._p1 = p1
 
     def r_get_reserved(self, k):
-        """Returns a value for any reserved key
+        """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
 
         :param k: Reserved key
         :type k: str
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        _reserved_keys = {
-            '_msg_tbl': self.msg_tbl(),
-            '_key': self.key(),
-            '_p0': self.p0(),
-            '_p1': self.p1(),
-        }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        return util.get_reserved(
+            dict(
+                _msg_tbl=self.msg_tbl(),
+                _key=self.key(),
+                _p0=self.p0(),
+                _p1=self.p1(),
+            ),
+            k
+        )
 
     def alert_num(self):
         """
@@ -154,18 +153,9 @@ class AlertObj:
         :rtype str:
         """
         msg = copy.copy(self._msg_tbl.get(self.alert_num()).get('m'))
-        if self._key is None:
-            msg = msg.replace('$key', '')
-        else:
-            msg = msg.replace('$key', str(self._key))
-        if self._p0 is None:
-            msg = msg.replace('$p0', '')
-        else:
-            msg = msg.replace('$p0', str(self._p0))
-        if self._p1 is None:
-            msg = msg.replace('$p1', '')
-        else:
-            msg = msg.replace('$p1', str(self._p1))
+        msg = msg.replace('$key', '') if self._key is None else msg.replace('$key', str(self._key))
+        msg = msg.replace('$p0', '') if self._p0 is None else msg.replace('$p0', str(self._p0))
+        msg = msg.replace('$p1', '') if self._p1 is None else msg.replace('$p1', str(self._p1))
         return msg
 
     def sev(self):
@@ -222,8 +212,5 @@ class AlertObj:
         :return: Value associated with 'f'
         :rtype bool:
         """
-        if 'f' in self._msg_tbl.get(self.alert_num()):
-            return self._msg_tbl.get(self.alert_num()).get('f')
-        else:
-            return False
+        return self._msg_tbl.get(self.alert_num()).get('f') if 'f' in self._msg_tbl.get(self.alert_num()) else False
 

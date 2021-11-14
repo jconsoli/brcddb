@@ -34,16 +34,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 17 Jul 2021   | Added r_addr(), r_index()                                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '14 Nov 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.6'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -108,24 +112,18 @@ class PortObj:
         :rtype: *
         """
         # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        _reserved_keys = {
-            '_obj_key': self.r_obj_key(),
-            '_flags': self.r_flags(),
-            '_alerts': self.r_alert_objects(),
-            '_project_obj': self.r_project_obj(),
-            '_switch': self.r_switch_key(),
-            '_maps_fc_port_group': self.r_maps_fc_port_group(),
-            '_maps_sfp_group': self.r_maps_sfp_group(),
-        }
-        try:
-            if k == '_reserved_keys':
-                rl = list(_reserved_keys.keys())
-                rl.append('_reserved_keys')
-                return rl
-            else:
-                return _reserved_keys[k]
-        except:
-            return None
+        return util.get_reserved(
+            dict(
+                _obj_key=self.r_obj_key(),
+                _flags=self.r_flags(),
+                _alerts=self.r_alert_objects(),
+                _project_obj=self.r_project_obj(),
+                _switch=self.r_switch_key(),
+                _maps_fc_port_group=self.r_maps_fc_port_group(),
+                _maps_sfp_group=self.r_maps_sfp_group(),
+            ),
+            k
+        )
 
     def s_add_alert(self, tbl, num, key=None, p0=None, p1=None):
         """Add an alert to this object
@@ -596,6 +594,22 @@ class PortObj:
         :rtype: int
         """
         return int(self.r_obj_key().split('/')[0])
+
+    def r_addr(self):
+        """Returns the FC address for the port
+
+        :return: FC address in 0xab1200 format. None if unavailable
+        :rtype: str, None
+        """
+        return self.r_get('fibrechannel/fcid-hex')
+
+    def r_index(self):
+        """Returns the port index for the port
+
+        :return: Port index. None if unavailable
+        :rtype: int, None
+        """
+        return self.r_get('fibrechannel/index')
 
     def c_login_type(self):
         """Converts the login type to a human readible port type
