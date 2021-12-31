@@ -30,22 +30,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    | 3.0.3     | 13 Feb 2021   | Improved some method efficiencies                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 21 Aug 2021   | Added flag for automatic switch add in s_add_fabric().                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 31 Dec 2021   | Updated comments and docstrings only. No functional changes.                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -364,10 +366,11 @@ class ProjectObj:
         return '' if self._description is None else self._description
 
     def s_add_fabric(self, principal_wwn, add_switch=True):
-        """Add a faric to the project if the fabric doesn't already exist
+        """Add a fabric to the project if the fabric doesn't already exist
 
         :param principal_wwn: Principal WWN of the fabric
         :type principal_wwn: str
+        :param add_switch: If True, also add the principal_wwn as a switch/
         :return: Fabric object
         :rtype: FabricObj
         """
@@ -561,7 +564,7 @@ class ProjectObj:
         chassis_obj = self.r_chassis_obj(wwn)
         if chassis_obj is None:
             chassis_obj = chassis_class.ChassisObj(wwn, self)
-            self._chassis_objs.update({wwn : chassis_obj})
+            self._chassis_objs.update({wwn: chassis_obj})
         return chassis_obj
 
     def r_chassis_obj(self, key):  # key is the chassis WWN
@@ -700,4 +703,3 @@ class ProjectObj:
         :rtype: dict
         """
         return self._iocp_objs
-

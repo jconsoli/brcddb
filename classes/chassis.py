@@ -32,21 +32,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    | 3.0.4     | 13 Feb 2021   | Improved some method efficiencies                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved(). Added                         |
     |           |               | r_port_object_for_index()                                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 31 Dec 2021   | Fixed bug in r_slot() causing exception.                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
@@ -312,7 +314,6 @@ class ChassisObj:
                 return switch_obj
         return None
 
-
     def r_default_switch_fid(self):
         """Returns the switch object for the default switch in this chassis
 
@@ -322,7 +323,6 @@ class ChassisObj:
         switch_obj = self.r_default_switch_obj()
         return None if switch_obj is None else \
             switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
-
 
     def r_fabric_keys(self):
         """Returns the list of fabric keys associated with switches in this chassis
@@ -427,7 +427,7 @@ class ChassisObj:
         :return: The blade dictionary for a specific blade as returned from the API
         :rtype: dict
         """
-        for b in util.convert_to_list(self.util.r_get('brocade-fru/blade')):
+        for b in util.convert_to_list(self.r_get('brocade-fru/blade')):
             if isinstance(b.get('slot_number'), int) and b.get('slot_number') == s:
                 return b
         return None
@@ -483,7 +483,7 @@ class ChassisObj:
         :rtype: list
         """
         tl = [None, None, None, None, None, None, None, None, None, None, None, None, None]
-        for blade in [b for b in util.convert_to_list(self.r_get('brocade-fru/blade')) if \
+        for blade in [b for b in util.convert_to_list(self.r_get('brocade-fru/blade')) if
                       isinstance(b, int) and b < len(tl)]:
             tl[blade.get('slot-number')] = blade
         return tl

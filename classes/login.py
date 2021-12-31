@@ -30,23 +30,26 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    | 3.0.3     | 13 Feb 2021   | Improved some method efficiencies                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 31 Dec 2021   | No functional changes. Replaced bare except with explicit except.                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
+
 
 class LoginObj:
     """The LoginObj contains all information relevant to a login including:
@@ -156,7 +159,7 @@ class LoginObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key())
-        except:
+        except AttributeError:
             return None
 
     def r_port_obj(self):
@@ -168,7 +171,7 @@ class LoginObj:
         """
         try:
             return self.r_fabric_obj().r_port_obj(self.r_obj_key())
-        except:
+        except AttributeError:
             return None
 
     def r_switch_obj(self):
@@ -459,7 +462,7 @@ class FdmiNodeObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key())
-        except:
+        except AttributeError:
             return None
 
     def r_switch_obj(self):
@@ -471,7 +474,7 @@ class FdmiNodeObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key()).r_switch_obj(self.r_obj_key())
-        except:
+        except AttributeError:
             return None
 
     def r_port_obj(self):
@@ -483,7 +486,7 @@ class FdmiNodeObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key()).r_port_obj(self.r_obj_key())
-        except:
+        except AttributeError:
             return None
 
     def r_obj_key(self):
@@ -657,7 +660,7 @@ class FdmiPortObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key())
-        except:
+        except AttributeError:
             return None
 
     def r_switch_obj(self):
@@ -669,7 +672,7 @@ class FdmiPortObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key()).r_switch_obj(self.r_obj_key())
-        except:
+        except AttributeError:
             return None
 
     def r_port_obj(self):
@@ -681,7 +684,7 @@ class FdmiPortObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key()).r_port_obj(self.r_obj_key())
-        except:
+        except AttributeError:
             return None
 
     def r_obj_key(self):

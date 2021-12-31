@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-:mod:`brcdd.classes.fabric` - Defines the fabric object, FabricObj.
+:mod:`brcddb.classes.fabric` - Defines the fabric object, FabricObj.
 
 Special Note::
 
@@ -22,7 +22,7 @@ Special Note::
     server but SIM ports and AMP trunk master does register with the name server and therefore will have a login object.
     The 'port-properties' will be 'SIM Port' for a SIM port and 'I/O Analytics Port' for an AMP trunk master. The other
     AMP trunk members of the trunk register with the name server but 'port-properties' is not present. I'm sure there
-    is some way to determine this case but it being such a rare scenario, no code was added to make this determiniation.
+    is some way to determine this case but it being such a rare scenario, no code was added to make this determination.
 
 Version Control::
 
@@ -39,7 +39,7 @@ Version Control::
     | 3.0.2     | 22 Jan 2021   | Fixed potential mutable list in s_add_zonecfg(), s_add_eff_zonecfg(),             |
     |           |               | s_add_zone(), s_add_eff_zone, and s_add_alias()                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    | 3.0.3     | 13 Feb 2021   | Improved some method efficiencies                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 17 Jul 2021   | Added r_eff_di_zones_for_addr() and r_zones_for_di()                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -49,16 +49,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 14 Nov 2021   | Create _effective_zonecfg when adding zones in s_add_eff_zone() and add the zone  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 31 Dec 2021   | Updated comments only. No functional changes.                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -260,7 +262,7 @@ class FabricObj:
         login_obj = self._login_objs.get(wwn)
         if login_obj is None:
             login_obj = login_class.LoginObj(wwn, self.r_project_obj(), self.r_obj_key())
-            self._login_objs.update({wwn : login_obj})
+            self._login_objs.update({wwn: login_obj})
         return login_obj
 
     def s_del_login(self, wwn):
@@ -365,9 +367,9 @@ class FabricObj:
         return list(self._zonecfg_objs.values())
 
     def r_zonecfg_objs(self):
-        """Returns the dictionary of zone configuraiton objects. Typically only used by the brcddb libraries
+        """Returns the dictionary of zone configuration objects. Typically only used by the brcddb libraries
 
-        :return: Dictionary of zone configuraiton objects
+        :return: Dictionary of zone configuration objects
         :rtype: dict
         """
         return self._zonecfg_objs
@@ -396,9 +398,10 @@ class FabricObj:
         :return: Zone configuration object for the defined effective zone configuration. None if no effective zone cfg
         :rtype: brcddb.classes.zone.ZoneCfgObj, None
         """
-        return None if self.r_defined_eff_zonecfg_key() is None else self.r_zonecfg_obj(self.r_defined_eff_zonecfg_key)
+        zone_key = self.r_defined_eff_zonecfg_key()
+        return None if zone_key is None else zone_key
 
-    def s_add_eff_zonecfg(self, in_members=None):
+    def s_add_eff_zonecfg(self, members=None):
         """Adds a special zone configuration named '_effective_zone_cfg' if it doesn't already exist.
 
         Similarly, zone members will be added if they don't already exist
@@ -412,7 +415,7 @@ class FabricObj:
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        return self.s_add_zonecfg('_effective_zone_cfg', list() if in_members is None else in_members)
+        return self.s_add_zonecfg('_effective_zone_cfg', list() if members is None else members)
 
     def s_del_eff_zonecfg(self):
         """Deletes '_effective_zone_cfg' if it exists."""
@@ -616,7 +619,7 @@ class FabricObj:
         return self._zone_objs.get(name)
 
     def r_zone_keys(self):
-        """Returns all the defined zones in the fabric
+        """Returns all the defined zones in the fabric by zone name
         :return: List of zone names
         :rtype: list
         """
@@ -876,21 +879,21 @@ class FabricObj:
     def r_switch_objects(self):
         """Returns the list of switch objects for the switches in this fabric
 
-        :return: List of brcddb.classes.zone.SwitchObj
+        :return: List of brcddb.classes.switch.SwitchObj
         :rtype: list
         """
         proj_obj = self.r_project_obj()
         return [proj_obj.r_switch_obj(k) for k in self.r_switch_keys()]
 
-    def r_switch_obj(self, key):
+    def r_switch_obj(self, switch_wwn):
         """Returns the switch object for a given switch WWN
 
-        :param key: Switch WWN
-        :type key: str
+        :param switch_wwn: Switch WWN
+        :type switch_wwn: str
         :return: Switch object
         :rtype: brcddb.classes.switch.SwitchObj, None
         """
-        return self.r_project_obj().r_switch_obj(key)
+        return self.r_project_obj().r_switch_obj(switch_wwn)
 
     def r_port_keys(self):
         """Returns a list of all ports in this fabric
@@ -898,8 +901,10 @@ class FabricObj:
         :return: List of ports in s/p format
         :rtype: list
         """
-        proj_obj = self.r_project_obj()
-        return [v for k in self.r_switch_keys() for v in proj_obj.r_switch_obj(k).r_port_keys()]
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_port_keys())
+        return rl
 
     def r_port_objects(self):
         """Returns a list of port objects for all ports in this fabric
@@ -907,8 +912,10 @@ class FabricObj:
         :return: List of PortObj
         :rtype: list
         """
-        proj_obj = self.r_project_obj()
-        return [v for k in self.r_switch_keys() for v in proj_obj.r_switch_obj(k).r_port_objects()]
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_port_objects())
+        return rl
 
     def r_port_obj_for_wwn(self, wwn):
         """Returns the port object associated with a login WWN
@@ -919,7 +926,7 @@ class FabricObj:
         :rtype: PortObj, None
         """
         login_obj = self.r_login_obj(wwn)
-        return None if login_obj is None else  login_obj.r_port_obj()
+        return None if login_obj is None else login_obj.r_port_obj()
 
     def r_port_obj_for_pid(self, pid):
         """Returns the port object matching a port FC addr
@@ -999,7 +1006,7 @@ class FabricObj:
 
         :param wwn: Login WWN
         :type wwn: str
-        :return: True: wwn is a base login. Flase: wwn is not a base login
+        :return: True: wwn is a base login. False: wwn is not a base login
         :rtype: bool
         """
         return False if wwn is None else True if wwn in self._base_logins else False
@@ -1007,7 +1014,7 @@ class FabricObj:
     def s_port_map(self, port_map):
         """Add a wwn or list of wwns to base login list
 
-        :param port_map: dict, as returned from brcddb.util.util.login_to_port_map(), key: login WWN, value: Portobj
+        :param port_map: dict, as returned from brcddb.util.util.login_to_port_map(), key: login WWN, value: PortObj
         :type port_map: dict, None
         """
         if port_map is None:
@@ -1031,17 +1038,6 @@ class FabricObj:
         :rtype: brcddb.classes.port.PortObj
         """
         return self._port_map[wwn] if wwn in self._port_map else None
-
-    def r_switch_obj(self, wwn):
-        """Returns the switch object where a wwn logged in.
-        **Must call brcddb.util.util.login_to_port_map() before using this method**
-
-        :param wwn: Login WWN
-        :type wwn: str
-        :return: SwitchObj where the login occured. None if not found
-        :rtype: brcddb.classes.port.SwitchObj
-        """
-        return self._port_map[wwn].r_switch_obj() if wwn in self._port_map else None
 
     def r_get(self, k):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.

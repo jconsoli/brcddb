@@ -30,23 +30,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    | 3.0.4     | 13 Feb 2021   | Improved some method efficiencies                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 17 Jul 2021   | Removed obsolete r_is_wwm(), r_is_di(), and r_is_mixed methods                    |
     |           |               | Added c_members() and c_pmembers() to ZoneObj                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved(). Added s_type() to ZoneObj     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 31 Dec 2021   | No functional changes. Replaced bare except with explicit except.                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -253,7 +255,7 @@ class ZoneCfgObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key())
-        except:
+        except AttributeError:
             return None
 
     def r_zonecfg_obj(self):
@@ -501,7 +503,7 @@ class ZoneObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key())
-        except:
+        except AttributeError:
             return None
 
     def s_add_member(self, members):
@@ -874,7 +876,7 @@ class AliasObj:
         """
         try:
             return self.r_project_obj().r_fabric_obj(self.r_fabric_key())
-        except:
+        except AttributeError:
             return None
 
     def r_zone_objects(self):

@@ -34,16 +34,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 31 Dec 2021   | No functional changes. Replaced bare except with explicit except.                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -291,10 +293,7 @@ class SwitchObj:
         :return: Fabric principal switch WWN. None if the switch is offline or the fabric may not have been polled
         :rtype: FabricObj, None
         """
-        try:
-            return self._fabric_key
-        except:
-            return None
+        return self._fabric_key
 
     def r_fabric_obj(self):
         """Returns the fabric object associated with this switch
@@ -600,7 +599,7 @@ class SwitchObj:
         """
         try:
             return int(float(self.r_get('brocade-fibrechannel-switch/fibrechannel-switch/model')))
-        except:
+        except TypeError:
             return 0
 
     def s_new_key(self, k, v, f=False):

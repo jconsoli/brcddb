@@ -32,27 +32,29 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 13 Feb 2021   | Improved some method effecienceis                                                 |
+    | 3.0.5     | 13 Feb 2021   | Improved some method efficiencies                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 14 Nov 2021   | Added get_reserved()                                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 31 Dec 2021   | Added IOCP and CHPID objects.                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcdapi.log as brcdapi_log
 
 force_msg = 'To overwrite a key, set f=True in the call to s_new_key()\n'
 
 simple_class_type = ('AlertObj', 'AliasObj', 'ChassisObj', 'FabricObj', 'LoginObj', 'FdmiNodeObj', 'FdmiPortObj',
-                      'PortObj', 'ProjectObj', 'SwitchObj', 'ZoneCfgObj', 'ZoneObj')
+                     'PortObj', 'ProjectObj', 'SwitchObj', 'ZoneCfgObj', 'ZoneObj', 'IOCPObj', 'ChpidObj')
 
 
 # Used in class_getvalue():
@@ -76,110 +78,153 @@ def get_simple_class_type(obj):
 def _obj_key(obj):
     return obj._obj_key
 
+
 def _alerts(obj):
     return obj._alerts
+
 
 def _reserved_keys(obj):
     return obj._reserved_keys
 
+
 def _project_obj(obj):
     return obj._project_obj
+
 
 def _flags(obj):
     return obj._flags
 
+
 def _date(obj):
     return obj._date
+
 
 def _python_version(obj):
     return obj._python_version
 
+
 def _description(obj):
     return obj._description
+
 
 def _switch_objs(obj):
     return obj._switch_objs
 
+
 def _switch_keys(obj):
     return obj._switch_keys
+
 
 def _chassis_objs(obj):
     return obj._chassis_objs
 
+
 def _port_objs(obj):
     return obj._port_objs
+
 
 def _fabric_key(obj):
     return obj._fabric_key
 
+
 def _login_objs(obj):
     return obj._login_objs
+
 
 def _fabric_objs(obj):
     return _fabric_objs
 
+
 def _login_keys(obj):
     return obj._login_keys
+
 
 def _zonecfg_objs(obj):
     return obj._zonecfg_objs
 
+
 def _eff_zone_objs(obj):
     return obj._eff_zone_objs
+
 
 def _eff_zonecfg(obj):
     return obj._eff_zonecfg
 
+
 def _alias_objs(obj):
     return obj._alias_objs
+
 
 def _zone_objs(obj):
     return obj._zone_objs
 
+
 def _switch(obj):
     return obj._switch
+
 
 def _members(obj):
     return obj._members
 
+
 def _pmembers(obj):
     return obj._pmembers
+
 
 def _chassis_key(obj):
     return obj._chassis_key
 
-def _fdmiPortObj(obj):
-    return obj._fdmiPortObj
 
 def _fdmi_node_objs(obj):
     return obj._fdmi_node_objs
 
+
 def _fdmi_port_objs(obj):
     return obj._fdmi_port_objs
+
 
 def _zonecfg(obj):
     return obj._zonecfg
 
+
 def _base_logins(obj):
     return obj._base_logins
+
 
 def _port_map(obj):
     return obj._port_map
 
+
 def _maps_fc_port_group(obj):
     return obj._maps_fc_port_group
+
 
 def _maps_sfp_group(obj):
     return obj._maps_sfp_group
 
+
 def _maps_rules(obj):
     return obj._maps_rules
+
 
 def _maps_group_rules(obj):
     return obj._maps_group_rules
 
+
 def _maps_groups(obj):
     return obj._maps_groups
+
+
+def _chpid_objs(obj):
+    return obj._chpid_objs
+
+
+def _switch_id(obj):
+    return obj._switch_id
+
+
+def _link_addr(obj):
+    return obj._link_addr
 
 
 _class_reserved_case = dict(
@@ -208,7 +253,6 @@ _class_reserved_case = dict(
     _members=_members,
     _pmembers=_pmembers,
     _chassis_key=_chassis_key,
-    _fdmiPortObj=_fdmiPortObj,
     _fdmi_node_objs=_fdmi_node_objs,
     _fdmi_port_objs=_fdmi_port_objs,
     _zonecfg=_zonecfg,
@@ -219,6 +263,9 @@ _class_reserved_case = dict(
     _maps_rules=_maps_rules,
     _maps_group_rules=_maps_group_rules,
     _maps_groups=_maps_groups,
+    _chpid_objs=_chpid_objs,
+    _switch_id=_switch_id,
+    _link_addr=_link_addr,
 )
 
 
@@ -404,7 +451,7 @@ def s_new_key_for_class(obj, k, v, f=False):
         2)  You cannot add a reserved word as a key
         3)  You cannot add a key that has the same name as a method.
         4)  You cannot overwrite the value of type str, int, or float for an existing key. Since different Rest API
-            calls may return the same information, as an expediant, this method will return True and supress all error
+            calls may return the same information, as an expedient, this method will return True and suppress all error
             messages as long as the value type is the same and is not changing. Note that since only pointers are
             stored, you can append to a list or update a dict stored in the object.
         5)  Some API requests return different information based on the chassis or different formats based on the
@@ -435,7 +482,7 @@ def s_new_key_for_class(obj, k, v, f=False):
                 if ml[len(ml)-1] is None:
                     return False  # False so that no additional processing is done
             elif type(v) != type(v1):
-                ml.append(force_msg + 'Key already exists. Value type ' + str(type(v)) + \
+                ml.append(force_msg + 'Key already exists. Value type ' + str(type(v)) +
                           ' is changing. New value type:' + str(type(v1)))
             elif isinstance(v, (str, int, float)):
                 if v != v1:
@@ -542,11 +589,13 @@ def class_getvalue(obj, keys, flag=False):
             k0 = kl.pop(0)
             try:
                 v0 = v0.get(k0) if isinstance(v0, dict) else v0.__dict__.get(k0)
-            except:
+            except AttributeError:
                 return None  # The key was not found if we get here
         return v0
     else:
         brcdapi_log.exception('Unknown object type: ' + str(type(obj)) + '. keys: ' + keys, True)
+
+    return None
 
 
 def class_getkeys(obj):
@@ -579,4 +628,3 @@ def get_reserved(rd, k):
         rl.append('_reserved_keys')
         return rl
     return rd.get(k)
-

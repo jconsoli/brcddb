@@ -38,16 +38,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 31 Dec 2021   | No functional changes. Replaced bare except with explicit except.                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -98,10 +100,10 @@ class PortObj:
         :rtype: bool
         """
         try:
-            v = brcddb_common.port_conversion_tbl[k][self.r_get(k)]
-        except:
-            v = None
-        return False if v is None else v
+            return brcddb_common.port_conversion_tbl[k][self.r_get(k)]
+        except (ValueError, KeyError):
+            pass
+        return False
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key
@@ -285,7 +287,6 @@ class PortObj:
         return self._obj_key
 
     def r_port_name(self):
-
         """Returns the defined name for this port
         :return: Port name
         :rtype: str
@@ -501,7 +502,7 @@ class PortObj:
         return self._i_port_flags('fibrechannel/isl-ready-mode-enabled')
 
     def r_is_supress_rscn(self):
-        """Determines if supress RSCN mode is enabled
+        """Determines if suppress RSCN mode is enabled
 
         :return: True: supress RSCN mode is enabled. False: supress RSCN mode is not enabled.
         :rtype: bool
@@ -573,7 +574,7 @@ class PortObj:
         try:
             return True if brcddb_common.port_conversion_tbl['fibrechannel/operational-status']\
                                [self.r_get('fibrechannel/operational-status')] == 'Online' else False
-        except:
+        except (ValueError, IndexError):
             return False
 
     def r_is_icl(self):
@@ -584,7 +585,7 @@ class PortObj:
         """
         try:
             return True if 'core' in self.r_chassis_obj().c_fru_blade_map()[self.r_slot()].get('blade-type') else False
-        except:
+        except (ValueError, AttributeError):
             return False
 
     def r_slot(self):
@@ -612,14 +613,14 @@ class PortObj:
         return self.r_get('fibrechannel/index')
 
     def c_login_type(self):
-        """Converts the login type to a human readible port type
+        """Converts the login type to a human readable port type
 
         :return: Port type
         :rtype: str
         """
         try:
             return brcddb_common.port_conversion_tbl['fibrechannel/port-type'][self.r_get('fibrechannel/port-type')]
-        except:
+        except (IndexError, ValueError):
             return 'Unknown'
 
     def c_power_on_time_days(self):
@@ -670,7 +671,7 @@ class PortObj:
     def r_chassis_obj(self):
         """Returns the chassis object this port belongs to
 
-        :return: Login spped
+        :return: Login speed
         :rtype: str
         """
         return self.r_project_obj().r_chassis_obj(self.r_chassis_key())

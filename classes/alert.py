@@ -34,34 +34,38 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 31 Dec 2021   | Miscellaneous spelling mistakes.                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import copy
-import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.util as util
+
 
 class ALERT_SEV:
     """
     Alert severity levels.
 
-    Tyipically used for determining how to display alerts. See report.py for an example. Test using methods is_error() \
+    Topically used for determining how to display alerts. See report.py for an example. Test using methods is_error() \
     and is_warn(). Raw code is returned with sev().
 
-    Note: This was origionally more complex, hence it being in a class. After I sipmlified it, I didn't want to change
-    all the code that was using the alert levels out of this class.
+    Note: This was originally more complex, hence it being in a class. After I simplified it, I didn't want to change
+    all the code that was using the alert levels out of this class. As to why I didn't make it camel case, as is
+    appropriate for a class name, I have no idea what I was thinking when I did it.
     """
     GENERAL = 0
     WARN = 1
     ERROR = 2
+
 
 _sev_to_text = {
     ALERT_SEV.GENERAL: 'General',
@@ -78,7 +82,7 @@ class AlertObj:
     +------+------+----------------------------------------------------------------------------------------------------+
     |  k0  |  k1  | val                                                                                                |
     +======+=======+===================================================================================================+
-    | anum |  'm'  | Alert message. When formated with self.fmt_msg(), $k is replaced with the value for 'k', $p0 is   |
+    | anum |  'm'  | Alert message. When formatted with self.fmt_msg(), $k is replaced with the value for 'k', $p0 is  |
     |      |       | replaced with the value for 'p0', and $p1 is replaced with the value for 'p1'                     |
     +      +-------+---------------------------------------------------------------------------------------------------+
     |      |  's'  | Severity level defined by ALERT_SEV.                                                              |
@@ -89,13 +93,13 @@ class AlertObj:
     +      +-------+---------------------------------------------------------------------------------------------------+
     |      |  'p1' | Optional. Typically filled in by the method generating the alert                                  |
     +      +-------+---------------------------------------------------------------------------------------------------+
-    |      | other | It may be convienent for applications to add other keys, but they are ignored by the methods in   |
+    |      | other | It may be convenient for applications to add other keys, but they are ignored by the methods in   |
     |      |       | this class                                                                                        |
     +------+-------+---------------------------------------------------------------------------------------------------+
 
     :param msg_tbl: Pointer to the table described above
     :type msg_tbl: dict
-    :param anum: User defined alert numnber
+    :param anum: User defined alert number
     :type anum: int
     :param key: Optional. Object key value associated with the alert
     :type key: str, None
@@ -103,8 +107,6 @@ class AlertObj:
     :type p0: str, int, float, None
     :param p1: Similar to p0
     :type p1: str, int, float, None
-    :param flag: Optional. Alert specific
-    :type flag: bool
     """
 
     def __init__(self, msg_tbl, anum, key=None, p0=None, p1=None):
@@ -135,14 +137,14 @@ class AlertObj:
 
     def alert_num(self):
         """
-        :return: Alert numnber
+        :return: Alert number
         :rtype int:
         """
         return self._alert_num
 
     def msg_tbl(self):
         """
-        :return: Message tbale pointer
+        :return: Message table pointer
         :rtype str:
         """
         return self._msg_tbl
@@ -213,4 +215,3 @@ class AlertObj:
         :rtype bool:
         """
         return self._msg_tbl.get(self.alert_num()).get('f') if 'f' in self._msg_tbl.get(self.alert_num()) else False
-
