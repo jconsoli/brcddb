@@ -2,7 +2,7 @@
 #
 # NOT BROADCOM SUPPORTED
 #
-# Licensed under the Apahche License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may also obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
@@ -45,18 +45,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 14 Aug 2021   | Added current firmware level to SWITCH_FIRMWARE_8_2                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 31 Dec 2021   | Added IOCP alerts.                                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Aug 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import brcddb.classes.alert as al
+
 
 class ALERT_NUM:
     # MAPS alerts
@@ -97,7 +100,7 @@ class ALERT_NUM:
     PORT_TSB_2019_274_ALERT = PORT_TSB_2019_274_WARN + 1
     PORT_TSB_2019_276 = PORT_TSB_2019_274_ALERT + 1
     # The individual warn and alert levels were replaced with a single threshold when FOS v7.4 was released. Just in
-    # case that ever changes, I added warn level alerts, xxx_W, but as of this writting, none of the warn level alerts
+    # case that ever changes, I added warn level alerts, xxx_W, but as of this writing, none of the warn level alerts
     # are used.
     PORT_H_TXP_A = PORT_TSB_2019_276 + 1
     PORT_H_TXP_W = PORT_H_TXP_A + 1
@@ -197,6 +200,10 @@ class ALERT_NUM:
     CHASSIS_FRU = CHASSIS_BASE + 1
     CHASSIS_TEMP_ERROR = CHASSIS_FRU + 1
     CHASSIS_TEMP_WARN = CHASSIS_TEMP_ERROR + 1
+
+    # IOCP alerts
+    IOCP_BASE = 800
+    IOCP_MIXED_CU_TYPES = IOCP_BASE + 1
 
 
 _power_above_threshold = ' above threshold. Threshold: $p1 uW. Actual: $p0 uW.'
@@ -313,9 +320,9 @@ class AlertTable:
         ALERT_NUM.LOGIN_MIXED_SPEED_T: dict(m='Mixed server login speeds zoned to this target.', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_FASTER_S: dict(m='Faster server(s) zoned to this target.', s=al.ALERT_SEV.WARN),
         # Deprecated
-        ALERT_NUM.LOGIN_SPEED_DIFF_W: dict(m='$p0 logged in at slower speed also zonned to target(s): $p1.',
+        ALERT_NUM.LOGIN_SPEED_DIFF_W: dict(m='$p0 logged in at slower speed also zoned to target(s): $p1.',
                                            s=al.ALERT_SEV.WARN),
-        ALERT_NUM.LOGIN_SPEED_DIFF_E: dict(m='$p0 logged in at slower speed also zonned to target(s): $p1.',
+        ALERT_NUM.LOGIN_SPEED_DIFF_E: dict(m='$p0 logged in at slower speed also zoned to target(s): $p1.',
                                            s=al.ALERT_SEV.ERROR),
         ALERT_NUM.LOGIN_SPEED_IMP_W: dict(m='Mixed server login speeds zoned to this target.', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SPEED_IMP_E: dict(m='Mixed speeds zoned to this target. Search for $p0 and $p1',
@@ -334,8 +341,8 @@ class AlertTable:
         ALERT_NUM.ZONE_PEER_PROPERTY: dict(m='Peer property WWN, $p0, should not be included in the zone definition',
                                            s=al.ALERT_SEV.GENERAL),
         # In ZONE_LINK_ADDR below: $p0 - CPC serial (sequence) number, $p1 CHPID tag
-        ALERT_NUM.ZONE_LINK_ADDR: dict(m='Not in same zone for CPC $p0 CHPID tag $p1', s=al.ALERT_SEV.ERROR),
-        ALERT_NUM.ZONE_LINK_NO_ADDR: dict(m='Matching link addres in path CPC $p0 CHPID tag $p1 not in fabric',
+        ALERT_NUM.ZONE_LINK_ADDR: dict(m='Not in same zone for CPC $p0 CHPID $p1', s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.ZONE_LINK_NO_ADDR: dict(m='Matching link address in path CPC $p0 CHPID $p1 not in fabric',
                                           s=al.ALERT_SEV.ERROR),
 
         # Zone members. In all cases, p0 must be the WWN because that is how the report associates an alert with a
@@ -346,7 +353,7 @@ class AlertTable:
         ALERT_NUM.ZONE_DIFF_FABRIC: dict(m='Member found in fabric $p1', s=al.ALERT_SEV.ERROR, f=True),
         ALERT_NUM.ZONE_NOT_FOUND: dict(m='Not found', s=al.ALERT_SEV.GENERAL, f=True),
         ALERT_NUM.ZONE_BASE_ZONED: dict(m='Base NPIV zoned', s=al.ALERT_SEV.ERROR, f=True),
-        ALERT_NUM.ZONE_MAX_PARTICIPATION: dict(m='Maximum zone participation excceded', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.ZONE_MAX_PARTICIPATION: dict(m='Maximum zone participation exceeded', s=al.ALERT_SEV.WARN),
         ALERT_NUM.ZONE_DUP_ALIAS: dict(m='Duplicate alias for $p1. Same as $p0', s=al.ALERT_SEV.WARN),
         ALERT_NUM.ZONE_NULL_ALIAS: dict(m='Alias has no member', s=al.ALERT_SEV.WARN),
         ALERT_NUM.ZONE_NULL_ALIAS_USED: dict(m='Null alias used in $p0)', s=al.ALERT_SEV.ERROR),
@@ -366,6 +373,10 @@ class AlertTable:
         # Warn or Error severity for CHASSIS_TEMP is set in brcddb_bp._chassis_temp_check()
         ALERT_NUM.CHASSIS_TEMP_ERROR: dict(m='Sensor $p0 temperature $p1', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.CHASSIS_TEMP_WARN: dict(m='Sensor $p0 temperature $p1', s=al.ALERT_SEV.WARN),
+
+        # IOCP
+        ALERT_NUM.IOCP_MIXED_CU_TYPES: dict(
+            m='Mixed control unit types on the same CHPID, $p0. Control unit types: $p1', s=al.ALERT_SEV.WARN),
     }
     zone_alert_nums = {  # Application specific zone alerts intentionally left out of this list
         # ZONE

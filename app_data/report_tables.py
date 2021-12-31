@@ -75,16 +75,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 17 Jul 2021   | Updated comments                                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 31 Dec 2021   | Added more user friendly names.                                                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 
 class Chassis:
@@ -141,6 +143,7 @@ class Chassis:
         },
     }
 
+
 class Switch:
 
     # Key - Custom key of key from any of the switch related API responses. Value is the the column header. This table
@@ -166,7 +169,7 @@ class Switch:
         'brocade-fabric/fabric-switch/domain-name': 'Domain Name',
         # 'fabric': brcdapi_util.get_key_val, This is a dict, but I don't know what the members are yet
         'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id': 'Fabric ID (FID)',
-        # 'fabric-user-friendly-name': 'Fabric Name',
+        'brocade-fibrechannel-switch/fibrechannel-switch/fabric-user-friendly-name': 'Fabric Name',
         'brocade-fabric/fabric-switch/fcid-hex': 'FC ID',
         'brocade-fabric/fabric-switch/fcip-address': 'FCIP Address',
         'brocade-fabric/fabric-switch/firmware-version': 'Firmware Version',
@@ -235,6 +238,8 @@ class Switch:
         'brocade-ficon/switch-rnid/plant': 'RNID: Plant',
         'brocade-ficon/switch-rnid/sequence-number': 'RNID: S/N',
         'brocade-ficon/switch-rnid/tag': 'RNID: Tag',
+        # MAPS
+        'brocade-maps/system-resources/memory-usage': 'MAPS System Memory Usage'
     }
 
 
@@ -268,6 +273,7 @@ class Security:
         'brocade-security/sec-crypto-cfg-template/name/template': 'Crypto Name Template',
         'brocade-security/sec-crypto-cfg-template/template': 'Crypto CFG Template',
     }
+
 
 class Port:
     # How to display a port object key value is determined by looking up the key in the list of keys in display passed
@@ -330,10 +336,16 @@ class Port:
         '_SWITCH_WWN': dict(c=22, d='Switch WWN'),
         '_ZONES_DEF': dict(c=26, d='In Defined Zone(s)'),
         '_ZONES_EFF': dict(c=26, d='In Effective Zone(s)'),
+        # Internal
+        '_search/sfp_max_speed': dict(v=True, c=5, d='Max switch port speed Gbps'),
+        '_search/sfp_min_speed': dict(v=True, c=5, d='Min switch port speed Gbps'),
+        '_search/remote_sfp_max_speed': dict(v=True, c=5, d='Max remote port speed Gbps'),
+        '_search/remote_sfp_min_speed': dict(v=True, c=5, d='Min remote port speed Gbps'),
+        '_search/speed': dict(v=True, c=5, d='Login speed Gbps'),
         # fibrechannel
         'fibrechannel/e-port-credit': dict(v=True, c=8, d='E-Port Credit'),
         'fibrechannel/f-port-buffers': dict(v=True, c=8, d='F-Port Buffers'),
-        'fibrechannel/fcid': dict(c=10, d='FC Address'),  # Depricated
+        'fibrechannel/fcid': dict(c=10, d='FC Address'),  # Deprecated
         'fibrechannel/fcid-hex': dict(c=10, d='FC Address'),
         'fibrechannel/long-distance': dict(v=True, c=8, d='Long Distance Mode'),
         'fibrechannel/los-tov-mode-enabled': dict(v=True, c=12, d='LOS_TOV Mode'),
@@ -345,7 +357,7 @@ class Port:
         'fibrechannel/physical-state': dict(c=11, d='State'),
         'fibrechannel/port-type': dict(c=15, d='Port Type'),
         'fibrechannel/rate-limit-enabled': dict(v=True, c=8, d='Rate Limit'),
-        'fibrechannel/speed': dict(v=True, c=6, d='Speed Gbps'),
+        'fibrechannel/speed': dict(v=True, c=6, d='Login Speed Gbps'),
         'fibrechannel/max-speed': dict(v=True, c=6, d='Max Speed Gbps'),
         'fibrechannel/user-friendly-name': dict(c=18, d='Port Name'),
         'fibrechannel/wwn': dict(c=22, d='Switch Port WWN'),
@@ -375,7 +387,7 @@ class Port:
         'fibrechannel/csctl-mode-enabled': dict(v=True, m=True, c=5, d='CSCTL Enabled'),
         'fibrechannel/d-port-enable': dict(v=True, m=True, c=5, d='D-Port Enabled'),
         'fibrechannel/e-port-disable': dict(v=True, m=True, c=5, d='E-Port Disabled'),
-        # 'fibrechannel/enabled-state': dict(v=True, m=True, c=5, d='Enabled'),  # Depricated in FOS 8.2.1b
+        # 'fibrechannel/enabled-state': dict(v=True, m=True, c=5, d='Enabled'),  # Deprecated in FOS 8.2.1b
         'fibrechannel/encryption-active': dict(v=True, m=True, c=5, d='Encryption Active'),
         'fibrechannel/ex-port-enabled': dict(v=True, m=True, c=5, d='XISL Enabled'),
         'fibrechannel/fault-delay-enabled': dict(v=True, m=True, c=5, d='Fault Delay Enabled'),
@@ -415,7 +427,7 @@ class Port:
         'fibrechannel-statistics/delimiter-errors': dict(v=True, c=8, d='Delimiter Errors'),
         'fibrechannel-statistics/encoding-disparity-errors': dict(v=True, c=8, d='Encoding Disparity Errors'),
         'fibrechannel-statistics/encoding-errors-outside-frame': dict(v=True, c=8,
-                                                                  d='Encoding Errors Outside Frame'),
+                                                                      d='Encoding Errors Outside Frame'),
         'fibrechannel-statistics/f-busy-frames': dict(v=True, c=8, d='Frame Busy'),
         'fibrechannel-statistics/f-rjt-frames': dict(v=True, c=8, d='Frame Rejects'),
         'fibrechannel-statistics/frames-too-long': dict(v=True, c=8, d='Frames Too Long'),
@@ -434,7 +446,7 @@ class Port:
         'fibrechannel-statistics/input-buffer-full': dict(v=True, c=8, d='Input Buffer Full'),
         'fibrechannel-statistics/invalid-ordered-sets': dict(v=True, c=8, d='Invalid Ordered Sets'),
         'fibrechannel-statistics/invalid-transmission-words': dict(v=True, c=8,
-                                                               d='Invalid Transmission Words (ITW)'),
+                                                                   d='Invalid Transmission Words (ITW)'),
         'fibrechannel-statistics/remote-invalid-transmission-words': \
             dict(v=True, c=8, d='Remote Invalid Transmission Words (ITW)'),
         'fibrechannel-statistics/link-failures': dict(v=True, c=8, d='Link Failures'),
@@ -443,7 +455,7 @@ class Port:
         'fibrechannel-statistics/remote-loss-of-signal': dict(v=True, c=8, d='Remote Loss Of Signal'),
         'fibrechannel-statistics/loss-of-sync': dict(v=True, c=8, d='Loss Of Sync'),
         'fibrechannel-statistics/remote-loss-of-sync': dict(v=True, c=8, d='Remote Loss Of Sync'),
-        'fibrechannel-statistics/multicast-timeouts': dict(v=True, c=8, d='Muti-cast Timeouts'),
+        'fibrechannel-statistics/multicast-timeouts': dict(v=True, c=8, d='Multi-cast Timeouts'),
         'fibrechannel-statistics/out-frame-rate': dict(v=True, c=8, d='Tx Frame Rate'),
         'fibrechannel-statistics/out-frames': dict(c=14, d='Tx Frames'),
         'fibrechannel-statistics/out-link-resets': dict(v=True, c=8, d='Tx Link Resets'),
@@ -457,7 +469,7 @@ class Port:
         'fibrechannel-statistics/p-rjt-frames': dict(v=True, c=8, d='P-Reject Frames'),
         'fibrechannel-statistics/pcs-block-errors': dict(v=True, c=8, d='PCS Block Errors'),
         'fibrechannel-statistics/primitive-sequence-protocol-error': dict(v=True, c=8,
-                                                                      d='Primitive Sequence Error'),
+                                                                          d='Primitive Sequence Error'),
         'fibrechannel-statistics/remote-primitive-sequence-protocol-error':
             dict(v=True, c=8, d='Remote Primitive Sequence Error'),
         'fibrechannel-statistics/sampling-interval': dict(v=True, c=8, d='Sampling Interval (sec)'),
@@ -468,7 +480,7 @@ class Port:
         'fibrechannel-statistics/frames-processing-required': dict(v=True, c=8, d='Frames Processing Required'),
         'fibrechannel-statistics/frames-timed-out': dict(v=True, c=8, d='Frames Timed Out'),
         'fibrechannel-statistics/frames-transmitter-unavailable-errors': dict(v=True, c=8,
-                                                                          d='Tx Unavailable Errors'),
+                                                                              d='Tx Unavailable Errors'),
         # Media (media-rdp)
         'media-rdp/connector': dict(v=True, c=6, d='Connector Type'),
         'media-rdp/wavelength': dict(v=True, c=8, d='Wavelength'),
@@ -501,7 +513,7 @@ class Port:
         'media-rdp/remote-optical-product-data/vendor-revision': dict(v=True, m=True, c=4, d='Remote Revision'),
         'media-rdp/voltage': dict(v=True, c=8, d='Voltage (mVolts)'),
         'media-rdp/remote-media-voltage': dict(v=True, c=8, d='Remote Voltage (mVolts)'),
-        # Not using any of the remote alarm or warn levels. This is the remote equivelent to what MAPS replaced
+        # Not using any of the remote alarm or warn levels. This is the remote equivalent to what MAPS replaced
         'media-rdp/remote-media-temperature-alert/high-alarm': dict(v=True, c=6, d='Remote Temp High Alarm'),
         'media-rdp/remote-media-temperature-alert/high-warning': dict(v=True, c=6, d='Remote Temp High Warning'),
         'media-rdp/remote-media-temperature-alert/low-alarm': dict(v=True, c=6, d='Remote Temp Low Alarm'),
@@ -809,8 +821,8 @@ class Port:
 
     
 class Login:
-    # Includes FDMI as well. FDMI node data is preceeded with '_FDMI_NODE.' followed by the key. brcddb.report.login
-    # seperates the key on '.'. Similarly, FDMI port data is preceeded with '_FDMI_PORT'.
+    # Includes FDMI as well. FDMI node data is preceded with '_FDMI_NODE.' followed by the key. brcddb.report.login
+    # seperates the key on '.'. Similarly, FDMI port data is preceded with '_FDMI_PORT'.
     # How to display a login object key value is determined by looking up the key in the list of keys in display passed
     # to login_page() in login_display_tbl. If a key is not found but exists in the login object, it is displayed with
     # all the default settings. The keys are either one of the keys defined in 'brocade-interface/fibrechannel' or one
@@ -912,7 +924,7 @@ class Login:
         '_FDMI_PORT.brocade-fdmi/port-symbolic-name': dict(v=False, c=35, d='FDMI Port Symbolic Name'),
         '_FDMI_PORT.brocade-fdmi/port-type': dict(v=False, c=8, d='FDMI Port Type'),
         '_FDMI_PORT.brocade-fdmi/supported-class-of-service': dict(v=False, c=10,
-                                                               d='FDMI Supported Class Of Service'),
+                                                                   d='FDMI Supported Class Of Service'),
         '_FDMI_PORT.brocade-fdmi/supported-fc4-type': dict(v=False, c=29, d='FDMI Supported FC4 Type'),
         '_FDMI_PORT.brocade-fdmi/supported-speed': dict(v=False, c=22, d='FDMI Supported Speed'),
     }

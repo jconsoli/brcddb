@@ -17,14 +17,14 @@
 
 WARNING::
 
-    I have plans to depricate this table. It grew well beyond the original intended purpose.
+    I have plans to deprecate this table. It grew well beyond the original intended purpose.
 
-     Editing a library to customize a report is not good. In some controlled environments, script writters don't have
+     Editing a library to customize a report is not good. In some controlled environments, script writers don't have
      access to the Python lib folder making it impossible to customize reports but until I get around to modifying
      report.py, this file needs to be edited to customize reports.
 
      This table is read by brcddb.brcddb_bp.best_practice() and brcddb_fabric.py. The intended solution is for report.py
-     to read in a table from a user specified file during invocaiton.
+     to read in a table from a user specified file during invocation.
 
      To net it out, the "Description" section is incorrect. It is what was intended, not what was implemented.
 
@@ -85,23 +85,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 17 Jul 2021   | Added custom_tbl and modified comments.                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 31 Dec 2021   | Updated comments only. No functional changes.                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.app_data.alert_tables as al
 
 MAX_ZONE_PARTICIPATION = 30  # Maximum number of devices that can be zoned to a login. See brcddb_fabric.zone_analysis()
 
-# Not used. Examples on how create a best practice check to flag any Emulex LPe3 HBA running firmware drver code 11.x
+# Not used. Examples on how create a best practice check to flag any Emulex LPe3 HBA running firmware driver code 11.x
 fdmi_mfg_emulex = dict(k='brocade-fdmi/manufacturer', t='wild', v='Emulex*', i=True)
 fdmi_fw = dict(k='brocade-fdmi/firmware-version', t='wild', v='11*')
 fdmi_mfg_model = dict(k='brocade-fdmi/model', t='regex-s', v='LPe3[2-5]002-M2')
@@ -211,7 +213,7 @@ port_tbl = (
         ),
         logic='and'
     ),
-    # Check for SFPs with serial numbers begining with "HAA" on FC16-48 blade in port 8 manufactured in 2015 or earlier.
+    # Check for SFPs with serial numbers beginning with "HAA" on FC16-48 blade in port 8 manufactured in 2015 or earlier
     dict(
         skip=False,
         m=al.ALERT_NUM.PORT_SFP_HAA_F16_32_P8,
@@ -229,6 +231,7 @@ switch_tbl = (
     dict(
         skip=False,
         m=al.ALERT_NUM.SWITCH_FIRMWARE_8_2,
+        p0='brocade-fabric/fabric-switch/firmware-version',
         l=(
             dict(k='brocade-fabric/fabric-switch/firmware-version', v='v8.2.1[c-z]', t='regex-s'),  # >= 8.2.1c
             dict(k='brocade-fabric/fabric-switch/firmware-version', v='v8.2.[2-9]', t='regex-s'),  # >= 8.2.2
