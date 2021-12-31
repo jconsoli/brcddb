@@ -38,16 +38,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.2     | 14 Nov 2021   | Added zone_merge_group(). Added FID to best_fab_name()                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 31 Dec 2021   | Made changes to adjust for fixes in brcddb.classes.iocp.py                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.2'
+__version__ = '3.1.3'
 
 import brcdapi.log
 import brcddb.brcddb_common as brcddb_common
@@ -55,7 +57,6 @@ import brcddb.util.util as brcddb_util
 import brcddb.app_data.bp_tables as bt
 import brcddb.util.search as brcddb_search
 import brcddb.app_data.alert_tables as al
-import brcddb.brcddb_login as brcddb_login
 import brcddb.brcddb_port as brcddb_port
 import brcddb.util.iocp as brcddb_iocp
 import brcddb.brcddb_zone as brcddb_zone
@@ -137,13 +138,12 @@ def alias_analysis(fabric_obj):
             if len(zone_list) == 0:
                 a_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NULL_ALIAS, None, None, None)
             else:
-                a_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NULL_ALIAS_USED, None, \
+                a_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NULL_ALIAS_USED, None,
                                   ', '.join([zone_obj.r_obj_key() for zone_obj in zone_list]), None)
         elif len(alias_members) == 1:  # Duplicate alias? Keeping it simple by only checking 1 member per alias
             alias_name = a_obj.r_obj_key()
             bl = list()
             for c_obj in alias_list:
-                mem = c_obj.r_members()[0] if len(c_obj.r_members()) == 1 else None
                 if c_obj.r_obj_key() != alias_name and len(c_obj.r_members()) == 1 and \
                         alias_members[0] == c_obj.r_members()[0]:
                     bl.append(c_obj.r_obj_key())
@@ -160,7 +160,8 @@ def check_ficon_zoning(fabric_obj):
     """
     for iocp_obj in fabric_obj.r_project_obj().r_iocp_objects():
         cec_sn = brcddb_iocp.full_cpc_sn(iocp_obj.r_obj_key())  # The SN is always the same for each IOCP
-        for tag, d in iocp_obj.r_path_objects().items():  # For every defined path
+        for chpid_obj in iocp_obj.r_path_objects():  # For every defined path
+            tag = chpid_obj.r_obj_key()
 
             # Find the port objects for the CHPID and get a list of zones the CHPID is in
             chpid_port_obj = brcddb_port.port_obj_for_chpid(fabric_obj, cec_sn, tag)
@@ -169,16 +170,21 @@ def check_ficon_zoning(fabric_obj):
             chpid_zone_l = fabric_obj.r_zones_for_di(chpid_port_obj.r_switch_obj().r_did(), chpid_port_obj.r_index())
 
             # For each link address, get the corresponding port object and check for at least one common zone
-            for link_addr in d['link']:
+            for link_addr in chpid_obj.r_link_addresses():
+
+                # Get the FC address
+                did = fabric_obj.r_switch_objects()[0].r_did() if len(fabric_obj.r_switch_keys()) == 1 else None
+                switch_id = chpid_obj.r_switch_id() if did is None else None
+                fc_addr = brcddb_iocp.link_addr_to_fc_addr(link_addr, switch_id=switch_id, did=did, leading_0x=True)
 
                 # Get the port object for the port corresponding to the link address
-                port_obj = brcddb_port.port_obj_for_addr(fabric_obj, '0x' + link_addr + '00')
+                port_obj = brcddb_port.port_obj_for_addr(fabric_obj, fc_addr)
                 if port_obj is None:
                     chpid_port_obj.s_add_alert(al.AlertTable.alertTbl,
                                                al.ALERT_NUM.ZONE_LINK_NO_ADDR,
                                                None,
                                                iocp_obj.r_obj_key(),
-                                               tag)
+                                               brcddb_iocp.tag_to_text(tag) + ' (' + tag + ')')
                     continue
 
                 # See if the port for the link address and port for the CHPID share a zone
@@ -187,12 +193,15 @@ def check_ficon_zoning(fabric_obj):
                     if zone in chpid_zone_l:
                         not_found = False
                         break
+
                 if not_found:
-                    port_obj.s_add_alert(al.AlertTable.alertTbl,
-                                         al.ALERT_NUM.ZONE_LINK_ADDR,
-                                         None,
-                                         iocp_obj.r_obj_key(),
-                                         tag)
+                    all_access = fabric_obj.r_get('brocade-zone/effective-configuration/default-zone-access')
+                    if all_access is None or all_access == brcddb_common.DEF_ZONE_NOACCESS:
+                        port_obj.s_add_alert(al.AlertTable.alertTbl,
+                                             al.ALERT_NUM.ZONE_LINK_ADDR,
+                                             None,
+                                             iocp_obj.r_obj_key(),
+                                             brcddb_iocp.tag_to_text(tag) + ' (' + tag + ')')
 
     return
 
@@ -414,8 +423,8 @@ def zone_analysis(fab_obj):
     if flag & _ZONE_MISMATCH and _CHECK_ZONE_MISMATCH:
         try:
             fab_obj.r_defined_eff_zonecfg_obj().s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MISMATCH)
-        except:
-            pass  # Defined configuration was deleted - I'm not certian FOS allows it so this is just to be sure
+        except TypeError:
+            pass  # Defined configuration was deleted - I'm not certain FOS allows it so this is just to be sure
 
     for login_obj in fab_obj.r_login_objects():
         wwn = login_obj.r_obj_key()
@@ -429,7 +438,6 @@ def zone_analysis(fab_obj):
             login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_NOT_ZONED)
 
         # Check zone participation
-        port_obj = login_obj.r_port_obj()
         buf = login_obj.r_get('port-properties')
         if buf is not None and buf in special_login:
             login_obj.s_add_alert(al.AlertTable.alertTbl, special_login[buf])
@@ -539,11 +547,11 @@ def _zone_merge_group(wwn_d, missing_l, fab_obj, in_wwn):
     # The WWN may be zoned by not logged into the fabric in which case, it won't be associated with a port
     if port_obj is None:
         missing_l.append(in_wwn)
-        wwn_l = [wwn]  # We still need to process it because there may be other dependancies
+        wwn_l = [in_wwn]  # We still need to process it because there may be other dependencies
     else:
         wwn_l = port_obj.r_login_keys()
 
-    # Figure out all the zone dependancies for each WWN
+    # Figure out all the zone dependencies for each WWN
     for wwn in wwn_l:
         rl.append(wwn)
         wwn_d.update({wwn: True})

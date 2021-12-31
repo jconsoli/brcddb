@@ -39,16 +39,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 17 Jul 2021   | Added port_obj_for_chpid() and port_obj_for_addr()                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 31 Dec 2021   | Improved comments only. No functional changes.                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -123,11 +125,11 @@ def port_type(port_obj, num_flag=False):
     :return: Port type
     :rtype: str
     """
-    type = port_obj.r_get('fibrechannel/port-type')
-    if type is None:
+    port_type_s = port_obj.r_get('fibrechannel/port-type')
+    if port_type_s is None:
         return ''
-    buf = brcddb_common.port_conversion_tbl['fibrechannel/port-type'][type]
-    return buf + '(' + str(type) + ')' if num_flag else buf
+    buf = brcddb_common.port_conversion_tbl['fibrechannel/port-type'][port_type_s]
+    return buf + '(' + str(port_type_s) + ')' if num_flag else buf
 
 
 def port_obj_for_index(obj, index):
@@ -155,8 +157,8 @@ def port_obj_for_wwn(obj, wwn):
     :param obj: Object with port objects, obj.r_port_objects()
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
                 brcddb.classes.chassis.ChassisObj
-    :param index: Port index
-    :type index: int
+    :param wwn: Login WWN
+    :type wwn: str
     :return: Port object. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
@@ -171,7 +173,7 @@ def port_obj_for_wwn(obj, wwn):
 
 
 def port_obj_for_chpid(obj, seq, tag):
-    """Returns the port object matching the rnid/sequence-numbber and rnid/tag. Used for finding CHPIDs
+    """Returns the port object matching the rnid/sequence-number and rnid/tag. Used for finding CHPIDs
 
     :param obj: Object with port objects, obj.r_port_objects()
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,

@@ -32,16 +32,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 31 Dec 2021   | Miscellaneous clean up. No functional changes.                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
+
+import brcddb.util.util as brcddb_util
 
 _MIN_SYMB_LEN = 10
 
@@ -133,7 +137,7 @@ def login_best_port_desc(login_obj):
                 maybe = buf
             else:
                 return buf
-    except:
+    except AttributeError:
         pass
 
     # Try the name server port data
@@ -161,11 +165,8 @@ def best_login_name(fab_obj, name, flag=False):
     :return: desc
     :rtype: str
     """
-    try:
-        l = fab_obj.r_alias_for_wwn(name)
-        return name if len(l) == 0 else l[0] + ' (' + name + ')' if flag else l[0]
-    except:
-        return ''
+    alias_l = brcddb_util.convert_to_list(fab_obj.r_alias_for_wwn(name))
+    return name if len(alias_l) == 0 else alias_l[0] + ' (' + name + ')' if flag else alias_l[0]
 
 
 def login_type(login_obj):
@@ -176,5 +177,5 @@ def login_type(login_obj):
     :return: Login type
     :rtype: str
     """
-    type = login_obj.r_get('brocade-name-server/fc4-type')
-    return '' if type is None else type
+    fc4_type = login_obj.r_get('brocade-name-server/fc4-type')
+    return '' if fc4_type is None else fc4_type

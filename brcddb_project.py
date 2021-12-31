@@ -41,16 +41,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 14 Nov 2021   | Improved readability and updated comments. No functional changes                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 31 Dec 2021   | Added ability to determine remote SFP speed by HBA when remote speed unavailable  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import brcddb.classes.project as project_class
 import brcddb.brcddb_fabric as brcddb_fabric
@@ -80,13 +82,13 @@ def dup_wwn(proj_obj):
     """Searches all fabrics in the project for duplicate WWNs.
     :param proj_obj: Project object
     :type proj_obj: ProjectObj
-    :return: List of login objects for the duplicate WWNS. None entry seperates multiple duplicates
+    :return: List of login objects for the duplicate WWNs. None entry separates multiple duplicates
     :rtype: list
     """
     dup_login = list()
     if not _DUP_WWN_CHECK:
         return dup_login
-    dup_wwn = list()
+    dup_wwn_l = list()
     for fabObj in proj_obj.r_fabric_objects():
         other_fab_list = proj_obj.r_fabric_objects()
         other_fab_list.remove(fabObj)
@@ -95,8 +97,8 @@ def dup_wwn(proj_obj):
             dup_login_len = len(dup_login)
             for fobj in other_fab_list:
                 if fobj.r_login_obj(wwn) is not None:
-                    if wwn not in dup_wwn:
-                        dup_wwn.append(wwn)
+                    if wwn not in dup_wwn_l:
+                        dup_wwn_l.append(wwn)
                         proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_DUP_LOGIN, None, wwn)
                     login_obj = fobj.r_login_obj(wwn)
                     if login_obj not in dup_login:
@@ -106,8 +108,10 @@ def dup_wwn(proj_obj):
                     login_obj = fabObj.r_login_obj(wwn)
                     if login_obj not in dup_login:
                         dup_login.append(login_obj)
-                        login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_DUP_LOGIN, None,
-                                                        brcddb_fabric.best_fab_name(fobj))
+                        login_obj.s_add_alert(al.AlertTable.alertTbl,
+                                              al.ALERT_NUM.LOGIN_DUP_LOGIN,
+                                              None,
+                                              brcddb_fabric.best_fab_name(fobj))
             if len(dup_login) > dup_login_len:
                 dup_login.append(None)
 
@@ -118,13 +122,13 @@ def read_from(inf):
     """Creates a new project object from a JSON dump of a previous project object.
 
     :param inf: Input file name written with brcddb_util.write_dump()
-    :type name: str
+    :type inf: str
     """
     obj = brcddb_file.read_dump(inf)
     if obj is None or obj.get('_obj_key') is None or obj.get('_date') is None:
         brcdapi_log.log(inf + ' is not a valid project file.', True)
         return None
-    # Make sure there is a valid Excel tab name
+    # Make sure there is a valid Excel tab name.
     proj_obj = new(obj.get('_obj_key').replace(' ', '_').replace(':', '').replace('-', '_')[:32], obj.get('_date'))
     brcddb_copy.plain_copy_to_brcddb(obj, proj_obj)
     return proj_obj
@@ -175,6 +179,11 @@ def add_custom_search_terms(proj_obj):
 
         # Get the maximum and minimum speeds supported by the remote (attached device) SFP
         l = port_obj.r_get('media-rdp/remote-media-speed-capability/speed')
+        if l is None:  # No speed from remote SFP so try to figure it out based on the HBA type
+            for d in brcddb_common.hba_remote_speed:
+                if len(brcddb_search.match_test(port_obj.r_login_objects(), d['f'])) > 0:
+                    l = d['s']
+                    break
         if isinstance(l, (list, tuple)):
             max_r_sfp = max(l)
             if 'remote_sfp_max_speed' not in search:
@@ -199,8 +208,8 @@ def fab_obj_for_user_name(proj_obj, name):
 
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
-    :param fab_obj: List of brcddb fabric objects whose user friendly name matches name
-    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param name: User friendly fabric name
+    :type name: str
     """
     sl = brcddb_search.match_test(
         proj_obj.r_switch_objects(),

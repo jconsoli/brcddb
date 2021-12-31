@@ -26,7 +26,7 @@ best_practice()     Accepts a list of objects and a list of best practice or sta
                     Although intended for determining best practice and standards (drift) violations, it can be used
                     for any application that requires individual key comparisons.
 
-                    see brcddb.app_data.alert_tables for details in consturcting these tables
+                    see brcddb.app_data.alert_tables for details in constructing these tables
 
 Version Control::
 
@@ -41,7 +41,7 @@ Version Control::
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 14 Nov 2020   | Added ability to parse multiple SFP part numbers for the same rule. This was done |
-    |           |               | to accomodated the new secure SFPs for Gen7.                                      |
+    |           |               | to accommodated the new secure SFPs for Gen7.                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 26 Jan 2021   | Use standardized brcddb object types                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -49,16 +49,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 17 Jul 2021   | Updated comments only.                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 31 Dec 2021   | Miscellaneous clean up. No functional changes.                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import collections
 import brcddb.util.util as brcddb_util
@@ -89,7 +91,7 @@ _rule_template = {
         'Current Low (mA)': dict(t='<=', a=al.ALERT_NUM.PORT_L_CUR_A, l=True),
     },
     'media-rdp/voltage': {
-        'Voltage High (mV)': dict(t='>=', a=al.ALERT_NUM.PORT_H_VLT_A, l= False),
+        'Voltage High (mV)': dict(t='>=', a=al.ALERT_NUM.PORT_H_VLT_A, l=False),
         'Voltage Low (mV)': dict(t='<=', a=al.ALERT_NUM.PORT_L_VLT_A, l=False),
     },
     'media-rdp/temperature': {
@@ -159,22 +161,17 @@ _remote_rule_template = {
 }
 
 
-def _amp_in_switch_pair(s_switch_obj, dwwn, switch_pair):
+def _amp_in_switch_pair(switch_pair):
     """Determines if either switch in a switch pair from FabricObj.r_isl_map() is an AMP
 
-    There is no gaurantee that each switch was polled so you can't rely on knowing the switch type. In fact, AMP
+    There is no guarantee that each switch was polled so you can't rely on knowing the switch type. In fact, AMP
     probably isn't ever polled. brcddb_fabric.zone_analysis() adds an alert to logins if the login is to an AMP
     unit. So we spin through all the logins associated with the ports to determine if any of them are an AMP.
-    :param s_switch_obj: Source switch object
-    :type s_switch_obj: brcddb.classes.switch.switch_obj
-    :param dwwn: WWN of destination switch
-    :type dwwn: str
     :param switch_pair: Dictionary of switches and trunks as returned from brcddb.clases.switch.c_trunk_map()
     :type switch_pair: dict
     :return: True if any of the ports are connected to an AMP
     :rtype: bool
     """
-    fab_obj = s_switch_obj.r_fabric_obj()
     for k in switch_pair.keys():
         tl = switch_pair.get(k)
         for i in range(0, len(tl)):
@@ -186,9 +183,8 @@ def _amp_in_switch_pair(s_switch_obj, dwwn, switch_pair):
                                 return True
     return False
 
+
 # Cases for bp_special(). For each case method:
-
-
 def _isl_num_links(obj, t_obj):
     """Check to see if the number of ISL in each trunk group is the same
 
@@ -212,7 +208,7 @@ def _isl_num_links(obj, t_obj):
     isl_map = obj.c_trunk_map()
     for k in isl_map.keys():
         switch_pair = isl_map.get(k)
-        if _amp_in_switch_pair(obj, k, switch_pair):
+        if _amp_in_switch_pair(switch_pair):
             continue
         isls_per_trunk = list()
         for k1 in switch_pair.keys():
@@ -250,7 +246,7 @@ def _isl_bw(obj, t_obj):
     isl_map = obj.c_trunk_map()
     for k in isl_map.keys():
         switch_pair = isl_map.get(k)
-        if _amp_in_switch_pair(obj, k, switch_pair):
+        if _amp_in_switch_pair(switch_pair):
             continue
         speeds = list()
         for k1 in switch_pair.keys():
@@ -258,7 +254,7 @@ def _isl_bw(obj, t_obj):
                 s = switch_pair.get(k1)[0][0].r_get('fibrechannel/speed')
                 if s is not None:
                     speeds.append(s)
-            except:
+            except TypeError:
                 pass  # We get here if all switches in the project were not polled
         if len(brcddb_util.remove_duplicates(speeds)) > 1:
             r_list.append({'a': t_obj.get('m'),
@@ -291,7 +287,7 @@ def _isl_fru(obj, t_obj):
     isl_map = obj.c_trunk_map()
     for k in isl_map.keys():
         switch_pair = isl_map.get(k)
-        if _amp_in_switch_pair(obj, k, switch_pair):
+        if _amp_in_switch_pair(switch_pair):
             continue
         slots = list()
         for k1 in switch_pair.keys():
@@ -330,7 +326,7 @@ def _isl_redundant(obj, t_obj):
     isl_map = obj.c_trunk_map()
     for k in isl_map.keys():
         switch_pair = isl_map.get(k)
-        if _amp_in_switch_pair(obj, k, switch_pair):
+        if _amp_in_switch_pair(switch_pair):
             continue
         if len(list(switch_pair.keys())) == 1:
             r_list.append({'a': t_obj.get('m'),
@@ -415,7 +411,7 @@ def _chassis_fru_check(obj, t_obj):
                     a = al.ALERT_NUM.CHASSIS_TEMP_ERROR if v1 >= HIGH_TEMP_ERROR else al.ALERT_NUM.CHASSIS_TEMP_WARN
                     p0 = '' if d.get('slot-number') is None else 'Slot: ' + str(d.get('slot-number')) + ' '
                     p0 += '' if d.get('id') is None else 'ID: ' + str(d.get('id'))
-                    r_list.append({'a': a , 'p0': p0, 'p1': v1, 'k': None})
+                    r_list.append(dict(a=a, p0=p0, p1=v1, k=None))
 
     return r_list
 
@@ -436,7 +432,7 @@ def _check_sfps(obj_list, t_obj):
     # Perform all the checks for the SFPs on the switch.
     enabled_ports = brcddb_search.match_test(obj_list, bp_tables.is_enabled)  # SFP data is not valid for disabled ports
     for rule in sfp_rules:
-        group = 'Unkonwn' if rule.get('Group') is None else rule.get('Group')
+        group = 'Unknown' if rule.get('Group') is None else rule.get('Group')
         try:
             pn_l = rule.get('Mfg. P/N')
             if pn_l is not None and pn_l != '':
@@ -455,8 +451,9 @@ def _check_sfps(obj_list, t_obj):
             else:
                 brcdapi_log.log('Missing P/N in ' + sfp_rules + ', Group: ' + str(group), True)
 
-        except:
-            brcdapi_log.exception('Invalid SFP rules file ' + sfp_rules + '. Group: ' + str(group), True)
+        except BaseException as e:
+            ml = ['Invalid SFP rules file ' + sfp_rules, 'Group: ' + str(group), 'Exception: ' + str(e)]
+            brcdapi_log.exception(ml, True)
             return
 
     return
@@ -493,7 +490,7 @@ def _check_remote_sfps(obj_list, t_obj):
                         if v <= tv:
                             p_obj.s_add_alert(_alert_tbl, rules_1.get('a'), k1, v, tv)
                             break
-            except:
+            except (TypeError, ValueError, IndexError, KeyError):
                 pass  # Remote data wasn't provided if we get here.
 
 
@@ -527,7 +524,7 @@ def _bp_special(obj_list, t_obj):
         _bp_special_case_tbl[sc](obj_list, t_obj)
     else:
         for obj in obj_list:
-            for a in  _bp_special_case_tbl[sc](obj, t_obj):
+            for a in _bp_special_case_tbl[sc](obj, t_obj):
                 obj.s_add_alert(_alert_tbl, a.get('a'), a.get('k'), a.get('p0'), a.get('p1'))
 
 
@@ -551,7 +548,7 @@ def _fdmi_enabled(obj_list, t_obj):
             if port_obj.r_get('fibrechannel/neighbor/wwn')[1] == wwn:
                 if obj.r_fabric_obj().r_fdmi_port_obj(wwn) is None:
                     ret_list.append(port_obj)
-        except:
+        except (TypeError, ValueError, IndexError, KeyError):
             if obj.r_fabric_obj().r_fdmi_port_obj(wwn) is None:
                 ret_list.append(port_obj)
     return ret_list
@@ -596,7 +593,6 @@ def _check_best_practice(obj_list, test_list):
         brcdapi_log.exception('Invalid test_list type, ' + str(type(test_list)), True)
         return
 
-
     # Spin through each item in the test_list and perform the specified test
     for t_obj in test_list:
         if 'skip' in t_obj and t_obj.get('skip'):
@@ -617,8 +613,11 @@ def _check_best_practice(obj_list, test_list):
                 # See documentation in brcddb.app_data.bp_tables for an explanation of 'm', 'p0', 'p0h', 'p1', & 'p1h'
                 p0 = t_obj.get('p0h') if t_obj.get('p0h') is not None else obj.r_get(t_obj.get('p0'))
                 p1 = t_obj.get('p1h') if t_obj.get('p1h') is not None else obj.r_get(t_obj.get('p1'))
-                obj.s_add_alert(_alert_tbl, t_obj.get('m'), brcddb_util.convert_to_list(t_obj.get('l'))[0].get('k'),
-                               p0, p1)
+                obj.s_add_alert(_alert_tbl,
+                                t_obj.get('m'),
+                                brcddb_util.convert_to_list(t_obj.get('l'))[0].get('k'),
+                                p0,
+                                p1)
 
 
 def best_practice(a_tbl, proj_obj):

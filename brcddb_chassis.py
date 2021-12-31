@@ -19,7 +19,7 @@ Primary Methods::
     +-----------------------------+----------------------------------------------------------------------------------+
     | Method                      | Description                                                                      |
     +=============================+==================================================================================+
-    | blade_name()                | Converts the brocade-fru/blade/blade-id number to a user freindly blade type     |
+    | blade_name()                | Converts the brocade-fru/blade/blade-id number to a user friendly blade type     |
     +-----------------------------+----------------------------------------------------------------------------------+
     | best_chassis_name()         | Returns the chassis name, if available. Otherwise, the WWN for the chassis       |
     +-----------------------------+----------------------------------------------------------------------------------+
@@ -44,16 +44,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 17 Jul 2021   | Added chassis_type table                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 31 Dec 2021   | Miscellaneous clean up. No functional changes.                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import time
 import brcdapi.log as brcdapi_log
@@ -119,7 +121,7 @@ cfg_8_slot = 4
     +-------+-------+---------------------------------------------------------------------------------------+
     | dell  | str   | Dell-EMC brand name                                                                   |
     +-------+-------+---------------------------------------------------------------------------------------+
-    | hv    | str   | Hitachi Vanrara brand name                                                            |
+    | hv    | str   | Hitachi Vantara brand name                                                            |
     +-------+-------+---------------------------------------------------------------------------------------+
     | netapp| str   | NetApp brand name                                                                     |
     +-------+-------+---------------------------------------------------------------------------------------+
@@ -415,7 +417,7 @@ def _chassis_type(chassis_obj):
 
 
 def blade_name(blade_id):
-    """Converts the brocade-fru/blade/blade-id number to a user freindly blade type
+    """Converts the brocade-fru/blade/blade-id number to a user friendly blade type
 
     :param blade_id: brocade-fru/blade/blade-id
     :type blade_id: int
@@ -482,8 +484,8 @@ def eos(obj):
     :return: EOS_date
     :rtype: str
     """
-    eos = eos_epoch(obj)
-    return 'EOS not announced' if eos is None else time.strftime('%Y-%m-%d', eos)
+    epoch_eos = eos_epoch(obj)
+    return 'EOS not announced' if epoch_eos is None else time.strftime('%Y-%m-%d', epoch_eos)
 
 
 def gen(obj):

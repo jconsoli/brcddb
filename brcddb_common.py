@@ -30,7 +30,7 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 02 Sep 2020   | Added 0 auto-negotiate no-sync to fibrechannel/speed to port_conversion_tbl       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 01 Nov 2020   | Removed depricated conversions. Added 9.0 status values to port operational-status|
+    | 3.0.3     | 01 Nov 2020   | Removed deprecated conversions. Added 9.0 status values to port operational-status|
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 14 Nov 2020   | Removed 'fibrechannel/speed' and 'fibrechannel/max-speed' from                    |
     |           |               | port_conversion_tbl in favor of calculating speed so as to accomodate all speeds  |
@@ -40,16 +40,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 17 Jul 2021   | Removed zone_flag_wwn and zone_flag_di                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 31 Dec 2021   | Added ability to determine remote SFP speed by HBA when remote speed unavailable  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 #################################################################################
 #                                   Project                                     #
@@ -62,14 +64,14 @@ __version__ = '3.0.6'
 project_warn = 0b1                             # Encountered a recoverable programming error
 project_api_warn = project_warn << 1          # Encountered a recoverable error in the API response
 project_user_warn = project_api_warn << 1     # Encountered a recoverable error in a user application
-project_error = project_user_warn << 1        # Encoountered a non-recoverrable programming error
-project_api_error = project_error << 1        # Encoountered a non-recoverrable error in the API response
-project_user_error = project_api_error << 1   # Encoountered a non-recoverrable error in a user application
+project_error = project_user_warn << 1        # Encountered a non-recoverable programming error
+project_api_error = project_error << 1        # Encountered a non-recoverable error in the API response
+project_user_error = project_api_error << 1   # Encountered a non-recoverable error in a user application
 # If you add any warn or error flags, add it to project_error_warn_mask. The copy utility
 project_error_warn_mask = project_warn | project_api_warn | project_user_warn | project_error | project_api_error \
     | project_user_error
 # WARNING: If you add a new flag, make sure you update _project_next_avail
-project_next_avail     = project_user_error << 1
+project_next_avail = project_user_error << 1
 
 # Exit codes - see _user_friendly_exit_codes
 EXIT_STATUS_OK = 0
@@ -141,7 +143,7 @@ zonecfg_conversion_tbl = {
 #################################################################################
 # obj._flags - read and set with obj.flags(), obj.and_flags(), and obj.or_flags
 # There are no zone flags returned from the Rest API. These only get set if brcddb_fabric.zone_analysis() is called
-zone_flag_effective    = 0b1 # This is the effective zone object
+zone_flag_effective = 0b1  # This is the effective zone object
 
 ZONE_STANDARD_ZONE = 0
 ZONE_USER_PEER = 1
@@ -208,13 +210,13 @@ login_conversion_tbl = {
 chassis_flag_polled = 0b1  # brocade-chassis/chassis
 chassis_flag_ls_polled = chassis_flag_polled << 1  # logical-switch/fibrechannel-logical-switch
 # WARNING: If you add a new flag, make sure you update chassis_flag_next_avail
-chassis_flag_next_avail   = chassis_flag_ls_polled << 1
+chassis_flag_next_avail = chassis_flag_ls_polled << 1
 
 #################################################################################
 #                                      Switch                                   #
 #################################################################################
 # obj._flags - read and set with obj.flags(), obj.and_flags(), and obj.or_flags
-switch_flag_polled = 0b1 # Fibre channel switch was polled.
+switch_flag_polled = 0b1  # Fibre channel switch was polled.
 # WARNING: If you add a new flag, make sure you update switch_flag_next_avail
 switch_flag_next_avail = switch_flag_polled << 1
 
@@ -261,7 +263,8 @@ switch_conversion_tbl = {
 #################################################################################
 #                                       Port                                    #
 #################################################################################
-PORT_TYPE_UNKONWN = 0
+PORT_TYPE_UNKNOWN = 0
+PORT_TYPE_UNKONWN = 0  # Just in case a method is using the mis-spelled port type
 PORT_TYPE_E = 7
 PORT_TYPE_G = 10
 PORT_TYPE_U = 11
@@ -281,7 +284,7 @@ PORT_TYPE_LB = 32768
 
 port_conversion_tbl = {
     'fibrechannel/port-type': {
-        PORT_TYPE_UNKONWN: 'Unknown',
+        PORT_TYPE_UNKNOWN: 'Unknown',
         PORT_TYPE_E: 'E-Port',
         PORT_TYPE_G: 'G-Port',
         PORT_TYPE_U: 'U-Port',
@@ -492,7 +495,7 @@ logging_flag_polled = 0b1
 login_flag_next_avail = logging_flag_polled << 1
 
 fdmi_port_conversion_tbl = {
-    'port-state' : {
+    'port-state': {
         '0x0': 'Undefined',
         '0x1': 'Unknown',
         '0x2': 'Fully Operational',
@@ -514,7 +517,7 @@ maps_flag_is_predefined = maps_flag_polled << 1
 maps_flag_is_modifiable = maps_flag_is_predefined << 1
 maps_flag_clear_data = maps_flag_is_modifiable << 1
 maps_flag_quiet_time_clear = maps_flag_clear_data << 1
-maps_flag_un_quarantine_clear = maps_flag_quiet_time_clear <<1
+maps_flag_un_quarantine_clear = maps_flag_quiet_time_clear << 1
 maps_flag_is_active_policy = maps_flag_un_quarantine_clear << 1
 maps_flag_is_predefined_policy = maps_flag_is_active_policy << 1
 maps_flag_is_read_only = maps_flag_is_predefined_policy << 1
@@ -548,3 +551,101 @@ maps_bool_flags = {
     'is-rule-on-rule-supported': maps_flag_is_rule_on_rule_supported,
     'is-quiet-time-supported': maps_flag_is_quiet_time_supported,
 }
+
+#################################################################################
+#                           Remote SFP Speed                                    #
+#################################################################################
+# These are used when to determine the speed of the remote SFP by HBA type when the speed information is not returned
+# from the remote SFP
+hba_2G_d = dict(
+    l=(
+        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(
+            l=(
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LP10000', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LP9002', i=True),
+            ),
+            logic='or',
+        )
+    ),
+    logic='and',
+)
+hba_4G_d = dict(
+    l=(
+        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(
+            l=(
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe110[00|02|5]', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='A800[3|2]A', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPem1100[0|2]', i=True),
+            ),
+            logic='or',
+        )
+    ),
+    logic='and',
+)
+hba_8G_d = dict(
+    l=(
+        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(
+            l=(
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe1200[0|2]', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='SN1200E[0|2]P', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='a[j763|h403]', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe1205', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='554FLB', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='NC553i', i=True),
+            ),
+            logic='or',
+        )
+    ),
+    logic='and',
+)
+hba_16G_d = dict(
+    l=(
+        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(
+            l=(
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe160', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe3100', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='7101684', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='SN1200E', i=True),
+            ),
+            logic='or',
+        )
+    ),
+    logic='and',
+)
+hba_32G_d = dict(
+    l=(
+        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(
+            l=(
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe3200[0|2]', i=True),
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe3500[0|2]', i=True),
+            ),
+            logic='or',
+        )
+    ),
+    logic='and',
+)
+hba_64G_d = dict(
+    l=(
+        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(
+            l=(
+                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe3600[0|2]', i=True),
+            ),
+            logic='or',
+        )
+    ),
+    logic='and',
+)
+hba_remote_speed = (
+    dict(f=hba_64G_d, s=[64, 32, 16]),
+    dict(f=hba_32G_d, s=[32, 16, 8]),
+    dict(f=hba_16G_d, s=[16, 8, 4]),
+    dict(f=hba_8G_d, s=[8, 4, 2]),
+    dict(f=hba_4G_d, s=[4, 2, 1]),
+    dict(f=hba_2G_d, s=[2, 1]),
+)

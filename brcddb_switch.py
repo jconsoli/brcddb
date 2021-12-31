@@ -17,8 +17,8 @@
 
 **Note**
 
-    The chassis types, often refered to as switch type, would make more sense in brcddb_chassis.py. The fact that they
-    are in this module is due to some now irrelevant history. I wish I cleaned it up a long time ago but at thie point
+    The chassis types, often referred to as switch type, would make more sense in brcddb_chassis.py. The fact that they
+    are in this module is due to some now irrelevant history. I wish I cleaned it up a long time ago but at this point
     I'm limiting the amount of working code I'm changing so I left it here.
 
 Version Control::
@@ -41,16 +41,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 17 Jul 2021   | Referenced brcddb_chassis for all chassis specific stuff.                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 31 Dec 2021   | Fixed potential mutable list in add_rest_port_data()                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.util.copy as brcddb_copy
 import brcddb.util.util as brcddb_util
@@ -74,7 +76,6 @@ def _chassis_d(switch):
     """
     d = brcddb_chassis.chassis_type_d.get(int(float(switch)))
     return brcddb_chassis.chassis_type_d[0] if d is None else d
-
 
 
 def eos(switch):
@@ -156,7 +157,7 @@ def model_broadcom(switch):
     return _chassis_d(switch)['brcd']
 
 
-def add_rest_port_data(switch_obj, pobj, flag_obj=None, skip_list=list()):
+def add_rest_port_data(switch_obj, pobj, flag_obj=None, in_skip_list=list()):
     """Adds port statistics from rest request 'brocade-interface/fibrechannel-statistics' to each port object
 
     :param switch_obj: Switch object
@@ -165,11 +166,12 @@ def add_rest_port_data(switch_obj, pobj, flag_obj=None, skip_list=list()):
     :type pobj: dict
     :param flag_obj: Not used. Must be here for methods that call rest add methods from a table.
     :type flag_obj: None
-    :param skip_list: Keys to skip
-    :type skip_list: (list, tuple)
+    :param in_skip_list: Keys to skip
+    :type in_skip_list: (list, tuple)
     :return: None
     :rtype: None
     """
+    skip_list = in_skip_list if isinstance(in_skip_list, (list, tuple)) else list()
     sl = ['name', 'enabled-state']
     sl.extend(skip_list)
     for k in pobj.keys():
