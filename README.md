@@ -38,6 +38,12 @@ with the zone_merge.py application.
 * Deprecated pyfos_auth - previously only used in name only.
 * Added util.parse_cli.py
 
+**Updated 31 Dec 2021**
+
+* Several comments and user messaging improved
+* Replaced all bare exception clauses with explicit exceptions
+* Miscellaneous bug fixes, especially around the mainframe
+
 **Description**
 
 A hierarchical relational database using Python data types. Used by the reporting and searching functions.
