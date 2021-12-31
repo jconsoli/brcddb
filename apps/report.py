@@ -43,16 +43,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 14 Nov 2021   | Added server and target zone pages.                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 31 Dec 2021   | Improved error messages. No functional changes.                                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import collections
 import brcddb.app_data.report_tables as rt
@@ -195,43 +197,11 @@ def dashboard(obj, tc, wb, sheet_index, sheet_name, title):
         if len(db_list) > _MAX_DB_SIZE:
             del db_list[_MAX_DB_SIZE:]
         db['port_list'].extend(db_list)
-    report_port.performance_dashboard(wb, tc, sheet_name=sheet_name, sheet_i=sheet_index, sheet_title=title,
-                                        content=dashboard_item)
-
-
-def report_pages(remove_pages, add_pages):
-    """Use to modify the default pages for the report
-
-    :param obj: Project, fabric, or switch object
-    :type obj: ProjectObj, SwitchObj, FabricObj
-    :param tc: Table of context page. A link to this page is place in cell A1
-    :type tc: str, None
-    :param wb: Workbook object
-    :type wb: dict
-    :param sheet_index: Location for the title page. First sheet is 0
-    :type sheet_index: int
-    :param sheet_name: Sheet (tab) name
-    :type sheet_name: str
-    :param title: Title at top of  sheet
-    :type title: str
-    :rtype: None
-    """
-    dashboard_item = collections.OrderedDict()
-    dashboard_item['bad-eofs-received'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' Bad EOF', port_list=list())
-    dashboard_item['class-3-discards'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' C3 Discards', port_list=list())
-    dashboard_item['in-crc-errors'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' CRC With Good EOF', port_list=list())
-    dashboard_item['crc-errors'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' CRC', port_list=list())
-    dashboard_item['loss-of-signal'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' Loss of Signal', port_list=list())
-    dashboard_item['bb-credit-zero'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' BB Credit Zero', port_list=list())
-    port_list = obj.r_port_objects()
-    for k in dashboard_item.keys():
-        db = dashboard_item.get(k)
-        db_list = brcddb_search.test_threshold(port_list, 'fibrechannel-statistics/' + k, '>', 0)
-        db_list = brcddb_util.sort_obj_num(db_list, 'fibrechannel-statistics/' + k, True)
-        if len(db_list) > _MAX_DB_SIZE:
-            del db_list[_MAX_DB_SIZE:]
-        db['port_list'].extend(db_list)
-    report_port.performance_dashboard(wb, tc, sheet_name=sheet_name, sheet_i=sheet_index, sheet_title=title,
+    report_port.performance_dashboard(wb,
+                                      tc,
+                                      sheet_name=sheet_name,
+                                      sheet_i=sheet_index,
+                                      sheet_title=title,
                                       content=dashboard_item)
 
 
@@ -285,7 +255,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
                     obj['s'] = False
                 break
             else:
-                brcdapi_log.log(key + ' is unkonwn in remove page list. ignored')
+                brcdapi_log.log(key + ' is unknown in remove page list. ignored')
         else:
             d['s'] = False
     for key in brcddb_util.convert_to_list(add_pages):
@@ -296,10 +266,9 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
                     obj['s'] = True
                 break
             else:
-                brcdapi_log.log(key + ' is unkonwn in add page list. ignored')
+                brcdapi_log.log(key + ' is unknown in add page list. ignored')
         else:
             d['s'] = True
-
 
     """port_pages is used to determine how to display pages
     +-------+-------------------------------------------------------------------------------+
@@ -333,13 +302,9 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
         dict(c='port_rnid', sc=1, s='_ficon', t=rt.Port.port_rnid_tbl, d='Port RNID data', l=False),
     ]
 
-    # tc_page = report_utils.valid_sheet_name.sub('', proj_obj.r_obj_key())[:29] + '_xx'
-    tc_page = 'Table_of_Contents'
-    tbl_contents = list()
-
     # Set up the workbook
-    sheet_index = 0
-    wb = report_utils.new_report()
+    tc_page, tbl_contents = 'Table_of_Contents', list()
+    sheet_index, wb = 0, report_utils.new_report()
 
     # Check project for duplicate WWNs
     tbl_contents.append(dict(h=True, d='Duplicate WWNs'))
@@ -395,7 +360,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
         if _report_pages['fabric_dashboard']['s']:
             brcdapi_log.log('    Building fabric dashboard', True)
             sname = prefix + '_db'
-            dashboard(fab_obj, tc_page, wb, sheet_index, sname, fab_name + ' Dasboard')
+            dashboard(fab_obj, tc_page, wb, sheet_index, sname, fab_name + ' Dashboard')
             tbl_contents.append(dict(sc=1, s=sname, d='Fabric Dashboard'))
             sheet_index += 1
 
@@ -414,8 +379,15 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
         for obj in port_pages:
             if _report_pages[obj['c']]['s']:
                 sname = prefix + obj.get('s')
-                report_port.port_page(wb, tc_page, sname, sheet_index, fab_name + ' ' + obj.get('d'), port_list,
-                obj.get('t'), rt.Port.port_display_tbl, obj.get('l'))
+                report_port.port_page(wb,
+                                      tc_page,
+                                      sname,
+                                      sheet_index,
+                                      fab_name + ' ' + obj.get('d'),
+                                      port_list,
+                                      obj.get('t'),
+                                      rt.Port.port_display_tbl,
+                                      obj.get('l'))
                 tbl_contents.append(dict(sc=1, s=sname, d=obj.get('d')))
                 sheet_index += 1
 
@@ -427,7 +399,7 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
             tbl_contents.append(dict(sc=1, s=sname, d='Zone Analysis'))
             sheet_index += 1
 
-        #  Taget Zone Page
+        #  Target Zone Page
         if _report_pages['t_zone_page']['s']:
             brcdapi_log.log('    Building target zone page', True)
             sname = prefix + '_tzone'
@@ -440,8 +412,12 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
         if _report_pages['s_zone_page']['s']:
             brcdapi_log.log('    Building server zone page', True)
             sname = prefix + '_szone'
-            report_zone.non_target_zone_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name +
-                                         ' Zone by Non-Targets (effective zone only)')
+            report_zone.non_target_zone_page(fab_obj,
+                                             tc_page,
+                                             wb,
+                                             sname,
+                                             sheet_index,
+                                             fab_name + ' Zone by Non-Targets (effective zone only)')
             tbl_contents.append(dict(sc=1, s=sname, d='Zone by Non-Targets'))
             sheet_index += 1
 
@@ -508,4 +484,8 @@ def report(proj_obj, outf, remove_pages=None, add_pages=None):
     proj_title_page(proj_obj, None, wb, 0, tc_page, 'Contents', contents=tbl_contents)
 
     # Save the report.
-    report_utils.save_report(wb, outf)
+    try:
+        report_utils.save_report(wb, outf)
+    except PermissionError:
+        brcdapi_log.log('Permission error writing ' + outf + '. File may be open in another application.', True)
+        proj_obj.s_error_flag()
