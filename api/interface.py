@@ -50,19 +50,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 17 Jul 2021   | Documentation changes only                                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 31 Dec 2021   | Deprecated pyfos_auth.                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '17 Jul 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcdapi.brcdapi_rest as brcdapi_rest
-import brcdapi.pyfos_auth as pyfos_auth
+import brcdapi.fos_auth as fos_auth
 import brcdapi.util as brcdapi_util
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
@@ -82,10 +84,10 @@ _ip_list = (  # List of keys that are IP addresses. Used to determine if all but
 )
 
 
-def _process_errors(session, uri, obj, wobj):
+def _process_errors(session, uri, obj, wobj, e=None):
     """Checks for errors in the API response and adds alerts to the object if there is an error
 
-    :param session: Session object returned from brcdapi.pyfos_auth.login()
+    :param session: Session object returned from brcdapi.fos_auth.login()
     :type session: dict
     :param uri: URI, less the prefix
     :type uri: str
@@ -94,12 +96,17 @@ def _process_errors(session, uri, obj, wobj):
     :param wobj: The brcddb class object we were working when the error occured
     :type wobj: brcddb.classes.project.ProjectObj, brcddb.classes.chassis.ChassisObj, brcddb.classes.switch.SwitchObj,\
         None
+    :param e: Exception code
+    :type e: str, None
     """
-    if not pyfos_auth.is_error(obj):
+    if not fos_auth.is_error(obj):
         return
     ip_addr = brcdapi_util.mask_ip_addr(session.get('ip_addr'))
-    p1 = pyfos_auth.formatted_error_msg(obj)
-    brcdapi_log.log(ip_addr + " Request FAILED:\n" + p1, True)
+    p1 = fos_auth.formatted_error_msg(obj)
+    ml = [' Request FAILED for :' + ip_addr, p1]
+    if e is not None:
+        ml.append(e)
+    brcdapi_log.log(ml, True)
     if wobj is None:
         return
     proj_obj = wobj.r_project_obj()
@@ -125,7 +132,7 @@ def _process_errors(session, uri, obj, wobj):
 def get_chassis(session, proj_obj):
     """Gets the  chassis object and objects for all logical switches in the chassis.
 
-    :param session: Session object returned from brcdapi.pyfos_auth.login()
+    :param session: Session object returned from brcdapi.fos_auth.login()
     :type session: dict
     :param proj_obj: The project object
     :type proj_obj: brcddb.classes.project.ProjectObj
@@ -141,7 +148,7 @@ def get_chassis(session, proj_obj):
     # Go get it
     uri = 'brocade-chassis/chassis'
     obj = brcdapi_rest.get_request(session, uri, None)
-    if pyfos_auth.is_error(obj):
+    if fos_auth.is_error(obj):
         return None
     try:
         wwn = obj.get('chassis').get('chassis-wwn')
@@ -152,7 +159,7 @@ def get_chassis(session, proj_obj):
         if chassis_obj.r_is_vf_enabled():  # Get all the logical switches in this chassis
             uri = 'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch'
             obj = brcdapi_rest.get_request(session, uri, None)
-            if pyfos_auth.is_error(obj):
+            if fos_auth.is_error(obj):
                 _process_errors(session, uri, obj, chassis_obj)
                 fid_l = list()
             else:
@@ -166,8 +173,8 @@ def get_chassis(session, proj_obj):
             _process_errors(session, uri, obj, chassis_obj)
             results_action(chassis_obj, obj, uri)
         return chassis_obj
-    except:
-        _process_errors(session, uri, session, proj_obj)
+    except BaseException as e:
+        _process_errors(session, uri, session, proj_obj, str(e))
         return None
 
 
@@ -190,35 +197,47 @@ def login(user_id, pw, ip_addr, https='none', proj_obj=None):
     # Attempt to log in
     tip = brcdapi_util.mask_ip_addr(ip_addr, True)
     session = brcdapi_rest.login(user_id, pw, ip_addr, https)
-    if pyfos_auth.is_error(session):
+    if fos_auth.is_error(session):
         brcdapi_log.log(tip + ' Login failed', True)
         _process_errors(session, '/rest/login', session, proj_obj)
         return session
     else:
         brcdapi_log.log(tip + ' Login succeeded', True)
 
-    # Figure out what modules this FOS version supports
-    # Step 1: Read all the module information from FOS
-    uri = 'brocade-module-version'
-    obj = brcdapi_rest.get_request(session, uri)
-    if pyfos_auth.is_error(obj):
-        brcdapi_log.log(tip + ' ERROR: ' + uri + '\n' + pyfos_auth.formatted_error_msg(obj), True)
-        return session
+    try:  # We logged in so try/except in the event of any programming errors. This allos the application to logout
 
-    # Step 2: Parse the module information and add it to the session object
-    kpi_list = list()
-    for mod_obj in obj.get(uri).get('module'):
-        name = mod_obj.get('name')
-        if name is None:
-            brcdapi_log.exception("'name' mising in brocade-module-version", True)
-            continue
-        kpi_list.append(name)
-        try:  # I think 'object' will always be there, just empty when there are no objects. Try/Except just in case.
-            for mod_object in mod_obj.get('objects').get('object'):
-                kpi_list.append(name + '/' + mod_object)
-        except:
-            pass
-    session.update(dict(supported_uris=kpi_list))
+        # Figure out what modules this FOS version supports
+        # Step 1: Read all the module information from FOS
+        uri = 'brocade-module-version'
+        obj = brcdapi_rest.get_request(session, uri)
+        if fos_auth.is_error(obj):
+            brcdapi_log.log(tip + ' ERROR: ' + uri + '\n' + fos_auth.formatted_error_msg(obj), True)
+            return session
+
+        # Step 2: Parse the module information and add it to the session object
+        kpi_list = list()
+        for mod_obj in obj.get(uri).get('module'):
+            name = mod_obj.get('name')
+            if name is None:
+                brcdapi_log.exception("'name' missing in brocade-module-version", True)
+                continue
+            kpi_list.append(name)
+            try:  # I think 'object' will always be there, just empty when there are no objects. Try/Except just in case.
+                for mod_object in mod_obj.get('objects').get('object'):
+                    kpi_list.append(name + '/' + mod_object)
+            except (ValueError, TypeError):
+                pass
+        session.update(dict(supported_uris=kpi_list))
+
+    except BaseException as e:
+        exception_msg = str(e)
+        brcdapi_log.exception(['', 'Programming error encountered.', 'Exception: ' + exception_msg, ''], True)
+        try:
+            brcdapi_rest.logout(session)
+        except BaseException as e:
+            ml = ['', 'Unexpected error while trying to logout after login failure.', 'Exception: ' + str(e), '']
+            brcdapi_log.log(ml, True)
+        return fos_auth.create_error(brcdapi_util.HTTP_INT_SERVER_ERROR, 'Unknown exception: ', exception_msg)
 
     return session
 
@@ -226,7 +245,7 @@ def login(user_id, pw, ip_addr, https='none', proj_obj=None):
 def get_rest(session, uri, wobj=None, fid=None):
     """Wraps loging around a call to brcdapi_rest.get_request()
 
-    :param session: Session object returned from brcdapi.pyfos_auth.login()
+    :param session: Session object returned from brcdapi.fos_auth.login()
     :type session: dict
     :param uri: URI, less the prefix
     :type uri: str
@@ -328,16 +347,16 @@ def _update_brcddb_obj_from_list(objx, obj, uri, skip_list=None):
                     d1.update({k: _convert_ip_addr(v1)})
                 else:
                     d1.update({k: v1})
-    except:
-        brcdapi_log.exception(_GEN_CASE_ERROR_MSG, True)
+    except BaseException as e:
+        brcdapi_log.exception([_GEN_CASE_ERROR_MSG, 'Exception: ' + str(e)], True)
         objx.r_project_obj().s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_PROGRAM_ERROR, None,
-                                         _GEN_CASE_ERROR_MSG, '')
+                                         _GEN_CASE_ERROR_MSG, str(e))
         try:
             objx.r_project_obj().s_warn_flag()
-        except:
+        except (TypeError, AttributeError):
             try:
                 objx.s_warn_flag()
-            except:
+            except (TypeError, AttributeError):
                 pass
 
 
@@ -346,8 +365,9 @@ def _update_brcddb_obj(objx, obj, uri):
     global _GEN_CASE_ERROR_MSG
 
     if objx is None:
-        return  # This happens when fabric information is polled from a switch but the principal fabric switch wasn't
-                # polled and we don't know what the principal fabric switch WWN is.
+        # This happens when fabric information is polled from a switch but the principal fabric switch wasn't polled and
+        # we don't know what the principal fabric switch WWN is.
+        return
 
     try:
         tl = uri.split('/')
@@ -361,16 +381,16 @@ def _update_brcddb_obj(objx, obj, uri):
                 d.update({k: _convert_ip_addr(v1)})
             else:
                 d.update({k: v1})
-    except:
-        brcdapi_log.exception(_GEN_CASE_ERROR_MSG, True)
+    except BaseException as e:
+        brcdapi_log.exception([_GEN_CASE_ERROR_MSG, 'Exception: ' + str(e)], True)
         objx.r_project_obj().s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_PROGRAM_ERROR, None,
-                                         _GEN_CASE_ERROR_MSG, '')
+                                         _GEN_CASE_ERROR_MSG, str(e))
         try:
             objx.r_project_obj().s_warn_flag()
-        except:
+        except (TypeError, AttributeError):
             try:
                 objx.s_warn_flag()
-            except:
+            except (TypeError, AttributeError):
                 pass
 
 
@@ -385,7 +405,7 @@ def _fabric_case(objx, obj, uri):
 def _defined_zonecfg_case(objx, obj, uri):
     fab_obj = objx.r_fabric_obj()
     if fab_obj is None:
-        return  # The switch is not in a fabric if it's disabled. We also get here if the principal switch is unkonwn
+        return  # The switch is not in a fabric if it's disabled. We also get here if the principal switch is unknown
     dobj = obj.get('defined-configuration')
     if dobj is not None:
         for zobj in brcddb_util.convert_to_list(dobj.get('cfg')):
@@ -398,10 +418,10 @@ def _defined_zonecfg_case(objx, obj, uri):
             else:
                 mem_list = None
                 pmem_list = None
-            zone_obj = fab_obj.s_add_zone(zobj.get('zone-name'), zobj.get('zone-type'), mem_list, pmem_list)
+            fab_obj.s_add_zone(zobj.get('zone-name'), zobj.get('zone-type'), mem_list, pmem_list)
         for zobj in brcddb_util.convert_to_list(dobj.get('alias')):
             mem_list = zobj.get('member-entry').get('alias-entry-name') if 'member-entry' in zobj else None
-            alais_obj = fab_obj.s_add_alias(zobj.get('alias-name'), mem_list)
+            fab_obj.s_add_alias(zobj.get('alias-name'), mem_list)
 
 
 def _effective_zonecfg_case(objx, obj, uri):
@@ -415,9 +435,10 @@ def _effective_zonecfg_case(objx, obj, uri):
         _update_brcddb_obj_from_list(fab_obj, dobj, uri, ['enabled-zone'])
         for zobj in brcddb_util.convert_to_list(dobj.get('enabled-zone')):
             if 'member-entry' in zobj:
-                zone_obj = fab_obj.s_add_eff_zone(zobj.get('zone-name'), zobj.get('zone-type'),
-                            zobj.get('member-entry').get('entry-name'),
-                            zobj.get('member-entry').get('principal-entry-name'))
+                zone_obj = fab_obj.s_add_eff_zone(zobj.get('zone-name'),
+                                                  zobj.get('zone-type'),
+                                                  zobj.get('member-entry').get('entry-name'),
+                                                  zobj.get('member-entry').get('principal-entry-name'))
             else:  # I don't know how there can be items in the enabled-zone without a 'member-entry'. Just in case ...
                 zone_obj = fab_obj.s_add_eff_zone(zobj.get('zone-name'))
             _update_brcddb_obj(zone_obj, zobj, uri)
@@ -432,14 +453,14 @@ def _add_switch_to_chassis_int(chassis_obj, switch, uri, switch_wwn):
     try:
         for port in brcddb_util.convert_to_list(switch.get('port-member-list').get('port-member')):
             switch_obj.s_add_port(port)
-    except:
+    except (TypeError, AttributeError):
         pass
 
     # Add the GE ports
     try:
         for port in brcddb_util.convert_to_list(switch.get('ge-port-member-list').get('port-member')):
             switch_obj.s_add_ge_port(port)
-    except:
+    except (TypeError, AttributeError):
         pass
 
 
@@ -472,12 +493,12 @@ def _add_ls_switch_to_chassis_case(chassis_obj, obj, uri):
         try:
             for port in brcddb_util.convert_to_list(switch.get('port-member-list').get('port-member')):
                 switch_obj.s_add_port(port)
-        except:
+        except (TypeError, AttributeError):
             pass
         try:
             for port in brcddb_util.convert_to_list(switch.get('ge-port-member-list').get('port-member')):
                 switch_obj.s_add_ge_port(port)
-        except:
+        except (TypeError, AttributeError):
             pass
 
 
@@ -489,9 +510,9 @@ def _fabric_switch_case(switch_obj, obj, uri):
     for switch in brcddb_util.convert_to_list(obj.get('fibrechannel-switch')):
         wwn = switch.get(wwn_ref)
         if brcddb_util.is_wwn(wwn):  # Yes, got bit by a bad WWN once
-            s_obj = proj_obj.s_add_switch(wwn)
+            proj_obj.s_add_switch(wwn)
             if switch.get('principal'):
-                fab_obj = proj_obj.s_add_fabric(wwn)
+                proj_obj.s_add_fabric(wwn)
             _update_brcddb_obj_from_list(switch_obj, switch, uri)
         else:
             brcdapi_log.log('Bad switch WWN, , returned from ' + uri + ' for switch ' +
@@ -503,7 +524,7 @@ def _switch_from_list_case(switch_obj, obj, uri):
         _update_brcddb_obj_from_list(switch_obj, brcddb_util.convert_to_list(obj.get(uri.split('/').pop()))[0], uri)
         if switch_obj.r_is_principal():
             switch_obj.r_project_obj().s_add_fabric(switch_obj.r_obj_key())
-    except:
+    except (TypeError, AttributeError):
         pass
 
 
@@ -532,7 +553,7 @@ def _fabric_fdmi_hba_case(objx, obj, uri):
         try:
             for wwn in obj.get('hba-port-list').get('wwn'):
                 fab_obj.s_add_fdmi_port(wwn)
-        except:
+        except (TypeError, AttributeError):
             pass
         _update_brcddb_obj(fab_obj.s_add_fdmi_node(obj.get('hba-id')), obj, uri)
 
@@ -585,8 +606,9 @@ def _fru_blade_case(objx, obj, uri):
     _update_brcddb_obj(objx, new_obj, uri)
 
 
-_custom_rest_methods = {  # Normally, all data returned from the API is stored in the object by calling the methods in
-                # _rest_methods(). These methods are for non-standard handling of URIs.
+# Normally, all data returned from the API is stored in the object by calling the methods in _rest_methods(). These
+# methods are for non-standard handling of URIs.
+_custom_rest_methods = {
     # Fabric
     'brocade-fabric/fabric-switch': _add_fab_switch_to_chassis_case,
     'brocade-fibrechannel-switch/fibrechannel-switch': _switch_from_list_case,
@@ -632,15 +654,15 @@ def results_action(brcddb_obj, fos_obj, kpi):
     """
     global _custom_rest_methods, _rest_methods
 
-    if not pyfos_auth.is_error(fos_obj):
+    if not fos_auth.is_error(fos_obj):
         try:
             if kpi in _custom_rest_methods:
                 _custom_rest_methods[kpi](brcddb_obj, fos_obj, kpi)
             else:
                 _rest_methods[brcdapi_util.uri_map[kpi]['area']](brcddb_obj, fos_obj, kpi)
-        except:
-            buf = 'Could not add ' + kpi + ' to ' + str(type(brcddb_obj)) + '. This typially occurs when something '
-            buf += 'for the fabric was polled but the fabric WWN is unkonwn.'
+        except (TypeError, ValueError, KeyError):
+            buf = 'Could not add ' + kpi + ' to ' + str(type(brcddb_obj)) + '. This typically occurs when something '
+            buf += 'for the fabric was polled but the fabric WWN is unknown.'
             brcdapi_log.log(buf, True)
 
 
@@ -650,12 +672,12 @@ def get_batch(session, proj_obj, kpi_list, fid=None):
     If any warnings or errors are encountered, the log is updated and the appropriate flag bits for the proj_obj are
     set. Search for _project_warn in brcddb_common.py for additional information. Again, search for _project_warn in
     brcddb.classes for object methods to set and check these bits.
-    :param session: Session object, or list of session objects, returned from brcdapi.pyfos_auth.login()
+    :param session: Session object, or list of session objects, returned from brcdapi.fos_auth.login()
     :type session: dict
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.ProjectObj
     :param kpi_list: List of KPIs to request from the switches and chassis
-    :type kpi_list: list
+    :type kpi_list: list, str
     :param fid: FID, or list of FIDs for logical switch level requests. If None, execute requests for all FIDs.
     :type fid: int, list, tuple, None
     :rtype: None
