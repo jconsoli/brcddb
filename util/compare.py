@@ -2,7 +2,7 @@
 #
 # NOT BROADCOM SUPPORTED
 #
-# Licensed under the Apahche License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may also obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
@@ -25,7 +25,7 @@ compare(), the only public method in this module, returns a dictionary as noted 
 change_rec = compare(b_obj, c_obj, control_tbl)
   b_obj       Can be any object. This is the base (what you are comparing against)
   c_obj       The compare object.
-  control_tbl Controls the comparision. Note that you typically don't want a report cluttered with minor changes. For
+  control_tbl Controls the comparison. Note that you typically don't want a report cluttered with minor changes. For
               example, if the temperature of an SFP rises by 0.5 degrees, you probably don't care.
               List of dictionaries as follows:
                   'something': {      ReGex sear h string. The search string is built by the dictionary keys
@@ -62,15 +62,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 14 May 2021   | Updated comments                                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 31 Dec 2021   | Removed unused code.                                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 May 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import copy
 import re
@@ -87,7 +89,7 @@ _brcddb_control_tables = None
 
 
 def _update_r_obj(r_obj, d):
-    """Utility to update the retrun object
+    """Utility to update the return object
 
     :param r_obj: Return object
     :type r_obj: dict, list
@@ -272,7 +274,7 @@ def _brcddb_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     new_r_obj = dict()
     try:
         ct = _brcddb_control_tables.get(class_util.get_simple_class_type(b_obj))
-    except:
+    except KeyError:
         ct = None
     c = _brcddb_internal_compare(new_r_obj, '', b_obj, c_obj, ct)
     if c > 0:
@@ -418,61 +420,6 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     return c
 
 
-def _zone_configuration(r_obj, ref, b_obj, c_obj, control_tbl):
-    """Compare the zone configurations
-
-    :param r_obj: Return object - Dictionary of changes
-    :type r_obj: dict
-    :param ref: Reference key (control_tbl look up).
-    :type ref: str
-    :param b_obj: Base list object.
-    :type b_obj: list, tuple
-    :param c_obj: Compare list object
-    :type c_obj: list, tuple
-    :param control_tbl: Control table.
-    :type control_tbl: dict
-    :return: Change counter
-    :rtype: int
-    """
-    global _REMOVED, _NEW
-
-    change_list = list()
-    c = 0
-
-    # Build a dictionary of base and compare configuration. The key is the configuration name and the value is the list
-    # of zone names in the configuraiton
-    b_cfg = dict()
-    c_cfg = dict()
-    obj_list = [dict(c=b_cfg, o=b_obj), dict(c=c_cfg, o=c_obj)]
-    for control_d in obj_list:
-        cfg_d = control_d['c']
-        for d in control_d['o']:
-            mem_l = list() if d.get('member-zone') is None or d['member-zone'].get('zone-name') is None else \
-                d['member-zone'].get('zone-name')
-            cfg_d.update({d['cfg-name']: mem_l})
-
-    # Now compare each zone configuration
-    ref = 'Zone configuration '
-    cfg_d = obj_list[1]['c']
-    for i in range(0, len(obj_list)):
-        for k, v in obj_list[i]['c'].items():
-            if k not in cfg_d:
-                if i == 0:
-                    change_list.append({'b': str(k), 'c': '', 'r': _REMOVED})
-                else:
-                    change_list.append({'b': '', 'c': str(k), 'r': _NEW})
-            elif i == 0:
-                # We're only comparing zone configuration member lists in common zone configurations so we only need to
-                # do this once.
-                c += _list_compare(r_obj, str(k) + ' zone config', v, cfg_d[k], control_tbl)
-
-    if len(change_list) > 0:
-        _update_r_obj(r_obj, change_list)
-        c += len(change_list)
-
-    return c
-
-
 # Object type look up table used in _compare()
 _obj_type_action = {
     'ChassisObj': _brcddb_compare,
@@ -576,5 +523,3 @@ def compare(b_obj, c_obj, control_tbl=None, brcddb_control_tbl=None):
         _brcddb_control_tables = copy.deepcopy(brcddb_control_tbl)  # IDK why I made a copy
     r_obj = list() if isinstance(b_obj, (list, tuple)) else dict()
     return _compare(r_obj, '', b_obj, c_obj, control_tbl), r_obj
-
-

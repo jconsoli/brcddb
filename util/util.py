@@ -2,7 +2,7 @@
 #
 # NOT BROADCOM SUPPORTED
 #
-# Licensed under the Apahche License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may also obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
@@ -32,17 +32,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.2     | 21 Aug 2021   | Added zone_cli()                                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 14 Nov 2021   | Made _login_to_port_map() public, changed to login_to_port_map()                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.4     | 31 Dec 2021   | Removed port_obj_for_wwn() and made all "except:" explicit                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '21 Aug 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.2'
+__version__ = '3.1.4'
 
 import re
+import datetime
 import brcdapi.log as brcdapi_log
 import brcddb.classes.util as brcddb_class_util
 
@@ -58,8 +63,24 @@ decimal = re.compile(r'[\d.]+')  # Use: decimal.sub('', '1.4G') returns 'G'
 zone_notes = re.compile(r'[~*#+^]')
 ishex = re.compile(r'^[A-Fa-f0-9]*$')  # use: if ishex.match(hex_str) returns True if hex_str represents a hex number
 valid_file_name = re.compile(r'\w[ -]')  # use: good_file_name = valid_file_name.sub('_', bad_file_name)
+date_to_space = re.compile(r'[-/,]')  # Used to convert special characters in data formats to a space
 
 multiplier = dict(k=1000, K=1000, m=1000000, M=1000000, g=1000000000, G=1000000000, t=1000000000000, T=1000000000000)
+_month_to_num = dict(
+    jan=1, january=1,
+    feb=2, february=2,
+    mar=3, march=3,
+    apr=4, april=4,
+    may=5,
+    jun=6, june=6,
+    jul=7, july=7,
+    aug=8, august=8,
+    sep=9, september=9,
+    oct=10, october=10,
+    nov=11, november=11,
+    dec=12, december=12,
+)
+_tz_utc_offset = dict(est=-4, edt=-5, cst=-5, cdt=-6, pst=-6, pdt=-7)
 
 
 def ports_for_login(login_list):
@@ -71,7 +92,7 @@ def ports_for_login(login_list):
     :rtype: list
     """
     # If it's a SIM port, the WWN is in the name server but not 'neighbor' so check before tyring to append
-    return [l._r_port_obj() for l in login_list if l._r_port_obj() is not None]
+    return [login_obj.r_port_obj() for login_obj in login_list if login_obj.r_port_obj() is not None]
 
 
 def port_obj_for_wwn(objx, wwn):
@@ -82,9 +103,9 @@ def port_obj_for_wwn(objx, wwn):
     for the switch port is not prevalent. The only time I needed to associate a port object with a port WWN is with
     E-Ports because the neighbor in that case is the port WWN of the port in the ISLed switch.
 
-    This method is extremely inefficient but since E-Port look up in this manner is infequent, it's good enough. If you
+    This method is extremely inefficient but since E-Port look up in this manner is infrequent, it's good enough. If you
     find yourself in a situation where you need to look up a port object from a port WWN often, you should build a
-    table, similar to brcddb_project.build_xref(), for effecient look ups.
+    table, similar to brcddb_project.build_xref(), for efficient look ups.
 
     :param objx: A brcddb class object that has a method port_objects()
     :type objx: ProjectObj, FabricObj, SwitchObj, ChassisObj
@@ -98,6 +119,7 @@ def port_obj_for_wwn(objx, wwn):
         if isinstance(port_wwn, str) and port_wwn == wwn:
             return port_obj
     return None
+
 
 def get_key_val(obj, keys):
     """Spins through a list of keys separated by a '/' and returns the value associated with the last key.
@@ -136,7 +158,7 @@ def get_key_val(obj, keys):
     return v
 
 
-def sort_obj_num (obj_list, key, r=False, h=False):
+def sort_obj_num(obj_list, key, r=False, h=False):
     """Sorts a list of objects based on a number (int or float) that is the value of a key value pair in the objects.
 
     :param obj_list: List of dict or brcddb class objects
@@ -151,8 +173,9 @@ def sort_obj_num (obj_list, key, r=False, h=False):
     :return: Sorted list of obects.
     :rtype: list
     """
-    count_dict = dict()  # key is the count (value of dict item whose key is the input counter). Value is a list of port
-                     # objects whose counter matches this count
+    # count_dict: key is the count (value of dict item whose key is the input counter). Value is a list of port objects
+    # whose counter matches this count
+    count_dict = dict()
 
     for obj in obj_list:
         # Get the object to test against
@@ -162,7 +185,7 @@ def sort_obj_num (obj_list, key, r=False, h=False):
         if isinstance(v, (int, float)):
             try:
                 count_dict[v].append(obj)
-            except:
+            except KeyError:
                 count_dict.update({v: [obj]})
 
     # Sort the keys, which are the actual counter values and return the sorted list of objects
@@ -222,22 +245,22 @@ def sp_port_sort(port_list):
     return rl
 
 
-def sort_ports(obj_list):
+def sort_ports(port_obj_list):
     """Sorts a list of port objects by switch, slot, then port number. Note that an ASCII sort doesn't work on s/p
     notation as desired
 
-    :param obj_list: list of PortObj objects - see PortObj - in brcddb.classes.port.PortObj
-    :type obj_list: list
+    :param port_obj_list: list of PortObj objects - see PortObj - in brcddb.classes.port.PortObj
+    :type port_obj_list: list
     :return return_list: Sorted list of port objects from obj_list
     :rtype: list
     """
-    if len(obj_list) == 0:
+    if len(port_obj_list) == 0:
         return list()
-    proj_obj = obj_list[0].r_project_obj()  # Assume the same project for all ports
+    proj_obj = port_obj_list[0].r_project_obj()  # Assume the same project for all ports
 
     # Sort by switch
     wd = dict()
-    for port_obj in obj_list:
+    for port_obj in port_obj_list:
         switch = port_obj.r_switch_key()
         if switch not in wd:
             wd.update({switch: list()})
@@ -305,7 +328,7 @@ def is_valid_zone_name(zone_obj):
 
     :param zone_obj: Zone, zone configuration, or alias name
     :type zone_obj: str
-    :return: True if zone object name is a valid format
+    :return: True if zone object name is a valid format, otherwise False
     :rtype: bool
     """
     global _MAX_ZONE_NAME_LEN
@@ -321,7 +344,7 @@ def is_valid_zone_name(zone_obj):
     return True
 
 
-def _login_to_port_map(fab_obj):
+def login_to_port_map(fab_obj):
     """Creates a map of logins to the port where the login occured for build_login_port_map()
 
     :param fab_obj: Fabric Object
@@ -349,9 +372,9 @@ def build_login_port_map(proj_obj):
     :type proj_obj: brcddb.classes.project.ProjectObj
     """
     for fab_obj in proj_obj.r_fabric_objects():
-        fab_obj.s_base_logins(None)
-        fab_obj.s_port_map(None)
-        port_map, base_logins = _login_to_port_map(fab_obj)
+        fab_obj.s_base_logins(None)  # None clears the base logins
+        fab_obj.s_port_map(None)  # None clears the port map
+        port_map, base_logins = login_to_port_map(fab_obj)  # Get a fresh base login and port map
         fab_obj.s_port_map(port_map)
         fab_obj.s_base_logins(base_logins)
 
@@ -387,10 +410,42 @@ def _sfp(switch_obj, group):
             port_obj.s_add_maps_sfp_group(name)
 
 
+def _null(switch_obj, group):
+    """MAPS groups not yet implemented
+
+    :param switch_obj: Switch object
+    :type switch_obj: brcddb.classes.switch.SwitchObj
+    :param group: MAPS group
+    :type group: dict
+    """
+    if isinstance(group, dict) and group.get('name') is not None:
+        return
+    brcdapi_log.exception('Invalid MAPS group', True)
+
+
 # Case tables used by add_maps_groups()
 _maps_group_type = {
     'fc-port': _fc_port,
     'sfp': _sfp,
+    'asic': _null,
+    'backend-port': _null,
+    'fan': _null,
+    'chassis': _null,
+    'device-pid': _null,
+    'power-supply': _null,
+    'temperature-sensor': _null,
+    'certificate': _null,
+    'switch': _null,
+    'flow': _null,
+    'circuit': _null,
+    'circuit-qos': _null,
+    'DP': _null,
+    'ethernet-port': _null,
+    'ge-port': _null,
+    'blade': _null,
+    'tunnel': _null,
+    'tunnel-qos': _null,
+    'wwn': _null,
 }
 
 
@@ -409,9 +464,13 @@ def add_maps_groups(proj_obj):
                 switch_obj.s_add_rule(rule)
         for group in switch_obj.r_active_group_objects():
             try:
-                _maps_group_type[group.get('group-type')](switch_obj, group)
-            except:
-                pass
+                _maps_group_type[group['group-type']](switch_obj, group)
+            except KeyError:  # Log it, but don't pester the operator
+                brcdapi_log.log('Unknown group type ' + str(group.get('group-type')))
+            except ValueError:  # Log it and let the operator know but keep chugging
+                buf = 'Invalid MAPS group for switch ' + switch_obj.r_obj_key() + '. group-type: ' +\
+                      str(group.get('group-type'))
+                brcdapi_log.exception(buf, True)
 
 
 def global_port_list(fabric_objects, wwn_list):
@@ -441,9 +500,9 @@ def has_alert(obj, al_num, key, p0, p1):
     :param key: Alert key
     :type key: str
     :param p0: Alert parameter p0
-    :type p0: str
+    :type p0: str, None
     :param p1: Alert parameter p1
-    :type p1: str
+    :type p1: str, None
     :return: True if alert already exists in object
     :rtype: bool
     """
@@ -463,15 +522,15 @@ def slot_port(port):
     :return port: Port number. None if port is not in standard s/p notation
     :rtype port: int, None
     """
-    l = port.split('/')
-    if len(l) == 1:
-        l.insert(0, '0')
-    if len(l) != 2:
+    temp_l = port.split('/')
+    if len(temp_l) == 1:
+        temp_l.insert(0, '0')
+    if len(temp_l) != 2:
         return None, None
     try:
-        s = int(l[0])
-        p = int(l[1])
-    except:
+        s = int(temp_l[0])
+        p = int(temp_l[1])
+    except (ValueError, IndexError):
         return None, None
     if s in range(0, 13) and p in range(0, 64):
         return s, p
@@ -485,7 +544,7 @@ def slot_port(port):
 ###################################################################
 
 # Convert CLI commands to the c-type for brcddb.apps.zone
-c_type_conv=dict(
+c_type_conv = dict(
     aliadd='alias-add',
     alicreate='alias-create',
     alidelete='alias-delete',
@@ -550,18 +609,18 @@ def parse_cli(file_buf):
         if not _DEBUG_FICON:
             # Replace double quotes and commas with a space, remove all double space, and trim
             # DOES NOT WORK FOR d,i ZONES
-            mod_line = re.sub('\s+', ' ', mod_line.replace(',', ' ').strip())
+            mod_line = re.sub('\\s+', ' ', mod_line.replace(',', ' ').strip())
         # remove all spaces within double quotes
-        t = mod_line.split('"')
+        temp_l = mod_line.split('"')
         mod_line = ''
-        for i in range(len(t)):
+        for i in range(len(temp_l)):
             if i % 2 != 0:  # The odd indices are what's inside double quotes
-                mod_line += re.sub('\s+', '', t[i])
+                mod_line += re.sub('\\s+', '', temp_l[i])
             else:
-                mod_line += t[i]
-        t = mod_line.split(' ') if len(mod_line) > 0 else list()
-        for i in range(len(t)):
-            t[i] = t[i].replace('"', '')
+                mod_line += temp_l[i]
+        temp_l = mod_line.split(' ') if len(mod_line) > 0 else list()
+        for i in range(len(temp_l)):
+            temp_l[i] = temp_l[i].replace('"', '')
         c = None
         o = None
         p0 = None
@@ -569,7 +628,7 @@ def parse_cli(file_buf):
         peer = False
         flag = False  # Use this to flag malformed command lines
         state = _state_cmd
-        for p_buf in t:
+        for p_buf in temp_l:
             if state == _state_cmd:
                 c = p_buf
                 state = _state_operand
@@ -623,7 +682,7 @@ def is_di(di):
     try:
         temp = [int(x) for x in di.replace(' ', '').split(',')]
         return True if len(temp) == 2 else False
-    except:
+    except ValueError:
         return False
 
 
@@ -636,8 +695,8 @@ def remove_duplicate_space(buf):
     :rtype: str
     """
     buf = 'x' + buf
-    l = [buf[i] for i in range(1, len(buf)) if buf[i] != ' ' or (buf[i] == ' ' and buf[i-1] != ' ')]
-    return ''.join(l)
+    temp_l = [buf[i] for i in range(1, len(buf)) if buf[i] != ' ' or (buf[i] == ' ' and buf[i-1] != ' ')]
+    return ''.join(temp_l)
 
 
 def str_to_num(buf):
@@ -674,14 +733,13 @@ def paren_content(buf, p_remove=False):
     :param p_remove: If True, remove the leading and trailing parenthesis
     :return p_text: Text within matching parenthesis
     :rtype p_text: str
-    :return x_buf: Remaind of buf after matching parenthesis have been found
+    :return x_buf: Remainder of buf after matching parenthesis have been found
     :rtype x_buf: str
     """
     global error_asserted
 
     p_count = 0
     r_buf = list()
-    buf_len = len(buf)
     if len(buf) > 1 and buf[0] == '(':
         p_count += 1  # The first character must be (
         r_buf.append('(')
@@ -832,7 +890,7 @@ def resolve_multiplier(val):
             if len(mult) > 0:
                 return mod_val * multiplier[mult]
             return mod_val
-        except:
+        except ValueError:
             return None
     return val
 
@@ -849,7 +907,7 @@ def dBm_to_absolute(val, r=1):
     """
     try:
         return round((10 ** (float(val)/10)) * 1000, r)
-    except:
+    except ValueError:
         pass
     return None
 
@@ -897,14 +955,14 @@ def zone_cli(fab_obj, filter_fab_obj=None):
     rl = ['', '# Zone CLI commands for: ' + buf]
 
     # Aliases
-    filter = list() if filter_fab_obj is None else filter_fab_obj.r_alias_keys()
+    filter_l = list() if filter_fab_obj is None else [str(k) for k in filter_fab_obj.r_alias_keys()]
     rl.extend(['', '# Aliases'])
     line_count = 0
     for obj in fab_obj.r_alias_objects():
-        if obj.r_obj_key() in filter:
+        if obj.r_obj_key() in filter_l:
             continue
         mem_l = obj.r_members()
-        buf_0 =  ' "' + obj.r_obj_key() + '", '
+        buf_0 = ' "' + obj.r_obj_key() + '", '
         buf = 'alicreate' + buf_0
         while len(mem_l) > 0:
             line_count = 0 if line_count >= _MAX_LINE_COUNT else line_count + 1
@@ -916,11 +974,11 @@ def zone_cli(fab_obj, filter_fab_obj=None):
             buf = 'aliadd'
 
     # Zones
-    filter = list() if filter_fab_obj is None else filter_fab_obj.r_zone_keys()
+    filter_l = list() if filter_fab_obj is None else [str(k) for k in filter_fab_obj.r_zone_keys()]
     rl.extend(['', '# Zones'])
     line_count = 0
     for obj in fab_obj.r_zone_objects():
-        if obj.r_obj_key() in filter:
+        if obj.r_obj_key() in filter_l:
             continue
 
         # All the regular members first
@@ -954,14 +1012,14 @@ def zone_cli(fab_obj, filter_fab_obj=None):
             mem_l = mem_l[x:]
 
     # Zone configurations
-    filter = list() if filter_fab_obj is None else filter_fab_obj.r_zonecfg_keys()
-    filter.append('_effective_zone_cfg')
+    filter_l = list() if filter_fab_obj is None else [str(k) for k in filter_fab_obj.r_zonecfg_keys()]
+    filter_l.append('_effective_zone_cfg')
     rl.extend(['', '# Zone configurations'])
     line_count = 0
     for obj in fab_obj.r_zonecfg_objects():
-        if obj.r_obj_key() in filter:
+        if obj.r_obj_key() in filter_l:
             continue
-        buf_0 =  ' "' + obj.r_obj_key() + '", '
+        buf_0 = ' "' + obj.r_obj_key() + '", '
         buf = 'cfgcreate' + buf_0
         mem_l = obj.r_members()
         while len(mem_l) > 0:
@@ -976,3 +1034,95 @@ def zone_cli(fab_obj, filter_fab_obj=None):
     rl.append('')
 
     return rl
+
+
+_fmt_map = {  # Used in date_to_epoch() to determine the indices for each date/time item. cm=True means month is text
+    0: dict(y=2, m=0, d=1, t=3, z=4, cm=True),
+    1: dict(y=2, m=1, d=0, t=3, z=4, cm=True),
+    2: dict(y=2, m=0, d=1, t=3, z=4, cm=False),
+    3: dict(y=2, m=1, d=0, t=3, z=4, cm=False),
+    4: dict(y=5, m=1, d=2, t=3, z=4, cm=True),
+    5: dict(y=4, m=1, d=2, t=3, cm=True),
+    6: dict(y=0, m=1, d=2, t=3, cm=False),
+}
+for _v in _fmt_map.values():  # Add the minimum size the date/time array needs to be for each format
+    _v.update(dict(max=max([_i for _i in _v.values() if not isinstance(_i, bool)])))
+
+
+def date_to_epoch(date_time, fmt=0, utc=False):
+    """Converts a date and time string to epoch time. Originally intended for various date formats in FOS.
+
+    WARNING: Time zone to UTC conversion not yet implemented.
+
+    If .msec is not present in any of the below output it is treated as 0.
+    +-------+-------------------------------------------------------------------+---------------+
+    | fmt   | Sample                                                            | From CLI      |
+    +=======+===================================================================+===============+
+    |  0    | Dec 31, 2021 hh:mm:ss.msec EDT (May or may not have the comma)    |               |
+    +-------+-------------------------------------------------------------------+---------------+
+    |  1    | 31 Dec 2021 hh:mm:ss.msec EDT                                     |               |
+    +-------+-------------------------------------------------------------------+---------------+
+    |  2    | 12/31/2021 hh:mm:ss.msec EDT (or 12-31-2021 or 12 31 2021)        |               |
+    +-------+-------------------------------------------------------------------+---------------+
+    |  3    | 31/12/2021 hh:mm:ss.msec EDT (or 31-12-2021 or 31 12 2021)        |               |
+    +-------+-------------------------------------------------------------------+---------------+
+    |  4    | Tue Dec 31 hh:mm:ss.msec EDT 2021                                 | date          |
+    +-------+-------------------------------------------------------------------+---------------+
+    |  5    | Tue Dec  3 hh:mm:ss 2020                                          | clihistory    |
+    +-------+-------------------------------------------------------------------+---------------+
+    |  6    | 2021/12/31-hh:mm:ss                                               | errdump       |
+    +-------+-------------------------------------------------------------------+---------------+
+
+    :param date_time: Date and time
+    :type date_time: str
+    :param fmt: Format. See table above
+    :type fmt: int
+    :param utc: If True, convert time to UTC
+    :type utc: bool
+    :return: Epoch time. 0 If an error was encountered.
+    :rtype: float
+    """
+    global _month_to_num, _fmt_map
+
+    # Get and validate the input string.
+    ml = list()
+    ts_l = remove_duplicate_space(date_to_space.sub(' ', date_time)).split(' ')
+    if fmt in _fmt_map:
+        if len(ts_l) >= _fmt_map[fmt]['max']:
+            d = _fmt_map[fmt]
+
+            # Get the year
+            buf = ts_l[d['y']]
+            year = int(buf) if buf.isnumeric() else None
+            if year is None or year < 1970:
+                ml.append('year')
+
+            # Get the month
+            buf = ts_l[d['m']]
+            month = _month_to_num.get(buf.lower()) if d['cm'] else int(buf) if buf.isnumeric() else None
+            if month is None or month < 1 or month > 12:
+                ml.append('month')
+
+            # Get the day
+            buf = ts_l[d['d']]
+            day = int(buf) if buf.isnumeric() else None
+            if day is None or day < 1 or day > 31:
+                ml.append('day')
+
+            # Get the time
+            time_l = [int(buf) if buf.isnumeric() else None for buf in ts_l[d['t']].replace('.', ':').split(':')]
+            if len(time_l) == 3:
+                time_l.append(0)  # Fractional seconds are not always included with the time stamp
+            if len(time_l) != 4 or None in time_l:
+                ml.append('time')
+        else:
+            ml.append('date/time stamp')
+    else:
+        ml.append('format (fmt)')
+
+    if len(ml) > 0:
+        brcdapi_log.exception(['Invalid ' + buf + '. date_time: ' + date_time + ' fmt: ' + str(fmt)], True)
+        return 0.0
+
+    return (datetime.datetime(year, month, day, time_l[0], time_l[1], time_l[2], time_l[3]) -
+            datetime.datetime(1970, 1, 1)).total_seconds()

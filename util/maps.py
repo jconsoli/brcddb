@@ -2,7 +2,7 @@
 #
 # NOT BROADCOM SUPPORTED
 #
-# Licensed under the Apahche License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may also obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
@@ -47,16 +47,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 31 Dec 2021   | Added handling of fabric-performance-impact, io-latency, and security-violations  |
+    |           |               | categories.                                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcdapi.log as brcdapi_log
 import brcddb.util.util as brcddb_util
@@ -66,7 +68,7 @@ import brcddb.app_data.alert_tables as al
 def build_maps_alerts(proj_obj):
     """Looks through the MAPS alerts dashboard and adds an alert to the associated object.
 
-    **WARNING:** As of 21 April 2019, there was not a reliable means of correlating MAPS alerts in the dashbaoard to a
+    **WARNING:** As of 21 April 2019, there was not a reliable means of correlating MAPS alerts in the dashboard to a
     specific object. An RFE was submitted
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
@@ -101,7 +103,7 @@ def _port_category(switch_obj, dash_obj):
         # port is still in the dashboard.
         try:
             port = switch_obj.r_port_obj_for_pid(buf.split(' ')[1].split(':')[0]).r_obj_key()
-        except:
+        except (IndexError, KeyError, TypeError):
             return
     else:
         brcdapi_log.exception('Unknown MAPS object: ' + buf, True)
@@ -153,6 +155,7 @@ _maps_category = {
     'Fabric Performance Impact': _port_category,
     'Traffic Performance': _fabric_category,
     # FOS 9.x - And what the categories always should have been
+    'security-violations': _switch_category,
     'switch-health': _switch_category,
     'power-supply-health': _chassis_category,
     'fan-health': _chassis_category,
@@ -173,20 +176,24 @@ _maps_category = {
     'marginal-sfp-health': _switch_category,
     'trusted-fos-certificate-health': _switch_category,
     'fabric-state-changes': _fabric_category,  # Not documented in the Yang models but I saw this come in
+    'fabric-performance-impact': _fabric_category,
+    'io-latency': _fabric_category,
+    'unknown': _unknown_category,
 }
 
 
 def maps_dashboard_alerts(proj_obj):
     """Looks through the MAPS alerts dashboard and adds an alert to the associated object.
 
-    **WARNING:** As of 21 April 2019, there was not a reliable means of correlating MAPS alerts in the dashbaoard to a
+    **WARNING:** As of 21 April 2019, there was not a reliable means of correlating MAPS alerts in the dashboard to a
     specific object. This just parses the dashboard for some obvious ones. An RFE was submitted
+
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
     """
     for switch_obj in proj_obj.r_switch_objects():
         for dash_obj in brcddb_util.convert_to_list(switch_obj.r_get('brocade-maps/dashboard-rule')):
-            if dash_obj.get('category') in _maps_category:
-                _maps_category[dash_obj.get('category')](switch_obj, dash_obj)
-            else:
-                _unknown_category(switch_obj, dash_obj)
+            cat = dash_obj.get('category')
+            if cat is None or cat not in _maps_category:
+                cat = 'unknown'
+            _maps_category[cat](switch_obj, dash_obj)

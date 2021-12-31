@@ -2,7 +2,7 @@
 #
 # NOT BROADCOM SUPPORTED
 #
-# Licensed under the Apahche License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may also obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
@@ -24,22 +24,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1-6   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 14 May 2021   | Added permissions to read_full_directory()
+    | 3.0.7     | 14 May 2021   | Added permissions to read_full_directory()                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 31 Dec 2021   | Added full_file_name()                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '14 May 2021'
+__date__ = '31 Dec 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import brcdapi.log as brcdapi_log
 import json
 import os
-from pathlib import Path
 
 
 def write_dump(obj, file):
@@ -59,14 +60,13 @@ def write_dump(obj, file):
 
 def read_dump(file):
     """Reads in a file using json.load. Typical use is to read back in a project object file writen with write_dump and
-    then convert back to a project object with plain_copy_to_brcddb_copy
-    Python dict.
-    :param file: Name of file to write to
+    then convert back to a project object with plain_copy_to_brcddb_copy()
+
+    :param file: Name of JSON file to read
     :type file: str
-    :return:
+    :return: The JSON file converted to standard Python data types. None if an error was encountered
     :rtype: dict, list, None
     """
-    brcdapi_log.log('CALL: brcddb_util.read_dump. File: ' + file)
     f = open(file, 'r')
     obj = json.load(f)
     f.close()
@@ -82,16 +82,19 @@ def read_directory(folder):
     :rtype: str
     """
     rl = list()
-    try:
-        for file in os.listdir(folder):
-            full_path = os.path.join(folder, file)
-            try:
-                if os.path.isfile(full_path) and '~$' not in file:
-                    rl.append(file)
-            except:
-                pass  # It's probably a system file
-    except:
-        pass  # It's a protected folder. Usually system folders
+    if folder is not None:
+        try:
+            for file in os.listdir(folder):
+                full_path = os.path.join(folder, file)
+                try:
+                    if os.path.isfile(full_path) and '~$' not in file:
+                        rl.append(file)
+                except PermissionError:
+                    pass  # It's probably a system file
+        except PermissionError:
+            pass  # It's a protected folder. Usually system folders
+        except FileNotFoundError:
+            pass
 
     return rl
 
@@ -108,14 +111,14 @@ def read_file(file, remove_blank=True, rc=True):
     :type file: str
     :param remove_blank: If True, blank lines are removed
     :type remove_blank: bool
-    :param remove_comments: If True, remove anything beginning with # to the end of line
+    :param rc: If True, remove anything beginning with # to the end of line
     :type rc: bool
     :return: List of file file contents.
     :rtype: list
     """
     # Apparently Putty puts some weird characters in the file. Looks like there is a Python bug with the line below. I
     # get "NameError: name 'open' is not defined.
-    # f = oepn(file, 'r', encoding='utf-8', errors='ignore')
+    # f = open(file, 'r', encoding='utf-8', errors='ignore')
     #  So I read as bytes, decoded using utf-8 and then had to ignore errors.
     f = open(file, 'rb')
     data = f.read().decode('utf-8', errors='ignore')
@@ -157,14 +160,14 @@ def file_properties(folder, file):
     +---------------+-------+---------------------------------------------------------------------------+
     | permission_r  | bool  | True if file is readable. Same as os.R_OK. Not valid for Windows          |
     +---------------+-------+---------------------------------------------------------------------------+
-    | permission_w  | bool  | True if file is writeadable. Same as os.W_OK. Not valid for Windows       |
+    | permission_w  | bool  | True if file is writeable. Same as os.W_OK. Not valid for Windows         |
     +---------------+-------+---------------------------------------------------------------------------+
     | permission_x  | bool  | True if file is executable. Same as os.X_OK. Not valid for Windows        |
     +---------------+-------+---------------------------------------------------------------------------+
     | permission_f  | bool  | True if user has path access to file. Same as os.F_OK. Not valid for      |
     |               |       | Windows                                                                   |
     +---------------+-------+---------------------------------------------------------------------------+
-    | exception     | bool  | True if an expection occurred trying to read the file attributes. This    |
+    | exception     | bool  | True if an exception occurred trying to read the file attributes. This    |
     |               |       | typically happens when trying to read protected system files.             |
     +---------------+-------+---------------------------------------------------------------------------+
 
@@ -207,28 +210,33 @@ def read_full_directory(folder, skip_sys=False):
     :rtype rl: list
     """
     rl = list()
-
-    # All the files
-    for file in read_directory(folder):
-        rl.append(file_properties(folder, file))
-
-    # Recursively look through all the folders
-    temp_l = list()
     try:
-        temp_l = [os.path.join(folder, f) for f in os.listdir(folder)]
-    except:
-        pass  # It's a protected folder. Usually system folders
-    folder_l = list()
-    for new_folder in [f for f in temp_l if not os.path.isfile(f)]:
-        try:
-            full_path = os.path.join(folder, new_folder)
-            if os.listdir(full_path):
-                if '~$' not in new_folder:  # '-$' is a temporary Windows file that sometimes shows up
-                    if not skip_sys or (len(new_folder) > 0 and new_folder[0] != '$'):
-                        folder_l.append(full_path)
-        except:
-            pass  # This happens when the user doesn't have access to a file system
-    for new_folder in folder_l:
-        rl.extend(read_full_directory(new_folder))
+        for file in os.listdir(folder):
+            full_path = os.path.join(folder, file)
+            if os.path.isfile(full_path):
+                rl.append(file_properties(folder, file))
+            else:
+                rl.extend(read_full_directory(full_path, skip_sys))
+    except PermissionError:
+        pass
 
     return rl
+
+
+def full_file_name(file, extension, prefix=None):
+    """Checks to see if an extension is already in the file name and adds it if necessary
+
+    :param file: File name. If None, None is returned
+    :type file: str, None
+    :param extension: The file extension
+    :type extension: str
+    :param prefix: A prefix to add. Typically a folder name. If a folder, don't forget the last character must be '/'
+    :type prefix: None, str
+    :return: File name with the extension and prefix added
+    :rtype: str
+    """
+    if file is None:
+        return None
+    x = len(extension)
+    p = '' if prefix is None else prefix
+    return p + file + extension if len(file) < x or file[len(file)-x:].lower() != extension.lower() else p + file
