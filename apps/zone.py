@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -67,134 +67,98 @@ be the case with modules called from an Ansible Playbook, you need to be cogniza
 
     Data is input is a dictionary as follows:
 
-    +-----------+-----------+-------+-------------------------------+
-    | leaf      | Sub-leaf  | Type  | Description                   |
-    +===========+===========+=======+===============================+
-    | fid       |           | int   | Fabric ID of switch in        |
-    |           |           |       | chassis where zoning changes  |
-    |           |           |       | are to be applied             |
-    |           |           |       | Required                      |
-    +-----------+-----------+-------+-------------------------------+
-    | ip-addr   |           | str   | IP address of chassis         |
-    |           |           |       | Required                      |
-    +-----------+-----------+-------+-------------------------------+
-    | id        |           | str   | User ID                       |
-    |           |           |       | Required                      |
-    +-----------+-----------+-------+-------------------------------+
-    | pw        |           | str   | Password                      |
-    |           |           |       | Required                      |
-    +-----------+-----------+-------+-------------------------------+
-    | sec       |           | str   | 'CA' or 'self' for HTTPS. If  |
-    |           |           |       | 'none', HTTP is used.         |
-    |           |           |       | Default: 'none'               |
-    +-----------+-----------+-------+-------------------------------+
-    | force     |           | bool  | True - ignore warnings and    |
-    |           |           |       | overwrite existing objects.   |
-    |           |           |       | Default: True                 |
-    +-----------+-----------+-------+-------------------------------+
-    | test      |           | bool  | True - ignores cfg-save. Only |
-    |           |           |       | reads the zone database for   |
-    |           |           |       | validation purposes. No zone  |
-    |           |           |       | changes are sent to the       |
-    |           |           |       | switch. Useful for validating |
-    |           |           |       | changes before applying them. |
-    |           |           |       | Default: False               |
-    +-----------+-----------+-------+-------------------------------+
-    | changes   | list      |       | List of dictionaries as noted |
-    |           |           |       | below. Unless file is         |
-    |           |           |       | specified, the baseline zone  |
-    |           |           |       | DB is read from the switch    |
-    |           |           |       | matching fid.                 |
-    |           |           |       |                               |
-    |           |           |       | This should be set to the     |
-    |           |           |       | list returned from            |
-    |           |           |       | brcddb.util.util.parse_cli()  |
-    +-----------+-----------+-------+-------------------------------+
-    |           | c-type    | str   | Change type. Must be one of   |
-    |           |           |       | the keys in _change_type_func  |
-    |           |           |       |                               |
-    |           |           |       | Note that None is allowed.    |
-    |           |           |       | This was done to support a    |
-    |           |           |       | script that front ended this  |
-    |           |           |       | with a simple CLI parser      |
-    |           |           |       | where the CLI file may have   |
-    |           |           |       | comments or blank lines. This |
-    |           |           |       | was done so that the index of |
-    |           |           |       | commands matches the index of |
-    |           |           |       | the responses                 |
-    +-----------+-----------+-------+-------------------------------+
-    |           | operand   | str   | Name associated with the      |
-    |           |           |       | operation specified in c-type.|
-    |           |           |       | Zone name, alias name, etc.   |
-    +-----------+-----------+-------+-------------------------------+
-    |           | p0        | list  | Parameters. For all zone      |
-    |           |           |       | operations, these are the     |
-    |           |           |       | members. For peer zones,      |
-    |           |           |       | these are the non-principal   |
-    |           |           |       | members.                      |
-    +-----------+-----------+-------+-------------------------------+
-    |           | p1        | list  | Similar to p0. Only used for  |
-    |           |           |       | peer zones. These are the     |
-    |           |           |       | principal members             |
-    +-----------+-----------+-------+-------------------------------+
-    |           | peer      | bool  | If true, zone is a peer zone. |
-    +-----------+-----------+-------+-------------------------------+
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | leaf      | Sub-leaf  | Type  | Description                                                                   |
+    +===========+===========+=======+===============================================================================+
+    | fid       |           | int   | Required. Fabric ID of switch in chassis where zoning changes are to be       |
+    |           |           |       | applied                                                                       |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | ip-addr   |           | str   | Required. IP address of chassis                                               |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | id        |           | str   | Required. User ID                                                             |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | pw        |           | str   | Required. Password                                                            |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | sec       |           | str   | 'CA' or 'self' for HTTPS. If 'none', HTTP is used. Default: 'none'.           |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | force     |           | bool  | True - ignore warnings and overwrite existing objects. Default: True          |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | test      |           | bool  | True - ignores cfg-save. Only reads the zone database for validation          |
+    |           |           |       | purposes. No zone changes are sent to the switch. Useful for validatin        |
+    |           |           |       | changes before applying them. Default: False                                  |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | changes   | list      |       | List of dictionaries as noted below. Unless file is specified, the baseline   |
+    |           |           |       |zone DB is read from the switch matching fid.                                  |
+    |           |           |       |                                                                               |
+    |           |           |       | This should be set to the list returned from brcddb.util.util.parse_cli()     |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | c-type    | str   | Change type. Must be one of the keys in _change_type_func                     |
+    |           |           |       |                                                                               |
+    |           |           |       | Note that None is allowed. his was done to support a script that front ended  |
+    |           |           |       | this with a simple CLI parser where the CLI file may have comments or blank   |
+    |           |           |       | lines. This was done so that the index of commands matches the index of the   |
+    |           |           |       | responses                                                                     |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | operand   | str   | Name associated with the operation specified in c-type. Zone name, alias      |
+    |           |           |       | name, etc.                                                                    |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | p0        | list  | Parameters. For all zone operations, these are the members. For peer zones,   |
+    |           |           |       | these are the non-principal members.                                          |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | p1        | list  | Similar to p0. Only used for peer zones. These are the principal members      |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | peer      | bool  | If true, zone is a peer zone.                                                 |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
 
 **Return**
 
     Data is returned in a dictionary as follows:
 
-    +-----------+-----------+-------+-------------------------------+
-    | leaf      | Sub-leaf  | Type  | Description                   |
-    +===========+===========+=======+===============================+
-    | summary   |           |                                       |
-    |           | warnings  | int   | Summary number of warnings    |
-    +-----------+-----------+-------+-------------------------------+
-    |           | errors    | int   | Summary number of errors      |
-    +-----------+-----------+-------+-------------------------------+
-    |           | save      | bool  | True - the equivalent of      |
-    |           |           |       | cfgsave was done.             |
-    |           |           |       | False - Zoning changes were   |
-    |           |           |       | not saved to the switch       |
-    +-----------+-----------+-------+-------------------------------+
-    | commands  |           | list  | This list matches the input   |
-    |           |           |       | list 'changes'. It is a list  |
-    |           |           |       | of dict with the following    |
-    |           |           |       | members:                      |
-    +-----------+-----------+-------+-------------------------------+
-    |           | changed   | bool  | True - a change was made      |
-    |           |           |       | False - no change was made    |
-    +-----------+-----------+-------+-------------------------------+
-    |           | fail      | bool  | True - encountered an error   |
-    |           |           |       | Fail - No errors encountered. |
-    +-----------+-----------+-------+-------------------------------+
-    |           | io        | bool  | True - Operation completed by  |
-    |           |           |       | performing an API request.    |
-    |           |           |       | False - No API request was    |
-    |           |           |       | made. This occurs when test   |
-    |           |           |       | is True or force is True but  |
-    |           |           |       | no switch operation was       |
-    |           |           |       | required.                     |
-    +-----------+-----------+-------+-------------------------------+
-    |           | status    | int   | Status, if any, returned from |
-    |           |           |       | from the switch if a request  |
-    |           |           |       | was actually made. There will |
-    |           |           |       | always be a status if the     |
-    |           |           |       | request failed but status is  |
-    |           |           |       | not always returned for       |
-    |           |           |       | success. If io is False, the  |
-    |           |           |       | status is made up.            |
-    +-----------+-----------+-------+-------------------------------+
-    |           | reason    | str   | Reason, if provided, returned |
-    |           |           |       | from FOS. If io is False, the |
-    |           |           |       | reason is made up.            |
-    +-----------+-----------+-------+-------------------------------+
-    |           | err_msg   | list  | List of detailed error        |
-    |           |           |       | messages returned from FOS.   |
-    |           |           |       | If io is False, the detailed  |
-    |           |           |       | messages are made up. Not     |
-    |           |           |       | always present with errors.   |
-    +-----------+-----------+-------+-------------------------------+
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | leaf      | Sub-leaf  | Type  | Description                                                                   |
+    +===========+===========+=======+===============================================================================+
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | summary   |           |       |                                                                               |
+    |           | warnings  | int   | Summary number of warnings                                                    |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | errors    | int   | Summary number of errors                                                      |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | save      | bool  | True - the equivalent of cfgsave was done.                                    |
+    |           |           |       | False - Zoning changes were not saved to the switch                           |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    | commands  |           | list  | This list matches the input list 'changes'. It is a list of dict with the     |
+    |           |           |       | following members:                                                            |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | changed   | bool  | True - a change was made                                                      |
+    |           |           |       | False - no change was made                                                    |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | fail      | bool  | True - encountered an error                                                   |
+    |           |           |       | Fail - No errors encountered.                                                 |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | io        | bool  | True - Operation completed by performing an API request.                      |
+    |           |           |       | False - No API request was made. This occurs when test is True or force is    |
+    |           |           |       | True but no switch operation was                                              |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | status    | int   | Status, if any, returned from from the switch if a request was actually made. |
+    |           |           |       | There will always be a status if the request failed but status is not always  |
+    |           |           |       | returned for success. If io is False, the status is made up.                  |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | reason    | str   | Reason, if provided, returned from FOS. If io is False, thereason is made up. |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+    |           | err_msg   | list  | List of detailed error messages returned from FOS. If io is False, the        |
+    |           |           |       | detailed messages are made up. Not always present with errors.                |
+    +-----------+-----------+-------+-------------------------------------------------------------------------------+
+
+**Public Methods**
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | refresh_zoning        | Deletes all zoning information from the fabric object and refreshes with new zoning   |
+    |                       | data                                                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | send_zoning           | Entry point. Parses and dispatches all zoning operations                              |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -212,27 +176,28 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 31 Dec 2021   | Made all exception clauses explicit.                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 28 Apr 2022   | Updated documentation and adjusted for new URI format                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import sys
 import datetime
 import copy
-
 import brcdapi.util as brcdapi_util
 import brcdapi.zone as brcdapi_zone
 import brcdapi.fos_auth as fos_auth
 import brcdapi.log as brcdapi_log
 import brcdapi.brcdapi_rest as brcdapi_rest
+import brcdapi.gen_util as gen_util
 import brcddb.brcddb_project as brcddb_project
-import brcddb.util.util as brcddb_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.api.zone as api_zone
 import brcddb.api.interface as api_int
@@ -256,8 +221,8 @@ _def_zone_access_tbl = {
 }
 # Zone URIs
 _zone_uris = (
-    'brocade-zone/defined-configuration',
-    'brocade-zone/effective-configuration',
+    'running/brocade-zone/defined-configuration',
+    'running/brocade-zone/effective-configuration',
 )
 
 
@@ -330,8 +295,8 @@ def _no_operand_check(cmd, strict=False):
     :rtype p1: list
     """
     operand = cmd.get('operand')
-    p0 = brcddb_util.convert_to_list(cmd.get('p0'))
-    p1 = brcddb_util.convert_to_list(cmd.get('p1'))
+    p0 = gen_util.convert_to_list(cmd.get('p0'))
+    p1 = gen_util.convert_to_list(cmd.get('p1'))
     if strict:
         err_msg = list()
         if operand is not None:
@@ -371,8 +336,8 @@ def _operand_check(cmd, strict=False):
     operand = cmd.get('operand')
     if _DEBUG_FICON and 'ficon' in operand:
         operand = operand.replace(',', '')
-    p0 = brcddb_util.convert_to_list(cmd.get('p0'))
-    p1 = brcddb_util.convert_to_list(cmd.get('p1'))
+    p0 = gen_util.convert_to_list(cmd.get('p0'))
+    p1 = gen_util.convert_to_list(cmd.get('p1'))
     if operand is None:
         return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                     reason=brcdapi_util.HTTP_REASON_MISSING_OPERAND,
@@ -387,7 +352,7 @@ def _operand_check(cmd, strict=False):
                         io=False,
                         changed=False,
                         fail=True), operand, p0, p1
-    elif not brcddb_util.is_valid_zone_name(operand):
+    elif not gen_util.is_valid_zone_name(operand):
         return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                     reason='Invalid zone object name',
                     err_msg=[str(operand)],
@@ -593,7 +558,7 @@ def _alias_add(session, cmd, fid):
                     changed=False,
                     fail=True)
     p0 = [mem for mem in tp0 if mem not in members]  # List of members to add that are not already members
-    err_msg = [mem for mem in p0 if ',' not in mem and not brcddb_util.is_wwn(mem)]  # List of invalid members
+    err_msg = [mem for mem in p0 if ',' not in mem and not gen_util.is_wwn(mem)]  # List of invalid members
     if len(err_msg) > 0:
         return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                     reason='Invalid WWN',
@@ -619,14 +584,14 @@ def _alias_create(session, cmd, fid):
     obj, alias, p0, p1 = _p0_check(cmd, True)
     if obj is not None:
         return obj
-    if not brcddb_util.is_valid_zone_name(alias):  # Make sure it's a valid alias name
+    if not gen_util.is_valid_zone_name(alias):  # Make sure it's a valid alias name
         return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                     reason='Invalid alias name',
                     err_msg=[alias],
                     io=False,
                     changed=False,
                     fail=True)
-    err_msg = [mem for mem in p0 if ',' not in mem and not brcddb_util.is_wwn(mem)]  # Make sure its a valid d,i or WWN
+    err_msg = [mem for mem in p0 if ',' not in mem and not gen_util.is_wwn(mem)]  # Make sure its a valid d,i or WWN
     if len(err_msg) > 0:
         return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                     reason='Invalid WWN',
@@ -737,7 +702,7 @@ def _alias_remove(session, cmd, fid):
     if obj['fail']:
         return obj
     new_cmd = copy.deepcopy(cmd)
-    new_cmd.update(dict(p0=[mem for mem in members if mem not in p0]))  # Replace p0 with members to keep
+    new_cmd.update(p0=[mem for mem in members if mem not in p0])  # Replace p0 with members to keep
     return _alias_create(session, new_cmd, fid)
 
 
@@ -814,7 +779,7 @@ def _cfg_create(session, cmd, fid):
     obj, zonecfg, p0, p1 = _p0_check(cmd, True)
     if obj is not None:
         return obj
-    if not brcddb_util.is_valid_zone_name(zonecfg):  # Make sure it's a valid zone configuration name
+    if not gen_util.is_valid_zone_name(zonecfg):  # Make sure it's a valid zone configuration name
         return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                     reason='Invalid zone configuration name',
                     err_msg=[zonecfg],
@@ -1070,8 +1035,8 @@ def _zone_add(session, cmd, fid):
                         changed=False,
                         fail=True)
         px = [mem for mem in test_p if mem not in members]  # List of members to add that are not already members
-        err_msg = [mem for mem in test_p if ',' not in mem and not brcddb_util.is_wwn(mem) and
-                   not brcddb_util.is_valid_zone_name(mem)]  # List of invalid zone members
+        err_msg = [mem for mem in test_p if ',' not in mem and not gen_util.is_wwn(mem) and
+                   not gen_util.is_valid_zone_name(mem)]  # List of invalid zone members
         if len(err_msg) > 0:
             return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                         reason='Invalid zone member(s)',
@@ -1120,15 +1085,15 @@ def _zone_create(session, cmd, fid):
         obj, zone, p0, p1 = _p0_check(cmd, True)
     if obj is not None:
         return obj
-    if not brcddb_util.is_valid_zone_name(zone):  # Make sure it's a valid zone name
+    if not gen_util.is_valid_zone_name(zone):  # Make sure it's a valid zone name
         return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                     reason='Invalid zone name',
                     err_msg=[zone],
                     io=False,
                     changed=False,
                     fail=True)
-    err_msg = [mem for mem in p0 if ',' not in mem and not brcddb_util.is_wwn(mem) and
-               not brcddb_util.is_valid_zone_name(mem)]  # List of invalid zone members
+    err_msg = [mem for mem in p0 if ',' not in mem and not gen_util.is_wwn(mem) and
+               not gen_util.is_valid_zone_name(mem)]  # List of invalid zone members
     if len(err_msg) > 0:
         return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                     reason='Invalid zone member(s)',
@@ -1157,7 +1122,7 @@ def _zone_create(session, cmd, fid):
     px = [p0, p1]
     for i in range(0, 2):
         for mem in px[i]:  # This loop builds the resolved list
-            if ',' not in mem and not brcddb_util.is_wwn(mem):
+            if ',' not in mem and not gen_util.is_wwn(mem):
                 alias_obj = _fab_obj.r_alias_obj(mem)
                 if alias_obj is None:
                     err_msg.append('Alias ' + mem + ' does not exist')
@@ -1180,7 +1145,7 @@ def _zone_create(session, cmd, fid):
     err_msg = list()
     resolved = list()
     for mem in p0 + p1:
-        if ',' not in mem and not brcddb_util.is_wwn(mem):
+        if ',' not in mem and not gen_util.is_wwn(mem):
             alias_obj = _fab_obj.r_alias_obj(mem)
             if alias_obj is None:
                 err_msg.append('Alias ' + mem + ' does not exist')
@@ -1553,8 +1518,8 @@ def _zone_remove(session, cmd, fid):
     if obj['fail']:
         return obj
     new_cmd = copy.deepcopy(cmd)
-    new_cmd.update(dict(p0=[mem for mem in members if mem not in p0]))  # Replace p0 with members to keep
-    new_cmd.update(dict(p1=[mem for mem in pmembers if mem not in p1]))  # Replace p1 with peer members to keep
+    new_cmd.update(p0=[mem for mem in members if mem not in p0])  # Replace p0 with members to keep
+    new_cmd.update(p1=[mem for mem in pmembers if mem not in p1])  # Replace p1 with peer members to keep
     return _zone_create(session, cmd, fid)
 
 

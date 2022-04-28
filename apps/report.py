@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -14,6 +14,14 @@
 # limitations under the License.
 """
 :mod:`brcddb.apps.report` - Creates a report in Excel Workbook format from a brcddb project
+
+**Public Methods**
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | report                | Creates an Excel report. Sort of a SAN Health like report.                            |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -45,67 +53,131 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 31 Dec 2021   | Improved error messages. No functional changes.                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 28 Apr 2022   | Added links                                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import collections
-import brcddb.app_data.report_tables as rt
-import brcddb.brcddb_project as brcddb_project
+import copy
+import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
-import brcddb.util.search as brcddb_search
+import brcdapi.gen_util as gen_util
+import brcdapi.excel_util as excel_util
+import brcdapi.excel_fonts as excel_fonts
 import brcddb.util.util as brcddb_util
-import brcddb.report.utils as report_utils
-import brcddb.report.port as report_port
-import brcddb.report.chassis as report_chassis
-import brcddb.report.fabric as report_fabric
-import brcddb.report.switch as report_switch
-import brcddb.report.zone as report_zone
-import brcddb.report.login as report_login
-import brcddb.report.bp as report_bp
-import brcddb.report.iocp as report_iocp
+import brcddb.app_data.report_tables as rt
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_fabric as brcddb_fabric
+import brcddb.brcddb_project as brcddb_project
 import brcddb.brcddb_switch as brcddb_switch
+import brcddb.report.bp as report_bp
+import brcddb.report.chassis as report_chassis
+import brcddb.report.fabric as report_fabric
+import brcddb.report.iocp as report_iocp
+import brcddb.report.login as report_login
+import brcddb.report.port as report_port
+import brcddb.report.switch as report_switch
+import brcddb.report.zone as report_zone
+import brcddb.util.search as brcddb_search
+import brcddb.classes.util as brcddb_class_util
 
-_report_pages = dict(
-    proj_dashboard=dict(s=True, d='Project dashboard page'),
-    chassis=dict(s=True, d='Chassis page'),
-    fabric_summary=dict(s=True, d='Fabric summary page'),
-    fabric_dashboard=dict(s=True, d='Fabric dashboard'),
-    switch=dict(s=True, d='Switch page'),
-    port_config=dict(s=True, d='Port configuration page'),
-    port_config_error=dict(s=False, d='Port configuration alert summary page. Not yet implemented.'),
-    port_stats=dict(s=True, d='Port statistics page'),
-    port_stats_error=dict(s=False, d='Port statistics alert summary page. Not yet implemented.'),
-    port_zone=dict(s=True, d='Port by login, alias and zone page'),
-    port_zone_error=dict(s=False, d='Port zone/login alert summary page. Not yet implemented.'),
-    port_sfp=dict(s=True, d='Port SFP page'),
-    port_sfp_error=dict(s=False, d='Port SFP alert summary page. Not yet implemented.'),
-    port_rnid=dict(s=False, d='Port RNID page. Typically only used for FICON'),
-    port_rnid_error=dict(s=False, d='Port RNID alert summary page. Not yet implemented.'),
-    zone_page=dict(s=True, d='Zone analysis page'),
-    t_zone_page=dict(s=True, d='Zone by target page'),
-    s_zone_page=dict(s=True, d='Zone by server page'),
-    zone_error=dict(s=False, d='Alias alert summary page. Not yet implemented.'),
-    alias=dict(s=True, d='Alias detail page'),
-    alias_error=dict(s=False, d='Alias alert summary page. Not yet implemented.'),
-    login=dict(s=True, d='Login page'),
-    login_error=dict(s=False, d='Login alert summary page. Not yet implemented.'),
-    bp=dict(s=True, d='Project wide best practice alert summary page'),
-    iocp=dict(s=True, d='IOCP page. Only added if IOCPs were added. FICON only.'),
-)
+"""
+References are added to most objects so that when creating the Workbook so that hyperlinks can be added. For example,
+from the fabric summary page the reader of the report can simply click on the switch name and be taken directly to the
+switch detail. For this reason, sheet names for each major object are created in advance. The sheets for subordinate
+objects are then created. For example, for each fabric the port configuration sheets are created before the switch
+sheet. Since the switch sheet name was already defined, links back to the parent switch can be added to the port
+configuration sheet. Then when creating the switch detail sheets, the links for the individual ports can be added to the
+switch detail sheets.
 
-_MAX_DB_SIZE = 10   # Set the top xx dashboard size
+An object with key 'report_app' is added to each object in the report. The report_app object is a dictionary of
+dictionaries defined as follows:
 
-dup_login_tbl = (
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+| Key       | Key   | Object(s) | Description                                                                       |
++===========+=======+===========+===================================================================================+
+| control   |       |           | Used for determining naming for determining names used in 'link'. Also used to    |
+|           |       |           | determine how information is displayed. Search for _xxx_control_d for details.    |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | bp    | Project,  | Best practice                                                                     |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | dup   | Project   | Duplicate WWNs                                                                    |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | fab   | Fabric    | Fabric summary sheet                                                              |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | db    | Project   | Dashboard.                                                                        |
+|           |       | Fabric    |                                                                                   |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | sd    | Fabric    | Switch detail                                                                     |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | pc    | Fabric    | Port configuration                                                                |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | ps    | Fabric    | Port statistics                                                                   |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | pz    | Fabric    | Ports by Zone and Login                                                           |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | pr    | Fabric    | Port RNID Data                                                                    |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | sfp   | Fabric    | SFP report                                                                        |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | za    | Fabric    | Zone Analysis                                                                     |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | zt    | Fabic     | Zone by Target                                                                    |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | znt   | Fabric    | Zone by Non-Targets                                                               |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | ali   | Fabric    | Alias Detail                                                                      |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | log   | Fabric    | Logins                                                                            |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+| link      |       |           | Cell references. These are used to create hyperlinks in the Workbook.             |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | tc    | All       | A link to the table of context.                                                   |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | bp    | Project,  | Best practice                                                                     |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | dup   | Project   | Duplicate WWNs                                                                    |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | fab   | Fabric    | Fabric summary sheet                                                              |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | db    | Project   | Dashboard.                                                                        |
+|           |       | Fabric    |                                                                                   |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | sw    | Switch    | Sheet reference: switch detail sheet. Cell reference: A1                          |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | pc    | Port      | Link to where this port appears on the Port Configurations worksheet.             |
+|           |       | Switch    | Column link is 'A'. Row is for the first port in the switch.                      |  
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | pl    | Port      | Link to where this port appears on the Port Links worksheet.                      |
+|           |       | Switch    | Column link is 'A'. Row is for the first port in the switch.                      |  
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | ps    | Port      | Link to where this port appears on the Port Statistics worksheet.                 |
+|           |       | Switch    | Column link is 'A'. Row is for the first port in the switch.                      |  
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | pz    | Port      | Link to where this port appears on the Ports by Zone and Login worksheet.         |
+|           |       | Switch    | Column link is 'A'. Row is for the first port in the switch.                      |  
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | pr    | Port      | Link to where this port appears on the Port RNID worksheet.                       |
+|           |       | Switch    | Column link is 'A'. Row is for the first port in the switch.                      |  
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+|           | sfp   | Port      | Link to where this port appears on the SFP Report worksheet.                      |
+|           |       | Switch    | Column link is 'A'. Row is for the first port in the switch.                      |  
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+"""
+_MAX_DB_SIZE = 10  # Set the top xx dashboard size
+_unique_index = 0  # The openpyxl librarys appends a number if necessary to make worksheet names unique; however, this
+# module creates all worksheet names in advance so that links to them can be added before the worksheet has been
+# created. _unique_index therefore is used to ensure all worksheet names are unique before they are created.
+_dup_login_tbl = (
     'port-name',
     '_ALIAS',
     '_FABRIC_NAME',
@@ -120,68 +192,36 @@ dup_login_tbl = (
     'node-symbolic-name',
     'port-symbolic-name',
 )
+_port_links_tbl = (
+    '_PORT_COMMENTS',
+    '_SWITCH_NAME',
+    '_PORT_NUMBER',
+    '_BEST_DESC',
+    '_CONFIG_LINK',
+    '_STATS_LINK',
+    '_ZONE_LINK',
+    '_SFP_LINK',
+    '_RNID_LINK',
+)
+_std_font = excel_fonts.font_type('std')
+_bold_font = excel_fonts.font_type('bold')
+_link_font = excel_fonts.font_type('link')
+_hdr2_font = excel_fonts.font_type('hdr_2')
+_hdr1_font = excel_fonts.font_type('hdr_1')
+_align_wrap = excel_fonts.align_type('wrap')
+_align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
+_align_wrap_c = excel_fonts.align_type('wrap_center')
+_border_thin = excel_fonts.border_type('thin')
 
 
-def proj_title_page(proj_obj, tc, wb, sheet_index, sheet_name, sheet_title, contents):
-    """Creates the project title page
-    
-    :param proj_obj: Project object
-    :type proj_obj: brcddb.classes.project.ProjectObj
-    :param tc: Table of context page. A link to this page is place in cell A1
-    :type tc: str, None
-    :param wb: Workbook object
-    :type wb: dict
-    :param sheet_index: Location for the title page. First sheet is 0
-    :type sheet_index: int
-    :param sheet_name: Sheet (tab) name
-    :type sheet_name: str
-    :param sheet_title: Title for sheet
-    :type sheet_title: str
-    :param contents: List of objects {'s': sheet name, 'd': reference name (individual sheet titles)}
-    :rtype: None
+def _dashboard(obj, wb, sheet_index):
+    """Adds a port performance dashboard. See _add_fabric_sumary() for parameter definitions
     """
-    t_content = [dict(new_row=False, merge=2, font='std', align='wrap', disp='Description'),
-                 dict(font='std', align='wrap', disp=proj_obj.c_description()),
-                 dict(new_row=False, merge=2, font='std', align='wrap', disp='Data collected'),
-                 dict(font='std', align='wrap', disp=proj_obj.r_date())]
+    global _MAX_DB_SIZE
 
-    # Add the table  of contents
-    for obj in contents:
-        m = 3  # Number of cells to merge
-        if obj.get('h') is not None and obj.get('h') is True:
-            t_content.append(dict())
-            t_content.append(dict(merge=m, font='hdr_2', align='wrap', disp=obj.get('d')))
-            continue
-        if obj.get('sc') is not None:
-            for i in range(0, obj.get('sc')):
-                t_content.append(dict(new_row=False, disp=''))  # Column is blank
-                m -= 1
-        if obj.get('s') is not None:
-            t_content.append(dict(merge=m, font='link', align='wrap', disp=obj.get('d'), hyper='#'+obj.get('s')+'!A1'))
-        else:
-            buf = obj.get('font') if 'font' in obj else 'std'
-            t_content.append(dict(merge=m, font=buf, align='wrap', disp=obj.get('d')))
+    control_d = obj.r_get('report_app/control/db')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
 
-    report_utils.title_page(wb, tc, sheet_name, sheet_index, sheet_title, t_content, (4, 20, 62))
-
-
-def dashboard(obj, tc, wb, sheet_index, sheet_name, title):
-    """Creates a dashboard of ports with the top _MAX_DB_SIZE highest counters.
-    
-    :param obj: Project, fabric, or switch object
-    :type obj: ProjectObj, SwitchObj, FabricObj
-    :param tc: Table of context page. A link to this page is place in cell A1
-    :type tc: str, None
-    :param wb: Workbook object
-    :type wb: dict
-    :param sheet_index: Location for the title page. First sheet is 0
-    :type sheet_index: int
-    :param sheet_name: Sheet (tab) name
-    :type sheet_name: str
-    :param title: Title at top of  sheet
-    :type title: str
-    :rtype: None
-    """
     dashboard_item = collections.OrderedDict()
     dashboard_item['bad-eofs-received'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' Bad EOF', port_list=list())
     dashboard_item['class-3-discards'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' C3 Discards', port_list=list())
@@ -190,302 +230,583 @@ def dashboard(obj, tc, wb, sheet_index, sheet_name, title):
     dashboard_item['loss-of-signal'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' Loss of Signal', port_list=list())
     dashboard_item['bb-credit-zero'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' BB Credit Zero', port_list=list())
     port_list = obj.r_port_objects()
-    for k in dashboard_item.keys():
-        db = dashboard_item.get(k)
+    for k, db in dashboard_item.items():
         db_list = brcddb_search.test_threshold(port_list, 'fibrechannel-statistics/' + k, '>', 0)
-        db_list = brcddb_util.sort_obj_num(db_list, 'fibrechannel-statistics/' + k, True)
+        db_list = gen_util.sort_obj_num(db_list, 'fibrechannel-statistics/' + k, True)
         if len(db_list) > _MAX_DB_SIZE:
             del db_list[_MAX_DB_SIZE:]
         db['port_list'].extend(db_list)
     report_port.performance_dashboard(wb,
-                                      tc,
-                                      sheet_name=sheet_name,
-                                      sheet_i=sheet_index,
-                                      sheet_title=title,
-                                      content=dashboard_item)
+                                      obj.r_get('report_app/hyperlink/tc'),
+                                      control_d['sn'],
+                                      sheet_index,
+                                      control_d['t'],
+                                      dashboard_item)
+    return 1
 
 
-def customize_help():
-    """Returns a list of help messages for remove_pages and add_pages parameters in report()
+# Actions in _xxx_control_d
+# Fabrics
+def _add_fabric_sumary(fab_obj, wb, sheet_index):
+    """ Adds the fabric summary sheet
 
-    :return: List of help messages
-    :rtype: list
+    :param fab_obj: Fabric object
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param wb: Workbook object
+    :type wb: openpyxl.Workbook
+    :param sheet_index: Location for this sheet.
+    :type sheet_index: int
+    :param sheet_title: Title to add to the top of the worksheet
+    :type sheet_title: str
+    :return: Number of sheets added
+    :rtype: int
     """
-    global _report_pages
-
-    # Figure out which key is the longest
-    lkey = 0
-    for k in _report_pages.keys():
-        lkey = max(lkey, len(k))
-    lkey += 2
-
-    # Format the help messages
-    rl = list('\n')
-    for k, v in _report_pages.items():
-        key = k
-        while len(key) < lkey:
-            key += ' '
-        default_value = 'Default      ' if v['s'] else 'Not default  '
-        rl.append(key + default_value + v['d'])
-    rl.append('\n')
-
-    return rl
+    control_d = fab_obj.r_get('report_app/control/fab')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_fabric.fabric_page(wb,
+                              fab_obj.r_get('report_app/hyperlink/tc'),
+                              sheet_index,
+                              control_d['sn'],
+                              control_d['t'],
+                              fab_obj)
+    return 1
 
 
-def report(proj_obj, outf, remove_pages=None, add_pages=None):
+def _add_switch_detail(fab_obj, wb, sheet_index):
+    """Adds the port configuration page. See _add_fabric_sumary() for parameter definitions"""
+    control_d = fab_obj.r_get('report_app/control/sw')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_switch.switch_page(wb,
+                              fab_obj.r_get('report_app/hyperlink/tc'),
+                              control_d['sn'],
+                              sheet_index,
+                              control_d['t'],
+                              fab_obj.r_switch_objects(),
+                              rt.Switch.switch_display_tbl,
+                              True)
+    return 1
+
+
+def _add_port_page(fab_obj, wb, sheet_index, control_d, config_tbl, login_flag, link_type):
+    """Adds the port detail pages. See _add_fabric_sumary()
+
+    :param control_d: Control data structure. Search for _xxx_control_d for details.
+    :type control_d: dict
+    :param config_tbl: Table to use to determine what items to add to the report
+    :type config_tbl: dict
+    :param login_flag: If True, add the NPIV logins to the report
+    :type login_flag: bool
+    :param link_type: Type of link, see brcddb.apps.report. Valid types are: pc, pl, ps, pz, pr, and sfp
+    :type link_type: str, None
+    """
+    control_d = fab_obj.r_get('report_app/control/'+link_type)
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_port.port_page(wb,
+                          fab_obj.r_get('report_app/hyperlink/tc'),
+                          control_d['sn'],
+                          sheet_index,
+                          control_d['t'],
+                          fab_obj.r_port_objects(),
+                          in_display=config_tbl,
+                          in_port_display_tbl=rt.Port.port_display_tbl,
+                          login_flag=login_flag,
+                          link_type=link_type)
+    return 1
+
+
+def _add_port_config(fab_obj, wb, sheet_index):
+    """Adds the port configuration page. See _add_fabric_sumary() for parameter definitions"""
+    _add_port_page(fab_obj, wb, sheet_index, fab_obj.r_get('report_app/control/pc'), rt.Port.port_config_tbl, False,
+                   'pc')
+    return 1
+
+
+def _add_port_links(fab_obj, wb, sheet_index):
+    """Adds the port configuration page. See _add_fabric_sumary() for parameter definitions"""
+    _add_port_page(fab_obj, wb, sheet_index, fab_obj.r_get('report_app/control/pl'), _port_links_tbl, False, 'pl')
+    return 1
+
+
+def _add_port_stats(fab_obj, wb, sheet_index):
+    """Adds the port statistics page. See _add_fabric_sumary() for parameter definitions"""
+    _add_port_page(fab_obj, wb, sheet_index, fab_obj.r_get('report_app/control/ps'), rt.Port.port_stats_tbl, False,
+                   'ps')
+    return 1
+
+
+def _add_port_login(fab_obj, wb, sheet_index):
+    """Adds the port by zone and login page. See _add_fabric_sumary() for parameter definitions"""
+    _add_port_page(fab_obj, wb, sheet_index, fab_obj.r_get('report_app/control/pz'), rt.Port.port_zone_tbl, True, 'pz')
+    return 1
+
+
+def _add_port_rnid(fab_obj, wb, sheet_index):
+    """Adds the port RNID page. See _add_fabric_sumary() for parameter definitions
+    $ToDo: only add RNID sheet if RNID data is present"""
+    _add_port_page(fab_obj, wb, sheet_index, fab_obj.r_get('report_app/control/pr'), rt.Port.port_rnid_tbl, False, 'pr')
+    return 1
+
+
+def _add_port_sfp(fab_obj, wb, sheet_index):
+    """Adds the port SFP report page. See _add_fabric_sumary() for parameter definitions"""
+    _add_port_page(fab_obj, wb, sheet_index, fab_obj.r_get('report_app/control/sfp'), rt.Port.port_sfp_tbl, False,
+                   'sfp')
+    return 1
+
+
+def _add_zone_analysis(fab_obj, wb, sheet_index):
+    """Adds the Zone Analysis page. See _add_fabric_sumary() for parameter definitions"""
+    control_d = fab_obj.r_get('report_app/control/za')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_zone.zone_page(fab_obj,
+                          fab_obj.r_get('report_app/hyperlink/tc'),
+                          wb,
+                          control_d['sn'],
+                          sheet_index,
+                          control_d['t'])
+    return 1
+
+
+def _add_zone_by_target(fab_obj, wb, sheet_index):
+    """Adds the Zone by Target page. See _add_fabric_sumary() for parameter definitions"""
+    control_d = fab_obj.r_get('report_app/control/zt')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_zone.target_zone_page(fab_obj,
+                                 fab_obj.r_get('report_app/hyperlink/tc'),
+                                 wb,
+                                 control_d['sn'],
+                                 sheet_index,
+                                 control_d['t'])
+    return 1
+
+
+def _add_zone_by_non_target(fab_obj, wb, sheet_index):
+    """Adds the Zone by Non-Target page. See _add_fabric_sumary() for parameter definitions"""
+    control_d = fab_obj.r_get('report_app/control/znt')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_zone.non_target_zone_page(fab_obj,
+                                     fab_obj.r_get('report_app/hyperlink/tc'),
+                                     wb,
+                                     control_d['sn'],
+                                     sheet_index,
+                                     control_d['t'])
+    return 1
+
+
+def _add_alias_detail(fab_obj, wb, sheet_index):
+    """Adds the Alias Detail page. See _add_fabric_sumary() for parameter definitions"""
+    control_d = fab_obj.r_get('report_app/control/ali')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_zone.alias_page(fab_obj,
+                           fab_obj.r_get('report_app/hyperlink/tc'),
+                           wb,
+                           control_d['sn'],
+                           sheet_index,
+                           control_d['t'])
+    return 1
+
+
+def _add_login_detail(fab_obj, wb, sheet_index):
+    """Adds the Logins page. See _add_fabric_sumary() for parameter definitions"""
+    control_d = fab_obj.r_get('report_app/control/log')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_login.login_page(wb,
+                            fab_obj.r_get('report_app/hyperlink/tc'),
+                            control_d['sn'],
+                            sheet_index,
+                            control_d['t'],
+                            fab_obj.r_login_objects())
+    return 1
+
+
+# Chassis
+def _add_chassis(chassis_obj, wb, sheet_index):
+    """Adds the port configuration page. See _add_fabric_sumary() for parameter definitions"""
+    control_d = chassis_obj.r_get('report_app/control/chassis')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_chassis.chassis_page(wb,
+                                chassis_obj.r_get('report_app/hyperlink/tc'),
+                                control_d['sn'],
+                                sheet_index,
+                                control_d['t'],
+                                chassis_obj,
+                                rt.Chassis.chassis_display_tbl)
+    return 1
+
+
+# Project
+def _add_project_bp(proj_obj, wb, sheet_index):
+    """Adds the best practice page. See _add_fabric_sumary() for parameter definitions"""
+    control_d = proj_obj.r_get('report_app/control/bp')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_bp.bp_page(wb,
+                      proj_obj.r_get('report_app/hyperlink/tc'),
+                      control_d['sn'],
+                      sheet_index,
+                      control_d['t'],
+                      proj_obj,
+                      rt.BestPractice.bp_tbl,
+                      rt.BestPractice.bp_display_tbl)
+    return 1
+
+
+def _add_project_dup(proj_obj, wb, sheet_index):
+    """Checks for duplicate WWNs and adds the page if necessary. See _add_fabric_sumary() for parameter definitions"""
+    global _dup_login_tbl
+
+    control_d = proj_obj.r_get('report_app/control/dup')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    wl = brcddb_project.dup_wwn(proj_obj)
+    if len(wl) > 0:
+        report_login.login_page(wb,
+                                tc_page,
+                                control_d['sn'],
+                                sheet_index,
+                                control_d['t'],
+                                wl,
+                                _dup_login_tbl,
+                                rt.Login.login_display_tbl,
+                                False)
+        return 1
+    return 0
+
+
+def _add_project_tc(proj_obj, wb, sheet_index):
+    """Adds the Table of Contents page. See _add_fabric_sumary() for parameter definitions"""
+    global _hdr1_font, _std_font, _align_wrap, _link_font, _hdr2_font
+
+    # Add and setup the worksheet
+    control_d = proj_obj.r_get('report_app/control')
+    hyper_d = proj_obj.r_get('report_app/hyperlink')
+    sheet = wb.create_sheet(index=sheet_index, title=control_d['tc']['sn'])
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
+    sheet.page_setup.orientation = sheet.ORIENTATION_PORTRAIT
+    row = col = 1
+    for i in (4, 20, 62):
+        sheet.column_dimensions[xl.get_column_letter(col)].width = i
+        col += 1
+
+    # Add the title
+    sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=col-1)
+    col = 1
+    excel_util.cell_update(sheet, row, col, control_d['tc']['t'], font=_hdr1_font, align=_align_wrap,
+                             fill=excel_fonts.fill_type('lightblue'))
+
+    # Add the project description and date
+    row += 2
+    for d in (dict(t='Description', c=proj_obj.c_description()), dict(t='Data collected', c=proj_obj.r_date())):
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+        excel_util.cell_update(sheet, row, 1, d['t'], font=_std_font, align=_align_wrap)
+        excel_util.cell_update(sheet, row, 3, d['c'], font=_std_font, align=_align_wrap)
+        row += 1
+
+    # Figure out what to add to the table of contents. Start with basic project stuff & chassis
+    # control_d and hyper_d are set to the 'report_app/control' and 'report_app/hyperlink' of the project object.
+    # contents_l is a list of dictionaries. 't' is the section title for the table of contents and cl is a list of
+    # dictionaries that describes the sub-sections. In cl, 't' is the sub-section title and 'l' is the link
+    if control_d['dup']['sn'] in wb.sheetnames:
+        dup_d = dict(t=control_d['dup']['tc'], l=hyper_d['dup'])
+    else:
+        dup_d = dict(t='No Duplicate WWNs Found')
+    contents_l = [
+        dict(t='Best Practice Violations', cl=[dict(t=control_d['bp']['tc'], l=hyper_d['bp'])]),
+        dict(t='Duplicate WWNs', cl=[dup_d]),
+        dict(t=control_d['db']['tc'], cl=[dict(t=control_d['db']['tc'], l=hyper_d['db'])]),
+        dict(t='Chassis',
+             cl=[dict(t=brcddb_chassis.best_chassis_name(obj), l=obj.r_get('report_app/hyperlink/chassis')) \
+                 for obj in proj_obj.r_chassis_objects()]),
+    ]
+
+    # Add the fabrics. See notes above with how table of contents was built for the project
+    for fab_obj in proj_obj.r_fabric_objects():
+        control_d = fab_obj.r_get('report_app/control')
+        hyper_d = fab_obj.r_get('report_app/hyperlink')
+        # temp_l = ('fab', 'db', 'sw', 'pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'ali', 'log')
+        temp_l = ('fab', 'db', 'sw', 'pl', 'za', 'zt', 'znt', 'ali', 'log')
+        contents_l.append(dict(t=brcddb_fabric.best_fab_name(fab_obj),
+                               cl=[dict(t=control_d[key]['tc'], l=hyper_d[key]) for key in temp_l]))
+
+    # Add the IOCPs
+    temp_l = proj_obj.r_iocp_objects()
+    if len(temp_l) > 0:
+        cl = [dict(t=obj.r_get('report_app/control/iocp/tc'), l=obj.r_get('report_app/hyperlink/iocp')) for \
+              obj in proj_obj.r_iocp_objects()]
+        contents_l.append(dict(t='IOCPs',
+                               cl=[dict(t=obj.r_get('report_app/control/iocp/tc'),
+                                        l=obj.r_get('report_app/hyperlink/iocp')) \
+                                   for obj in proj_obj.r_iocp_objects()]))
+
+    # Add all the Table of Contents items
+    for d in contents_l:
+        row += 1
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+        excel_util.cell_update(sheet, row, 1, d['t'], font=_hdr2_font, align=_align_wrap)
+        row += 1
+        for obj in d['cl']:
+            sheet.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+            excel_util.cell_update(sheet, row, 2, obj['t'], font=_link_font if 'l' in obj else _std_font,
+                                     align=_align_wrap, link=obj.get('l'))
+            row += 1
+
+    # Add chassis not polled
+    temp_l = [obj for obj in proj_obj.r_chassis_objects() if obj.r_get('brocade-chassis') is None]
+    if len(temp_l) > 0:
+        row += 1
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
+        excel_util.cell_update(sheet, row, 1, 'Missing chassis (discovered in fabrics but not polled)',
+                                 font=_hdr2_font, align=_align_wrap)
+        row += 1
+    for obj in temp_l:
+        sheet.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+        buf = brcddb_chassis.best_chassis_name(obj, wwn=True) + '. Known logical switches:'
+        excel_util.cell_update(sheet, row, 2, buf, font=_std_font, align=_align_wrap)
+        row += 1
+        for switch_obj in obj.r_switch_objects():
+            excel_util.cell_update(sheet, row, 3, brcddb_switch.best_switch_name(switch_obj, wwn=True),
+                                     font=_std_font, align=_align_wrap)
+            row += 1
+
+    return 1
+
+
+# IOCP
+def _add_iocp(iocp_obj, wb, sheet_index):
+    """Adds the IOCP pages, if any. See _add_fabric_sumary() for parameter definitions"""
+    control_d = iocp_obj.r_get('report_app/control/iocp')
+    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    report_iocp.iocp_page(iocp_obj,
+                          iocp_obj.r_get('report_app/hyperlink/tc'),
+                          wb,
+                          control_d['sn'],
+                          sheet_index,
+                          control_d['t'])
+    return 1
+
+
+"""" _xxx_control_d dictionaries are used to build the content for report_app. Some of the content is filled in by the
+action methods.
+
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| Key   | Type      | Description                                                                                   |
++=======+===========+===============================================================================================+
+| p     | str       | Sheet name prefix. Used to create sheet names.                                                |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| t     | str       | Sheet title. The object name is typically appended. See 'st'                                  |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| st    | bool      | If True, the object name is added to the sheet title, 't', in _add_sheet_names(). Default is  |
+|       |           | False.                                                                                        |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| u     | bool      | If True, add a uniue number. Used to gaurantee unique sheet names. Default is False           |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| s     | bool      | If True, add the object name to the sheet name. Used in _add_sheet_names() to determine 'sn'  |
+|       |           | Default is False.                                                                             |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| sn    | str       | Sheet name. Filled in by _add_sheet_names()                                                   |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| sf    | bool      | True: Use starting index. False: Use current index                                            |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| a     | method    | Pointer to action method that creates the worksheet                                           |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| tc    | str       | Name for this page to put in the table of contents                                            |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| rs    | bool      | If True, reset to the sheet_index to 0. Default is False                                      |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+"""
+_tc = dict(p='table_of_contents', t='Table of Contents', u=False, s=False, sf=True, a=_add_project_tc)
+_proj_control_d=dict(tc=_tc,
+                     db=dict(p='proj_dashboard', tc='Project Dashboard', t='Project Dashboard', a=_dashboard),
+                     bp=dict(p='Best_Practice', tc='Best Practice Violations', t='Best Practice Violations',
+                             a=_add_project_bp),
+                     dup=dict(p='dup_wwns', tc='Duplicate WWNs', t='Duplicate WWNs', a=_add_project_dup)
+                     )
+_fab_control_d=dict(tc=_tc,
+                    fab=dict(p='fab_', tc='Fabric Summary', t='Fabric Summary: ', u=True, s=True, sf=True,
+                             a=_add_fabric_sumary),
+                    db=dict(p='db_', tc='Fabric Dashboard', t='Fabric Dashboard: ', u=True, s=True, sf=True,
+                            a=_dashboard),
+                    sw=dict(p='sw_', tc='Switch Details', t='Switch Detail For Fabric: ', u=True, s=True, sf=True,
+                            a=_add_switch_detail),
+                    pc=dict(p='pc_', tc='Port Configurations', t='Port Configurations For Fabric: ', u=True, s=True,
+                            a=_add_port_config),
+                    pl=dict(p='pl_', tc='Port Page Links', t='Port Links For Fabric: ', u=True, s=True, sf=True,
+                            a=_add_port_links),
+                    ps=dict(p='ps_', tc='Port Statistics', t='Port Statistics For Fabric: ', u=True, s=True,
+                            a=_add_port_stats),
+                    pz=dict(p='pz_', tc='Ports by Zone and Login', t='Ports by Zone and Login For Fabric: ', u=True,
+                            s=True, a=_add_port_login),
+                    pr=dict(p='pr_', tc='Port RNID Data', t='Port RNID Data For Fabric: ', u=True, s=True,
+                            a=_add_port_rnid),
+                    sfp=dict(p='sfp_', tc='SFP Report', t='SFP Report For Fabric: ', u=True, s=True,
+                             a=_add_port_sfp),
+                    za=dict(p='za_', tc='Zone Analysis', t='Zone Analysis For Fabric: ', u=True, s=True,
+                            a=_add_zone_analysis),
+                    zt=dict(p='zt_', tc='Zone by Target', t='Zone by Target For Fabric: ', u=True, s=True,
+                            a=_add_zone_by_target),
+                    znt=dict(p='znt_', tc='Zone by Non-Targets', t='Zone by Non-Targets For Fabric: ', u=True, s=True,
+                             a=_add_zone_by_non_target),
+                    ali=dict(p='ali_', tc='Alias Detail', t='Alias Detail For Fabric: ', u=True, s=True,
+                             a=_add_alias_detail),
+                    log=dict(p='log_', tc='Logins', t='Logins For Fabric: ', u=True, s=True, a=_add_login_detail)
+                    )
+_chassis_control_d=dict(tc=_tc,
+                        chassis=dict(tc='Chassis', t='Chassis Detail For: ', u=True, s=True, a=_add_chassis),
+                        )
+_iocp_control_d=dict(tc=_tc,
+                     iocp=dict(p='iocp_', tc='IOCP', t='IOCP Detail For: ', s=True, a=_add_iocp),
+                     )
+
+
+def _add_sheet_names(proj_obj):
+    """Adds sheet names to the major objects. This is to simplify cros-references
+
+    :param proj_obj: Project object
+    :type proj_obj: brcddb.classes.project.ProjectObj
+    """
+    global _proj_control_d, _chassis_control_d, _fab_control_d, _unique_index
+
+    # Chassis, Fabric, Switch, and IOCP object control
+    add_l = (
+        dict(obj_l=[proj_obj], control_d=_proj_control_d, name_m=''),
+        dict(obj_l=proj_obj.r_chassis_objects(), control_d=_chassis_control_d, name_m=brcddb_chassis.best_chassis_name),
+        dict(obj_l=proj_obj.r_fabric_objects(), control_d=_fab_control_d, name_m=brcddb_fabric.best_fab_name),
+        dict(obj_l=proj_obj.r_iocp_objects(), control_d=_iocp_control_d, name_m=_iocp_name),
+    )
+    for obj_d in add_l:
+        for obj in obj_d['obj_l']:
+            control_d = copy.deepcopy(obj_d['control_d'])
+            for d in control_d.values():
+                d.pop('a', None)  # Remove the pointer to the action method
+            if callable(obj_d['name_m']):
+                sname_base = obj_d['name_m'](obj).replace(':', '')[0:25].replace(' ', '_')
+                sname_base = excel_util.valid_sheet_name.sub('', sname_base)
+            else:
+                sname_base = obj_d['name_m']
+            sname_d = dict()
+            for k, d in control_d.items():
+                prefix = d['p'] if 'p' in d else ''
+                st_flag = d['st'] if 'st' in d else False
+                unique_flag = d['u'] if 'u' in d else False
+                sname = prefix if k == 'tc' else prefix + sname_base
+                if unique_flag:
+                    sname += '_' + str(_unique_index)
+                    _unique_index += 1
+                temp_d = dict(sn=sname, t=obj_d['name_m']) if st_flag else dict(sn=sname)
+                d.update(temp_d)
+                sname_d.update({k: '#' + sname + '!A1'})
+            brcddb_util.add_to_obj(obj, 'report_app/control', control_d)
+            brcddb_util.add_to_obj(obj, 'report_app/hyperlink', sname_d)
+
+    return
+
+
+# Object names. See obj_name in report_l in module report()
+def _fabric_name(obj):
+    return brcddb_fabric.best_fab_name(obj, wwn=True, fid=True)
+
+
+def _chassis_name(obj):
+    return brcddb_chassis.best_chassis_name(obj, wwn=True)
+
+
+def _project_name(obj):
+    return obj.r_description()
+
+
+def _iocp_name(obj):
+    return obj.r_obj_key()
+
+
+def report(proj_obj, outf):
+
+
     """Creates an Excel report. Sort of a SAN Health like report.
 
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
     :param outf: Output file name
     :type outf: str
-    :param remove_pages: List of default pages to remove. Done first so you can clear all then add pages.
-    :type remove_pages: None, str, list
-    :param add_pages: Pages, in addition to the defaults, to add to the report
-    :type add_pages: None, str, list
     """
-    global _report_pages
+    # Set up the workbook and give all the major objects (Project, Chassis, Fabric, and Switch) sheet names
+    tbl_contents = list()
+    sheet_index, wb = 0, excel_util.new_report()
+    _add_sheet_names(proj_obj)
 
-    # Figure out what pages to include in the report
-    for key in brcddb_util.convert_to_list(remove_pages):
-        d = _report_pages.get(key)
-        if d is None:
-            if key == 'all':
-                for obj in _report_pages.values():
-                    obj['s'] = False
-                break
-            else:
-                brcdapi_log.log(key + ' is unknown in remove page list. ignored')
-        else:
-            d['s'] = False
-    for key in brcddb_util.convert_to_list(add_pages):
-        d = _report_pages.get(key)
-        if d is None:
-            if key == 'all':
-                for obj in _report_pages.values():
-                    obj['s'] = True
-                break
-            else:
-                brcdapi_log.log(key + ' is unknown in add page list. ignored')
-        else:
-            d['s'] = True
-
-    """port_pages is used to determine how to display pages
-    +-------+-------------------------------------------------------------------------------+
-    |  key  | Description                                                                   |
-    +=======+===============================================================================+
-    |   c   | Key in the _report_pages table                                                |
-    +-------+-------------------------------------------------------------------------------+
-    |   s   | Sheet name prefix                                                             |
-    +-------+-------------------------------------------------------------------------------+
-    |  sc   | Number of columns to skip                                                     |
-    +-------+-------------------------------------------------------------------------------+
-    |   t   | The table used to control how the port data is displayed.                     |
-    +-------+-------------------------------------------------------------------------------+
-    |   d   | Text to display as a header on the worksheet.                                 |
-    +-------+-------------------------------------------------------------------------------+
-    |   l   | When true, displays all the logins. Otherwise, just the base WWN is reported. |
-    +-------+-------------------------------------------------------------------------------+
+    """report_l is a list of dictionaries in the order they are to be processed. The dictionaries control sheet creation
+    as follows:
+    
+    +-----------+-----------+---------------------------------------------------------------------------------------+
+    | Key       | Type      | Description                                                                           |
+    +===========+=======+===========================================================================================+
+    | obj_l     | list      | Objects for which sheets are to be added                                              |
+    +-----------+-----------+---------------------------------------------------------------------------------------+
+    | add_name  | tuple     | Key into _xxx_control_d tables for sheet titles the object name should be added to.   |
+    +-----------+-----------+---------------------------------------------------------------------------------------+
+    | order     | tuple     | Key into _xxx_control_d tables in the order sheets are to be added for this object    |
+    +-----------+-----------+---------------------------------------------------------------------------------------+
+    | feedback  | str       | Prefix to add to object name for user message to display on STD_OUT when processing   |
+    |           |           | this object                                                                           |
+    +-----------+-----------+---------------------------------------------------------------------------------------+
+    | control   | dict      | Control dictionary. Search for _xxx_control_d for an additional description.          |
+    +-----------+-----------+---------------------------------------------------------------------------------------+
+    | obj_name  | method    | Pointer to method that retrieves the object name.                                     |
+    +-----------+-----------+---------------------------------------------------------------------------------------+
+    | rs        | bool      | If True, reset the sheet_index. Default is False.                                     |
+    +-----------+-----------+---------------------------------------------------------------------------------------+
     """
-    port_pages = [  # See notes above
-        dict(c='port_config', sc=1, s='_config', t=rt.Port.port_config_tbl, d='Port Configurations', l=False),
-        dict(c='port_config_error', sc=1, s='_config_error', t=rt.Port.port_config_tbl,
-             d='Port Configurations Error Summary', l=False),
-        dict(c='port_stats', sc=1, s='_stats', t=rt.Port.port_stats_tbl, d='Port Statistics', l=False),
-        dict(c='port_stats_error', sc=1, s='_stats_error', t=rt.Port.port_stats_tbl, d='Port Statistics Error Summary',
-             l=False),
-        dict(c='port_zone', sc=1, s='_zl', t=rt.Port.port_zone_tbl, d='Ports by Zone and Login', l=True),
-        dict(c='port_zone_error', sc=1, s='_zl_error', t=rt.Port.port_zone_tbl,
-             d='Ports by Zone and Login Error Summary', l=True),
-        dict(c='port_sfp', sc=1, s='_sfp', t=rt.Port.port_sfp_tbl, d='SFP report', l=False),
-        dict(c='port_sfp_error', sc=1, s='_sfp_error', t=rt.Port.port_sfp_tbl, d='SFP Error Summary', l=False),
-        dict(c='port_rnid', sc=1, s='_ficon', t=rt.Port.port_rnid_tbl, d='Port RNID data', l=False),
-    ]
+    report_l = (
+        dict(obj_l=proj_obj.r_fabric_objects(),
+             add_name=('pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'ali', 'log', 'db', 'fab'),
+             order=('pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'ali', 'log', 'sw', 'db', 'fab'),
+             feedback='Processing fabric: ',
+             control=_fab_control_d,
+             obj_name=_fabric_name),
+        dict(obj_l=proj_obj.r_iocp_objects(),
+             add_name=('iocp',),
+             order=('iocp',),
+             feedback='Processing IOCP: ',
+             control=_iocp_control_d,
+             obj_name=_iocp_name),
+        dict(obj_l=proj_obj.r_chassis_objects(),
+             add_name=('chassis',),
+             order=('chassis',),
+             feedback='Processing chassis: ',
+             control=_chassis_control_d,
+             obj_name = _chassis_name,
+             rs=True),
+        dict(obj_l=[proj_obj],
+             add_name=(),
+             order=('dup', 'bp', 'db', 'tc'),
+             feedback='Processing: ',
+             control=_proj_control_d,
+             obj_name = _project_name,
+             rs=True),
+    )
 
-    # Set up the workbook
-    tc_page, tbl_contents = 'Table_of_Contents', list()
-    sheet_index, wb = 0, report_utils.new_report()
-
-    # Check project for duplicate WWNs
-    tbl_contents.append(dict(h=True, d='Duplicate WWNs'))
-    wl = brcddb_project.dup_wwn(proj_obj)
-    if len(wl) > 0:
-        sname = 'dup_wwns'
-        report_login.login_page(wb, tc_page, sname, sheet_index, 'Duplicate WWNs', wl, dup_login_tbl,
-                                rt.Login.login_display_tbl, False)
-        tbl_contents.append(dict(sc=1, s=sname, d='Duplicate WWNs'))
-        sheet_index += 1
-    else:
-        tbl_contents.append(dict(sc=1, d='No Duplicate WWNs Found'))
-
-    # Project dashboard
-    if _report_pages['proj_dashboard']['s']:
-        tbl_contents.append(dict(h=True, d='Project Links'))
-        sname = 'proj_dashboard'
-        title = 'Project Dashboard'
-        dashboard(proj_obj, tc_page, wb, sheet_index, sname, title)
-        tbl_contents.append(dict(sc=1, s=sname, d=title))
-        sheet_index += 1
-
-    # Add all the chassis
-    if _report_pages['chassis']['s']:
-        tbl_contents.append(dict(h=True, d='Chassis'))
-        for chassis_obj in proj_obj.r_chassis_objects():
-            chassis_name = brcddb_chassis.best_chassis_name(chassis_obj)
-            brcdapi_log.log('Processing chassis: ' + chassis_name, True)
-            sname = report_utils.valid_sheet_name.sub('', chassis_name.replace(' ', '_'))[:22] + '_' + str(sheet_index)
-            report_chassis.chassis_page(wb, tc_page, sname, sheet_index, 'Chassis Detail For: ' + chassis_name,
-                                        chassis_obj, rt.Chassis.chassis_display_tbl)
-            tbl_contents.append(dict(sc=1, s=sname, d=chassis_name))
-            sheet_index += 1
-
-    # Add all the fabrics
-    for fab_obj in proj_obj.r_fabric_objects():
-        fab_name = brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True)
-        if len(fab_name) == 0:
-            fab_name = 'Unknown Fabric'
-        brcdapi_log.log('Processing fabric: ' + fab_name, True)
-        tbl_contents.append(dict(h=True, d=fab_name))
-        prefix = report_utils.valid_sheet_name.sub('', fab_name.replace(' ', '_'))[:20] + '_' + str(sheet_index)
-
-        # Fabric summary page
-        if _report_pages['fabric_summary']['s']:
-            brcdapi_log.log('    Building fabric summary page', True)
-            sname = prefix + '_sum'
-            report_fabric.fabric_page(wb, tc_page, sheet_index, sname, fab_name + ' Summary', fab_obj)
-            tbl_contents.append(dict(sc=1, s=sname, d='Fabric Summary'))
-            sheet_index += 1
-
-        # Fabric Dashboard
-        if _report_pages['fabric_dashboard']['s']:
-            brcdapi_log.log('    Building fabric dashboard', True)
-            sname = prefix + '_db'
-            dashboard(fab_obj, tc_page, wb, sheet_index, sname, fab_name + ' Dashboard')
-            tbl_contents.append(dict(sc=1, s=sname, d='Fabric Dashboard'))
-            sheet_index += 1
-
-        # Switch page
-        if _report_pages['switch']['s']:
-            brcdapi_log.log('    Building switch detail page', True)
-            sname = prefix + '_switch'
-            report_switch.switch_page(wb, tc_page, sname, sheet_index, 'Switch Detail For Fabric: ' + fab_name,
-                                      fab_obj.r_switch_objects(), rt.Switch.switch_display_tbl)
-            tbl_contents.append(dict(sc=1, s=sname, d='Switch Detail'))
-            sheet_index += 1
-
-        # Now the port pages
-        brcdapi_log.log('    Building the port pages', True)
-        port_list = brcddb_util.sort_ports(fab_obj.r_port_objects())
-        for obj in port_pages:
-            if _report_pages[obj['c']]['s']:
-                sname = prefix + obj.get('s')
-                report_port.port_page(wb,
-                                      tc_page,
-                                      sname,
-                                      sheet_index,
-                                      fab_name + ' ' + obj.get('d'),
-                                      port_list,
-                                      obj.get('t'),
-                                      rt.Port.port_display_tbl,
-                                      obj.get('l'))
-                tbl_contents.append(dict(sc=1, s=sname, d=obj.get('d')))
-                sheet_index += 1
-
-        #  Zone Analysis Page
-        if _report_pages['zone_page']['s']:
-            brcdapi_log.log('    Building zone analysis page', True)
-            sname = prefix + '_zone'
-            report_zone.zone_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name + ' Zone Analysis')
-            tbl_contents.append(dict(sc=1, s=sname, d='Zone Analysis'))
-            sheet_index += 1
-
-        #  Target Zone Page
-        if _report_pages['t_zone_page']['s']:
-            brcdapi_log.log('    Building target zone page', True)
-            sname = prefix + '_tzone'
-            report_zone.target_zone_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name +
-                                         ' Zone by Target (effective zone only)')
-            tbl_contents.append(dict(sc=1, s=sname, d='Zone by Target'))
-            sheet_index += 1
-
-        #  Server Zone Page
-        if _report_pages['s_zone_page']['s']:
-            brcdapi_log.log('    Building server zone page', True)
-            sname = prefix + '_szone'
-            report_zone.non_target_zone_page(fab_obj,
-                                             tc_page,
-                                             wb,
-                                             sname,
-                                             sheet_index,
-                                             fab_name + ' Zone by Non-Targets (effective zone only)')
-            tbl_contents.append(dict(sc=1, s=sname, d='Zone by Non-Targets'))
-            sheet_index += 1
-
-        #  Alias Page
-        if _report_pages['alias']['s']:
-            brcdapi_log.log('    Building alias page', True)
-            sname = prefix + '_alias'
-            report_zone.alias_page(fab_obj, tc_page, wb, sname, sheet_index, fab_name + ' Alias Detail')
-            tbl_contents.append(dict(sc=1, s=sname, d='Alias Detail'))
-            sheet_index += 1
-
-        #  Login Page
-        if _report_pages['login']['s']:
-            brcdapi_log.log('    Building login page', True)
-            sname = prefix + '_login'
-            report_login.login_page(wb, tc_page, sname, sheet_index, fab_name + ' Logins', fab_obj.r_login_objects(),
-                                    rt.Login.login_tbl, rt.Login.login_display_tbl, True)
-            tbl_contents.append(dict(sc=1, s=sname, d='Logins'))
-            sheet_index += 1
-
-    #  IOCP Page
-    if _report_pages['iocp']['s']:
-        iocp_objects = proj_obj.r_iocp_objects()
-        if len(iocp_objects) > 0:
-            brcdapi_log.log('Adding the IOCP pages', True)
-            tbl_contents.append(dict(h=True, d='IOCPs'))
-            for iocp_obj in iocp_objects:
-                sname = report_utils.valid_sheet_name.sub('', iocp_obj.r_obj_key())[:22]
-                report_iocp.iocp_page(iocp_obj, tc_page, wb, sname, sheet_index, sname)
-                tbl_contents.append(dict(sc=1, s=sname, d=sname))
-                sheet_index += 1
-
-    # Add the Best Practice page
-    if _report_pages['bp']['s']:
-        sname = 'Best_Practice'
-        buf = 'Best Practice Violations'
-        report_bp.bp_page(wb, tc_page, sname, 0, buf, proj_obj, rt.BestPractice.bp_tbl,
-                          rt.BestPractice.bp_display_tbl)
-        tbl_contents.insert(0, dict(sc=1, s=sname, d=buf))
-        tbl_contents.insert(0, dict(h=True, d=buf))
-
-    # Add the missing chassis (chassis not polled) to the title & contents page
-    i = 0
-    tbl_contents.append(dict(h=True, merge=3, d='Missing chassis (discovered in fabrics but not polled)'))
-    for chassis_obj in proj_obj.r_chassis_objects():
-        if chassis_obj.r_get('brocade-chassis') is None:
-            # Try to find a chassis name
-            chassis_name = None
-            for obj in chassis_obj.r_switch_objects():
-                chassis_name = obj.r_get('brocade-fabric/fabric-switch/chassis-user-friendly-name')
-                if chassis_name is not None:
-                    break
-            if chassis_name is None:
-                chassis_name = 'Unknown'
-            chassis_name += ' (' + chassis_obj.r_obj_key() + '). Known logical switches:'
-            tbl_contents.append(dict(sc=1, d=chassis_name))
-            for obj in chassis_obj.r_switch_objects():
-                tbl_contents.append(dict(sc=2, d=brcddb_switch.best_switch_name(obj, True)))
-            i += 1
-    if i == 0:
-        tbl_contents.append(dict(sc=1, d='None'))
-
-    # Insert the title & contents page
-    proj_title_page(proj_obj, None, wb, 0, tc_page, 'Contents', contents=tbl_contents)
+    # Add the pages to the report
+    for report_d in report_l:
+        if 'rs' in report_d and report_d['rs']:
+            sheet_index = 0
+        for obj in report_d['obj_l']:
+            start_i = sheet_index
+            obj_name = report_d['obj_name'](obj)
+            control_d = obj.r_get('report_app/control')
+            if isinstance(control_d, dict):  # It should always be a dict. This is just belt and suspenders
+                for ctl_d in [control_d[k] for k in report_d['add_name']]:  # Add the object name to the titles
+                    ctl_d['t'] += obj_name
+            brcdapi_log.log(report_d['feedback'] + obj_name, True)
+            for ctl_d in [report_d['control'][k] for k in report_d['order']]:
+                sheet_index += ctl_d['a'](obj,
+                                          wb,
+                                          start_i if 'sf' in ctl_d and ctl_d['sf'] else sheet_index)
 
     # Save the report.
     try:
-        report_utils.save_report(wb, outf)
+        excel_util.save_report(wb, outf)
     except PermissionError:
-        brcdapi_log.log('Permission error writing ' + outf + '. File may be open in another application.', True)
+        brcdapi_log.log(['', 'Permission error writing ' + outf + '. File may be open in another application.'], True)
         proj_obj.s_error_flag()
+    except FileNotFoundError:
+        brcdapi_log.log(['', 'Write report failed. Folder in ' + outf + ' does not exist.'], True)
+        proj_obj.s_error_flag()
+
+    return
