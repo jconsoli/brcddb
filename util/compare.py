@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -45,11 +45,19 @@ c, change_rec = compare(b_obj, c_obj, control_tbl)
                   'r':    Change. Output depends on type
               }
 
-Important Notes::
+**Important Notes**
 
     * int & float types are treated as the same type so as to avoid getting a type mismatch. This means 5 and 5.0 are
       considered the same.
     * Base ('b') and compare ('c') values are always converted to a str in the output
+
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | compare               | External interface to compare utility, _compare                                       |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -64,15 +72,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 31 Dec 2021   | Removed unused code.                                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 28 Apr 2022   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import copy
 import re
@@ -120,8 +130,7 @@ def _check_control(ref, control_tbl):
     :rtype gt: int, float
     """
     skip_flag = False
-    lt = 0
-    gt = 0
+    lt = gt = 0
     if isinstance(control_tbl, dict):
         for k in control_tbl.keys():
             if re.search(k, ref):
@@ -163,6 +172,7 @@ def _str_compare(r_obj, ref, b_str, c_str, control_tbl):
     if i_b_str != i_c_str:
         _update_r_obj(r_obj, {'b': i_b_str, 'c': i_c_str, 'r': _CHANGED})
         return 1
+
     return 0
 
 
@@ -359,8 +369,7 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
         return 1
 
     # Setup the return values
-    change_list = list()
-    c = 0
+    change_list, c = list(), 0
 
     # If members are all str, it's typically a list of WWNs or zones. We don't care if they are not in the same order.
     # This was shoe horned in long after this module was written. I didn't want to mess with what was already working.
@@ -377,9 +386,7 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
                         change_list.append({'b': '', 'c': buf, 'r': _NEW})
                     c += 1
             else:
-                all_str_flag = False
-                c = 0
-                change_list = list()
+                all_str_flag, c, change_list = False, 0, list()
                 break
         compare_obj = obj_list[i]
 

@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -14,6 +14,21 @@
 # limitations under the License.
 """
 :mod:`brcddb.util.copy` - Contains brcd copy methods
+
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | object_copy           | Performs the iterative (deep) copy of plain dict to brcddb object. Used by            |
+    |                       | brcddb_to_plain_copy()                                                                |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | brcddb_to_plain_copy  | Copies a brcddb dict class to a plain python dict.                                    |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | plain_copy_to_brcddb  | Copies a plain object created with brcddb_to_plain_copy back to a brcddb object.      |
+    |                       | Typically used after read_dump to convert a plain dict back to a project object - see |
+    |                       | brcddb_project.py                                                                     |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -33,15 +48,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 31 Dec 2021   | Added _chpid_objs, _switch_id, and _link_addr                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 28 Apr 2022   | Updated documentation.                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
@@ -159,6 +176,7 @@ def object_copy(obj, objx, flag_obj=None, skip_list=None):
 
 def brcddb_to_plain_copy(objx, obj, flag_obj=None, skip_list=None):
     """Copies a brcddb dict class to a plain python dict.
+
     :param objx: brcddb object to convert to plain dict
     :type objx: brcddb class object
     :param obj: plain dictionary where objx is to be copied

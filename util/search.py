@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -15,20 +15,28 @@
 """
 :mod:`brcddb.util.search` - Contains search and threshold compare methods.
 
-Primary Methods::
+Public Methods & Data::
 
-    +-------------------+---------------------------------------------------------------------------------------+
-    | Method            | Description                                                                           |
-    +===================+=======================================================================================+
-    | test_threshold()  | Filters a list of objects based on a number (int or float) and test condition         |
-    +-------------------+---------------------------------------------------------------------------------------+
-    | match()           | Performs a regex match/search or wild card search in dict or brcddb class object(s)   |
-    +-------------------+---------------------------------------------------------------------------------------+
-    | match_test()      | Performs a pre-defined complex test using match() and test_threshold.                 |
-    +-------------------+---------------------------------------------------------------------------------------+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | test_threshold        | Filters a list of objects based on a number (int or float) and test condition         |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | match                 | Performs a regex match/search or wild card search in dict or brcddb class object(s).  |
+    |                       | If search_key is a list of more than one, OR logic applies. Performs an iteritive     |
+    |                       | search on any list, tuple, dict, or brcddb object found after the last search key. If |
+    |                       | a list is encountered, an iteritive search is performed on the list. If the search    |
+    |                       | keys have not been exhausted, then the remaining search keys are applied to the       |
+    |                       | iteritive searches.                                                                   |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | match_test            | Performs a pre-defined complex test using match() and test_threshold. Any key         |
+    |                       | collected from the API and put into an object can be evaluated for an exact match,    |
+    |                       | a regex match, a regex search, and wild card match on str value types. Numbers can    |
+    |                       | use comparitive operators >, <, >=, <=, !=, and ==. Types bool can only be evaluated  |
+    |                       | for True or False.                                                                     |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
-
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
@@ -41,15 +49,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 14 Aug 2021   | Added common search terms.                                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 28 Apr 2022   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '14 Aug 2021'
+__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import re
 import fnmatch
@@ -157,9 +167,10 @@ def test_threshold(obj_list, key, test, val):
 
 def match(search_objects, search_key, in_search_term, ignore_case=False, stype='exact'):
     """Performs a regex match/search or wild card search in dict or brcddb class object(s). If search_key is a list of
-        more than one, OR logic applies. Performs an iteritive search on any list, tuple, dict, or brcddb object found
-        after the last search key. If a list is encountered, an iteritive search is performed on the list. If the search
-        keys have not been exhausted, then the remaining search keys are applied to the iteritive searches.
+       more than one, OR logic applies. Performs an iteritive search on any list, tuple, dict, or brcddb object found
+       after the last search key. If a list is encountered, an iteritive search is performed on the list. If the search
+       keys have not been exhausted, then the remaining search keys are applied to the iteritive searches.
+
         **WARNING:** Circular references will result in Python stack overflow issues. Since all brcddb objects have a
         link back to the main project object, at least one key must be used to avoid this circular reference
 
@@ -286,7 +297,6 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
 
 def match_test(obj_list, test_obj, logic=None):
     """Performs a pre-defined complex test using match() and test_threshold.
-
     Any key collected from the API and put into an object can be evaluated for an exact match, a regex match, a regex
     search, and wild card match on str value types. Numbers can use comparitive operators >, <, >=, <=, !=, and ==.
     Types bool can only be evaluated for True or False.
@@ -376,7 +386,7 @@ def match_test(obj_list, test_obj, logic=None):
             return list()
 
     if lg == 'or':
-    # if lg == 'nand' or lg == 'or':
+        # if lg == 'nand' or lg == 'or':
         w_list = o_list
 
     return list(w_list)

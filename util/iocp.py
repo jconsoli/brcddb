@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -30,6 +30,34 @@ Note that an IOCP is in old punch card format where certain characters in certai
 re-invent the wheel, this was taken from an old Perl script and converted to Python. It certainly isn't elegant but it
 is functional.
 
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | full_cpc_sn           | Prepends a CPC SN with 0 such that it is padded to a full 12 character serial number  |
+    |                       | to match RNID sequence.                                                               |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | dev_type_desc         | Converts the RNID type to a human readable device type                                |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | css_to_tag            | Parses a list of CSS into the first byte for the tag                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | css_chpid_to_tag      | Parses a CSS(x,y)chpid into the equivalent tag                                        |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | tag_to_css_list       | Converts a tag to a list of CSS bits                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | tag_to_text           | Converts a CHPID tag to human readable format (as displayed in the IOCP)              |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | tag_to_ind_tag_list   | Returns a list of individual tags for a tag. For example: 'C0' is returned as a list  |
+    |                       | of '80', '40'                                                                         |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | rnid_flag_to_text     | Converts the RNID flag to human readable text                                         |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | parse_iocp            | Parses an IOCP and adds the IOCP to the proj_obj                                      |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | link_addr_to_fc_addr  | Converts a link address to a fibre channel address.                                   |
+    +-----------------------+---------------------------------------------------------------------------------------+
+
 Version Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -53,20 +81,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 31 Dec 2021   | Added tag_to_ind_tag_list(). Miscellaneous bug fixes.                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 28 Apr 2022   | Added machine type 3931 (z16) and fixed control unit matching when CSS for the    |
+    |           |               | CNTLUNIT macro is a sub-set of the CSS for the CHPID.                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import collections
 import brcdapi.log as brcdapi_log
-import brcddb.util.util as brcddb_util
-import brcddb.util.file as brcddb_file
+import brcdapi.gen_util as gen_util
+import brcdapi.file as brcdapi_file
 
 # Converts IBM device type to user friendly name, 'd', and the generic type, 't'
 # Note: These are the types as ordered from IBM. CECs log in to the fabric with the types in this table but devices log
@@ -93,6 +124,7 @@ _ibm_type = {
     '3907': dict(d='z14s', t='CPU'),  # I guess. z14s not announced at the time I wrote this.
     '8561': dict(d='z15 T01', t='CPU'),
     '8562': dict(d='z15 T02', t='CPU'),
+    '3931': dict(d='z16', t='CPU'),
 
     # CTC
     'FCTC': dict(d='CTC', t='CTC'),
@@ -348,13 +380,13 @@ def css_chpid_to_tag(chpid):
     # is CSS & CHPID and what is everything else
 
     # Get the tag - a 2 byte hex number where the CSS flags are the most significant byte followed by the CHPID
-    working_buf, r_buf = brcddb_util.paren_content(chpid, True)
+    working_buf, r_buf = gen_util.paren_content(chpid, True)
     # d is used to sort out what CSS goes with which CHPID. The same CHPIDs do not have to follow each CSS(x). It is
     # ordered because the control unit macro must match link addresses to the CHPIDs associated with these CSS in the
     # order of CHPIDs and LINK addresses in the control unit macro
     d = collections.OrderedDict()
     while 'CSS(' in working_buf:
-        t_buf, working_buf = brcddb_util.paren_content(working_buf[working_buf.find('CSS(') + len('CSS'):], True)
+        t_buf, working_buf = gen_util.paren_content(working_buf[working_buf.find('CSS(') + len('CSS'):], True)
         css_list = [int(c) for c in t_buf.split(',')]
         l = working_buf[0: working_buf.find(')')].split(',') if ')' in working_buf else working_buf.split(',')
         for c in [c.upper() for c in l if len(c) > 1]:
@@ -363,8 +395,6 @@ def css_chpid_to_tag(chpid):
                 cl = list()
                 d.update({c: cl})
             cl.extend(css_list)
-
-    debug_l = [css_to_tag(v) + str(k).upper() for k, v in d.items()]
 
     return [css_to_tag(v) + str(k).upper() for k, v in d.items()], r_buf
 
@@ -566,7 +596,7 @@ def _parse_cntlunit(cntlunit):
             cntl_unit = cntl_macro.split(',')[0]
             # Get the tag - a 2 byte hex number where the CSS flags are the most significant byte followed by the CHPID
             chpid_tag_list, working_buf = css_chpid_to_tag(cntl_macro[cntl_macro.find('PATH=') + len('PATH='):])
-            links, working_buf = brcddb_util.paren_content(cntl_macro[cntl_macro.find('LINK=') + len('LINK='):], True)
+            links, working_buf = gen_util.paren_content(cntl_macro[cntl_macro.find('LINK=') + len('LINK='):], True)
             d = collections.OrderedDict()
             for k in chpid_tag_list:
                 d.update({k: list()})  # List of link addresses associated with each CHPID
@@ -622,7 +652,7 @@ def parse_iocp(proj_obj, iocp):
     brcdapi_log.log('Parsing: ' + iocp, True)
 
     # Read in the IOCP definition file and get an IOCP object
-    iocp_list = brcddb_file.read_file(iocp, False, False)
+    iocp_list = brcdapi_file.read_file(iocp, False, False)
     iocp_obj = proj_obj.s_add_iocp(iocp.split('/').pop().split('_')[0])
 
     # Parse the CHPID and CNTLUNIT macros
@@ -631,24 +661,20 @@ def parse_iocp(proj_obj, iocp):
     # Create all the CHPID objects
     for chpid in chpid_l:
         tag_l, partition, pchid, switch_id = _parse_chpid(chpid)
-
         for chpid_tag in tag_l:
-            chpid_obj = iocp_obj.s_add_chpid(chpid_tag, partition, pchid, switch_id)
+            iocp_obj.s_add_chpid(chpid_tag, partition, pchid, switch_id)
 
-            # Parse and add all the control units to the CHPID paths
-            control_units = _parse_cntlunit(cntlunit_l)
-            # Figure out what the paths are and add them to the IOCP object
-            for k, v in control_units.items():  # k is the CU number, v is a dict of the parsed CONTLUNIT macro
-                for tag, link_addr in v['path'].items():
-                    try:
-                        iocp_obj.r_path_obj(tag).s_add_path(link_addr, k, v['unit'])
-                    except AttributeError:
-                        # This can happen when the CHPID macro was built with multiple CSS but the CNTLUNIT macro with
-                        # individual CSS. For example, CHPID defined with CSS(0,1) but the CNTLUNIT macro was built with
-                        # CSS(0). It's up to the applications to sort this out. Ideally, I should build a CHPID object
-                        # for each CSS and parse each CNTLUNIT macro accordingly but I have a day job and this was good
-                        # enough for what it is used for.
-                        pass
+    # Parse and add all the control units to the CHPID paths
+    control_units = _parse_cntlunit(cntlunit_l)
+    # Figure out what the paths are and add them to the IOCP object
+    for k, v in control_units.items():  # k is the CU number, v is a dict of the parsed CONTLUNIT macro
+        for tag, link_addr in v['path'].items():
+            try:
+                iocp_obj.r_path_obj(tag, exact_match=False).s_add_path(link_addr, k, v['unit'])
+            except AttributeError:
+                # Every once in a while, someone gives me an IOCP that doesn't compile
+                brcdapi_log.log('tag in CNTLUNIT macro, ' + tag + ', for link address ' + link_addr + \
+                                ' does not match any defined CHPIDs in ' + iocp, True)
 
     return
 

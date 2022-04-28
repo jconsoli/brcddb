@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -22,6 +22,14 @@ Description::
     port objects associated with a zone object. This module contains the method obj_extract() which returns a list of
     any requested object from any object.
 
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | obj_extract           | Extracts a list of objects from an object or list of objects                          |
+    +-----------------------+---------------------------------------------------------------------------------------+
+
 Version Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -37,20 +45,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 14 Nov 2021   | Permitted a list to be passed to obj_extract()                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 28 Apr 2022   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '13 Feb 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.5'
 
 import brcdapi.log as brcdapi_log
+import brcdapi.gen_util as gen_util
 import brcddb.classes.util as brcddb_class_util
-import brcddb.util.util as brcddb_util
 
 
 def _zone_obj_list(fab_obj, zl):
@@ -83,15 +95,12 @@ def _alert_obj(obj):
 
 def _project_obj(obj):
     """Returns the project object associated with obj in a list. See _obj_self() for parameter detail."""
-    return brcddb_util.convert_to_list(obj.r_project_obj())
+    return gen_util.convert_to_list(obj.r_project_obj())
 
 
 def _fabric_obj(obj):
     """Returns a list of fabric objects associated with obj. See _obj_self() for parameter detail."""
-    try:
-        return obj.r_fabric_objects()
-    except:
-        return brcddb_util.convert_to_list(obj.r_fabric_obj())
+    return obj.r_fabric_objects() if hasattr(obj, 'r_fabric_objects') else [obj.r_fabric_obj()]
 
 
 def _fdmi_node_obj(obj):
@@ -106,58 +115,37 @@ def _fdmi_port_obj(obj):
 
 def _login_obj(obj):
     """Returns a list of login objects associated with obj. See _obj_self() for parameter detail."""
-    try:
-        return obj.r_login_objects()
-    except:
-        return brcddb_util.convert_to_list(obj.r_login_obj())
+    return obj.r_login_objects() if hasattr(obj, 'r_login_objects') else [obj.r_login_obj()]
 
 
 def _port_obj(obj):
     """Returns a list of port objects associated with obj. See _obj_self() for parameter detail."""
-    try:
-        return obj.r_port_objects()
-    except:
-        return brcddb_util.convert_to_list(obj.r_port_obj())
+    return obj.r_port_objects() if hasattr(obj, 'r_port_objects') else [obj.r_port_obj()]
 
 
 def _switch_obj(obj):
     """Returns a list of port objects associated with obj. See _obj_self() for parameter detail."""
-    try:
-        return obj.r_switch_objects()
-    except:
-        return brcddb_util.convert_to_list(obj.r_switch_obj())
+    return obj.r_switch_objects() if hasattr(obj, 'r_chassis_objects') else [obj.r_switch_obj()]
 
 
 def _chassis_obj(obj):
     """Returns a list of chssis objects associated with obj. See _obj_self() for parameter detail."""
-    try:
-        return obj.r_chassis_objects()
-    except:
-        return brcddb_util.convert_to_list(obj.r_chassis_obj())
+    return obj.r_chassis_objects() if hasattr(obj, 'r_chassis_objects') else [obj.r_chassis_obj()]
 
 
 def _alias_obj(obj):
     """Returns a list of alias objects associated with obj. See _obj_self() for parameter detail."""
-    try:
-        return obj.r_alias_objects()
-    except:
-        return brcddb_util.convert_to_list(obj.r_alias_obj())
+    return obj.r_alias_objects() if hasattr(obj, 'r_alias_objects') else [obj.r_alias_obj()]
 
 
 def _zone_obj(obj):
     """Returns a list of zone objects associated with obj. See _obj_self() for parameter detail."""
-    try:
-        return obj.r_zone_objects()
-    except:
-        return brcddb_util.convert_to_list(obj.r_zone_obj())
+    return obj.r_zone_objects() if hasattr(obj, 'r_zone_objects') else [obj.r_zone_obj()]
 
 
 def _zonecfg_obj(obj):
     """Returns a list of zone configuration objects associated with obj. See _obj_self() for parameter detail."""
-    try:
-        return obj.r_zonecfg_objects()
-    except:
-        return brcddb_util.convert_to_list(obj.r_zonecfg_obj())
+    return obj.r_zonecfg_objects() if hasattr(obj, 'r_zonecfg_objects') else [obj.r_zonecfg_obj()]
 
 
 def _port_obj_for_alias(obj):
@@ -165,8 +153,8 @@ def _port_obj_for_alias(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    rl = [fab_obj.r_port_obj_for_wwn(mem) for mem in obj.r_members() if brcddb_util.is_wwn(mem)]
-    rl.extend([fab_obj.r_port_object_for_di(mem) for mem in obj.r_members() if brcddb_util.is_di(mem)])
+    rl = [fab_obj.r_port_obj_for_wwn(mem) for mem in obj.r_members() if gen_util.is_wwn(mem)]
+    rl.extend([fab_obj.r_port_object_for_di(mem) for mem in obj.r_members() if gen_util.is_di(mem)])
     return [mem for mem in rl if mem is not None]  # I don't think mem can ever be None but I'm not fixing working code
 
 
@@ -177,9 +165,9 @@ def _ports_for_zone_obj(obj):
         return list()
     rl = list()
     for mem in obj.r_members() + obj.r_pmembers():
-        if brcddb_util.is_wwn(mem):
+        if gen_util.is_wwn(mem):
             rl.append(fab_obj.r_port_obj_for_wwn(mem))
-        elif brcddb_util.is_di(mem):
+        elif gen_util.is_di(mem):
             rl.append(fab_obj.r_port_object_for_di(mem))
         else:  # It must be an alias
             alias_obj = fab_obj.r_alias_obj(mem)
@@ -250,7 +238,7 @@ def _fdmi_node_obj_for_alias(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is not None:
         for mem in obj.r_members():
-            if brcddb_util.is_wwn(mem):
+            if gen_util.is_wwn(mem):
                 rl.append(fab_obj.r_fdmi_node_obj(mem))
     return [mem for mem in rl if mem is not None]
 
@@ -261,7 +249,7 @@ def _fdmi_port_obj_for_alias(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is not None:
         for mem in obj.r_members():
-            if brcddb_util.is_wwn(mem):
+            if gen_util.is_wwn(mem):
                 rl.append(fab_obj.r_fdmi_port_obj(mem))
     return [fdmi_port_obj for fdmi_port_obj in rl if fdmi_port_obj is not None]
 
@@ -269,17 +257,15 @@ def _fdmi_port_obj_for_alias(obj):
 def _login_obj_for_alias(obj):
     """Returns a list of login objects associated with an alias obj. See _obj_self() for parameter detail."""
     fab_obj = obj.r_fabric_obj()
-    return list() if fab_obj is None else [fab_obj.r_login_obj(m) for m in obj.r_members() if brcddb_util.is_wwn(m)]
+    return list() if fab_obj is None else [fab_obj.r_login_obj(m) for m in obj.r_members() if gen_util.is_wwn(m)]
 
 
 def _alias_for_switch(obj):
     """Returns a list of alias objects associated with a switch obj. See _obj_self() for parameter detail."""
-    fab_obj = obj.r_fabric_obj()
-    if fab_obj is None:
-        return list()
-    rl = list()
-    for wwn in obj.r_login_keys():
-        rl.extend(fab_obj.r_alias_obj_for_wwn(wwn))
+    rl, fab_obj = list(), obj.r_fabric_obj()
+    if fab_obj is not None:
+        for wwn in obj.r_login_keys():
+            rl.extend(fab_obj.r_alias_obj_for_wwn(wwn))
     return rl
 
 
@@ -302,23 +288,22 @@ def _zonecfg_obj_for_chassis(obj):
 def _alias_obj_for_port(obj):
     """Returns a list of alias objects associated with a fabric. See _obj_self() for parameter detail."""
     rl = list()
-    try:
-        fab_obj = obj.r_switch_obj().r_fabric_obj()
-        for wwn in obj.r_login_keys():
-            rl.extend(fab_obj.r_alias_obj_for_wwn(wwn))
-    except:
-        pass
+    if hasattr(obj, r_switch_obj):
+        switch_obj = obj.r_switch_obj()
+        if switch_obj is not None:
+            fab_obj = switch_obj.r_fabric_obj()
+            if fab_obj is not None:
+                for wwn in obj.r_login_keys():
+                    rl.extend(fab_obj.r_alias_obj_for_wwn(wwn))
     return rl
 
 
 def _alias_obj_for_switch(obj):
     """Returns a list of alias objects associated with a switch. See _obj_self() for parameter detail."""
-    fab_obj = obj.r_fabric_obj()
-    if fab_obj is None:
-        return list()
-    rl = list()
-    for wwn in obj.r_login_keys():
-        rl.extend(fab_obj.r_alias_obj_for_wwn(wwn))
+    rl, fab_obj = list(), obj.r_fabric_obj()
+    if fab_obj is not None:
+        for wwn in obj.r_login_keys():
+            rl.extend(fab_obj.r_alias_obj_for_wwn(wwn))
     return [mem for mem in rl if mem is not None]
 
 
@@ -348,7 +333,7 @@ def _login_obj_for_fdmi(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    return brcddb_util.convert_to_list(fab_obj.r_login_obj(obj.r_obj_key()))
+    return gen_util.convert_to_list(fab_obj.r_login_obj(obj.r_obj_key()))
 
 
 def _port_obj_for_fdmi(obj):
@@ -374,8 +359,7 @@ def _chassis_obj_for_fdmi(obj):
 
 def _zone_obj_for_fdmi(obj):
     """Returns a list of zone objects an FDMI node or port obj participates in. See _obj_self() for parameter detail."""
-    rl = list()
-    fab_obj = obj.r_fabric_obj()
+    rl, fab_obj = list(), obj.r_fabric_obj()
     for login_obj in _login_obj_for_fdmi(obj):
         rl.extend([zone_obj for zone_obj in _zone_obj_list(fab_obj, fab_obj.r_zones_for_wwn(login_obj.r_obj_key()))])
     return rl
@@ -394,7 +378,7 @@ def _fdmi_node_obj_for_login(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    return [mem for mem in brcddb_util.convert_to_list(fab_obj.r_fdmi_node_obj(obj.r_obj_key())) if mem is not None]
+    return [mem for mem in gen_util.convert_to_list(fab_obj.r_fdmi_node_obj(obj.r_obj_key())) if mem is not None]
 
 
 def _fdmi_port_obj_for_login(obj):
@@ -402,7 +386,7 @@ def _fdmi_port_obj_for_login(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    return [mem for mem in brcddb_util.convert_to_list(fab_obj.r_fdmi_port_obj(obj.r_obj_key())) if mem is not None]
+    return [mem for mem in gen_util.convert_to_list(fab_obj.r_fdmi_port_obj(obj.r_obj_key())) if mem is not None]
 
 
 def _fdmi_node_for_fdmi_port(obj):
@@ -410,7 +394,7 @@ def _fdmi_node_for_fdmi_port(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    return [mem for mem in brcddb_util.convert_to_list(fab_obj.r_fdmi_node_obj(obj.r_obj_key())) if mem is not None]
+    return [mem for mem in gen_util.convert_to_list(fab_obj.r_fdmi_node_obj(obj.r_obj_key())) if mem is not None]
 
 
 def _fdmi_port_for_fdmi_node(obj):
@@ -418,7 +402,7 @@ def _fdmi_port_for_fdmi_node(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    return [mem for mem in brcddb_util.convert_to_list(fab_obj.r_fdmi_port_obj(obj.r_obj_key())) if mem is not None]
+    return [mem for mem in gen_util.convert_to_list(fab_obj.r_fdmi_port_obj(obj.r_obj_key())) if mem is not None]
 
 
 def _zone_obj_for_login(obj):
@@ -464,12 +448,10 @@ def _zonecfg_obj_for_project(obj):
 
 def _zone_obj_for_obj(obj):
     """Returns a list of zone objects a port or switch obj participates in. See _obj_self() for parameter detail."""
-    fab_obj = obj.r_fabric_obj()
-    if fab_obj is None:
-        return list()
-    zl = list()
-    for wwn in obj.r_login_keys():
-        zl.extend(fab_obj.r_zones_for_wwn(wwn))
+    zl, fab_obj = list(), obj.r_fabric_obj()
+    if fab_obj is not None:
+        for wwn in obj.r_login_keys():
+            zl.extend(fab_obj.r_zones_for_wwn(wwn))
     return _zone_obj_list(fab_obj, zl)
 
 
@@ -483,8 +465,8 @@ def _zonecfg_obj_for_obj(obj):
 
 def _alias_for_zone(obj):
     """Returns a list of alias objects for a zone. See _obj_self() for parameter detail."""
-    return [mem for mem in obj.r_members() + obj.r_pmembers() if not brcddb_util.is_wwn(mem) and
-            not brcddb_util.is_di(mem)]
+    return [mem for mem in obj.r_members() + obj.r_pmembers() if not gen_util.is_wwn(mem) and
+            not gen_util.is_di(mem)]
 
 
 def _alias_for_zonecfg(obj):
@@ -497,13 +479,12 @@ def _alias_for_zonecfg(obj):
 
 def _login_for_zone(obj):
     """Returns a list of login objects for a zone. See _obj_self() for parameter detail."""
-    rl = list()
-    fab_obj = obj.r_fabric_obj()
+    rl, fab_obj = list(), obj.r_fabric_obj()
     if fab_obj is not None:
         for mem in obj.r_members() + obj.r_pmembers():
-            if brcddb_util.is_wwn(mem):
+            if gen_util.is_wwn(mem):
                 rl.append(fab_obj.r_login_obj(mem))
-            elif brcddb_util.is_di(mem):
+            elif gen_util.is_di(mem):
                 port_obj = fab_obj.r_port_object_for_di(mem)
                 if port_obj is not None:
                     rl.extend(port_obj.r_login_objects())
@@ -744,19 +725,20 @@ _obj_convert_tbl = dict(
 
 
 def obj_extract(from_obj, to_type):
-    """Extracts a list of objects from an object
+    """Extracts a list of objects from an object or list of objects
 
-    :param from_obj: The brcddb object the to_obj is to be extracted from
-    :type from_obj: brcddb.classes.*
+    :param from_obj: The brcddb object or object list the to_obj is to be extracted from
+    :type from_obj: list, tuple, brcddb.classes.*
     :param to_type: The object simple object type, brcddb.classes.util.get_simple_class_type(), to extract from from_obj
     :type to_type: str
     :return: List of objects extracted from from_obj associated with to_obj. Redundant objects removed
     :rtype: brcddb.classes.* (whatever type to_obj is)
     """
-    from_type = brcddb_class_util.get_simple_class_type(from_obj)
-    if from_type is None:
-        brcdapi_log.exception('Unknown from_obj object type: ' + str(type(from_type)))
-        return list()
-    return brcddb_util.remove_duplicates([obj for obj in _obj_convert_tbl[from_type][to_type](from_obj) if
-                                          obj is not None])
-
+    rl = list()
+    for in_obj in gen_util.convert_to_list(from_obj):
+        from_type = brcddb_class_util.get_simple_class_type(in_obj)
+        if from_type is None:
+            brcdapi_log.exception('Unknown from_obj object type: ' + str(type(from_type)))
+        else:
+            rl.extend([obj for obj in _obj_convert_tbl[from_type][to_type](in_obj) if obj is not None])
+    return gen_util.remove_duplicates(rl)

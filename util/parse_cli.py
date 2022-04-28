@@ -1,4 +1,4 @@
-# Copyright 2021 Broadcom.  All rights reserved.
+# Copyright 2021, 2022 Broadcom.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,36 @@
 """
 :mod:`parse_cli` - Parses CLI output.
 
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | switchshow            | Adds a switch object to a project object from switchshow output                       |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | portbuffershow        | Adds the portbuffershow output to the ports in a switch object                        |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | portstatsshow         | Parse portstatsshow and add to the port objects                                       |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | portstats64show       | Parse portstats64show and add to the port objects                                     |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | chassisshow           | Adds a chassis object to a project object from chassisshow output                     |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | fabricshow            | Adds a fabric object to a project object from fabricshow output                       |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | nsshow                | Parse nsshow outpu                                                                    |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | sfpshow               | Parse sfpshow output                                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | cfgshow               | Parse cfgshow output                                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | ficonshow             | Parse ficonshow output                                                                |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | slotshow_d576         | Parse slotshow_d576 output                                                            |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | defzone               | Parse defzone output                                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+
 Version Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -23,16 +53,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 1.0.1     | 31 Dec 2021   | chassisshow(): "Chassis Factory Serial Num:" not always in SS so use "WWN  Unit:" |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 1.0.2     | 28 Apr 2022   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 
 import re
 import time
@@ -40,6 +72,7 @@ import collections
 import copy
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
+import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_port as brcddb_port
@@ -367,7 +400,7 @@ def switchshow(obj, content, append_buf=''):
     while len(content) > i:
         buf = content[i]
         if 'Index' in buf and 'Media' in buf:
-            cl = brcddb_util.remove_duplicate_space(buf).strip().split(' ')
+            cl = gen_util.remove_duplicate_space(buf).strip().split(' ')
             for x in range(0, len(cl)):
                 port_index.update({cl[x]: x})
             break
@@ -379,7 +412,7 @@ def switchshow(obj, content, append_buf=''):
     i += 2  # Skip the line just below it that has ================ in it
     while len(content) > i:
         buf = content[i].replace('\t', ' ').strip()
-        cl = brcddb_util.remove_duplicate_space(buf).split(' ')
+        cl = gen_util.remove_duplicate_space(buf).split(' ')
         if len(cl) < 7:
             break
         if cl[port_index['Proto']] == 'FC':
@@ -388,7 +421,7 @@ def switchshow(obj, content, append_buf=''):
             port_num += '/' + cl[port_index.get('Port')]
             physical_state = _physical_port_state.get(cl[port_index['State']])
             try:
-                speed = int(brcddb_util.non_decimal.sub('', cl[port_index['Speed']])) * 1000000000
+                speed = int(gen_util.non_decimal.sub('', cl[port_index['Speed']])) * 1000000000
             except ValueError:
                 speed = 32000000000
             port_d = {
@@ -491,8 +524,8 @@ def portbuffershow(obj, content):
         if state == 0:
             if char == '-':
                 if isinstance(last_d, dict):
-                    last_d.update(dict(e=i-1))
-                active_d.update(dict(s=i))
+                    last_d.update(e=i-1)
+                active_d.update(s=i)
                 if len(key_l) > 0:
                     last_d = active_d
                     active_d = port_buf_d[key_l.pop(0)]
@@ -503,7 +536,7 @@ def portbuffershow(obj, content):
             if char == ' ':
                 state = 0
         i += 1
-    active_d.update(dict(e=len(buf_l[2])-1))
+    active_d.update(e=len(buf_l[2])-1)
 
     # Now parse the portbuffershow output
     for buf in content:
@@ -561,7 +594,7 @@ def portstatsshow(obj, content):
         buf = buf.replace('er_multi_credit_loss', 'er_multi_credit_loss ')
         buf = buf.replace('fec_corrected_rate', 'fec_corrected_rate ')
         buf = buf.replace('latency_dma_ts', 'latency_dma_ts ')
-        tl = brcddb_util.remove_duplicate_space(buf).split(' ')
+        tl = gen_util.remove_duplicate_space(buf).split(' ')
         if len(tl) < 2:
             continue
 
@@ -600,7 +633,7 @@ def portstats64show(obj, content):
     while len(content) > i:
 
         # Get the port object
-        buf = brcddb_util.remove_duplicate_space(content[i].replace('\t', ' '))
+        buf = gen_util.remove_duplicate_space(content[i].replace('\t', ' '))
         if len(buf) == 0:
             i += 1
             continue
@@ -619,13 +652,13 @@ def portstats64show(obj, content):
         # Parse the port statistics
         i += 1
         while len(content) > i and len(content[i]) > 0:
-            buf = brcddb_util.remove_duplicate_space(content[i].replace('\t', ' '))
+            buf = gen_util.remove_duplicate_space(content[i].replace('\t', ' '))
             cl = buf.split(' ')
             key = _portstats_to_api.get(cl[0])
             if key is not None:
                 if 'top_int :' in buf:
                     i += 1
-                    lv = int(brcddb_util.remove_duplicate_space(content[i].replace('\t', ' ').strip()).split(' ')[0])
+                    lv = int(gen_util.remove_duplicate_space(content[i].replace('\t', ' ').strip()).split(' ')[0])
                     v = int('{:x}'.format(int(cl[1])) + '{:08x}'.format(lv), 16)
                 else:
                     v = int(cl[1])
@@ -658,11 +691,11 @@ def _chassishow_unit_parse(chassis_obj, content, cl, i, n, d):
     while len(cl) > 1:
         if cl[0] in _chassis_to_api:
             if cl[0] in ('Time Alive', 'Time Awake', 'Power Consume Factor', 'Generation Num'):
-                d.update({_chassis_to_api[cl[0]]: int(brcddb_util.non_decimal.sub('', cl[1]))})
+                d.update({_chassis_to_api[cl[0]]: int(gen_util.non_decimal.sub('', cl[1]))})
             else:
                 d.update({_chassis_to_api[cl[0]]: cl[1]})
         x += 1
-        cl = [p.strip() for p in brcddb_util.remove_duplicate_space(content[x].replace('\t', ' ')).split(':')]
+        cl = [p.strip() for p in gen_util.remove_duplicate_space(content[x].replace('\t', ' ')).split(':')]
 
     return x
 
@@ -673,7 +706,7 @@ def _chassishow_add(chassis_obj, content, cl, i, n):
 
 
 def _chassishow_add_int(chassis_obj, content, cl, i, n):
-    brcddb_util.add_to_obj(chassis_obj, n, int(brcddb_util.non_decimal.sub('', cl[1])))
+    brcddb_util.add_to_obj(chassis_obj, n, int(gen_util.non_decimal.sub('', cl[1])))
     return i + 1
 
 
@@ -736,7 +769,7 @@ def chassisshow(obj, content):
         i = 1
         while len(tl) > i:
             buf = tl[i]
-            cl = [p.strip() for p in brcddb_util.remove_duplicate_space(buf.replace('\t', ' ')).split(':')]
+            cl = [p.strip() for p in gen_util.remove_duplicate_space(buf.replace('\t', ' ')).split(':')]
             if len(cl) > 1:
                 if cl[0] in _chassisshow_actions:
                     i = _chassisshow_actions[cl[0]]['m'](chassis_obj, tl, cl, i, _chassisshow_actions[cl[0]]['n'])
@@ -777,7 +810,7 @@ def fabricshow(obj, content):
         ri += 1
         if 'The Fabric has' in buf or 'Fabric had' in buf or 'SS CMD END' in buf:
             break
-        l = brcddb_util.remove_duplicate_space(buf.strip()).split(' ')
+        l = gen_util.remove_duplicate_space(buf.strip()).split(' ')
         if len(l) > 5:
             if l[5][0] == '>':  # It's the principal switch
                 fab_obj = proj_obj.s_add_fabric(l[2])
@@ -889,7 +922,7 @@ def sfpshow(obj, content):
     switch_obj, state, port_num, port_obj, ri = obj.r_switch_obj(), _sfpshow_state_start, None, None, 0
 
     for buf in content:
-        buf = brcddb_util.remove_duplicate_space(buf.replace('\t', ' '))
+        buf = gen_util.remove_duplicate_space(buf.replace('\t', ' '))
 
         if state == _sfpshow_state_start:
             if len(buf) >= _sfp_sep_len and buf[0:_sfp_sep_len] == _sfp_sep:
@@ -931,13 +964,13 @@ def sfpshow(obj, content):
                 continue
             if port_obj.r_get('media-rdp/name') is None:
                 brcddb_util.add_to_obj(port_obj, 'media-rdp/name', 'fc/' + port_num)
-            cl = brcddb_util.remove_duplicate_space(buf.replace(':', ': ')).split(' ')
+            cl = gen_util.remove_duplicate_space(buf.replace(':', ': ')).split(' ')
             param = buf.split(':')[0]
 
             # Transceiver requires special handling
             if param == 'Transceiver':
                 try:
-                    vl = [int(brcddb_util.non_decimal.sub('', c)) for c in cl[2].split(',')]
+                    vl = [int(gen_util.non_decimal.sub('', c)) for c in cl[2].split(',')]
                 except ValueError:
                     vl = list()  # Typical of older SFP
                 brcddb_util.add_to_obj(port_obj, 'media-speed-capability/speed', vl)
@@ -953,9 +986,9 @@ def sfpshow(obj, content):
                 if d is not None:
                     try:
                         if d['type'] == 'int':
-                            v = int(brcddb_util.non_decimal.sub('', cl[d['p']]))
+                            v = int(gen_util.non_decimal.sub('', cl[d['p']]))
                         elif d['type'] == 'float':
-                            v = float(brcddb_util.non_decimal.sub('', cl[d['p']]))
+                            v = float(gen_util.non_decimal.sub('', cl[d['p']]))
                         else:
                             v = cl[d['p']]
                     except ValueError:
@@ -972,7 +1005,7 @@ def sfpshow(obj, content):
 def _cfgshow_zone_gen(fab_obj, member_l):
     zone_type, peer_mem_l, pmem_l = None, list(), list()
 
-    if len(member_l) > 0 and brcddb_util.is_wwn(member_l[0], full_check=False) and member_l[0].split(':')[0] == '00':
+    if len(member_l) > 0 and gen_util.is_wwn(member_l[0], full_check=False) and member_l[0].split(':')[0] == '00':
         """It's a peer zone. Note that a WWN with a leading '00' is not a valid WWN so this is used to indicate that the
         WWN is a property parameter for a peer zone. For a peer zone, the property member is always first, followed by
         the principal members, and then the peer members. The last byte of the property WWN is the number of absolute
@@ -1074,7 +1107,7 @@ def _cfgshow_process(state, buf):
     # Clean up the line for processing
     for tl in _cfgshow_clean_buf:
         t_buf = t_buf.replace(tl[0], tl[1])
-    tl = [b.strip() for b in brcddb_util.remove_duplicate_space(t_buf.strip()).split(' ') if len(b.strip()) > 0]
+    tl = [b.strip() for b in gen_util.remove_duplicate_space(t_buf.strip()).split(' ') if len(b.strip()) > 0]
 
     # Figure out what the key, operand, and content is
     k = tl[0] if len(tl) > 0 else None
@@ -1151,7 +1184,7 @@ def cfgshow(obj, content):
 
 
 def ficonshow(obj, content):
-    """Parse cfgshow output
+    """Parse ficonshow output
 
     :param obj: Switch object or object with a switch object associated with it
     :type obj: brcddb.classes.switch.SwitchObj
@@ -1178,7 +1211,7 @@ def ficonshow(obj, content):
             break
 
         # Process each entry
-        cl = brcddb_util.remove_duplicate_space(buf.replace('\t', ' ')).strip().split(' ')
+        cl = gen_util.remove_duplicate_space(buf.replace('\t', ' ')).strip().split(' ')
         if len(cl) > 12:  # It should always be 13
             pid = '0x' + cl[2].lower()
             port_obj = switch_obj.r_port_obj_for_pid(pid)
@@ -1231,7 +1264,7 @@ def _chassis_unit_obj(chassis_obj, key, unit, unit_num):
     :return: Dictionary for the switch structure
     :rtype: dict
     """
-    unit_list = brcddb_util.convert_to_list(brcddb_util.get_from_obj(chassis_obj, key))
+    unit_list = gen_util.convert_to_list(brcddb_util.get_from_obj(chassis_obj, key))
     for obj in unit_list:
         if obj[unit] == unit_num:
             return obj
@@ -1257,7 +1290,7 @@ def _slotshow_get_fru(chassis_obj, api_key):
 
 
 def slotshow_d576(obj, content):
-    """Parse cfgshow output
+    """Parse slotshow_d576 output
 
     :param obj: Chassis object or object with a switch object associated with it
     :type obj: brcddb.classes.chassis.ChassisObj
@@ -1279,7 +1312,7 @@ def slotshow_d576(obj, content):
         ri += 1
         for tl in _slotshow_d576_clean:
             buf = buf.replace(tl[0], tl[1])
-        cl = brcddb_util.remove_duplicate_space(buf.strip()).split(' ')
+        cl = gen_util.remove_duplicate_space(buf.strip()).split(' ')
         if len(cl) < 4:
             break
         if '*' in cl[0]:  # It's a note at the end of the slotshow for one of the FRUs - typically faulty
@@ -1309,7 +1342,7 @@ def slotshow_d576(obj, content):
 
 
 def defzone(obj, content):
-    """Parse cfgshow output
+    """Parse defzone output
 
     :param obj: Fabric object or object with a fabric object associated with it
     :type obj: brcddb.classes.fabric.FabricObj

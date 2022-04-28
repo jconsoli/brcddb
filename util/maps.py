@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -25,7 +25,13 @@ Overview::
     for someone to not have a RAS log event action with a MAPS threshold. I'll think that through a little more when the
     time comes.
 
-ToDo - Much of This is stubbed out because MAPS dashboards were incomplete and did not have a valid timestamp
+$ToDo - Much of This is stubbed out because MAPS dashboards were incomplete and did not have a valid timestamp
+
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
 
 Version Control::
 
@@ -50,17 +56,20 @@ Version Control::
     | 3.0.6     | 31 Dec 2021   | Added handling of fabric-performance-impact, io-latency, and security-violations  |
     |           |               | categories.                                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 28 Apr 2022   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcdapi.log as brcdapi_log
+import brcdapi.gen_util as gen_util
 import brcddb.util.util as brcddb_util
 import brcddb.app_data.alert_tables as al
 
@@ -192,7 +201,7 @@ def maps_dashboard_alerts(proj_obj):
     :type proj_obj: brcddb.classes.project.ProjectObj
     """
     for switch_obj in proj_obj.r_switch_objects():
-        for dash_obj in brcddb_util.convert_to_list(switch_obj.r_get('brocade-maps/dashboard-rule')):
+        for dash_obj in gen_util.convert_to_list(switch_obj.r_get('brocade-maps/dashboard-rule')):
             cat = dash_obj.get('category')
             if cat is None or cat not in _maps_category:
                 cat = 'unknown'
