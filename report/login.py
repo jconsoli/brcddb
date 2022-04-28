@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -16,6 +16,14 @@
 
 :mod:`brcddb.report.login` - Includes methods to create login page
 
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | login_page            | Creates a login detail worksheet for the Excel report.                                |
+    +-----------------------+---------------------------------------------------------------------------------------+
+
 Version Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -32,27 +40,40 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 14 Nov 2021   | No funcitonal changes. Added defaults for display tables and sheet indicies.      |
+    | 3.0.4     | 14 Nov 2021   | No functional changes. Added defaults for display tables and sheet indices.       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 31 Dec 2021   | Fixed bug in _l_fdmi_port_case() - returns FDMI port description.                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 28 Apr 2022   | Added report links to zone and alias objects                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.6'
 
 import openpyxl.utils.cell as xl
-import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
+import brcdapi.excel_fonts as excel_fonts
+import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.utils as report_utils
-import brcddb.report.fonts as report_fonts
 import brcddb.app_data.report_tables as brcddb_rt
 
+_std_font = excel_fonts.font_type('std')
+_bold_font = excel_fonts.font_type('bold')
+_link_font = excel_fonts.font_type('link')
+_hdr2_font = excel_fonts.font_type('hdr_2')
+_hdr1_font = excel_fonts.font_type('hdr_1')
+_align_wrap = excel_fonts.align_type('wrap')
+_align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
+_align_wrap_c = excel_fonts.align_type('wrap_center')
+_border_thin = excel_fonts.border_type('thin')
 
 ##################################################################
 #
@@ -100,22 +121,17 @@ def _l_fdmi_node_case(login_obj, k):
         wwn = login_obj.r_port_obj().r_get('fibrechannel/neighbor/wwn')[0]
         buf = login_obj.r_fabric_obj().r_fdmi_node_obj(wwn).r_get(k)
         return '' if buf is None else buf
-    except:
+    except AttributeError:  # This happens when there is no FDMI information
         return ''
 
 
 def _l_fdmi_port_case(login_obj, k):
     try:
         buf = login_obj.r_fabric_obj().r_fdmi_port_obj(login_obj.r_obj_key()).r_get(k)
-        if isinstance(buf, str):
-            tl = k.split('/')
-            try:
-                return brcddb_common.fdmi_port_conversion_tbl[tl[1]][buf]
-            except:
-                return buf
-        return '' if buf is None else buf
-    except:
-        return ''
+    except AttributeError:
+        buf = ''  # We get here when r_fdmi_port_obj() returns None meaning there is no FDMI port information
+
+    return '' if buf is None else buf
 
 
 def _l_port_name_case(login_obj):
@@ -149,7 +165,7 @@ _fdmi_case = {
 }
 
 
-def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display, in_login_display_tbl, s=True):
+def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None, in_login_display_tbl=None, s=True):
     """Creates a login detail worksheet for the Excel report.
 
     :param wb: Workbook object
@@ -164,14 +180,15 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display, in_
     :type sheet_title: str
     :param l_list: List of login objects (LoginObj) to display
     :type l_list: list, tuple
-    :param display: List of parameters to display.
-    :type display: list, tuple
-    :param login_display_tbl: Display control table. See brcddb.report.report_tables.login_display_tbl
-    :type login_display_tbl: dict
+    :param in_display: List of parameters to display. If None, use brcddb.app_data.report_tables.Login.login_tbl
+    :type in_display: list, tuple, None
+    :param in_login_display_tbl: Display control table. If None, use brcddb.report.report_tables.login_display_tbl
+    :type in_login_display_tbl: dict, None
     :param s: If True, sorts the logins by port-id (port address where the login was found)
     :rtype: None
     """
-    global _login_case, _fdmi_case
+    global _login_case, _fdmi_case, _align_wrap_vc, _align_wrap_c, _align_wrap, _border_thin, _bold_font, _std_font
+    global _link_font, _hdr1_font
 
     # Validate the user input
     err_msg = list()
@@ -190,42 +207,26 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display, in_
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    col = 1
-    row = 1
+    row = col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        report_utils.cell_update(sheet, row, col, 'Contents', font=_link_font,
+                                 link=tc)
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
+    report_utils.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
     sheet.freeze_panes = sheet['A3']
-    col = 1
-    row += 1
+    row, col = row + 1, 1
     for k in display:
-        if k in login_display_tbl and 'dc' in login_display_tbl[k] and login_display_tbl[k]['dc'] is True:
+        if k in login_display_tbl and 'dc' in login_display_tbl[k] and login_display_tbl[k]['dc']:
             continue
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = report_fonts.font_type('bold')
-        sheet[cell].border = report_fonts.border_type('thin')
+        report_utils.cell_update(sheet, row, col, sheet_title, font=_bold_font)
         if k in login_display_tbl:
             if 'c' in login_display_tbl[k]:
                 sheet.column_dimensions[xl.get_column_letter(col)].width = login_display_tbl[k]['c']
-            try:
-                if login_display_tbl[k]['v']:
-                    sheet[cell].alignment = report_fonts.align_type('wrap_vert_center')
-                else:
-                    sheet[cell].alignment = report_fonts.align_type('wrap')
-            except:
-                sheet[cell].alignment = report_fonts.align_type('wrap')
-            if 'd' in login_display_tbl[k]:
-                sheet[cell] = login_display_tbl[k]['d']
-            else:
-                sheet[cell] = k
+            align = _align_wrap_vc if 'v' in login_display_tbl[k] and login_display_tbl[k]['v'] else _align_wrap
+            buf = login_display_tbl[k]['d'] if 'd' in login_display_tbl[k] else k
         else:
-            sheet[cell] = k  # This happens when a new key is introduced before updating the display table
+            buf = k  # This happens when a new key is introduced before updating the display table
+        report_utils.cell_update(sheet, row, col, buf, font=_bold_font, align=align, border=_border_thin)
         col += 1
 
     # Add a row for each login
@@ -235,34 +236,49 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display, in_
         wl.extend(list(set(l_list) - set(wl)))
     else:
         wl = l_list
-    for login_obj in wl:
+
+    # Sorting the logins by port so that NPIV logins are together
+    temp_l = [login_obj.r_port_obj() for login_obj in wl if login_obj is not None]
+    port_obj_l = list()
+    login_l = list()
+    for login_obj in [login_obj for login_obj in wl if login_obj is not None]:
+        # The name server is on a per switch basis so port_obj can be None if some switches weren't polled
+        port_obj = login_obj.r_port_obj()
+        if port_obj is None:
+            login_l.append(login_obj)
+        else:
+            port_obj_l.append(port_obj)
+    port_obj_l = brcddb_util.sort_ports(port_obj_l)
+    for port_obj in port_obj_l:
+        login_l.extend(port_obj.r_login_objects())
+
+    for login_obj in login_l:
         if login_obj is None:
-            row += 1
             continue
         col = 1
-        border = report_fonts.border_type('thin')
-        alignment = report_fonts.align_type('wrap')
-        center_alignment = report_fonts.align_type('wrap_center')
+
+
+        # Report link
+        brcddb_util.add_to_obj(login_obj,
+                               'report_app/hyperlink/log',
+                               '#' + sheet_name + '!' + xl.get_column_letter(col) + str(row))
+
+        # Add it to the report
         font = report_utils.font_type(report_utils.combined_login_alert_objects(login_obj))
         for k in display:
-            if k in login_display_tbl and 'dc' in login_display_tbl[k] and login_display_tbl[k]['dc'] is True:
+            if k in login_display_tbl and 'dc' in login_display_tbl[k] and login_display_tbl[k]['dc']:
                 continue
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
-            if k in login_display_tbl and 'm' in login_display_tbl[k] and login_display_tbl[k]['m'] is True:
-                sheet[cell].alignment = center_alignment
-            else:
-                sheet[cell].alignment = alignment
-            sheet[cell].font = font
+            align = _align_wrap_c if k in login_display_tbl and 'm' in login_display_tbl[k] and \
+                                     login_display_tbl[k]['m'] else _align_wrap
             k_list = k.split('.')
             if len(k_list) > 1:
                 try:
-                    sheet[cell] = _fdmi_case[k_list[0]](login_obj, k_list[1])
-                except:
-                    sheet[cell] = ''
-                    brcdapi_log.exception('Unknown key: ' + k_list[0])
+                    buf = _fdmi_case[k_list[0]](login_obj, k_list[1])
+                except BaseException as e:
+                    buf = ''
+                    brcdapi_log.exception(['Unknown key: ' + k_list[0], 'Exception: ' + str(e)], True)
             elif k in _login_case:
-                sheet[cell] = _login_case[k](login_obj)
+                buf = _login_case[k](login_obj)
             elif k in login_display_tbl:
                 v = login_obj.r_get(k)
                 if v is None:
@@ -270,16 +286,15 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display, in_
                 else:
                     try:
                         v1 = brcddb_common.login_conversion_tbl[k][v]
-                        if v1 is None:
-                            raise
-                    except:
+                    except KeyError:
                         v1 = v
                 if isinstance(v1, bool):
-                    sheet[cell] = '\u221A' if v1 else ''
+                    buf = '\u221A' if v1 else ''
                 else:
-                    sheet[cell] = v1
+                    buf = v1
             else:
-                sheet[cell].font = report_fonts.font_type('std')
-                sheet[cell] = '' if login_obj.r_get(k) is None else str(login_obj.r_get(k))
+                font = _std_font
+                buf = '' if login_obj.r_get(k) is None else str(login_obj.r_get(k))
+            report_utils.cell_update(sheet, row, col, buf, font=font, align=align, border=_border_thin)
             col += 1
         row += 1

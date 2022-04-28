@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -14,6 +14,20 @@
 # limitations under the License.
 """
 :mod:`report.zone` - Creates a zoning page to be added to an Excel Workbook
+
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | zone_page             | Creates a zone detail worksheet for the Excel report                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | alias_page            | Creates a port detail worksheet for the Excel report.                                 |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | target_zone_page      | Creates a target zone detail worksheet for the Excel report.                          |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | non_target_zone_page  | Creates a non-target zone detail worksheet for the Excel report.                      |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -43,30 +57,42 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 14 Nov 2021   | Added non_target_zone_page() and defaults.                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 31 Dec 2021   | Replaced bare except with explicit exceptions                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 28 Apr 2022   | Added report links to zone and alias objects                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.1'
 
 import collections
 import openpyxl.utils.cell as xl
+import brcdapi.excel_util as excel_util
+import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_zone as brcddb_zone
 import brcddb.report.fonts as report_fonts
 import brcddb.brcddb_login as brcddb_login
-import brcddb.report.utils as report_utils
 import brcddb.app_data.alert_tables as al
 import brcddb.util.search as brcddb_search
+import brcddb.util.util as brcddb_util
+import brcddb.report.utils as report_utils
 
-_std_font = report_fonts.font_type('std')
-_bold_font = report_fonts.font_type('bold')
-_align_wrap = report_fonts.align_type('wrap')
-_border_thin = report_fonts.border_type('thin')
+_std_font = excel_fonts.font_type('std')
+_bold_font = excel_fonts.font_type('bold')
+_link_font = excel_fonts.font_type('link')
+_hdr2_font = excel_fonts.font_type('hdr_2')
+_hdr1_font = excel_fonts.font_type('hdr_1')
+_align_wrap = excel_fonts.align_type('wrap')
+_align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
+_align_wrap_c = excel_fonts.align_type('wrap_center')
+_border_thin = excel_fonts.border_type('thin')
 
 ##################################################################
 #
@@ -130,14 +156,14 @@ def _mem_member_case(obj, mem, wwn, port_obj):
 
 def _mem_comment_case(obj, mem, wwn, port_obj):
     # Get any comments for this WWN in the zone object
-    al = [a.fmt_msg() for a in obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
+    alert_l = [a.fmt_msg() for a in obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
     # If there is a login, add any comments associated with the login that are zone specific
     if obj.r_fabric_obj() is not None and obj.r_fabric_obj().r_login_obj(wwn) is not None:
-        al.extend('\n'.join([a.fmt_msg() for a in obj.r_fabric_obj().r_login_obj(wwn).r_alert_objects()
-                             if a.is_flag() and a.p0() == mem]))
+        alert_l.extend('\n'.join([a.fmt_msg() for a in obj.r_fabric_obj().r_login_obj(wwn).r_alert_objects()
+                                  if a.is_flag() and a.p0() == mem]))
     if port_obj is not None:  # Add the alerts associated with the port for this member
-        al.extend([a.fmt_msg() for a in port_obj.r_alert_objects() if a.is_error() or a.is_warn()])
-    return '\n'.join(al)
+        alert_l.extend([a.fmt_msg() for a in port_obj.r_alert_objects() if a.is_error() or a.is_warn()])
+    return '\n'.join(alert_l)
 
 
 def _mem_principal_case(obj, mem, wwn, port_obj):
@@ -163,10 +189,15 @@ def _mem_speed_case(obj, mem, wwn, port_obj):
 
 def _mem_desc_case(obj, mem, wwn, port_obj):
     try:
-        t_wwn = port_obj.r_get('fibrechannel/neighbor')[0] if ',' in wwn else wwn
-        return brcddb_login.login_best_port_desc(obj.r_fabric_obj().r_login_obj(t_wwn))
-    except:
+        t_wwn = port_obj.r_get('fibrechannel/neighbor/wwn')[0] if ',' in wwn else wwn
+    except (AttributeError, TypeError, IndexError):
+        # If the corresponding zone member wasn't found, port_obj will be None which results in an AttributeError.
+        # Nothing logged in retuns None (so a TypeError) with current FOS but if this ever gets fixed and returns an
+        # empty list, nothing logged in will be an IndexError so adding IndexError is future proofing. I think the only
+        # time this happens is with a d,i zone when nothing is logged in at the corresponding port
         return ''
+
+    return brcddb_login.login_best_port_desc(obj.r_fabric_obj().r_login_obj(t_wwn))
 
 
 _zone_hdr = {
@@ -177,13 +208,13 @@ _zone_hdr = {
     #   'v' True - display centered in column. Headers vertical, Otherwise, use default wrap alignment
     'Comments': dict(c=30, z=_comment_case, m=_mem_comment_case),
     'Zone': dict(c=22, z=_name_case, m=_null_case),
-    'Effectve': dict(c=5, v=True, z=_zone_effective_case, m=_null_case),
+    'Effective': dict(c=5, v=True, z=_zone_effective_case, m=_null_case),
     'Peer': dict(c=5, v=True, z=_zone_peer_case, m=_null_case),
     'Target Driven': dict(c=5, v=True, z=_zone_target_case, m=_null_case),
     'Principal': dict(c=5, v=True, z=_null_case, m=_mem_principal_case),
     'Configurations': dict(c=22, z=_zone_cfg_case, m=_null_case),
     'Member': dict(c=22, z=_zone_member_case, m=_mem_member_case),
-    'Member WWN': dict(c= 22, z=_zone_member_wwn_case, m=_mem_member_wwn_case),
+    'Member WWN': dict(c=22, z=_zone_member_wwn_case, m=_mem_member_wwn_case),
     'Switch': dict(c=22, z=_null_case, m=_mem_switch_case),
     'Port': dict(c=7, z=_null_case, m=_mem_port_case),
     'Speed Gbps': dict(c=7, z=_null_case, m=_mem_speed_case),
@@ -208,59 +239,48 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     :type sheet_title: str
     :rtype: None
     """
-    global _zone_hdr
+    global _zone_hdr, _link_font, _border_thin, _align_wrap, _hdr1_font, _std_font, _bold_font, _hdr2_font
+    global _align_wrap_vc, _align_wrap_c
 
     # Create the worksheet, add the headers, and set up the column widths
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    col = 1
-    row = 1
+    row = col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
-    row += 2
-    col = 1
+    excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
+    row, col = row + 2, 1
     sheet.freeze_panes = sheet['A4']
-    font = report_fonts.font_type('hdr_2')
     for k in _zone_hdr:
         sheet.column_dimensions[xl.get_column_letter(col)].width = _zone_hdr[k]['c']
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = font
-        sheet[cell].border = _border_thin
-        sheet[cell].alignment = report_fonts.align_type('wrap_vert_center') \
-            if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
-        sheet[cell] = k
+        alignment = _align_wrap_vc if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
+        excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=alignment, border=_border_thin)
         col += 1
 
     # Fill out all the zoning information
-    row += 1
-    col = 1
-    for zone_obj in fab_obj.r_zone_objects():
+    row, col = row + 1, 1
+    zone_key_l = fab_obj.r_zone_keys()
+    zone_key_l.sort()  # Just to make it easier to read the report
+    for zone_obj in [fab_obj.r_zone_obj(k) for k in zone_key_l]:
+
+        # Report link
+        brcddb_util.add_to_obj(zone_obj,
+                               'report_app/hyperlink/za',
+                               '#' + sheet_name + '!' + xl.get_column_letter(col) + str(row))
+
         # The zone information
-        fill = report_fonts.fill_type('lightblue')
+        fill = excel_fonts.fill_type('lightblue')
         for k in _zone_hdr:
-            cell = xl.get_column_letter(col) + str(row)
-            if k == 'Comments':
-                sheet[cell].font = report_utils.font_type(zone_obj.r_alert_objects())
-            else:
-                sheet[cell].font = _bold_font
-            sheet[cell].border = _border_thin
-            sheet[cell].alignment = report_fonts.align_type('wrap_center') \
-                if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
-            sheet[cell].fill = fill
-            sheet[cell] = _zone_hdr[k]['z'](zone_obj)
+            font = report_utils.font_type(zone_obj.r_alert_objects()) if k == 'Comments' else _bold_font
+            alignment = _align_wrap_c if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
+            excel_util.cell_update(sheet, row, col, _zone_hdr[k]['z'](zone_obj), font=font, align=alignment,
+                                     border=_border_thin, fill=fill)
             col += 1
-        col = 1
-        row += 1
 
         # The member information
+        row, col = row + 1, 1
         mem_list = list(zone_obj.r_pmembers())
         mem_list.extend(list(zone_obj.r_members()))
         for mem in mem_list:
@@ -284,26 +304,23 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                             if port_obj is not None:
                                 break
                 for k in _zone_hdr:
-                    cell = xl.get_column_letter(col) + str(row)
                     # Display font based on alerts associated with the zone only, not members, for a zone object
                     if k == 'Comments':
                         alerts = [a for a in zone_obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
-                        sheet[cell].font = report_utils.font_type(alerts)
+                        font = report_utils.font_type(alerts)
                     else:
-                        sheet[cell].font = _std_font
-                    sheet[cell].border = _border_thin
-                    sheet[cell].alignment = report_fonts.align_type('wrap_center') \
-                        if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
-                    sheet[cell] = _zone_hdr[k]['m'](zone_obj, mem, wwn, port_obj)
+                        font = _std_font
+                    alignment = _align_wrap_c if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
+                    excel_util.cell_update(sheet, row, col, _zone_hdr[k]['m'](zone_obj, mem, wwn, port_obj),
+                                             font=font, align=alignment, border=_border_thin)
                     col += 1
-                col = 1
-                row += 1
+                row, col = row + 1, 1
 
 
 def _alias_node_desc_case(obj, mem):
     try:
         return brcddb_login.login_best_node_desc(obj.r_fabric_obj().r_login_obj(mem))
-    except:
+    except AttributeError:
         return ''
 
 
@@ -314,21 +331,21 @@ def _alias_mem_member_case(obj, mem):
 def _alias_mem_switch_case(obj, mem):
     try:
         return brcddb_switch.best_switch_name(obj.r_fabric_obj().r_login_obj(mem).r_switch_obj(), False)
-    except:
+    except AttributeError:
         return ''
 
 
 def _alias_mem_port_case(obj, mem):
     try:
         return obj.r_fabric_obj().r_login_obj(mem).r_port_obj().r_obj_key()
-    except:
+    except AttributeError:
         return ''
 
 
 def _alias_mem_desc_case(obj, mem):
     try:
         return brcddb_login.login_best_port_desc(obj.r_fabric_obj().r_login_obj(mem))
-    except:
+    except AttributeError:
         return ''
 
 
@@ -371,62 +388,50 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     :type sheet_title: str
     :rtype: None
     """
-    global alias_hdr
+    global alias_hdr, _hdr1_font, _std_font, _link_font, _hdr2_font, _align_wrap, _border_thin
 
     # Create the worksheet, add the headers, and set up the column widths
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    col = 1
-    row = 1
+    row = col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].border = _border_thin
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
-    row += 2
-    col = 1
+    excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font, border=_border_thin)
+    row, col = row+2, 1
     sheet.freeze_panes = sheet['A4']
     for k in alias_hdr:
         sheet.column_dimensions[xl.get_column_letter(col)].width = alias_hdr[k]['c']
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = report_fonts.font_type('hdr_2')
-        sheet[cell].border = _border_thin
-        sheet[cell].alignment = _align_wrap
-        sheet[cell] = k
+        excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=_align_wrap, border=_border_thin)
         col += 1
 
     # Fill out the alias information
     for alias_obj in fab_obj.r_alias_objects():
         mem_list = alias_obj.r_members().copy()
         mem = mem_list.pop(0) if len(mem_list) > 0 else None
-        row += 1
-        col = 1
+        row, col = row+1, 1
+
+        # Report link
+        brcddb_util.add_to_obj(alias_obj,
+                               'report_app/hyperlink/ali',
+                               '#' + sheet_name + '!' + xl.get_column_letter(col) + str(row))
+
         for k in alias_hdr:
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = report_utils.font_type(alias_obj.r_alert_objects()) if k == 'Comments' else _std_font
-            sheet[cell].border = _border_thin
-            sheet[cell].alignment = _align_wrap
-            sheet[cell] = alias_hdr[k]['v'](alias_obj, mem)
+            font = report_utils.font_type(alias_obj.r_alert_objects()) if k == 'Comments' else _std_font
+            excel_util.cell_update(sheet, row, col,  alias_hdr[k]['v'](alias_obj, mem), font=font, align=_align_wrap,
+                                     border=_border_thin)
             col += 1
 
         # Usually just one member per alias, but just in case...
         while len(mem_list) > 1:
             mem = mem_list.pop(0)
-            row += 1
-            col = 1
+            row, col = row+1, 1
             for k in alias_hdr:
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].font = _std_font
-                sheet[cell].border = _border_thin
-                sheet[cell].alignment = _align_wrap
-                sheet[cell] = alias_hdr[k]['m'](alias_obj, mem)
+                excel_util.cell_update(sheet, row, col, alias_hdr[k]['m'](alias_obj, mem), font=_std_font,
+                                         align=_align_wrap, border=_border_thin)
                 col += 1
+
 
 ##################################################################
 #
@@ -520,32 +525,22 @@ def _common_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title, hdr):
     :return row: Next available row on the worksheet
     :rtype row: int
     """
+    global _hdr2_font, _hdr1_font, _link_font, _align_wrap, _border_thin
+
     # Create the worksheet, add the headers, and set up the column widths
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    col = 1
-    row = 1
+    row = col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, align=_align_wrap, link=tc)
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
-    row += 2
-    col = 1
+    excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
+    row, col = row+2, 1
     sheet.freeze_panes = sheet['A4']
-    font = report_fonts.font_type('hdr_2')
     for k, d in hdr.items():
         sheet.column_dimensions[xl.get_column_letter(col)].width = d['c']
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = font
-        sheet[cell].border = _border_thin
-        sheet[cell].alignment = _align_wrap
-        sheet[cell] = k
+        excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=_align_wrap, border=_border_thin)
         col += 1
     row += 1
 
@@ -573,11 +568,10 @@ def _get_zoned_to(fab_obj, wwn):
     return target_d, all_else_d
 
 
-
 def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     """Creates a target zone detail worksheet for the Excel report.
 
-    Note: Adding non_target_zone_page() wasn an after thought. I created _common_zone_page() to set up the worksheet but
+    Note: Adding non_target_zone_page() was an after thought. I created _common_zone_page() to set up the worksheet but
     I certainly could have written target_zone_page() and non_target_zone_page() to share more code.
 
     :param fab_obj: Fabric object
@@ -594,13 +588,13 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     :type sheet_title: str
     :rtype: None
     """
-    global _target_zone_hdr
+    global _target_zone_hdr, _std_font, _bold_font, _align_wrap, _border_thin
 
     sheet, row = _common_zone_page(fab_obj, tc, wb, sheet_name, 0 if sheet_i is None else sheet_i, sheet_title,
                                    _target_zone_hdr)
 
     # Fill out all the zone information for each target
-    t_obj_l = brcddb_search.match(fab_obj.r_login_objects(),
+    t_obj_l = brcddb_search.match(fab_obj.r_login_objects(),  # List of login objects that are targets
                                   'brocade-name-server/fc4-features',
                                   'Target',
                                   ignore_case=True,
@@ -612,46 +606,36 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             continue  # This is a single member zone if we get here
 
         # The target information
-        row += 1
-        col = 1
+        row, col = row+1, 1
         for k, d in _target_zone_hdr.items():
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = report_utils.font_type(_filter_alerts([t_login_obj, t_login_obj.r_port_obj()])) \
-                if k == 'Comments' else _bold_font
-            sheet[cell].border = _border_thin
-            sheet[cell].alignment = _align_wrap
-            sheet[cell] = len(all_else_d) if k == 'Non-Target' else len(target_d) if k == 'Zoned Target' else \
+            font = report_utils.font_type(_filter_alerts([t_login_obj, t_login_obj.r_port_obj()])) if k == 'Comments' \
+                else _bold_font
+            buf = len(all_else_d) if k == 'Non-Target' else len(target_d) if k == 'Zoned Target' else \
                 d['a'](t_login_obj, t_login_obj.r_port_obj(), list())
+            excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
             col += 1
 
         # The server information
         for wwn, zone_l in all_else_d.items():
             login_obj = fab_obj.r_login_obj(wwn)
-            col = 1
-            row += 1
+            row, col = row+1, 1
             for k in _target_zone_hdr:
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) \
-                    if k == 'Comments' else _std_font
-                sheet[cell].border = _border_thin
-                sheet[cell].alignment = _align_wrap
-                sheet[cell] = '' if 'Target' in k else \
-                    _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) if k == 'Comments' \
+                    else _std_font
+                buf = '' if 'Target' in k else _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
                 col += 1
 
         # Add any targets zoned to this target
         for wwn, zone_l in target_d.items():
             login_obj = fab_obj.r_login_obj(wwn)
-            col = 1
-            row += 1
+            row, col = row+1, 1
             for k in _target_zone_hdr:
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) \
-                    if k == 'Comments' else _std_font
-                sheet[cell].border = _border_thin
-                sheet[cell].alignment = _align_wrap
-                sheet[cell] = '' if k == 'Non-Target' or k == 'Target' else \
+                font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) if k == 'Comments' \
+                    else _std_font
+                buf = '' if k == 'Non-Target' or k == 'Target' else \
                     _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
                 col += 1
 
         row += 1
@@ -662,7 +646,7 @@ def non_target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
     See comments with target_zone_page() for additional notes and input parameter definitions.
     """
-    global _server_zone_hdr
+    global _server_zone_hdr, _std_font, _bold_font, _align_wrap, _border_thin
 
     sheet, row = _common_zone_page(fab_obj, tc, wb, sheet_name, 0 if sheet_i is None else sheet_i, sheet_title,
                                    _target_zone_hdr)
@@ -680,31 +664,24 @@ def non_target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             continue  # This is a single member zone if we get here.
 
         # The server information (really anything that's not a target)
-        row += 1
-        col = 1
+        row, col = row+1, 1
         for k, d in _server_zone_hdr.items():
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = report_utils.font_type(_filter_alerts([s_login_obj, s_login_obj.r_port_obj()])) \
-                if k == 'Comments' else _bold_font
-            sheet[cell].border = _border_thin
-            sheet[cell].alignment = _align_wrap
-            sheet[cell] = len(all_else_d) if k == 'Target' else len(target_d) if k == 'Zoned Server' else \
+            font = report_utils.font_type(_filter_alerts([s_login_obj, s_login_obj.r_port_obj()])) if k == 'Comments' \
+                else _bold_font
+            buf = len(all_else_d) if k == 'Target' else len(target_d) if k == 'Zoned Server' else \
                 d['a'](s_login_obj, s_login_obj.r_port_obj(), list())
+            excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
             col += 1
 
         # The server information
         for wwn, zone_l in all_else_d.items():
             login_obj = fab_obj.r_login_obj(wwn)
-            col = 1
-            row += 1
+            row, col = row+1, 1
             for k in _target_zone_hdr:
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) \
-                    if k == 'Comments' else _std_font
-                sheet[cell].border = _border_thin
-                sheet[cell].alignment = _align_wrap
-                sheet[cell] = '' if 'Target' in k else \
-                    _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) if k == 'Comments' \
+                    else _std_font
+                buf = '' if 'Target' in k else _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
                 col += 1
 
         # Add any targets zoned to this target
@@ -713,13 +690,11 @@ def non_target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             col = 1
             row += 1
             for k in _target_zone_hdr:
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) \
-                    if k == 'Comments' else _std_font
-                sheet[cell].border = _border_thin
-                sheet[cell].alignment = _align_wrap
-                sheet[cell] = '' if k == 'Non-Target' or k == 'Target' else \
+                font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) if k == 'Comments' \
+                    else _std_font
+                buf = '' if k == 'Non-Target' or k == 'Target' else \
                     _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
                 col += 1
 
         row += 1

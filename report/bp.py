@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -14,6 +14,14 @@
 # limitations under the License.
 """
 mod:`brcddb.report.bp` - Best practice violations
+
+Public Methods::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | bp_page               | Creates a best practice violation worksheet for the Excel report.                     |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -31,31 +39,72 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 14 May 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 14 Nov 2021   | No funcitonal changes. Added defaults for display tables and sheet indicies.      |
+    | 3.0.4     | 14 Nov 2021   | No functional changes. Added defaults for display tables and sheet indices.       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 31 Dec 2021   | Use explicit exception clauses                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 28 Apr 2022   | Addded report link                                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.6'
 
 import openpyxl.utils.cell as xl
+import brcdapi.log as brcdapi_log
+import brcdapi.excel_util as excel_util
+import brcdapi.excel_fonts as excel_fonts
+import brcddb.util.util as brcddb_util
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_switch as brcddb_switch
-import brcddb.report.fonts as report_fonts
 import brcddb.classes.alert as al
-import brcdapi.log as brcdapi_log
+import brcddb.classes.util as class_util
 import brcddb.brcddb_port as brcddb_port
 
+_obj_type_link=dict(
+    AliasObj='report_app/hyperlink/ali',
+    ChassisObj='report_app/hyperlink/chassis',
+    FabricObj='report_app/hyperlink/fab',
+    LoginObj='report_app/hyperlink/log',
+    FdmiNodeObj='report_app/hyperlink/log',
+    FdmiPortObj='report_app/hyperlink/log',
+    PortObj='report_app/hyperlink/pl',
+    ProjectObj='report_app/hyperlink/tc',
+    SwitchObj='report_app/hyperlink/sw',
+    ZoneCfgObj='report_app/hyperlink/za',
+    ZoneObj='report_app/hyperlink/za',
+    # IOCPObj='report_app/hyperlink/',
+    # ChpidObj='report_app/hyperlink/',
+    )
+_std_font = excel_fonts.font_type('std')
+_bold_font = excel_fonts.font_type('bold')
+_link_font = excel_fonts.font_type('link')
+_hdr2_font = excel_fonts.font_type('hdr_2')
+_hdr1_font = excel_fonts.font_type('hdr_1')
+_align_wrap = excel_fonts.align_type('wrap')
+_align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
+_align_wrap_c = excel_fonts.align_type('wrap_center')
+_border_thin = excel_fonts.border_type('thin')
 
-def _add_alerts(obj, type, sev, area_1, area_2):
-    return [[type, al_obj.fmt_sev(), area_1, area_2, al_obj.fmt_msg()] for al_obj in obj.r_alert_objects() if \
-            al_obj.sev() == sev]
+
+def _add_alerts(obj, alert_type, sev, area_1, area_2):
+    rl = list()
+    for al_obj in obj.r_alert_objects():
+        if al_obj.sev() == sev:
+            class_type = class_util.get_simple_class_type(obj)
+            rl.append(dict(type=alert_type,
+                           sev=al_obj.fmt_sev(),
+                           area_1=area_1,
+                           area_2=area_2,
+                           link = obj.r_get(_obj_type_link[class_type]) if class_type in _obj_type_link else None,
+                           desc=al_obj.fmt_msg()))
+    return rl
 
 
 ##################################################################
@@ -63,68 +112,52 @@ def _add_alerts(obj, type, sev, area_1, area_2):
 #        Best practice case statements in bp_page()
 #
 ###################################################################
-def type_case(a_list):
+def _type_case(ad):
     """Returns the type value
 
-    :param a_list: List of alert parameters as returned from _add_alerts()
-    :type a_list: list
-    :return: Value for element 0 (Type)
-    :rtype: str
+    :param ad: Alert parameters dictionary as returned from _add_alerts()
+    :type ad: dict
+    :return desc: Value for element 'type'
+    :rtype desc: str
+    :return link: Hyperlink associated with desc being returned
+    :rtype link: None, str
     """
-    return a_list[0]
+    return ad.get('type'), None
 
 
-def sev_case(a_list):
-    """Returns the type value
-
-    :param a_list: List of alert parameters as returned from _add_alerts()
-    :type a_list: list
-    :return: Value for element 1 (Sev)
-    :rtype: str
-    """
-    return a_list[1]
+def _sev_case(ad):
+    """Returns the sev value. See _type_case() for parameters"""
+    return ad.get('sev'), None
 
 
-def area_1_case(a_list):
-    """Returns the type value
-
-    :param a_list: List of alert parameters as returned from _add_alerts()
-    :type a_list: list
-    :return: Value for element 2 (Area_1)
-    :rtype: str
-    """
-    return a_list[2]
+def _area_1_case(ad):
+    """Returns the area_1 value. See _type_case() for parameters"""
+    return ad.get('area_1'), None
 
 
-def area_2_case(a_list):
-    """Returns the type value
-
-    :param a_list: List of alert parameters as returned from _add_alerts()
-    :type a_list: list
-    :return: Value for element 3 (Area_2)
-    :rtype: str
-    """
-    return a_list[3]
+def _area_2_case(ad):
+    """Returns the area_2 value. See _type_case() for parameters"""
+    return ad.get('area_2'), None
 
 
-def desc_case(a_list):
-    """Returns the type value
-
-    :param a_list: List of alert parameters as returned from _add_alerts()
-    :type a_list: list
-    :return: Value for element 4 (Type)
-    :rtype: str
-    """
-    return a_list[4]
+def _link_case(ad):
+    """Returns the link value. See _type_case() for parameters"""
+    return 'link', ad.get('link')
 
 
-bp_case = {
-    '_TYPE': type_case,
-    '_SEV': sev_case,
-    '_AREA_1': area_1_case,
-    '_AREA_2': area_2_case,
-    '_DESCRIPTION': desc_case,
-}
+def _desc_case(ad):
+    """Returns the desc value. See _type_case() for parameters"""
+    return ad.get('desc'), None
+
+
+bp_case = dict(
+    _TYPE=_type_case,
+    _SEV=_sev_case,
+    _AREA_1=_area_1_case,
+    _AREA_2=_area_2_case,
+    _LINK=_link_case,
+    _DESCRIPTION=_desc_case,
+)
 
 
 def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl):
@@ -147,6 +180,8 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
     :param display_tbl: Display control table. See brcddb.report.report_tables.display_tbl
     :rtype: None
     """
+    global _link_font, _hdr1_font, _hdr2_font, _border_thin, _align_wrap, _align_wrap_vc
+
     # Validate the user input
     err_msg = list()
     if obj is None:
@@ -163,42 +198,25 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    col = 1
-    row = 1
+    brcddb_util.add_to_obj(obj, 'report_app/hyperlink/bp', '#' + sheet_name + '!A1')
+    row = col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
+    excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
     sheet.freeze_panes = sheet['A3']
-    col = 1
-    row += 1
+    row, col = row+1, 1
     for k in display:
-        if k in display_tbl and 'dc' in display_tbl[k] and display_tbl[k]['dc'] is True:
-            continue
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = report_fonts.font_type('bold')
-        sheet[cell].border = report_fonts.border_type('thin')
         if k in display_tbl:
+            if 'dc' in display_tbl[k] and display_tbl[k]['dc']:
+                continue
             if 'c' in display_tbl[k]:
                 sheet.column_dimensions[xl.get_column_letter(col)].width = display_tbl[k]['c']
-            try:
-                if display_tbl[k]['v']:
-                    sheet[cell].alignment = report_fonts.align_type('wrap_vert_center')
-                else:
-                    sheet[cell].alignment = report_fonts.align_type('wrap')
-            except:
-                sheet[cell].alignment = report_fonts.align_type('wrap')
-            if 'd' in display_tbl[k]:
-                sheet[cell] = display_tbl[k]['d']
-            else:
-                sheet[cell] = k  # This happens when a new key is introduced before the display tables have been updated
-        else:
-            sheet[cell] = k  # This happens when a new key is introduced before the display tables have been updated
+            alignment = _align_wrap_vc if 'v' in display_tbl[k] and display_tbl[k]['v'] else _align_wrap
+            buf = display_tbl[k]['d'] if 'd' in display_tbl[k] else k
+        else:  # This happens when a new key is introduced before the display tables have been updated
+            buf, alignment = k, _align_wrap
+        excel_util.cell_update(sheet, row, col, buf, font=_bold_font, border=_border_thin)
         col += 1
 
     # Get a list of fabric objects and initialize alert_list
@@ -218,9 +236,7 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
         for sev in (al.ALERT_SEV.ERROR, al.ALERT_SEV.WARN):  # Display errors first
             tl.extend(_add_alerts(tobj, 'Chassis', sev, brcddb_chassis.best_chassis_name(tobj), ''))
         if len(tl) > 0:
-            alert_list.append([''])
-            alert_list.append(['Chassis: ' + brcddb_chassis.best_chassis_name(tobj)])
-            alert_list.extend(tl)
+            alert_list.append(dict(t=True, desc='Chassis: ' + brcddb_chassis.best_chassis_name(tobj)))
 
     # Get all the fabric alerts
     for fab_obj in fab_list:
@@ -240,8 +256,7 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
             for tobj in fab_obj.r_fdmi_port_objects():
                 tl.extend(_add_alerts(tobj, 'FDMI_Port', sev, tobj.r_obj_key(), ''))
         if len(tl) > 0:
-            alert_list.append([''])
-            alert_list.append(['Fabric: ' + brcddb_fabric.best_fab_name(fab_obj, True)])
+            alert_list.append(dict(t=True, desc='Fabric: ' + brcddb_fabric.best_fab_name(fab_obj, True)))
             alert_list.extend(tl)
 
     # Get all the switch and port alerts
@@ -252,36 +267,22 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
             for tobj in switch_obj.r_port_objects():
                 tl.extend(_add_alerts(tobj, 'Port', sev, brcddb_port.best_port_name(tobj), tobj.r_obj_key()))
         if len(tl) > 0:
-            alert_list.append([''])
-            alert_list.append(['Switch: ' + brcddb_switch.best_switch_name(switch_obj, True)])
+            alert_list.append(dict(t=True, desc='Switch: ' + brcddb_switch.best_switch_name(switch_obj, True)))
             alert_list.extend(tl)
-
 
     # Now add the alerts to the worksheet
 
-    # Set up the cell formatting
-    border = report_fonts.border_type('thin')
-    alignment = report_fonts.align_type('wrap')
-    font = report_fonts.font_type('std')
-
     # Add all alerts to the worksheet
-    for x in alert_list:
-        row += 1
-        col = 1
-        if len(x) == 0:
+    for d in alert_list:
+        row, col = row+1, 1
+        if 't' in d and d['t']:
             row += 1
-        elif len(x) == 1:
             sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(display))
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = report_fonts.font_type('hdr_2')
-            if len(x[0]) > 0:
-                sheet[cell].fill = report_fonts.fill_type('lightblue')
-            sheet[cell] = x[0]
+            excel_util.cell_update(sheet, row, col, d.get('desc'), font=_hdr2_font,
+                                     fill=excel_fonts.fill_type('lightblue'))
         else:
             for k in display:
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].border = border
-                sheet[cell].font = font
-                sheet[cell].alignment = alignment
-                sheet[cell] = bp_case[k](x)
+                buf, link = bp_case[k](d)
+                excel_util.cell_update(sheet, row, col, buf, font=_std_font if link is None else _link_font,
+                                         align=_align_wrap, border=_border_thin, link=link)
                 col += 1

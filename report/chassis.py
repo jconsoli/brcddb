@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -14,6 +14,14 @@
 # limitations under the License.
 """
 :mod:`brcddb.report.chassis` - Creates a chassis page to be added to an Excel Workbook
+
+Public Methods::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | chassis_page          | Creates a chassis detail worksheet for the Excel report.                              |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -31,32 +39,46 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 14 Nov 2021   | No funcitonal changes. Prepended "_" for private methods and defaulted index to 0 |
+    | 3.0.4     | 14 Nov 2021   | No functional changes. Prepended "_" for private methods and defaulted index to 0 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 31 Dec 2021   | No functional changes. Removed unused code and updated comments and doc strings.  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 28 Apr 2022   | Added report links                                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.6'
 
 import collections
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
-import brcddb.util.util as brcddb_util
+import brcdapi.gen_util as gen_util
+import brcdapi.excel_fonts as excel_fonts
+import brcdapi.excel_util as excel_util
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.report.utils as report_utils
-import brcddb.report.fonts as report_fonts
 import brcddb.report.switch as report_switch
 import brcddb.app_data.alert_tables as al
 import brcddb.classes.util as brcddb_class_util
 import brcddb.app_data.report_tables as rt
 
-sheet = None
-row = 1
+_sheet = None
+_row = 1
+_std_font = excel_fonts.font_type('std')
+_bold_font = excel_fonts.font_type('bold')
+_link_font = excel_fonts.font_type('link')
+_hdr2_font = excel_fonts.font_type('hdr_2')
+_hdr1_font = excel_fonts.font_type('hdr_1')
+_align_wrap = excel_fonts.align_type('wrap')
+_align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
+_align_wrap_c = excel_fonts.align_type('wrap_center')
+_border_thin = excel_fonts.border_type('thin')
 
 hdr = collections.OrderedDict()
 # Key is the column header and value is the width
@@ -103,41 +125,31 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
     :type chassis_obj: brcddb.classes.chassis.ChassisObj
     :rtype: None
     """
-    global row, sheet, hdr
+    global _row, _sheet, hdr, _bold_font, _border_thin, _hdr2_font, _hdr1_font, _link_font
 
-    # Create the worksheet and set up the column widths
-    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
-    sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
-    sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    row = 1
-    col = 1
+    # Create the worksheet, set up the column widths, and add the report link
+    _sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
+    _sheet.page_setup.paperSize = _sheet.PAPERSIZE_LETTER
+    _sheet.page_setup.orientation = _sheet.ORIENTATION_LANDSCAPE
+
+    # Add the contents
+    _row = col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        excel_util.cell_update(_sheet, _row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
-    sheet.freeze_panes = sheet['A2']
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(hdr))
+    excel_util.cell_update(_sheet, _row, col, sheet_title, font=_hdr1_font)
+    _sheet.freeze_panes = _sheet['A2']
 
     # Add the headers and set the column widths
-    col = 1
-    row += 2
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_2')
-    sheet[cell] = brcddb_chassis.best_chassis_name(chassis_obj)
-    row += 1
+    _row, col = _row + 2, 1
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(hdr))
+    excel_util.cell_update(_sheet, _row, col, brcddb_chassis.best_chassis_name(chassis_obj), font=_hdr2_font)
+    _row += 1
     for k, v in hdr.items():
-        sheet.column_dimensions[xl.get_column_letter(col)].width = v
+        _sheet.column_dimensions[xl.get_column_letter(col)].width = v
         if 'col_only' not in k:
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = report_fonts.border_type('thin')
-            sheet[cell].font = report_fonts.font_type('bold')
-            sheet[cell] = k
+            excel_util.cell_update(_sheet, _row, col, k, font=_bold_font, border=_border_thin)
         col += 1
 
 
@@ -148,44 +160,29 @@ def _maps_dashboard(chassis_obj):
     :type chassis_obj: brcddb.classes.chassis.ChassisObj
     :rtype: None
     """
-    global row, sheet
+    global _row, _sheet, _std_font, _border_thin, _align_wrap, _bold_font
 
     merge_len = 4  # NUmber of columns to be merged for the MAPS dashboard
-    col = 1
-    row += 2
-    border = report_fonts.border_type('thin')
-    alignment = report_fonts.align_type('wrap')
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + merge_len)
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('bold')
-    sheet[cell].alignment = alignment
-    sheet[cell] = 'MAPS Dashboard Alerts'
-    font = report_fonts.font_type('std')
+    _row, col = _row+2, 1
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=col + merge_len)
+    excel_util.cell_update(_sheet, _row, col, 'MAPS Dashboard Alerts', font=_bold_font, align=_align_wrap,
+                             border=_border_thin)
+
     i = 0
     for alert_obj in chassis_obj.r_alert_objects():
         if alert_obj.alert_num() in al.AlertTable.maps_alerts:
-            row += 1
-            sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + merge_len)
+            _row += 1
+            _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=col + merge_len)
             for col in range(1, merge_len + 2):
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].border = border
-            col = 1
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
-            sheet[cell] = alert_obj.fmt_msg()
-            i += 1
+                excel_util.cell_update(_sheet, _row, col, None, border=_border_thin)
+            col, i = 1, i + 1
+            excel_util.cell_update(_sheet, _row, col, alert_obj.fmt_msg(), font=_std_font, align=_align_wrap)
     if i == 0:
-        row += 1
-        sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + merge_len)
+        _row += 1
+        _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=col + merge_len)
         for col in range(1, merge_len + 2):
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
-        col = 1
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = font
-        sheet[cell].alignment = alignment
-        sheet[cell] = 'None'
+            excel_util.cell_update(_sheet, _row, col, None, border=_border_thin)
+        excel_util.cell_update(_sheet, _row, 1, 'None', font=_std_font, align=_align_wrap)
 
 
 ##################################################################
@@ -228,150 +225,94 @@ def _chassis_detail(chassis_obj, display):
     :type display: dict
     :rtype: None
     """
-    global row, sheet, _bladed_chassis_only, _fru
+    global _row, _sheet, _bladed_chassis_only, _fru, _border_thin
 
-    border = report_fonts.border_type('thin')
-    alignment = report_fonts.align_type('wrap')
     for k in display:
-        if k in ('brocade-fru/blade', 'brocade-fru/fan', 'brocade-fru/power-supply'):
-            _fru.update({k: brcddb_util.convert_to_list(chassis_obj.r_get(k))})
+        if 'brocade-fru' in k:
+            _fru.update({k: gen_util.convert_to_list(chassis_obj.r_get(k))})
         else:
             font = report_utils.font_type_for_key(chassis_obj, k)
-            col = 1
-            row += 1
-            # Comments
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = font
-            sheet[cell].border = border
-            sheet[cell].alignment = alignment
-            sheet[cell] = report_utils.comments_for_alerts(chassis_obj, k)
-            # Key description
-            col += 1
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = font
-            sheet[cell].border = border
-            sheet[cell].alignment = alignment
-            sheet[cell] = display[k]
-            # Value
-            col += 1
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = font
-            sheet[cell].border = border
-            sheet[cell].alignment = alignment
+            _row, col = _row+1, 1
             if k in _chassis_key_case:
-                sheet[cell] = _chassis_key_case[k](chassis_obj, k)
+                val = _chassis_key_case[k](chassis_obj, k)
             else:
                 if not chassis_obj.r_is_bladded() and k in _bladed_chassis_only:
-                    sheet[cell] = 'n/a'
+                    val = 'n/a'
                 else:
                     v = chassis_obj.r_get(k)
                     if isinstance(v, bool):
-                        sheet[cell] = '\u221A' if v else ''
+                        val = '\u221A' if v else ''
                     else:
-                        sheet[cell] = v if isinstance(v, (str, int, float)) else '' if v is None else str(v)
+                        val = v if isinstance(v, (str, int, float)) else '' if v is None else str(v)
+
+            for buf in [report_utils.comments_for_alerts(chassis_obj, k),  # Comments
+                        display[k],  # Key description
+                        val]:  # Value
+                excel_util.cell_update(_sheet, _row, col, buf, font=font, align=_align_wrap, border=_border_thin)
+                col += 1
 
 
-def _chassis_frus(chassis_obj, display):
+def _chassis_frus(display):
     """Adds the chassis FRUs to the worksheet
 
-    :param chassis_obj: Chassis object
-    :type chassis_obj: brcddb.classes.chassis.ChassisObj
     :param display: List of keys to display. Similar to switch_page()
     :type display: dict
     :rtype: None
     """
-    global row, sheet, _fru, _fru_hdr
+    global _row, _sheet, _fru, _fru_hdr, _border_thin, _align_wrap, _bold_font, _std_font
 
-    border = report_fonts.border_type('thin')
-    alignment = report_fonts.align_type('wrap')
     for fk in _fru:
-        row += 2
-        col = 1
+        _row, col = _row+2, 1
         # Add the headers
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = report_fonts.font_type('bold')
-        sheet[cell].alignment = report_fonts.align_type('wrap')
-        sheet[cell] = _fru_hdr[fk]['h']
-        row += 1
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = report_fonts.font_type('std')
-        sheet[cell].alignment = report_fonts.align_type('wrap')
-        sheet[cell] = 'Comments'
+        excel_util.cell_update(_sheet, _row, col, _fru_hdr[fk]['h'], font=_bold_font, align=_align_wrap)
+        _row += 1
+        excel_util.cell_update(_sheet, _row, col, 'Comments', font=_std_font, align=_align_wrap)
         disp = display[fk]
         for k, v in disp.items():
             col += 1
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = report_fonts.font_type('std')
-            sheet[cell].border = border
-            sheet[cell].alignment = alignment
-            sheet[cell] = disp[k]
+            excel_util.cell_update(_sheet, _row, col, disp[k], font=_std_font, align=_align_wrap, border=_border_thin)
         # Add the values
-        for d in brcddb_util.sort_obj_num(_fru[fk], _fru_hdr[fk]['s'], r=False):
-            row += 1
-            col = 2
+        for d in gen_util.sort_obj_num(_fru[fk], _fru_hdr[fk]['s'], r=False):
+            _row,col = _row+1, 2
             for k in disp:
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].font = report_fonts.font_type('std')
-                sheet[cell].border = border
-                sheet[cell].alignment = alignment
-                sheet[cell] = chassis_fru_key_case[k](d[k]) if k in chassis_fru_key_case and k in d \
-                    else d[k] if k in d else ''
-                if disp[k] == 'State':
-                    # Add the comments
-                    cell = xl.get_column_letter(1) + str(row)
-                    sheet[cell].border = border
-                    sheet[cell].alignment = alignment
-                    if 'ault' in d[k]:
-                        sheet[cell].font = report_fonts.font_type('error')
-                        sheet[cell] = 'Fault'
+                buf = chassis_fru_key_case[k](d[k]) if k in chassis_fru_key_case and k in d else d[k] if k in d else ''
+                excel_util.cell_update(_sheet, _row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
+                if disp[k] == 'State':  # Add the comments
+                    if 'ault' in d[k]:  # A simple way to match "Fault" or "fault"
+                        buf, font = 'Fault', excel_fonts.font_type('error')
                     else:
-                        sheet[cell].font = report_fonts.font_type('std')
-                        sheet[cell] = ''
+                        buf, font = '', _std_font
+                    excel_util.cell_update(_sheet, _row, col, buf, font=font, align=_align_wrap, border=_border_thin)
                 col += 1
 
 
-def _logical_switches(chassis_obj, display):
+def _logical_switches(chassis_obj):
     """Creates a chassis detail worksheet for the Excel report.
 
     :param chassis_obj: Chassis object
     :type chassis_obj: brcddb.classes.chassis.ChassisObj
-    :param display: List of keys to display. Similar to switch_page()
-    :type display: dict
     :rtype: None
     """
-    global row, sheet, _switch_hdr
+    global _row, _sheet, _switch_hdr, _bold_font, _std_font, _align_wrap
 
-    border = report_fonts.border_type('thin')
-    alignment = report_fonts.align_type('wrap')
-    font = report_fonts.font_type('bold')
-    row += 2
-    col = 1
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + 4)
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = font
-    sheet[cell].alignment = alignment
-    sheet[cell] = 'Logical Switches'
-    row += 1
+    _row, col = _row+2, 1
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=col + 4)
+    excel_util.cell_update(_sheet, _row, col, 'Logical Switches', font=_bold_font, align=_align_wrap)
+    _row += 1
+
     # The column headers
     for k in _switch_hdr:
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = font
-        sheet[cell] = k
+        excel_util.cell_update(_sheet, _row, col, k, font=_bold_font)
         col += 1
+
     # The values
     for switch_obj in chassis_obj.r_switch_objects():
-        row += 1
-        col = 1
-        font = report_fonts.font_type('std')
+        _row, col = _row + 1, 1
         for k in _switch_hdr:
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
             k0 = _switch_hdr[k]
-            if k0 in report_switch.switch_key_case:
-                sheet[cell] = report_switch.switch_key_case[k0](switch_obj, k0)
-            else:  # It can only be the domain ID
-                sheet[cell] = switch_obj.r_get(k0)
+            buf = report_switch.switch_key_case[k0](switch_obj, k0) if k0 in report_switch.switch_key_case \
+                else switch_obj.r_get(k0)  # It can only be the domain ID
+            excel_util.cell_update(_sheet, _row, col, buf, font=_std_font, align=_align_wrap)
             col += 1
 
 
@@ -409,5 +350,5 @@ def chassis_page(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj, in_displ
     _setup_worksheet(wb, tc, sheet_name, 0 if sheet_i is None else sheet_i, sheet_title, chassis_obj)
     _chassis_detail(chassis_obj, display)
     _maps_dashboard(chassis_obj)
-    _chassis_frus(chassis_obj, display)
-    _logical_switches(chassis_obj, display)
+    _chassis_frus(display)
+    _logical_switches(chassis_obj)

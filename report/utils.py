@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -16,6 +16,53 @@
 
 :mod:`report.utils` - Create and save workbooks, title page, and miscellaneous common methods.
 
+Public Methods & Data::
+
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | Method                        | Description                                                                   |
+    +===============================+===============================================================================+
+    | fabric_name_case              | Return the fabric name. Typically used in case statments for page reports in  |
+    |                               | brcddb.report.                                                                |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | fabric_name_or_wwn_case       | Return the fabric name with (wwn). Typically used in case statments for page  |
+    |                               | reports in brcddb.report.*"                                                   |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | fabric_wwn_case               | Return the fabric WWN. Typically used in case statments for page reports in   |
+    |                               | brcddb.report.                                                                |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | font_type                     | Determines the display font based on alerts.                                  |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | font_type_for_key             | Determines the display font based on alerts associated with an object.        |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | comments_for_alerts           | Converts alerts associated with an object to a human readable string.         |
+    |                               | Multiple comments separated with /n                                           |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | combined_login_alert_objects  | Combines login alert objects with FDMI HBA and FDMI port alerts objects       |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | combined_login_alerts         | Converts alerts associated with a login object and the login and FDMI objects |
+    |                               | for lwwn to a human readable string                                           |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | combined_alert_objects        | Combines alerts associated with a port object and the login and FDMI objects  |
+    |                               | for wwn.                                                                      |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | combined_alerts               | Converts alerts associated with a port object and the login and FDMI objects  |
+    |                               | for lwwn to a human readable string.                                          |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | title_page                    | Creates a title page for the Excel report.                                    |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | get_next_switch_d             | Finds the first match in an sl list returned from excel_util.read_sheet() and |
+    |                               | returns the next entry                                                        |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | parse_sfp_file_for_rules      | Parses Excel file with the new SFP rules Formatted to be sent to the API. See |
+    |                               | sfp_rules_rx.xlsx                                                             |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | parse_sfp_file                | Parses Excel file with the new SFP rules. See sfp_rules_rx.xlsx               |
+    +-------------------------------+-------------------------------------------------------------------------------+
+    | parse_switch_file             | Parses Excel switch configuration Workbook. See                               |
+    |                               | X6_X7-4_Switch_Configuration, X6_X7-8_Switch_Configuration, and               |
+    |                               | Fixed_Port_Switch_Configuration                                               |
+    +-------------------------------+-------------------------------------------------------------------------------+
+
 Version Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -23,40 +70,36 @@ Version Control::
     +===========+===============+===================================================================================+
     | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1-8   | 17 Apr 2021   | Miscellaneious bug fixes.                                                         |
+    | 3.0.1-8   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 14 May 2021   | Added parse_parameters(), replaced wb.get_sheet_by_name() with wb[sheet_name]     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.0     | 14 Nov 2021   | No funcitonal changes. Defaulted sheet index to 0                                 |
+    | 3.1.0     | 14 Nov 2021   | No functional changes. Defaulted sheet index to 0                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 31 Dec 2021   | Fixed error message when file not found in parse_switch_file()                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 28 Apr 2022   | Moved generic Excel utilities to brcdapi.excel_util                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.2'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
 import re
-import openpyxl.styles as xl_styles
 import brcdapi.log as brcdapi_log
+import brcdapi.gen_util as gen_util
+import brcdapi.excel_util as excel_util
+import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_fabric as brcddb_fabric
-import brcddb.util.util as brcddb_util
-import brcddb.report.fonts as report_fonts
 import brcddb.util.search as brcddb_search
-
-# Use this to create a sheet name that is not only valid for Excel but can have a link. Note when creating a link to a
-# sheet in Excel, there are additional restrictions on the sheet name. For example, it cannot contain a space. Sample
-# use: good_sheet_name = valid_sheet_name.sub('_', bad_sheet_name)
-valid_sheet_name = re.compile(r'[^\d\w_]')
-
-# Using datetime is clumsy. This is easier. Not that I need speed, but its also faster. Used in _datetime
-_num_to_month = ('Inv', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 
 #######################################################################
 #
@@ -66,14 +109,30 @@ _num_to_month = ('Inv', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 
 
 
 def fabric_name_case(obj, k=None, wwn=None):
+    """Return the fabric name. Typically used in case statments for page reports in brcddb.report.*
+
+    :param obj: brcddb object that contains a fabric object
+    :type obj: brcddb.classes.fabric.FabricObj, brcddb.classes.fabric.SwitchObj, brcddb.classes.fabric.PortObj,
+               brcddb.classes.fabric.LoginObj
+    :param k: Not used
+    :type k: str
+    :param wwn: Not used
+    :type wwn: str
+    """
     return brcddb_fabric.best_fab_name(obj.r_fabric_obj(), False)
 
 
 def fabric_name_or_wwn_case(obj, k=None, wwn=None):
+    """Return the fabric name with (wwn). Typically used in case statments for page reports in brcddb.report.*
+
+    See fabric_name_case() for parameter definitions"""
     return brcddb_fabric.best_fab_name(obj.r_fabric_obj(), True)
 
 
 def fabric_wwn_case(obj, k=None, wwn=None):
+    """Return the fabric WWN. Typically used in case statments for page reports in brcddb.report.*
+
+    See fabric_name_case() for parameter definitions"""
     return obj.r_fabric_key()
 
 
@@ -83,12 +142,13 @@ def font_type(obj_list):
     :param obj_list: List of brcddb.classes.alert.AlertObj
     :param obj_list: list
     """
-    font = report_fonts.font_type('std')
+    font = excel_fonts.font_type('std')
     for alert_obj in obj_list:
         if alert_obj.is_error():
-            return report_fonts.font_type('error')
+            return excel_fonts.font_type('error')
         elif alert_obj.is_warn():
-            font = report_fonts.font_type('warn')
+            font = excel_fonts.font_type('warn')
+
     return font
 
 
@@ -100,71 +160,19 @@ def font_type_for_key(obj, k=None):
     :param k: Key to associate the alert with
     :type k: str
     """
-    font = report_fonts.font_type('std')
+    font = excel_fonts.font_type('std')
     a_list = obj.r_alert_objects() if k is None else [a_obj for a_obj in obj.r_alert_objects() if a_obj.key() == k]
     for a_obj in a_list:
         if a_obj.is_error():
-            return report_fonts.font_type('error')
+            return excel_fonts.font_type('error')
         elif a_obj.is_warn():
-            font = report_fonts.font_type('warn')
+            font = excel_fonts.font_type('warn')
+
     return font
 
 
-def parse_parameters(in_wb=None, sheet_name='parameters', hdr_row=0, wb_name=None):
-    """Parses a parameters Workbook. See sample_parameters.xlsx
-
-    Returned dictionary is as follows:
-
-    +-----------+-------+-------------------------------------------------------------------------------------------+
-    | key       | Value | Value                                                                                     |
-    |           | type  |                                                                                           |
-    +===========+=======+===========================================================================================+
-    | hdr_col   | dict  | key: Header, value: 0 based column number                                                 |
-    +-----------+-------+-------------------------------------------------------------------------------------------+
-    | content   | list  | A list of dictionaries. For each dictionary, the key is the header and the value is the   |
-    |           |       | matching cell value. The list order is as the data was entered in the worksheet.          |
-    +-----------+-------+-------------------------------------------------------------------------------------------+
-
-    :param in_wb: Workbook object returned from openpyxl.load_workbook() to read if wb_name is None
-    :type in_wb: Workbook, None
-    :param sheet_name: Name of sheet to read
-    :type sheet_name: str
-    :param hdr_row: Header row. Rows below are assumed to be the content data
-    :type hdr_row: int
-    :param wb_name: Name of workbook to read. If None, assume wb is a valid Workbook object
-    :type wb_name: str, None
-    :return: Dictionary as described above
-    :rtype: dict
-    """
-    hdr_d = dict()
-    content_l = list()
-    rd = dict(hdr_col=hdr_d, content=content_l)  # Return dict
-    wb = in_wb if wb_name is None else xl.load_workbook(wb_name, data_only=True)
-
-    # Figure out what and where the headers are
-    try:
-        sheet = wb[sheet_name]
-    except:
-        brcdapi_log.exception('sheet ' + sheet_name + ' does not exist.', True)
-        return rd
-    sl, al = read_sheet(sheet, 'row')
-    hdr_row_l = al[hdr_row]
-    for i in range(0, len(hdr_row_l)):
-        if hdr_row_l[i] is not None:
-            hdr_d.update({hdr_row_l[i]: i})
-
-    # Read in the values for each column
-    for i in range(hdr_row+1, len(al)):
-        d = dict()
-        for key, col in hdr_d.items():
-            d.update({key: al[i][col]})
-        content_l.append(d)
-
-    return rd
-
-
 def comments_for_alerts(gobj, k=None, wwn=None):
-    """Converts alerts associated with an object to a human readable string. Multiple comments seprated with /n
+    """Converts alerts associated with an object to a human readable string. Multiple comments separated with /n
 
     :param gobj: Any brcddb object
     :type gobj: ChassisObj, FabricObj, SwitchObj, PortObj, ZoneObj, ZoneCfgObj, AliasObj
@@ -258,26 +266,6 @@ def combined_alerts(port_obj, wwn):
     return '\n'.join([obj.fmt_msg() for obj in a_list]) if a_list is not None and len(a_list) > 0 else ''
 
 
-def new_report():
-    """Creates a workbook object for the Excel report.
-
-    :return: wb
-    :rtype: Workbook object
-    """
-    return xl.Workbook()
-
-
-def save_report(wb, file_name='Report.xlsx'):
-    """Saves a workbook object as an Excel file.
-
-    :param wb: Workbook object
-    :type wb: class
-    :param file_name: Report name
-    :type file_name: str
-    """
-    wb.save(file_name)
-
-
 def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     """Creates a title page for the Excel report.
 
@@ -320,24 +308,19 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
 
     # Set up the sheet
     col = 1
-    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=valid_sheet_name.sub('_', sheet_name))
-    for i in brcddb_util.convert_to_list(col_width):
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i,
+                            title=excel_util.valid_sheet_name.sub('_', sheet_name))
+    for i in gen_util.convert_to_list(col_width):
         sheet.column_dimensions[xl_util.get_column_letter(col)].width = i
         col += 1
-    max_col = col - 1
-    row = 1
-    col = 1
+    max_col = col-1
+    row = col = 1
     if isinstance(tc, str):
-        cell = xl_util.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        excel_util.cell_update(sheet, row, col, 'Contents', link='#' + tc + '!A1', font=excel_fonts.font_type('link'))
         col += 1
-    cell = xl_util.get_column_letter(col) + str(row)
     sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=max_col)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell].fill = report_fonts.fill_type('lightblue')
-    sheet[cell] = sheet_title
+    excel_util.cell_update(sheet, row, col, sheet_title, font=excel_fonts.font_type('hdr_1'),
+                           fill=excel_fonts.fill_type('lightblue'))
     row += 2
     # Add the content
     # Intended for general users so lots of error checking.
@@ -357,20 +340,12 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
                         brcdapi_log.exception('Unknown disp type, ' + str(type((obj.get('disp')))) + ', at row ' +
                                               str(row), True)
                 for buf in display:
-                    cell = xl_util.get_column_letter(col) + str(row)
-                    if 'hyper' in obj:
-                        sheet[cell].hyperlink = obj.get('hyper')
-                        sheet[cell] = buf
-                    else:
-                        sheet[cell] = buf
-                    if 'font' in obj:
-                        sheet[cell].font = report_fonts.font_type(obj.get('font'))
-                    if 'align' in obj:
-                        sheet[cell].alignment = report_fonts.align_type(obj.get('align'))
-                    if 'border' in obj:
-                        sheet[cell].border = report_fonts.border_type(obj.get('border'))
-                    if 'fill' in obj:
-                        sheet[cell].fill = report_fonts.fill_type(obj.get('fill'))
+                    excel_util.cell_update(sheet, row, col, buf,
+                                           link=obj.get('hyper'),
+                                           font=excel_fonts.font_type(obj.get('font')),
+                                           align=sexcel_fonts.align_type(obj.get('align')),
+                                           border=excel_fonts.border_type(obj.get('border')),
+                                           fill=excel_fonts.fill_type(obj.get('fill')))
                     if 'merge' in obj:
                         if isinstance(obj.get('merge'), int):
                             if obj.get('merge') > 1:
@@ -383,175 +358,18 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
                             col += 1
                     else:
                         col += 1
-                    if 'hyper' in obj:
-                        sheet[cell].hyperlink = (obj.get('hyper') + '.')[:-1]
                 if 'new_row' not in obj or ('new_row' in obj and obj.get('new_row')):
-                    row += 1
-                    col = 1
+                    row, col = row+1, col
             else:
                 brcdapi_log.exception('Invalid type in content list, ' + str(type(obj)) + ', at row ' + str(row), True)
     else:
         brcdapi_log.exception('Invalid content type: ' + str(type(content)), True)
 
 
-def col_to_num(cell):
-    """Converts a cell reference to a column number. This is a little more effecient than the openpyxl method
-
-    :param cell: Excel spreadsheet cell reference. Example: 'AR20' or just 'AR'
-    :type cell: str
-    :return: Column number. 0 if column not found
-    :rtype: int
-    """
-    r = 0
-    for i in range(0, len(cell)):
-        x = ord(cell[i].upper()) - 64
-        if x < 1 or x > 26:
-            break
-        r = (r * 26) + x
-    return r
-
-
-def cell_match_val(sheet, val, col=None, row=None, num=1):
-    """Finds the cell matching a value
-
-    :param sheet: Sheet structure returned from wb.create_sheet()
-    :type sheet: class
-    :param val: Cell contents we're looking for
-    :type val: int, float, str
-    :param col: List of columns letters to look in. If None, checks all columns on sheet.
-    :type col: list, str, None
-    :param row: Row number or list of row numbers to look in. If None, checks all rows on sheet.
-    :type row: int, list, None
-    :param num: Number of instances to find
-    :type num: int
-    :return: List of cell references where value found. If num == 1: just one str is returned. None if not found
-    :rtype: str, list, None
-    """
-    col_list = [xl_util.get_column_letter(i) for i in range(1, sheet.max_column)] if col is None \
-        else brcddb_util.convert_to_list(col)
-    row_list = [i for i in range(1, sheet.max_row)] if row is None else brcddb_util.convert_to_list(row)
-
-    class Found(Exception):
-        pass
-    ret = list()
-    try:
-        for c in col_list:
-            for r in row_list:
-                cell = c + str(r)
-                rv = sheet[cell].value
-                if (isinstance(val, (int, float)) and isinstance(rv, (int, float))) or \
-                        (isinstance(val, str) and isinstance(rv, str)):
-                    if val == rv:
-                        ret.append(cell)
-                        if num >= len(ret):
-                            raise Found
-    except Found:
-        pass
-
-    if num == 1:
-        if len(ret) > 0:
-            return ret[0]
-        else:
-            return None
-    else:
-        return ret
-
-
-def _datetime(v, granularity):
-    """Converts a datetime.datetime class object from Excel to formated text
-
-    :param v: Cell value of class type datetime.datetime
-    :type v: datetime
-    :param granularity: datetime conversion granularity 0: yyyy, 1: mm yyyy, 2: dd mm yyyy, 3: dd mm yyyy hh, \
-        4: dd mm yyyy hh:mm, 5: dd mm yyyy hh:mm:ss, 6: dd mm yyyy hh:mm:ss:uuu
-    :type granularity: int
-    """
-    msec = str(v.microsecond)
-    tl = [str(v.year),
-          _num_to_month[v.month] + ' ',
-          '0' + str(v.day) + ' ' if v.day < 10 else str(v.day) + ' ',
-          ' 0' + str(v.hour) if v.hour < 10 else ' ' + str(v.hour),
-          ':0' + str(v.minute) if v.minute < 10 else ':' + str(v.minute),
-          ':0' + str(v.second) if v.second < 10 else ':' + str(v.second),
-          ':00' + msec if len(msec) == 1 else ':0' + msec if len(msec) == 2 else ':' + msec[0:3]]
-    buf = ''
-    for i in range(0, min(granularity+1, len(tl))):
-        buf = buf + tl[i] if i > 2 else tl[i] + buf
-
-    return buf
-
-
-def read_sheet(sheet, order='col', granularity=2):
-    """Reads the contents (values) of a worksheet into a list of dict of:
-
-    sl Detail:
-    +---------------+---------------------------------------------------------------------------------------+
-    | key           | Value description                                                                     |
-    +===============+=======================================================================================+
-    | cell          | Cell reference.                                                                       |
-    +---------------+---------------------------------------------------------------------------------------+
-    | val           | Value read from cell. Special types (not int, float, or str) are converted to None    |
-    +---------------+---------------------------------------------------------------------------------------+
-
-    Intended to be used by methods that will feed this list to brcddb.utils.search.match_test()
-
-    :param sheet: Sheet structure returned from wb.create_sheet()
-    :type sheet: class
-    :param order: Order in which to read. 'row' means read by row, then each individual column. 'col' for column 1st
-    :type order: str
-    :param granularity: See description of granularity with _datetime()
-    :type granularity: int
-    :return sl: List of dict as noted above
-    :rtype sl: list
-    :return al: List of lists. Contents of the worksheet referenced by al[col-1][row-1] if order is 'col' or
-                al[row-1][col-1] if order is 'row'
-    :rtype al: list
-    """
-     # Read in all the cell values
-    sl = list()
-    al = list()
-    if order.lower() == 'col':
-        for col in range(1, sheet.max_column+1):
-            col_ref = xl_util.get_column_letter(col)
-            rl = list()
-            for row in range(1, sheet.max_row+1):
-                cell = col_ref + str(row)
-                v = sheet[cell].value
-                if isinstance(v, (bool, int, float, str)):
-                    sl.append(dict(cell=cell, val=v))
-                    rl.append(v)
-                elif 'datetime.datetime' in str(type(v)):
-                    buf = _datetime(v, granularity)
-                    sl.append(dict(cell=cell, val=buf))
-                    rl.append(buf)
-                else:
-                    rl.append(None)
-            al.append(rl)
-    else:
-        for row in range(1, sheet.max_row+1):
-            cl = list()
-            for col in range(1, sheet.max_column+1):
-                cell = xl_util.get_column_letter(col) + str(row)
-                sheet_cell = sheet[cell]
-                v = sheet_cell.value
-                if isinstance(v, (bool, int, float, str)):
-                    sl.append(dict(cell=cell, val=v))
-                    cl.append(v)
-                elif 'datetime.datetime' in str(type(v)):
-                    buf = _datetime(v, granularity)
-                    sl.append(dict(cell=cell, val=buf))
-                    cl.append(buf)
-                else:
-                    cl.append(None)
-            al.append(cl)
-
-    return sl, al
-
-
 def get_next_switch_d(switch_list, val, test_type, ignore_case=False):
-    """Finds the first match in an sl list returned from read_sheet() and returns the next entry in switch_list
+    """Finds the first match in an sl list returned from excel_util.read_sheet() and returns the next entry
 
-    :param switch_list: A list of dictionaries as returned from read_sheet()
+    :param switch_list: A list of dictionaries as returned from excel_util.read_sheet()
     :type switch_list: list, tuple
     :param val: The value to look for
     :type val: str, int, float
@@ -567,6 +385,7 @@ def get_next_switch_d(switch_list, val, test_type, ignore_case=False):
         for i in range(0, len(switch_list)):
             if switch_list[i]['cell'] == cell:
                 return None if i + 1 >= len(switch_list) else switch_list[i+1]
+
     return None
 
 
@@ -724,7 +543,7 @@ def parse_sfp_file_for_rules(file, groups):
     :type file: str
     :param groups: List of groups defined on this switch - returned from 'brocade-maps/group'
     :type groups: list
-    :return: List of SFP rule dictionaries. None if an error was encountered
+    :return: List of SFP rule dictionaries. None if file not found
     :rtype: list, None
     """
     new_sfp_rules = list()  # The list of rule dictionaries that will be returned
@@ -732,7 +551,7 @@ def parse_sfp_file_for_rules(file, groups):
     # Load the workbook
     try:
         wb = xl.load_workbook(file, data_only=True)
-    except:
+    except FileNotFoundError:
         return None
 
     # Find where all the columns are
@@ -741,12 +560,12 @@ def parse_sfp_file_for_rules(file, groups):
     if cell is None:
         brcdapi_log.log('Could not find column with \'Group\'', True)
         return None
-    group_col = xl_util.get_column_letter(col_to_num(cell))
+    group_col = xl_util.get_column_letter(excel_util.col_to_num(cell))
     for k0, v0 in _rules.items():
         for k1, v1 in v0.get('mem').items():
             cell = cell_match_val(sheet, k1, None, 1)
             if cell is not None:
-                v1.update({'col': xl_util.get_column_letter(col_to_num(cell))})
+                v1.update({'col': xl_util.get_column_letter(excel_util.col_to_num(cell))})
 
     # Build the list of rules to send to the switch.
     row = 2
@@ -777,9 +596,9 @@ def parse_sfp_file(file):
     """
     # Load the workbook & contents
     try:
-        parsed_sfp_sheet = parse_parameters(sheet_name='new_SFP_rules', hdr_row=0, wb_name=file)['content']
-    except:
-        brcdapi_log.log('Error opening workbook: ' + str(file), True)
+        parsed_sfp_sheet = excel_util.parse_parameters(sheet_name='new_SFP_rules', hdr_row=0, wb_name=file)['content']
+    except FileNotFoundError:
+        brcdapi_log.log('SFP rules workbook: ' + str(file) + ' not found.', True)
         return list()
 
     # Get rid of everything past '__END__'
@@ -798,9 +617,9 @@ should be interpreted. The key is the value in the cell in the "Area" column. Th
     +-------+-------------------------------------------------------------------------------------------------------+
     | d     | The default value to assign in the event the parameter is missing from the spreadsheet                |
     +-------+-------------------------------------------------------------------------------------------------------+
-    | r     | If True, a value for the paramter is required                                                         |
+    | r     | If True, a value for the parameter is required                                                        |
     +-------+-------------------------------------------------------------------------------------------------------+
-    | h     | If True, treat the value from the spreasheet as a hex number and convert to a decimal int.            |
+    | h     | If True, treat the value from the spreadsheet as a hex number and convert to a decimal int.           |
     +-------+-------------------------------------------------------------------------------------------------------+
     | i     | Convert the value from the spreadsheet to an int                                                      |
     +-------+-------------------------------------------------------------------------------------------------------+
@@ -808,7 +627,7 @@ should be interpreted. The key is the value in the cell in the "Area" column. Th
     +-------+-------------------------------------------------------------------------------------------------------+
 """
 _switch_find_d = {  # Key is the 'Area' column. Value dict is: k=Key for return data structure, d=default value,
-    # r=required, h=True if value is hex and should be conerted to the decimal int equivalent, yn=Convert Yes/No to
+    # r=required, h=True if value is hex and should be converted to the decimal int equivalent, yn=Convert Yes/No to
     # True/False. This table is used in _parse_switch_sheet()
     'Fabric ID (FID)': dict(k='fid', d=None, r=True, h=False, yn=False),
     'Fabric Name': dict(k='fab_name', d=None, r=False, i=False, h=False, yn=False),
@@ -826,7 +645,7 @@ _switch_find_d = {  # Key is the 'Area' column. Value dict is: k=Key for return 
 
 
 def _parse_switch_sheet(sheet):
-    """Parses a "Switch_x" workhseet from X6_X7-8_Slot_48_FICON_Link_Address_Planning.xlsx as this dictionary:
+    """Parses a "Switch_x" worksheet from X6_X7-8_Slot_48_FICON_Link_Address_Planning.xlsx as this dictionary:
 
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | key           | type      | Description                                                                       |
@@ -846,7 +665,7 @@ def _parse_switch_sheet(sheet):
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | enable_ports  | bool      | If True, enable the ports after configuration is complete.                        |
     +---------------+-----------+-----------------------------------------------------------------------------------+
-    | enable_swtich | bool      | If True, enable the switch after configuruation is complete.                      |
+    | enable_switch | bool      | If True, enable the switch after configuration is complete.                       |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | ports         | dict      | Key is the port number and value is the link address                              |
     +---------------+-----------+-----------------------------------------------------------------------------------+
@@ -867,7 +686,7 @@ def _parse_switch_sheet(sheet):
     """
     global _switch_find_d
 
-    sl, al = read_sheet(sheet, 'row')
+    sl, al = excel_util.read_sheet(sheet, 'row')
 
     # Find the 'Area' and 'Parameter' columns
     find_l = ('Area', 'Parameter')
@@ -898,7 +717,7 @@ def _parse_switch_sheet(sheet):
                     if d['h']:
                         try:
                             v = int(v, 16)
-                        except:
+                        except ValueError:
                             ml.append('Value for ' + k + ', ' + str(v) + ', is not a valid hex number.')
                     if d['yn']:
                         v = True if v.lower() == 'yes' else False
@@ -946,7 +765,7 @@ _slot_d_find = {  # See table above
 
 
 def _parse_slot_sheet(sheet):
-    """Parses a "Slot x" workhseet from X6_X7-8_Slot_48_FICON_Link_Address_Planning.xlsx as a dictionary. The key is the
+    """Parses a "Slot x" worksheet from X6_X7-8_Slot_48_FICON_Link_Address_Planning.xlsx as a dictionary. The key is the
     port number in s/p notation. The value for each port dictionary is as follows:
 
     +---------------+-----------+-----------------------------------------------------------------------------------+
@@ -978,7 +797,7 @@ def _parse_slot_sheet(sheet):
     global _slot_d_find
 
     rd = dict()  # The return dictionary
-    sl, al = read_sheet(sheet, 'row')
+    sl, al = excel_util.read_sheet(sheet, 'row')
 
     # Find the slot number
     for buf in al[0]:
@@ -990,7 +809,6 @@ def _parse_slot_sheet(sheet):
     col_d = [dict(), dict()]
     col_start = [0, 0]
     hdr = al[1]
-    port_found = False
     max_col = 0
     for i in range(0, 2):
         col_start[i] = max_col
@@ -1002,7 +820,6 @@ def _parse_slot_sheet(sheet):
                     break
 
     # Add the data from the worksheet
-    rl = list()
     ml = list()
     for row in range(3, len(al)):
         if al[row][col_d[0]['port']] is None:
@@ -1020,7 +837,7 @@ def _parse_slot_sheet(sheet):
                     if d['h']:
                         try:
                             v = int(v, 16)
-                        except:
+                        except ValueError:
                             ml.append('Value for ' + k + ', ' + str(v) + ', is not a valid hex number.')
                     if isinstance(v, str):
                         while len(v) < d['p']:
@@ -1037,7 +854,8 @@ def _parse_slot_sheet(sheet):
 
 
 def parse_switch_file(file):
-    """Parses Excel switch configuration Workbook. See X6_X7-8_Slot_48_FICON_Link_Address_Planning.xlsx
+    """Parses Excel switch configuration Workbook. X6_X7-4_Switch_Configuration, X6_X7-8_Switch_Configuration, and
+       Fixed_Port_Switch_Configuration
 
     :param file: Path and name of Excel Workbook with switch configuration definitions
     :type file: str
@@ -1048,7 +866,7 @@ def parse_switch_file(file):
     | key           | type      | Description                                                                       |
     +===============+===========+===================================================================================+
     | switch_flag   | bool      | When True, a corresponding switch sheet was found. When False, the FID was found  |
-    |               |           | on a "Slot x" sheet without a matchin sheet for the switch.                       |
+    |               |           | on a "Slot x" sheet without a matching sheet for the switch.                      |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | fab_name      | None, str | Fabric name. Not set if None                                                      |
     +---------------+-----------+-----------------------------------------------------------------------------------+
@@ -1058,7 +876,7 @@ def parse_switch_file(file):
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | xisl          | bool      | If True, base switch usage is allowed.                                            |
     +---------------+-----------+-----------------------------------------------------------------------------------+
-    | enable_swtich | bool      | If True, enable the switch after configuruation is complete.                      |
+    | enable_switch | bool      | If True, enable the switch after configuration is complete.                       |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | enable_ports  | bool      | If True, enable the ports after configuration is complete.                        |
     +---------------+-----------+-----------------------------------------------------------------------------------+
@@ -1066,8 +884,8 @@ def parse_switch_file(file):
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | ports         | dict      | Key is the port number and value is a dictionary as follows:                      |
     |               |           |  Key          Type    Value                                                       |
-    |               |           |  did          int     The hexidecimal DID converted to decimal.                   |
-    |               |           |  port_addr    str     The hexidecimal port address (middle byte of the FC address)|
+    |               |           |  did          int     The hexadecimal DID converted to decimal.                   |
+    |               |           |  port_addr    str     The hexadecimal port address (middle byte of the FC address)|
     |               |           |  link_addr    str     FICON link address in hex                                   |
     |               |           |  fid          int     Fabric ID                                                   |
     |               |           |  ad           str,None    Attached device description. None if left blank.        |
@@ -1083,18 +901,17 @@ def parse_switch_file(file):
     # Load the workbook
     try:
         wb = xl.load_workbook(file, data_only=True)
-    except:
-        brcdapi_log.log('Error opening workbook: ' + 'None' if file is None else file, True)
+    except FileNotFoundError:
+        brcdapi_log.log('Workbook ' + str(file) + ' not found', True)
         return rd
 
     # Sort out the "Sheet_x" and "Slot x" worksheets
-    switch_d = dict()
     port_d = dict()
     for sheet in wb.worksheets:
         title = sheet.title
         if len(title) >= len('Switch') and title[0:len('Switch')] == 'Switch':
             d = _parse_switch_sheet(sheet)
-            d.update(dict(sheet_name=title))
+            d.update(sheet_name=title)
             fid = d.get('fid')
             if fid is not None:
                 if fid in rd:
@@ -1112,3 +929,40 @@ def parse_switch_file(file):
         switch_d['ports'].update({k: port})
 
     return rd
+
+###################################################################
+#
+#                    Depracated
+#
+###################################################################
+
+def parse_parameters(in_wb=None, sheet_name='parameters', hdr_row=0, wb_name=None):
+    return excel_util.parse_parameters(in_wb, sheet_name, hdr_row, wb_name)
+
+
+def new_report():
+    return excel_util.new_report()
+
+
+def save_report(wb, file_name='Report.xlsx'):
+    return excel_util.save_report(wb, file_name)
+
+
+def col_to_num(cell):
+    return excel_util.col_to_num(cell)
+
+
+def cell_match_val(sheet, val, col=None, row=None, num=1):
+    return excel_util.cell_match_val(sheet, val, col, row, num)
+
+
+def datetime(v, granularity):
+    return excel_util.datetime(v, granularity)
+
+
+def read_sheet(sheet, order='col', granularity=2):
+    return excel_util.read_sheet(sheet, order, granularity)
+
+
+def cell_update(sheet, row, col, buf, font=None, align=None, fill=None, link=None, border=None):
+    return excel_util.cell_update(sheet, row, col, buf, font, align, fill, link, border)

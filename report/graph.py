@@ -16,31 +16,38 @@
 
 :mod:`report.graph` - Creates a worksheet with a graph
 
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | graph                 | Inserts a worksheet into a workbook with a graph of specified ports and statistics.   |
+    +-----------------------+---------------------------------------------------------------------------------------+
+
 Version Control::
 
-    +------------+----------------+----------------------------------------------------------------------------------+
-    | Version    | Last Edit      | Description                                                                      |
-    +============+================+==================================================================================+
-    | 3.0.0      | 29 Sep 2020    | Initial. Started with 3.0 for consistency with other libraries                   |
-    +------------+----------------+----------------------------------------------------------------------------------+
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | Version   | Last Edit     | Description                                                                       |
+    +===========+===============+===================================================================================+
+    | 3.0.0     | 29 Sep 2020   | Initial. Started with 3.0 for consistency with other libraries                    |
+    +-----------+----------------+----------------------------------------------------------------------------------+
     | 3.0.1     | 13 Feb 2021   | Removed the shebang line                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.2     | 28 Apr 2022   | Updated documentation.                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020 Jack Consoli'
-__date__ = '13 Feb 2021'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.1'
+__version__ = '3.0.2'
 
-import openpyxl.utils.cell as xl
-from openpyxl.chart import AreaChart, AreaChart3D, BarChart, BarChart3D, LineChart, LineChart3D, Reference, Series
+from openpyxl.chart import AreaChart, AreaChart3D, BarChart, BarChart3D, LineChart, LineChart3D, Reference
 from openpyxl.chart.axis import DateAxis
-from datetime import date
-import brcddb.report.utils as report_utils
-import brcddb.report.fonts as report_fonts
+import brcdapi.excel_fonts as excel_fonts
 
 chart_types = {
     'area': AreaChart,
@@ -53,9 +60,9 @@ chart_types = {
 
 
 def graph(wb, tc, sheet_name, sheet_i, data_ref):
-    """Creates a dashboard worksheet for the Excel report.
+    """Inserts a worksheet into a workbook with a graph of specified ports and statistics.
 
-    data_ref: The graph assumes that the first row of the data are the data lables
+    data_ref: The graph assumes that the first row of the data are the data labels
 
     +-----------+-----------+-------------------------------------------+
     | Member    | type      | Description                               |
@@ -89,7 +96,7 @@ def graph(wb, tc, sheet_name, sheet_i, data_ref):
     +-----------+-----------+-------------------------------------------+
 
     :param wb: Workbook object
-    :type wb: dict
+    :type wb: Workbook object
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -97,7 +104,7 @@ def graph(wb, tc, sheet_name, sheet_i, data_ref):
     :param sheet_i: Sheet index where page is to be placed.
     :type sheet_i: int
     :param data_ref: Chart type. See chart_types
-    :type data_ref: dcit
+    :type data_ref: dict
     :rtype: None
     """
 
@@ -110,7 +117,7 @@ def graph(wb, tc, sheet_name, sheet_i, data_ref):
     x = data_ref['x']
     if isinstance(tc, str):
         sheet['A1'].hyperlink = '#' + tc + '!A1'
-        sheet['A1'].font = report_fonts.font_type('link')
+        sheet['A1'].font = excel_fonts.font_type('link')
         sheet['A1'] = 'Contents'
 
     data = Reference(ref_sheet, min_col=y['min_col'], min_row=y['min_row'], max_col=y['max_col'], max_row=y['max_row'])

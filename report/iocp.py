@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -15,6 +15,14 @@
 """
 :mod:`report.iocp` - Creates an iocp page to be added to an Excel Workbook
 
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | iocp_page             | Creates a best practice violation worksheet for the Excel report.                     |
+    +-----------------------+---------------------------------------------------------------------------------------+
+
 VVersion Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -30,27 +38,40 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 17 Jul 2021   | Added 'Comment' column. Used libraries in brcddb_port.                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 14 Nov 2021   | No funcitonal changes. Added defaults for display tables and sheet indicies.      |
+    | 3.0.6     | 14 Nov 2021   | No functional changes. Added defaults for display tables and sheet indices.       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 31 Dec 2021   | Changes to accommodate changes to brcddb.classes.iocp.IOCPObj.                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 28 Apr 2022   | Updated documentation.                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.8'
 
 import openpyxl.utils.cell as xl
+import brcdapi.gen_util as gen_util
+import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_switch as brcddb_switch
-import brcddb.report.fonts as report_fonts
 import brcddb.report.utils as report_utils
-import brcddb.util.search as brcddb_search
 import brcddb.util.iocp as brcddb_iocp
 import brcddb.brcddb_port as brcddb_port
 
 _cu_lookup = dict()
+_std_font = excel_fonts.font_type('std')
+_bold_font = excel_fonts.font_type('bold')
+_link_font = excel_fonts.font_type('link')
+_hdr2_font = excel_fonts.font_type('hdr_2')
+_hdr1_font = excel_fonts.font_type('hdr_1')
+_align_wrap = excel_fonts.align_type('wrap')
+_align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
+_align_wrap_c = excel_fonts.align_type('wrap_center')
+_border_thin = excel_fonts.border_type('thin')
 
 
 ##################################################################
@@ -58,15 +79,13 @@ _cu_lookup = dict()
 #              Case methods for _iocp_case
 #
 ##################################################################
-def _null_case(id, port_obj, chpid, link_addr=None):
+def _null_case(port_obj, chpid_obj, link_addr=None):
     """Returns ''
     
-    :param id: Idendifier. This is the CHPID tag
-    :type id: str
     :param port_obj: Port object associated with the CHPID or Control Unit
     :type port_obj: brcddb.classes.port.PortObj
-    :param chpid: This is the dict as filled in by brcddb.util.iocp.parse_iocp().
-    :type chpid: dict
+    :param chpid_obj: This is the CHPID object as determined by brcddb.util.iocp.parse_iocp().
+    :type chpid_obj: brcddb.classes.iocp.ChpidObj
     :param link_addr: Link address.
     :type link_addr: str
     :return: Data for table
@@ -75,66 +94,62 @@ def _null_case(id, port_obj, chpid, link_addr=None):
     return ''
 
 
-def _comment_case(id, port_obj, chpid, link_addr=None):
+def _comment_case(port_obj, chpid_obj, link_addr=None):
     """Returns the comments associated with the port. See _null_case() for parameter definitions"""
     return report_utils.comments_for_alerts(port_obj)
 
 
-def _pchid_case(id, port_obj, chpid, link_addr=None):
+def _pchid_case(port_obj, chpid_obj, link_addr=None):
     """Returns the PCHID. See _null_case() for parameter definitions"""
-    return chpid.get('pchid')
+    return chpid_obj.r_pchid()
 
 
-def _css_case(id, port_obj, chpid, link_addr=None):
+def _css_case(port_obj, chpid_obj, link_addr=None):
     """Returns the CSS for the id (tag). See _null_case() for parameter definitions"""
-    return ','.join([str(css) for css in brcddb_iocp.tag_to_css_list(id)])
+    return ','.join([str(css) for css in brcddb_iocp.tag_to_css_list(chpid_obj.r_obj_key())])
 
 
-def _chpid_case(id, port_obj, chpid, link_addr=None):
+def _chpid_case(port_obj, chpid_obj, link_addr=None):
     """Returns the CHIPID for the id (tag). See _null_case() for parameter definitions"""
-    return id[2:]
+    return chpid_obj.r_obj_key()[2:]
 
 
-def _defined_tag_case(id, port_obj, chpid, link_addr=None):
+def _defined_tag_case(port_obj, chpid_obj, link_addr=None):
     """Returns the CHIPID for the id (tag). See _null_case() for parameter definitions"""
-    return id.replace('0x', '')
+    return chpid_obj.r_obj_key()
 
 
-def _switch_id_case(id, port_obj, chpid, link_addr=None):
+def _switch_id_case(port_obj, chpid_obj, link_addr=None):
     """Returns the Switch ID. See _null_case() for parameter definitions"""
-    return "'" + chpid.get('switch')
+    return "'" + chpid_obj.r_switch_id()
 
 
-def _chpid_link_addr_case(id, port_obj, chpid, link_addr=None):
+def _chpid_link_addr_case(port_obj, chpid_obj, link_addr=None):
     """Returns the link address for the port. See _null_case() for parameter definitions"""
     if port_obj is None:
         return ''
-    link_addr = port_obj.r_get('fibrechannel/fcid-hex')
+    link_addr = port_obj.r_get('fibrechannel/fcid-hex').upper()
     return link_addr[2:6] if isinstance(link_addr, str) else ''
 
 
-def _unit_type_case(id, port_obj, chpid, link_addr=None):
+def _unit_type_case(port_obj, chpid_obj, link_addr=None):
     """Returns the unit type associated with the defined path. See _null_case() for parameter definitions"""
-    global _cu_lookup
-
-    cu = _cu_lookup.get(id + '_' + link_addr)
-    return '' if cu is None else cu['unit']
+    link_d = chpid_obj.r_link_addr(link_addr)
+    return '' if link_d is None else ', '.join(gen_util.remove_duplicates(link_d.values()))
 
 
-def _cu_number(id, port_obj, chpid, link_addr=None):
+def _cu_number(port_obj, chpid_obj, link_addr=None):
     """Returns the CU number for the defined path. See _null_case() for parameter definitions"""
-    global _cu_lookup
-
-    cu = _cu_lookup.get(id + '_' + link_addr)
-    return '' if cu is None else cu['_cu_num']
+    link_d = chpid_obj.r_link_addr(link_addr)
+    return '' if link_d is None else ', '.join(gen_util.remove_duplicates([str(k) for k in link_d.keys()]))
 
 
-def _switch_case(id, port_obj, chpid, link_addr=None):
+def _switch_case(port_obj, chpid_obj, link_addr=None):
     """Returns the switch name associated with the port. See _null_case() for parameter definitions"""
     return '' if port_obj is None else brcddb_switch.best_switch_name(port_obj.r_switch_obj())
 
 
-def _index_case(id, port_obj, chpid, link_addr=None):
+def _index_case(port_obj, chpid_obj, link_addr=None):
     """Returns the port index. See _null_case() for parameter definitions"""
     if port_obj is None:
         return ''
@@ -142,12 +157,12 @@ def _index_case(id, port_obj, chpid, link_addr=None):
     return '' if port_index is None else port_index
 
 
-def _port_case(id, port_obj, chpid, link_addr=None):
+def _port_case(port_obj, chpid_obj, link_addr=None):
     """Returns the port number. See _null_case() for parameter definitions"""
     return '' if port_obj is None else port_obj.r_obj_key()
 
 
-def _speed_case(id, port_obj, chpid, link_addr=None):
+def _speed_case(port_obj, chpid_obj, link_addr=None):
     """Returns the login speed. See _null_case() for parameter definitions"""
     if port_obj is None:
         return ''
@@ -155,7 +170,7 @@ def _speed_case(id, port_obj, chpid, link_addr=None):
     return '' if speed is None else speed
 
 
-def _status_case(id, port_obj, chpid, link_addr=None):
+def _status_case(port_obj, chpid_obj, link_addr=None):
     """Returns port status. See _null_case() for parameter definitions"""
     if port_obj is None:
         return ''
@@ -163,7 +178,7 @@ def _status_case(id, port_obj, chpid, link_addr=None):
     return '' if status is None else status
 
 
-def _fc_addr_case(id, port_obj, chpid, link_addr=None):
+def _fc_addr_case(port_obj, chpid_obj, link_addr=None):
     """Returns the FC address for the port. See _null_case() for parameter definitions"""
     if port_obj is None:
         return ''
@@ -171,7 +186,7 @@ def _fc_addr_case(id, port_obj, chpid, link_addr=None):
     return '' if addr is None else addr.replace('0x', '')
 
 
-def _rnid_case(id, port_obj, chpid, link_addr=None):
+def _rnid_case(port_obj, chpid_obj, link_addr=None):
     """Returns the RNID flag associated with the port. See _null_case() for parameter definitions"""
     if port_obj is None:
         return ''
@@ -179,13 +194,13 @@ def _rnid_case(id, port_obj, chpid, link_addr=None):
     return '' if rnid_flag is None else brcddb_iocp.rnid_flag_to_text(rnid_flag, True)
 
 
-def _type_case(id, port_obj, chpid, link_addr=None):
+def _type_case(port_obj, chpid_obj, link_addr=None):
     """Returns the port type and type description. See _null_case() for parameter definitions"""
     return '' if port_obj is None else \
         brcddb_iocp.dev_type_desc(port_obj.r_get('rnid/type-number'), True, True, True, ' (', ')')
 
 
-def _mfg_case(id, port_obj, chpid, link_addr=None):
+def _mfg_case(port_obj, chpid_obj, link_addr=None):
     """Returns the manufacturer from the RNID data. See _null_case() for parameter definitions"""
     if port_obj is None:
         return ''
@@ -193,7 +208,7 @@ def _mfg_case(id, port_obj, chpid, link_addr=None):
     return '' if mfg is None else mfg
 
 
-def _seq_case(id, port_obj, chpid, link_addr=None):
+def _seq_case(port_obj, chpid_obj, link_addr=None):
     """Returns the sequence (S/N) from the RNID data. See _null_case() for parameter definitions"""
     if port_obj is None:
         return ''
@@ -201,7 +216,7 @@ def _seq_case(id, port_obj, chpid, link_addr=None):
     return '' if seq is None else seq
 
 
-def _tag_case(id, port_obj, chpid, link_addr=None):
+def _tag_case(port_obj, chpid_obj, link_addr=None):
     """Returns the tag from the RNID data. See _null_case() for parameter definitions"""
     if port_obj is None:
         return ''
@@ -209,11 +224,11 @@ def _tag_case(id, port_obj, chpid, link_addr=None):
     return '' if tag is None else tag.replace('0x', '')
 
 
-def _zone_case(id, port_obj, chpid, link_addr=None):
+def _zone_case(port_obj, chpid_obj, link_addr=None):
     return ''
 
 
-def _link_addr_case(id, port_obj, chpid, link_addr=None):
+def _link_addr_case(port_obj, chpid_obj, link_addr=None):
     """Returns the link address. See _null_case() for parameter definitions"""
     return link_addr
 
@@ -233,7 +248,7 @@ _chpid_hdr = {
     'CU Number': dict(c=9, m=_null_case),
     'Switch': dict(c=22, m=_switch_case),
     'Index': dict(c=7, m=_index_case),
-    'Port': dict(c= 7, m=_port_case),
+    'Port': dict(c=7, m=_port_case),
     'Speed (Gbps)': dict(c=7, m=_speed_case),
     'Status': dict(c=8, m=_status_case),
     'FC Addr': dict(c=8, m=_fc_addr_case),
@@ -282,7 +297,7 @@ def iocp_page(iocp_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     :type sheet_title: str
     :rtype: None
     """
-    global _chpid_hdr, _cu_hdr, _cu_lookup
+    global _chpid_hdr, _cu_hdr, _cu_lookup, _align_wrap_vc, _hdr2_font, _border_thin, _std_font
 
     proj_obj = iocp_obj.r_project_obj()
 
@@ -297,80 +312,58 @@ def iocp_page(iocp_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    col = 1
-    row = 1
+    row = col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        report_utils.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
-    row += 2
-    col = 1
+    report_utils.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
+    row, col = row+2, 1
     sheet.freeze_panes = sheet['A4']
-    font = report_fonts.font_type('hdr_2')
-    border = report_fonts.border_type('thin')
     for k in _chpid_hdr:
         sheet.column_dimensions[xl.get_column_letter(col)].width = _chpid_hdr[k]['c']
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = font
-        sheet[cell].border = border
-        if 'v' in _chpid_hdr[k] and _chpid_hdr[k]['v']:
-            sheet[cell].alignment = report_fonts.align_type('wrap_vert_center')
-        else:
-            sheet[cell].alignment = report_fonts.align_type('wrap')
-        sheet[cell] = k
+        alignment = _align_wrap_vc if 'v' in _chpid_hdr[k] and _chpid_hdr[k]['v'] else _align_wrap
+        report_utils.cell_update(sheet, row, col, k, font=_hdr2_font, align=alignment, border=_border_thin)
         col += 1
+
+    # Sort the CHPIDs by PCHID in the report.
+    chpid_d = dict()
+    for chpid_obj in iocp_obj.r_path_objects():
+        # I don't think two CHPIDs can share the same PCHID but just in case, make it unique by appending the CHPID tag
+        chpid_d.update({chpid_obj.r_pchid() + '_' + chpid_obj.r_obj_key(): chpid_obj})
+    chpid_l = [str(k) for k in chpid_d.keys()]
+    chpid_l.sort()
 
     # Fill out all the CHPID information
     cec_sn = brcddb_iocp.full_cpc_sn(iocp_obj.r_obj_key())
-    d = iocp_obj.r_path_objects()
-    if isinstance(d, dict):
+    for chpid_obj in [chpid_d[chpid_k] for chpid_k in chpid_l]:
+        row += 1
+        chpid_port_obj = brcddb_port.port_obj_for_chpid(proj_obj, cec_sn, chpid_obj.r_obj_key())
+        fabric_obj = None if chpid_port_obj is None else chpid_port_obj.r_fabric_obj()
+        for k in _chpid_hdr.keys():
+            font = report_utils.font_type(chpid_port_obj.r_alert_objects()) \
+                if k == 'Comments' and chpid_port_obj is not None else _std_font
+            report_utils.cell_update(sheet, row, key_to_col[k], _chpid_hdr[k]['m'](chpid_port_obj, chpid_obj),
+                                     font=font, align=_align_wrap, border=_border_thin)
 
-        # Build a table to look up the control unit by a hash of CHPID tag + '_' + link address
-        cu_list = iocp_obj.r_cu_objects()
-        for tag, chpid in d.items():
-            for k, v in cu_list.items():  # K is the CU Number
-                cu_addr = v['path'].get(tag)
-                if cu_addr is not None and cu_addr in chpid['link']:
-                    v.update(dict(_cu_num=k))
-                    _cu_lookup.update({tag + '_' + cu_addr: v})
+        # Display the link addresses
+        row += 1
+        for link_addr in chpid_obj.r_link_addresses():
 
-        # Add the CHPID and Control Units to the report
-        for tag, chpid in d.items():
+            # Get the port object
+            if fabric_obj is None:
+                port_obj = None
+            else:
+                did = fabric_obj.r_switch_objects()[0].r_did() if len(fabric_obj.r_switch_keys()) == 1 else None
+                switch_id = chpid_obj.r_switch_id() if did is None else None
+                fc_addr = brcddb_iocp.link_addr_to_fc_addr(link_addr, switch_id=switch_id, did=did, leading_0x=True)
+                port_obj = brcddb_port.port_obj_for_addr(fabric_obj, fc_addr)
 
-            # Display the CHPID information
-            pchid = chpid.get('pchid')
+            # Display the corresponding port information
+            for k in _cu_hdr.keys():
+                font = report_utils.font_type(chpid_port_obj.r_alert_objects()) \
+                    if k == 'Comments' and chpid_port_obj is not None else _std_font
+                report_utils.cell_update(sheet, row, key_to_col[k], _cu_hdr[k](port_obj, chpid_obj, link_addr),
+                                         font=font, align=_align_wrap, border=_border_thin)
             row += 1
-            chpid_port_obj = brcddb_port.port_obj_for_chpid(proj_obj, cec_sn, tag)
-            fabric_obj = None if chpid_port_obj is None else chpid_port_obj.r_fabric_obj()
-            for k in _chpid_hdr.keys():
-                cell = xl.get_column_letter(key_to_col[k]) + str(row)
-                if k == 'Comments' and chpid_port_obj is not None:
-                    sheet[cell].font = report_utils.font_type(chpid_port_obj.r_alert_objects())
-                else:
-                    sheet[cell].font = report_fonts.font_type('std')
-                sheet[cell].border = border
-                sheet[cell].alignment = report_fonts.align_type('wrap')
-                sheet[cell] =  _chpid_hdr[k]['m'](tag, chpid_port_obj, chpid)
-
-            # Display the link addresses
-            row += 1
-            for link_addr in chpid.get('link'):
-                port_obj = None if fabric_obj is None else \
-                    brcddb_port.port_obj_for_addr(fabric_obj, '0x' + link_addr + '00')
-                for k in _cu_hdr.keys():
-                    cell = xl.get_column_letter(key_to_col[k]) + str(row)
-                    if k == 'Comments' and port_obj is not None:
-                        sheet[cell].font = report_utils.font_type(port_obj.r_alert_objects())
-                    else:
-                        sheet[cell].font = report_fonts.font_type('std')
-                    sheet[cell].border = border
-                    sheet[cell].alignment = report_fonts.align_type('wrap')
-                    sheet[cell] = _cu_hdr[k](tag, port_obj, chpid, link_addr)
-                row += 1
 
     return

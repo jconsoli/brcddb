@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -15,6 +15,14 @@
 """
 :mod:`brcddb.report.switch` - Creates a switch page to be added to an Excel Workbook
 
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | switch_page           | Creates a switch detail worksheet for the Excel report.                               |
+    +-----------------------+---------------------------------------------------------------------------------------+
+
 Version Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -27,43 +35,61 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 01 Nov 2020   | Removed depricated KPIs                                                           |
+    | 3.0.2     | 01 Nov 2020   | Removed deprecated KPIs                                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 17 Jul 2021   | Get switch type from brcddb_chassis instead of brcddb_switch                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 14 Nov 2021   | No funcitonal changes. Added defaults for display tables and sheet indicies.      |
+    | 3.0.5     | 14 Nov 2021   | No functional changes. Added defaults for display tables and sheet indicies.      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 31 Dec 2021   | Corrected descriptions for "param in_display" and "type in_display" in            |
+    |           |               | switch_page() header. No functional changes.                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 28 Apr 2022   | Added references for report_app, allowed single switch in switch_page()           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.7'
 
 import collections
 import openpyxl.utils.cell as xl
-import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
+import brcdapi.excel_fonts as excel_fonts
+import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.report.utils as report_utils
-import brcddb.report.fonts as report_fonts
 import brcddb.app_data.alert_tables as al
 import brcddb.app_data.report_tables as rt
 
-sheet = None
-row = 1
-hdr = collections.OrderedDict()
+_hdr = collections.OrderedDict()
 # Key is the column header and value is the width
-hdr['Comment'] = 30
-hdr['Parameter'] = 29
-hdr['Setting'] = 29
+_hdr['Comment'] = 30
+_hdr['Parameter'] = 29
+_hdr['Setting'] = 29
+_sw_quick_d = collections.OrderedDict()  # Used to set up links to port pages
+_sw_quick_d['Port Configurations'] = 'report_app/hyperlink/pc'
+_sw_quick_d['Port Statistics'] = 'report_app/hyperlink/ps'
+_sw_quick_d['Ports by Zone and Login'] = 'report_app/hyperlink/pz'
+_sw_quick_d['SFP report'] = 'report_app/hyperlink/sfp'
+# Below is for effeciency
+_std_font = excel_fonts.font_type('std')
+_bold_font = excel_fonts.font_type('bold')
+_link_font = excel_fonts.font_type('link')
+_hdr2_font = excel_fonts.font_type('hdr_2')
+_hdr1_font = excel_fonts.font_type('hdr_1')
+_align_wrap = excel_fonts.align_type('wrap')
+_align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
+_align_wrap_c = excel_fonts.align_type('wrap_center')
+_border_thin = excel_fonts.border_type('thin')
 
 
 ##################################################################
@@ -73,11 +99,11 @@ hdr['Setting'] = 29
 ###################################################################
 
 def _s_switch_name_case(switch_obj, k=None):
-    return brcddb_switch.best_switch_name(switch_obj, False)
+    return brcddb_switch.best_switch_name(switch_obj, wwn=False, did=False)
 
 
 def _s_switch_name_and_wwn_case(switch_obj, k=None):
-    return brcddb_switch.best_switch_name(switch_obj, True)
+    return brcddb_switch.best_switch_name(switch_obj, wwn=True, did=False)
 
 
 def _s_switch_wwn_case(switch_obj, k=None):
@@ -124,7 +150,7 @@ def _s_switch_up_time_case(switch_obj, k):
 def _s_maps_active_policy_name(switch_obj, k):
     try:
         return switch_obj.r_active_maps_policy().get('name')
-    except:
+    except AttributeError:
         return ''
 
 
@@ -161,149 +187,143 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title):
     :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
-    :rtype: None
+    :return sheet: Worksheet object
+    :rtype openpyxl.Worksheet
+    :return row: Next row
+    :rtype: int
     """
-    global row, sheet, hdr
+    global _hdr
 
     # Create the worksheet, add the headers, and set up the column widths
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    row = 1
-    col = 1
-    for k, v in hdr.items():
+    row = col = 1
+    for k, v in _hdr.items():
         sheet.column_dimensions[xl.get_column_letter(col)].width = v
         col += 1
     col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        report_utils.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
+    report_utils.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
+    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
     sheet.freeze_panes = sheet['A2']
 
+    return sheet, row + 1
 
-def _maps_dashboard(switch_obj):
+
+def _maps_dashboard(sheet, row, switch_obj):
     """Adds the MAPS dashboard to the worksheet.
 
+    :param sheet: Workbook sheet
+    :type sheet: openpyxl.Worksheet
+    :param row: Starting row
+    :type row: int
     :param switch_obj: Switch object
     :type switch_obj: brcddb.classes.switch.SwitchObj
-    :rtype: None
+    :return: Next row
+    :rtype: int
     """
-    global row, sheet
+    global _border_thin, _align_wrap, _bold_font, _std_font
 
-    merge_len = 2  # NUmber of columns to be merged for the MAPS dashboard
-    col = 1
-    row += 2
-    border = report_fonts.border_type('thin')
-    alignment = report_fonts.align_type('wrap')
+    col, merge_len = 1, 2  # merge_len is the number of columns to be merged for the MAPS dashboard
     sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + merge_len)
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('bold')
-    sheet[cell].alignment = alignment
-    sheet[cell] = 'MAPS Dashboard Alerts'
-    font = report_fonts.font_type('std')
+    report_utils.cell_update(sheet, row, col, 'MAPS Dashboard Alerts', font=_bold_font, align=_align_wrap)
     i = 0
     for alert_obj in switch_obj.r_alert_objects():
         if alert_obj.alert_num() in al.AlertTable.maps_alerts:
             row += 1
             sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + merge_len)
-            for col in range(1, merge_len + 2):
-                cell = xl.get_column_letter(col) + str(row)
-                sheet[cell].border = border
+            for col in range(1, merge_len+2):
+                report_utils.cell_update(sheet, row, col, None, border=_border_thin)
             col = 1
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
-            sheet[cell] = alert_obj.fmt_msg()
+            report_utils.cell_update(sheet, row, col, alert_obj.fmt_msg(), font=_std_font, align=_align_wrap)
             i += 1
     if i == 0:
         row += 1
         sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + merge_len)
-        for col in range(1, merge_len + 2):
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
+        for col in range(1, merge_len+2):
+            report_utils.cell_update(sheet, row, col, None, border=_border_thin)
         col = 1
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = font
-        sheet[cell].alignment = alignment
-        sheet[cell] = 'None'
+        report_utils.cell_update(sheet, row, col, 'None', font=_std_font, align=_align_wrap, border=_border_thin)
+
+    return row
 
 
-def _add_switch(switch_obj, display):
+def _add_switch(sheet, row, switch_obj, display, sheet_name, switch_name):
     """Adds switch detail to the worksheet.
 
+    :param sheet: Workbook sheet
+    :type sheet: openpyxl.Worksheet
+    :param row: Starting row
+    :type row: int
     :param switch_obj: Switch object
     :type switch_obj: brcddb.classes.switch.SwitchObj
     :param display: List of keys to display. Find next instance of switch_key_case. Much less complex than port_page()
     :type display: dict
-    :rtype: None
+    :param switch_name: When True, adds a seperate line for the switch name.
+    :type switch_name: bool
+    :return: Next row
+    :rtype: int
     """
-    global row, sheet, hdr, switch_key_case
+    global _hdr, switch_key_case, _border_thin, _align_wrap, _hdr2_font, _bold_font
 
-    # Add the headers
-    col = 1
-    row += 2
-    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr))
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_2')
-    sheet[cell] = brcddb_switch.best_switch_name(switch_obj, True)
     row += 1
-    for k in hdr.keys():
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = report_fonts.font_type('bold')
-        sheet[cell] = k
-        col += 1
+
+    # Add switch information from the API
+    fab_obj = switch_obj.r_fabric_obj()
+    if fab_obj is not None:
+        link = fab_obj.r_get('report_app/hyperlink/sw')
+        if link is not None:
+            tl = link.split('!')
+            brcddb_util.add_to_obj(switch_obj, 'report_app/hyperlink/sw', tl[0] + '!A' + str(row))
+
+    # Add the switchname
+    if switch_name:
+        col = 1
+        sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
+        report_utils.cell_update(sheet, row, col, brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True),
+                                 font=_hdr2_font)
+        row += 2
 
     # Add the MAPS dashboard
-    _maps_dashboard(switch_obj)
+    row = _maps_dashboard(sheet, row, switch_obj) + 2
 
-    # Add the switch details
-    border = report_fonts.border_type('thin')
-    alignment = report_fonts.align_type('wrap')
+    # Add the switch details header
+    col = 1
+    for k in _hdr.keys():
+        report_utils.cell_update(sheet, row, col, k, font=_bold_font)
+        col += 1
+
     row += 1
     for k in display:
         font = report_utils.font_type_for_key(switch_obj, k)
-        col = 1
-        row += 1
-        # Comments
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = font
-        sheet[cell].border = border
-        sheet[cell].alignment = alignment
-        sheet[cell] = report_utils.comments_for_alerts(switch_obj, k)
-        # Key description
-        col += 1
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = font
-        sheet[cell].border = border
-        sheet[cell].alignment = alignment
-        sheet[cell] = display[k] if k in display else k
-        # Value
-        col += 1
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = font
-        sheet[cell].border = border
-        sheet[cell].alignment = alignment
+        row, col = row+1, 1
+
         v = switch_obj.r_get(k)
         if k in switch_key_case:
-            sheet[cell] = switch_key_case[k](switch_obj, k)
+            val = switch_key_case[k](switch_obj, k)
         elif k in brcddb_common.switch_conversion_tbl:
-            sheet[cell] = '' if v is None else brcddb_common.switch_conversion_tbl[k][v]
+            val = '' if v is None else brcddb_common.switch_conversion_tbl[k][v]
         else:
             if isinstance(v, bool):
-                sheet[cell] = 'Yes' if v else 'No'
+                val = 'Yes' if v else 'No'
             else:
-                sheet[cell] = v if isinstance(v, (str, int, float)) else '' if v is None else str(v)
+                val = v if isinstance(v, (str, int, float)) else '' if v is None else str(v)
+        # cell_fill_l is what goes in Comment, Parameter, and Setting cells
+        cell_fill_l = [report_utils.comments_for_alerts(switch_obj, k), display[k] if k in display else k, val]
+
+        for buf in cell_fill_l:
+            report_utils.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
+            col += 1
+
+    return row
 
 
-def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list, in_display=None):
+def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list_in, in_display=None, switch_name=True):
     """Creates a switch detail worksheet for the Excel report.
+    
     :param wb: Workbook object
     :type wb: class
     :param tc: Table of context page. A link to this page is place in cell A1
@@ -314,24 +334,40 @@ def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list, in_display=Non
     :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
     :type sheet_title: str
-    :param s_list: List of switch objects (SwitchObj) to display
-    :type s_list: list, tuple
-    :param in_display: List of keys to display. d
-    :type in_display: dict
+    :param s_list_in: List of switch objects (SwitchObj) to display
+    :type s_list_in: list, tuple, None, brcddb.classes.switch.SwitchObj
+    :param in_display: Display table for switch parameters
+    :type in_display: dict, None
+    :param switch_name: When True, adds a seperate line for the switch name.
+    :type switch_name: bool
     :rtype: None
     """
-    # Validate the user input
-    err_msg = list()
-    if s_list is None:
-        err_msg.append('s_list was not defined.')
-    elif not isinstance(s_list, (list, tuple)):
-        err_msg.append('s_list was type ' + str(type(s_list)) + '. Must be a list or tuple.')
-    if len(err_msg) > 0:
-        brcdapi_log.exception(err_msg, True)
-        return
+    global _sw_quick_d, _border_thin, _align_wrap, _std_font
+
+    # Scrub user input
+    s_list = brcddb_util.convert_to_list(s_list_in)
     display = rt.Switch.switch_display_tbl if in_display is None else in_display
 
     # Set up the worksheet and add each switch
-    _setup_worksheet(wb, tc, sheet_name, 0 if sheet_i is None else sheet_i, sheet_title)
+    sheet, row = _setup_worksheet(wb, tc, sheet_name, 0 if sheet_i is None else sheet_i, sheet_title)
     for switch_obj in s_list:
-        _add_switch(switch_obj, display)
+
+        # Add the worksheet
+        row = _add_switch(sheet, row, switch_obj, display, sheet_name, switch_name)
+
+        # Add the number of ports in the switch
+        col = 1
+        for buf in ('', 'Total ports', len(switch_obj.r_port_keys())):
+            report_utils.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
+            col += 1
+
+        # Add the links to the ports
+        row, col = row+1, 2
+        for k, v in _sw_quick_d.items():
+            link = switch_obj.r_get(v)
+            if link is not None:
+                sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+1)
+                report_utils.cell_update(sheet, row, col, k, font=_link_font, align=_align_wrap, link=link)
+                row += 1
+
+    return

@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -15,6 +15,16 @@
 """
 
 :mod:`report.port` - Includes methods to create port page and performance dsahboard Excel worksheets
+
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | performance_dashboard | Creates a dashboard worksheet for the Excel report.                                   |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | port_page             | Creates a port detail worksheet for the Excel report.                                 |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -36,30 +46,45 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 13 Feb 2021   | Changed is to == for literal compare                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 14 Nov 2021   | No funcitonal changes. Added defaults for display tables and sheet indicies.      |
+    | 3.0.6     | 14 Nov 2021   | No functional changes. Added defaults for display tables and sheet indices.       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 31 Dec 2021   | Made all exception clauses explicit                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 28 Apr 2022   | Added hyperlinks for ports                                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.8'
 
 import datetime
 import collections
 import openpyxl.utils.cell as xl
-import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
+import brcdapi.excel_util as excel_util
+import brcdapi.excel_fonts as excel_fonts
+import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_port as brcddb_port
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.utils as report_utils
-import brcddb.report.fonts as report_fonts
 import brcddb.app_data.report_tables as rt
+
+_std_font = excel_fonts.font_type('std')
+_bold_font = excel_fonts.font_type('bold')
+_link_font = excel_fonts.font_type('link')
+_hdr2_font = excel_fonts.font_type('hdr_2')
+_hdr1_font = excel_fonts.font_type('hdr_1')
+_align_wrap = excel_fonts.align_type('wrap')
+_align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
+_align_wrap_c = excel_fonts.align_type('wrap_center')
+_border_thin = excel_fonts.border_type('thin')
 
 
 def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
@@ -82,6 +107,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
     :type content: list, tuple
     :rtype: None
     """
+    global _border_thin, _std_font, _align_wrap, _link_font, _bold_font, _hdr2_font
 
     hdr = collections.OrderedDict()
     # Key is the column header and value is the width
@@ -96,29 +122,20 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    col = 1
-    row = 1
+    row = col = 1
     for k, v in hdr.items():
         sheet.column_dimensions[xl.get_column_letter(col)].width = v
         col += 1
     max_col = col - 1
     col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
     sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=max_col)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
+    excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
     row += 2
 
     # Now add each dashboard item
-    border = report_fonts.border_type('thin')
-    font = report_fonts.font_type('std')
-    alignment = report_fonts.align_type('wrap')
     for statistic in content.keys():
         db = content.get(statistic)
         col = 1
@@ -126,21 +143,14 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
         # The individual dashboard title
         sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=max_col)
         for i in range(col, max_col+1):
-            cell = xl.get_column_letter(i) + str(row)
-            sheet[cell].border = border
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = report_fonts.font_type('hdr_2')
-        sheet[cell].fill = report_fonts.fill_type('lightblue')
-        sheet[cell] = db.get('title')
-        col = 1
-        row += 1
+            excel_util.cell_update(sheet, row, i, None, border=_border_thin)
+        excel_util.cell_update(sheet, row, col, db.get('title'), font=_hdr2_font,
+                                 fill=excel_fonts.fill_type('lightblue'))
+        row, col = row + 1, 1
 
         # Now the individual dashboard headers
         for k in hdr.keys():
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
-            sheet[cell].font = report_fonts.font_type('bold')
-            sheet[cell] = k
+            excel_util.cell_update(sheet, row, col, k, font=_bold_font, border=_border_thin)
             col += 1
 
         # Now add the dashboard content
@@ -148,53 +158,25 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
         if len(port_list) == 0:
             row += 1
         for port_obj in port_list:
-            # Statistic
             col = 1
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
-            sheet[cell] = port_obj.r_get('fibrechannel-statistics/' + statistic)
-            col += 1
-
-            # Fabric
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
-            sheet[cell] = brcddb_fabric.best_fab_name(port_obj.r_switch_obj().r_fabric_obj())
-            col += 1
-
-            # Switch
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
-            sheet[cell] = brcddb_switch.best_switch_name(port_obj.r_switch_obj())
-            col += 1
-
+            temp_l = [port_obj.r_get('fibrechannel-statistics/' + statistic),
+                      brcddb_fabric.best_fab_name(port_obj.r_switch_obj().r_fabric_obj()),
+                      brcddb_switch.best_switch_name(port_obj.r_switch_obj())]
+            for buf in temp_l:
+                excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
+                col += 1
             # Port
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
-            sheet[cell] = port_obj.r_obj_key()
+            link = port_obj.r_get('report_app/hyperlink_ps')
+            if link is not None:
+                excel_util.cell_update(sheet, row, col, port_obj.r_obj_key(), font=_link_font, align=_align_wrap,
+                                         link=link, border=_border_thin)
+            else:
+                excel_util.cell_update(sheet, row, col, port_obj.r_obj_key(), font=_std_font, align=_align_wrap,
+                                         border=_border_thin)
             col += 1
-
-            # Port Type
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
-            sheet[cell] = port_obj.c_login_type()
-            col += 1
-
-            # Description - Try FDMI first, then name server
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
-            sheet[cell].font = font
-            sheet[cell].alignment = alignment
-            sheet[cell] = brcddb_port.port_best_desc(port_obj)
+            for buf in [port_obj.c_login_type(), brcddb_port.port_best_desc(port_obj)]:
+                excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
+                col += 1
             row += 1
         row += 1
 
@@ -223,6 +205,26 @@ def _p_port_number_case(port_obj, k, wwn):
 
 def _p_port_desc_case(port_obj, k, wwn):
     return brcddb_port.port_best_desc(port_obj)
+
+
+def _p_port_config_link_case(port_obj, k, wwn):
+    return 'Config', port_obj.r_get('report_app/hyperlink/pc')
+
+
+def _p_port_stats_link_case(port_obj, k, wwn):
+    return 'Stats', port_obj.r_get('report_app/hyperlink/ps')
+
+
+def _p_port_zone_link_case(port_obj, k, wwn):
+    return 'Zone', port_obj.r_get('report_app/hyperlink/pz')
+
+
+def _p_port_sfp_link_case(port_obj, k, wwn):
+    return 'SFP', port_obj.r_get('report_app/hyperlink/sfp')
+
+
+def _p_port_rnid_link_case(port_obj, k, wwn):
+    return 'RNID', port_obj.r_get('report_app/hyperlink/pr')
 
 
 def _p_port_maps_group_case(port_obj, k, wwn):
@@ -264,10 +266,10 @@ def _p_login_addr_case(port_obj, k, wwn):
         return ''
     try:
         return port_obj.r_fabric_obj().r_login_obj(wwn).r_get('brocade-name-server/port-id')
-    except:
+    except AttributeError:
         brcdapi_log.exception('No login address for ' + wwn + '. Switch ' + port_obj.r_switch_obj().r_obj_key() +
                               ', port ' + port_obj.r_obj_key(), True)
-        return 'Unknown'
+    return 'Unknown'
 
 
 def _p_zones_def_case(port_obj, k, wwn):
@@ -282,30 +284,26 @@ def _p_zones_def_case(port_obj, k, wwn):
 def _zones_eff_case(port_obj, k, wwn):
     fab_obj = port_obj.r_fabric_obj()
     return '\n'.join(fab_obj.r_eff_zones_for_wwn(wwn) + fab_obj.r_eff_di_zones_for_addr(port_obj.r_addr()))
-    return '\n'.join(port_obj.r_fabric_obj().r_eff_zones_for_wwn(wwn))
 
 
 def _p_name_server_node_case(port_obj, k, wwn):
     try:
         return port_obj.r_fabric_obj().r_login_obj(wwn).r_get('brocade-name-server/node-symbolic-name')
-    except:
-        return
+    except AttributeError:
+        return None
 
 
 def _p_name_server_port_case(port_obj, k, wwn):
     try:
-        fab_obj = port_obj.r_fabric_obj()
-        loginObj = fab_obj.r_fdmi_port_obj(wwn)
-        buf = loginObj.r_get('port-symbolic-name')
         return port_obj.r_fabric_obj().r_login_obj(wwn).r_get('brocade-name-server/port-symbolic-name')
-    except:
-        return
+    except AttributeError:
+        return None
 
 
 def _p_fdmi_node_case(port_obj, k, wwn):
     try:
         buf = port_obj.r_fabric_obj().r_fdmi_node_obj(wwn).r_get('brocade-fdmi/node-symbolic-name')
-    except:
+    except AttributeError:
         buf = ''
     return '' if buf is None else buf
 
@@ -313,7 +311,7 @@ def _p_fdmi_node_case(port_obj, k, wwn):
 def _p_fdmi_port_case(port_obj, k, wwn):
     try:
         buf = port_obj.r_fabric_obj().r_fdmi_port_obj(wwn).r_get('brocade-fdmi/port-symbolic-name')
-    except:
+    except AttributeError:
         buf = ''
     return '' if buf is None else buf
 
@@ -321,14 +319,14 @@ def _p_fdmi_port_case(port_obj, k, wwn):
 def _p_media_uptime_case(port_obj, k, wwn):
     try:
         return int(port_obj.r_get('media-rdp/power-on-time')/24 + .5)
-    except:
+    except (TypeError, ValueError):
         return None
 
 
 def _p_media_distance_case(port_obj, k, wwn):
     try:
         return ', '.join(brcddb_util.get_key_val(port_obj, 'media-rdp/media-distance/distance'))
-    except:
+    except TypeError:
         return None
 
 
@@ -351,16 +349,16 @@ def _p_operational_status_case(port_obj, k, wwn):
     if os is not None:
         try:
             return brcddb_common.port_conversion_tbl['fibrechannel/operational-status'][os]
-        except:
+        except KeyError:
             pass
-    return ''
+    return brcddb_common.port_conversion_tbl['fibrechannel/operational-status'][0]
 
 
 def _p_port_type_case(port_obj, k, wwn):
     try:
         return brcddb_common.port_conversion_tbl['fibrechannel/port-type'][port_obj.r_get('fibrechannel/port-type')]
-    except:
-        return None
+    except KeyError:
+        return brcddb_common.port_conversion_tbl['fibrechannel/port-type'][brcddb_common.PORT_TYPE_UNKNOWN]
 
 
 def _p_port_speed_case(port_obj, k, wwn):
@@ -397,15 +395,22 @@ _port_case = {
     '_FDMI_PORT': _p_fdmi_port_case,
     'los-tov-mode-enabled': _p_los_tov_mode_case,
 }
+_port_link_case = {
+    '_CONFIG_LINK': _p_port_config_link_case,
+    '_STATS_LINK': _p_port_stats_link_case,
+    '_ZONE_LINK': _p_port_zone_link_case,
+    '_SFP_LINK': _p_port_sfp_link_case,
+    '_RNID_LINK': _p_port_rnid_link_case,
+}
 
 
 def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None, in_port_display_tbl=None,
-              login_flag=False):
+              login_flag=False, link_type=None):
     """Creates a port detail worksheet for the Excel report.
 
     :param wb: Workbook object
     :type wb: class
-    :param tc: Table of context page. A link to this page is place in cell A1
+    :param tc: I don't think this is used anymore but if present, it will take precidence over what in the port object
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
@@ -421,15 +426,18 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
     :type in_port_display_tbl: dict, None
     :param login_flag: When True, include NPIV logins below the base port.
     :type login_flag: bool
-    :return: openxl sheet
+    :param link_type: Type of link, see brcddb.apps.report. Valid types are: pc, ps, pz, pr, and sfp
+    :type link_type: str, None
+    :return: openpyxl sheet
     :rtype: Worksheet
     """
-    global _port_case
+    global _port_case, _link_font, _bold_font, _hdr1_font, _std_font, _align_wrap, _align_wrap_c
 
-    addl_row = dict()   # I forgot all about logins and had to shoe horn in something to report the logins. This also meant
-                    # I had to shoe horn in a way to get the comments associated with logins, but only if login
-                    # information was requested, into the display.
-                    # To Do: Clean this up
+    # I forgot all about logins and had to shoe horn in something to report the logins. This also meant I had to shoe
+    # horn in a way to get the comments associated with logins, but only if login information was requested, into the
+    # display. $ToDo: Clean this up
+
+    addl_row = dict()
 
     # Validate the user input
     err_msg = list()
@@ -443,115 +451,105 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
     display = rt.Port.port_config_tbl if in_display is None else in_display
     port_display_tbl = rt.Port.port_display_tbl if in_port_display_tbl is None else in_port_display_tbl
 
-    # Create the worksheet, add the headers, and set up the column widths
+    # Create the worksheet
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
-    col = 1
-    row = 1
+
+    # Add the headers and set up the column widths
+    row = col = 1
     if isinstance(tc, str):
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].hyperlink = '#' + tc + '!A1'
-        sheet[cell].font = report_fonts.font_type('link')
-        sheet[cell] = 'Contents'
+        excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    cell = xl.get_column_letter(col) + str(row)
-    sheet[cell].font = report_fonts.font_type('hdr_1')
-    sheet[cell] = sheet_title
+    excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
     sheet.freeze_panes = sheet['A3']
-    col = 1
-    row += 1
+    row, col = row+1, 1
     for k in display:
-        if k in port_display_tbl and 'dc' in port_display_tbl[k] and port_display_tbl[k]['dc'] is True:
-            continue
-        cell = xl.get_column_letter(col) + str(row)
-        sheet[cell].font = report_fonts.font_type('bold')
-        sheet[cell].border = report_fonts.border_type('thin')
         if k in port_display_tbl:
-            if 'c' in port_display_tbl[k]:
-                sheet.column_dimensions[xl.get_column_letter(col)].width = port_display_tbl[k]['c']
-            try:
-                if port_display_tbl[k]['v']:
-                    sheet[cell].alignment = report_fonts.align_type('wrap_vert_center')
-                else:
-                    sheet[cell].alignment = report_fonts.align_type('wrap')
-            except:
-                sheet[cell].alignment = report_fonts.align_type('wrap')
-            if 'd' in port_display_tbl[k]:
-                sheet[cell] = port_display_tbl[k]['d']
-            else:
-                sheet[cell] = k
+            if 'dc' in port_display_tbl[k] and port_display_tbl[k]['dc'] is True:
+                continue
+            col_width = port_display_tbl[k].get('c')
+            if isinstance(col_width, int):
+                sheet.column_dimensions[xl.get_column_letter(col)].width = col_width
+            buf = port_display_tbl[k]['d'] if bool(port_display_tbl[k].get('d')) else k
+            alignment = _align_wrap_vc if bool(port_display_tbl[k].get('v')) else _align_wrap
         else:
             brcdapi_log.exception('Item ' + k + ' not in port_display_tbl.', True)
-            sheet[cell] = k
+            alignment = _align_wrap
+            buf = k
+        excel_util.cell_update(sheet, row, col, buf, font=_bold_font, align=alignment, border=_border_thin)
         col += 1
 
     # Add the ports
-    row += 1
+    last_switch, row = '', row + 1
     for port_obj in p_list:
         if port_obj is None:
-            row += 1
-            continue
+            continue  # For lazy programmers :-)
         col = 1
+        cell = xl.get_column_letter(col) + str(row)
+        if link_type is not None:
+            if port_obj.r_switch_key() != last_switch:
+                last_switch = port_obj.r_switch_key()
+                brcddb_util.add_to_obj(port_obj.r_switch_obj(),
+                                       'report_app/hyperlink/' + link_type,
+                                       '#' + sheet_name + '!' + cell)
+            brcddb_util.add_to_obj(port_obj, 'report_app/hyperlink/' + link_type, '#' + sheet_name + '!' + cell)
         # We don't want SIM ports
         login = [wwn for wwn in port_obj.r_login_keys() if port_obj.c_login_type() == 'F-Port']
-        border = report_fonts.border_type('thin')
         lwwn = None if len(login) == 0 else login[0]
-        font = report_utils.font_type(report_utils.combined_alert_objects(port_obj, lwwn))
-        alignment = report_fonts.align_type('wrap')
-        center_alignment = report_fonts.align_type('wrap_center')
+        calc_font = report_utils.font_type(report_utils.combined_alert_objects(port_obj, lwwn))
         for k in display:
             if k in port_display_tbl and 'dc' in port_display_tbl[k] and port_display_tbl[k]['dc'] is True:
                 continue
             if len(login) > 1:
                 addl_row.update({k: col})
-            cell = xl.get_column_letter(col) + str(row)
-            sheet[cell].border = border
-            sheet[cell].font = font
-            if k in port_display_tbl and 'm' in port_display_tbl[k] and port_display_tbl[k]['m'] is True:
-                sheet[cell].alignment = center_alignment
-            else:
-                sheet[cell].alignment = alignment
+            alignment = _align_wrap_c if k in port_display_tbl and bool(port_display_tbl[k].get('m')) else _align_wrap
             if k in _port_case:
-                sheet[cell] = _port_case[k](port_obj, k, lwwn)
+                font = calc_font
+                buf = _port_case[k](port_obj, k, lwwn)
+                link = None
+            elif k in _port_link_case:
+                buf, link = _port_link_case[k](port_obj, k, lwwn)
+                font = calc_font if link is None else _link_font
             elif k in port_display_tbl:
+                font = calc_font
                 v = port_obj.r_get(k)
                 if v is None:
                     v1 = ''
                 else:
                     try:
                         v1 = brcddb_common.port_conversion_tbl[k][v]
-                        if v1 is None:
-                            raise
-                    except:
+                    except KeyError:
                         v1 = v
                 if isinstance(v1, bool):
-                    sheet[cell] = '\u221A' if v1 else ''
+                    buf = '\u221A' if v1 else ''
                 else:
-                    sheet[cell] = v1
+                    buf = v1
             else:
-                sheet[cell].font = report_fonts.font_type('std')
-                sheet[cell] = '' if port_obj.r_get(k) is None else str(port_obj.r_get(k))
+                font = _std_font
+                buf = '' if port_obj.r_get(k) is None else str(port_obj.r_get(k))
+            excel_util.cell_update(sheet, row, col, buf, font=font, align=alignment, border=_border_thin, link=link)
             col += 1
         row += 1
 
         # Now add the remaining logins
         if login_flag:
             for i in range(1, len(login)):
-                font = report_utils.font_type(report_utils.combined_login_alert_objects(
+                calc_font = report_utils.font_type(report_utils.combined_login_alert_objects(
                     port_obj.r_fabric_obj().r_login_obj(login[i])))
                 for k1 in addl_row:
-                    cell = xl.get_column_letter(addl_row[k1]) + str(row)
-                    sheet[cell].border = border
-                    sheet[cell].font = font
-                    sheet[cell].alignment = report_fonts.align_type('wrap')
-                    if k1 == '_PORT_COMMENTS':
-                        sheet[cell] = _port_case[k1](port_obj, '', login[i])
-                    elif k1 in _port_case:
-                        sheet[cell] = _port_case[k1](port_obj, k1, login[i])
+                    if k1 in _port_link_case:
+                        buf, link = _port_link_case[k1](port_obj, k1, login[i])
+                        font = calc_font if link is None else _link_font
                     else:
-                        buf = port_obj.r_fabric_obj().r_get(k1)
-                        buf = '' if buf is None else buf
-                        sheet[cell] = buf
+                        link, font = None, calc_font
+                        if k1 in _port_case:
+                            buf = _port_case[k1](port_obj, '', login[i]) if k1 == '_PORT_COMMENTS' \
+                                else _port_case[k1](port_obj, k1, login[i])
+                        else:
+                            buf = port_obj.r_fabric_obj().r_get(k1)
+                    excel_util.cell_update(sheet, row, col, '' if buf is None else buf, font=font, align=_align_wrap,
+                                             border=_border_thin, link=link)
                 row += 1
+
     return sheet
