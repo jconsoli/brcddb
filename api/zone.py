@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -16,6 +16,29 @@
 :mod:`brcddb.api.zone` - Converts the zoning information in a fabric object (brcddb.classes.fabric.FabricObj) to JSON \
 and sends it to a switch.
 
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------|
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | build_alias_content   | Builds the alias dict structure to be converted to JSON and sent to a switch,         |
+    |                       |'zoning/defined-configuration'                                                         |
+    +-----------------------+---------------------------------------------------------------------------------------|
+    | build_zone_content    | Builds the zone dict structure to be converted to JSON and sent to a switch,          |
+    |                       | 'zoning/defined-configuration'                                                        |
+    +-----------------------+---------------------------------------------------------------------------------------|
+    | build_zonecfg_content | Builds the zonecfg dict structure to be converted to JSON and sent to a switch,       |
+    |                       | 'zoning/defined-configuration'                                                        |
+    +-----------------------+---------------------------------------------------------------------------------------|
+    | build_all_zone_content| Builds the zonecfg structure to be converted to JSON and sent to a switch,            |
+    |                       | 'brocade-zone/defined-configuration'                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------|
+    | replace_zoning        | Replaces the zoning database in a fabric by clearing it and then PATCHing it with a   |
+    |                       | new zoning database                                                                   |
+    +-----------------------+---------------------------------------------------------------------------------------|
+    | enable_zonecfg        | Activates a zone configuration (make a zone configuration effective)                  |
+    +-----------------------+---------------------------------------------------------------------------------------|
+
 Version Control::
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -27,17 +50,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 14 Aug 2021   | Added enable_zonecfg()                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 31 Dec 2021   | Deprecated pyfos_auth.                                                            |
+    | 3.0.3     | 31 Dec 2021   | Deprecated pyfos_auth.                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 28 Apr 2022   | Updated comments only.                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 
 import brcdapi.zone as brcdapi_zone
 import brcddb.brcddb_fabric as brcddb_fabric
@@ -68,7 +93,7 @@ def build_alias_content(fab_obj):
         if len(members) > 0:
             l.append({'alias-name': obj.r_obj_key(), 'member-entry': {'alias-entry-name': members}})
     if len(l) > 0:
-        wd.update(dict(alias=l))
+        wd.update(alias=l)
 
     return None if len(wd.keys()) == 0 else content
 
@@ -97,7 +122,7 @@ def build_zone_content(fab_obj):
             if len(members) > 0:
                 me.update({'principal-entry-name': members})
             l.append(d)
-        wd.update(dict(zone=l))
+        wd.update(zone=l)
 
     return None if len(wd.keys()) == 0 else content
 
@@ -121,7 +146,7 @@ def build_zonecfg_content(fab_obj):
             if len(members) > 0:
                 l.append({'cfg-name': obj.r_obj_key(), 'member-zone': {'zone-name': members}})
     if len(l) > 0:
-        wd.update(dict(cfg=l))
+        wd.update(cfg=l)
 
     return None if len(wd.keys()) == 0 else content
 
@@ -139,13 +164,13 @@ def build_all_zone_content(fab_obj):
 
     temp_content = build_alias_content(fab_obj)
     if temp_content is not None:
-        wd.update(dict(alias=temp_content.get('defined-configuration').get('alias')))
+        wd.update(alias=temp_content.get('defined-configuration').get('alias'))
     temp_content = build_zone_content(fab_obj)
     if temp_content is not None:
-        wd.update(dict(zone=temp_content.get('defined-configuration').get('zone')))
+        wd.update(zone=temp_content.get('defined-configuration').get('zone'))
     temp_content = build_zonecfg_content(fab_obj)
     if temp_content is not None:
-        wd.update(dict(cfg=temp_content.get('defined-configuration').get('cfg')))
+        wd.update(cfg=temp_content.get('defined-configuration').get('cfg'))
 
     return content
 
