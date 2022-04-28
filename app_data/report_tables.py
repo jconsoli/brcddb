@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -77,16 +77,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 31 Dec 2021   | Added more user friendly names.                                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 28 Apr 2022   | Added _CONFIG_LINK, _STATS_LINK, _ZONE_LINK, _SFP_LINK, _RNID_LINK                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 
 class Chassis:
@@ -94,7 +96,28 @@ class Chassis:
     # also controls what is populated on the sheet page. Comment/Uncomment entries as needed.
     chassis_display_tbl = {
         # From the API
+        'brocade-chassis/chassis/chassis-user-friendly-name': 'Chassis Name',
         'brocade-chassis/chassis/chassis-wwn': 'Chassis WWN',
+        'brocade-chassis/chassis/license-id': 'License ID',
+        'brocade-chassis/chassis/manufacturer': 'Manufacturer',
+        'brocade-chassis/chassis/registered-organization-name': 'Registered Organization Name',
+        'brocade-chassis/chassis/organization-registration-date': 'Organization Registration Date',
+        'brocade-chassis/chassis/part-number': 'Part Number',
+        'brocade-chassis/chassis/serial-number': 'Serial Number',
+        'brocade-chassis/chassis/max-blades-supported': 'Maximum Number of Blades Supported',
+        'brocade-chassis/chassis/vendor-part-number': 'Vendor Part Number',
+        'brocade-chassis/chassis/vendor-serial-number': 'Vendor Serial Number',
+        'brocade-chassis/chassis/vendor-revision-number': 'Vendor Revision Number',
+        'brocade-chassis/chassis/product-name': 'Product Name',
+        'brocade-chassis/chassis/date': 'Date',
+        'brocade-chassis/chassis/chassis-enabled': 'Chassis Enabled',
+        'brocade-chassis/chassis/message-of-the-day': 'Daily Message',
+        'brocade-chassis/chassis/shell-timeout': 'Shell Timeout',
+        'brocade-chassis/chassis/session-timeout': 'Session Timeout',
+        'brocade-chassis/chassis/usb-device-enabled': 'USB Enabled',
+        'brocade-chassis/chassis/usb-available-space': 'USB Available Space',
+        'brocade-chassis/chassis/tcp-timeout-level': 'TCP Timeout Level',
+        'brocade-chassis/chassis/backplane-revision': 'Backplane Revision',
         'brocade-chassis/chassis/vf-enabled': 'Virtual Fabrics Enabled',
         'brocade-chassis/chassis/vf-supported': 'Virtual Fabrics Supported',
         'brocade-chassis/ha-status/ha-enabled': 'HA Enabled',
@@ -106,6 +129,12 @@ class Chassis:
         'brocade-chassis/ha-status/standby-cp': 'Standby CP',
         'brocade-chassis/ha-status/standby-health': 'Standby Health',
         'brocade-chassis/ha-status/standby-slot': 'Standby Slot',
+        'brocade-chassis/management-interface-configuration/rest-enabled': 'Rest Enabled',
+        'brocade-chassis/management-interface-configuration/https-protocol-enabled': 'HTTPS Protocol Enabled',
+        'brocade-chassis/management-interface-configuration/effective-protocol': 'Effective Protocol',
+        'brocade-chassis/management-interface-configuration/max-rest-sessions': 'Max Rest Sessions',
+        'brocade-chassis/management-interface-configuration/https-keep-alive-enabled': 'HTTPS Keep Alive Enabled',
+        'brocade-chassis/management-interface-configuration/https-keep-alive-timeout': 'HTTPS Keep Alive Timeout',
         'brocade-fru/blade': {
             'part-number': 'Part Number',
             'serial-number': 'S/N',
@@ -309,6 +338,11 @@ class Port:
     #   _FDMI_PORT          Port symbol in the FDMI data
     #   _MAPS_GROUP         MAPS group(s) associated with this port
     #   _PORT_NUMBER        Port number - as it appears on the demarcation panel
+    #   _CONFIG_LINK        'Config' & link, if available, to the port on the "Port Configurations" worksheet
+    #   _STATS_LINK         'Stats' & link, if available, to the port on the "Port Configurations" worksheet
+    #   _ZONE_LINK          'Zone' & link, if available, to the port on the "Port Configurations" worksheet
+    #   _SFP_LINK           'SFP' & link, if available, to the port on the "Port Configurations" worksheet
+    #   _RNID_LINK          'RNID' & link, if available, to the port on the "Port Configurations" worksheet
     # The values are dictionaries whose keys are as follows:
     # 'v'   If True, displays the column header vertically. Default is False
     # 'c'   The column width. Default is whatever the default Excel column width is
@@ -331,6 +365,11 @@ class Port:
         '_NAME_SERVER_PORT': dict(c=35, d='Name Server Port Symbol'),
         '_PORT_COMMENTS': dict(c=26, d='Comments'),
         '_PORT_NUMBER': dict(c=7, d='Port'),
+        '_CONFIG_LINK': dict(c=8, d='Config'),
+        '_STATS_LINK': dict(c=8, d='Stats'),
+        '_ZONE_LINK': dict(c=8, d='Zone'),
+        '_SFP_LINK': dict(c=8, d='SFP'),
+        '_RNID_LINK': dict(c=8, d='RNID'),
         '_SWITCH_NAME': dict(c=22, d='Switch Name'),
         '_SWITCH_NAME_AND_WWN': dict(c=22, d='Switch Name'),
         '_SWITCH_WWN': dict(c=22, d='Switch WWN'),
@@ -1017,6 +1056,7 @@ class BestPractice:
     #   _SEV                Severity level
     #   _AREA_1             Top level descriptor
     #   _AREA_2             Next level descriptor
+    #   _LINK               Link to object
     #   _DESCRIPTION        Alert message
 
     # The values are dictionaries whose keys are as follows:
@@ -1024,19 +1064,21 @@ class BestPractice:
     # 'c'   The column width. Default is whatever the default Excel column width is
     # 'd'   Descriptor (column header).
     # 'dc'  If True, key is for display control only. No content is associated with the record
-    bp_display_tbl = {
+    bp_display_tbl = dict(
         # Custom
-        '_TYPE': dict(c=14, d='Type'),
-        '_SEV': dict(c=6, d='Sev'),
-        '_AREA_1': dict(c=30, d='Area 1'),
-        '_AREA_2': dict(c=8, d='Area 2'),
-        '_DESCRIPTION': dict(c=62, d='Description'),
-    }
+        _TYPE=dict(c=14, d='Type'),
+        _SEV=dict(c=6, d='Sev'),
+        _AREA_1=dict(c=30, d='Area 1'),
+        _AREA_2=dict(c=8, d='Area 2'),
+        _LINK=dict(c=5, d='Link'),
+        _DESCRIPTION=dict(c=57, d='Description'),
+    )
 
     bp_tbl = (
         '_TYPE',
         '_SEV',
         '_AREA_1',
         '_AREA_2',
+        '_LINK',
         '_DESCRIPTION',
     )
