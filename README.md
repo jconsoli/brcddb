@@ -44,7 +44,13 @@ with the zone_merge.py application.
 * Replaced all bare exception clauses with explicit exceptions
 * Miscellaneous bug fixes, especially around the mainframe
 
-**Description**
+
+**Updated 28 Apr 2022**
+
+* Added support for new URIs in FOS 9.1
+* Moved some generic libraries from here to brcdapi
+
+* **Description**
 
 A hierarchical relational database using Python data types. Used by the reporting and searching functions.
 
