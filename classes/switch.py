@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -36,16 +36,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 31 Dec 2021   | No functional changes. Replaced bare except with explicit except.                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 28 Apr 2022   | Fixed r_active_group_objects() so that None is never added to the return list.    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -573,8 +575,8 @@ class SwitchObj:
         """Returns the group dict for the group
         :param name: Group name
         :type name: str
-        :return: Dictionary of group attributes as returned from brocade-maps/group
-        :type: dict
+        :return: Dictionary of group attributes as returned from brocade-maps/group. Returns None if not found.
+        :type: dict, None
         """
         return self.r_maps_groups().get(name)
 
@@ -590,7 +592,7 @@ class SwitchObj:
         :return: List of group objects
         :rtype: list
         """
-        return [self.r_group(name) for name in self.r_active_groups()]
+        return [self.r_group(name) for name in self.r_active_groups() if self.r_group(name) is not None]
 
     def c_switch_model(self):
         """Returns the switch model as an integer

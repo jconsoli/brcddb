@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -38,16 +38,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 31 Dec 2021   | Updated comments and docstrings only. No functional changes.                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 28 Apr 2022   | Added r_login_obj()                                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -458,6 +460,21 @@ class ProjectObj:
         for fab_obj in self.r_fabric_objects():
             v.extend(fab_obj.r_login_objects())
         return v
+
+    def r_login_obj(self, wwn):
+        """Returns the list of login objects matching wwn. Note that its a list because duplicate WWNs may occur
+
+        :param wwn: WWN of the login
+        :type wwn: str
+        :return: List of LoginObj
+        :rtype: list
+        """
+        rl = list()
+        for fab_obj in self.r_fabric_objects():
+            login_obj = fab_obj.r_login_obj(wwn)
+            if login_obj is not None:
+                rl.append(login_obj)
+        return rl
 
     def r_fdmi_node_keys(self):
         """Returns all the FDMI node WWNs associated with this project.

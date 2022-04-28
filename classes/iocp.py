@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -34,15 +34,17 @@ Version Control::
     | 3.0.5     | 31 Dec 2021   | Fixed r_path_list() to return paths, not contol units. Fixed r_path_objects() and |
     |           |               | r_cu_objects().                                                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 28 Apr 2022   | Added ability to search for a CHPID path that is a subset of CSS in r_path_obj()  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
@@ -199,15 +201,26 @@ class IOCPObj:
             self._chpid_objs.update({tag: chpid_obj})
         return chpid_obj
 
-    def r_path_obj(self, tag):
+    def r_path_obj(self, tag, exact_match=True):
         """Returns path dictionary for the specified CHPID
 
         :param tag: CHPID tag
         :type tag: str
-        :return: The dictionary associated with the specified CHPID
-        :rtype: dict
+        :param exact_match: If True, the tag must match exactly. Otherwise, returns the first CHPID object whose tag
+                            contains the tag bits. This is useful for paths (CNTLUNIT statements) that are a subset of
+                            the CHPID tag
+        :return: The dictionary associated with the specified CHPID. None if not found
+        :rtype: dict, None
         """
-        return self._chpid_objs.get(tag)
+        if exact_match:
+            return self._chpid_objs.get(tag)
+        else:
+            hex_tag = int(tag, 16)
+            for chpid_tag in self.r_path_list():
+                hex_chpid_tag = int(chpid_tag, 16)
+                if (hex_tag | hex_chpid_tag) == hex_chpid_tag:
+                    return self._chpid_objs.get(chpid_tag)
+        return None
 
     def r_path_list(self):
         """Returns a list of paths in the IOCP

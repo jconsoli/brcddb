@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -40,17 +40,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 31 Dec 2021   | No functional changes. Replaced bare except with explicit except.                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 28 Apr 2022   | Added KeyError to except in c_login_type()                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2021'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
+import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
@@ -222,7 +225,7 @@ class PortObj:
         :return: List of WWNs logged into this port
         :rtype: list
         """
-        return util.convert_to_list(util.class_getvalue(self, 'fibrechannel/neighbor/wwn'))
+        return gen_util.convert_to_list(util.class_getvalue(self, 'fibrechannel/neighbor/wwn'))
 
     def r_login_objects(self):
         """Returns all the login objects for logins on this port
@@ -620,7 +623,7 @@ class PortObj:
         """
         try:
             return brcddb_common.port_conversion_tbl['fibrechannel/port-type'][self.r_get('fibrechannel/port-type')]
-        except (IndexError, ValueError):
+        except (IndexError, ValueError, KeyError):
             return 'Unknown'
 
     def c_power_on_time_days(self):
@@ -638,7 +641,7 @@ class PortObj:
         :return: Media distance
         :rtype: str
         """
-        return ', '.join(util.convert_to_list(self.r_get('media-rdp/media-distance/distance')))
+        return ', '.join(gen_util.convert_to_list(self.r_get('media-rdp/media-distance/distance')))
 
     def c_media_speed_capability(self):
         """Converts the media (SFP) speed capabilities to a CSV string
@@ -646,7 +649,7 @@ class PortObj:
         :return: Media speeds
         :rtype: str
         """
-        return ', '.join(util.convert_to_list(self.r_get('media-rdp/media-speed-capability/speed')))
+        return ', '.join(gen_util.convert_to_list(self.r_get('media-rdp/media-speed-capability/speed')))
 
     def c_login_speed(self):
         """Converts the login speed to a user friendly string (as is reported in the FOS command 'switchshow')

@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -38,18 +38,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 31 Dec 2021   | Added IOCP and CHPID objects.                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 28 Apr 2022   | Moved convert_to_list() to gen_util.convert_to_list()                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '28 Apr 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import brcdapi.log as brcdapi_log
+import brcdapi.gen_util as gen_util
 
 force_msg = 'To overwrite a key, set f=True in the call to s_new_key()\n'
 
@@ -518,40 +521,12 @@ def s_new_key_for_class(obj, k, v, f=False):
 
 
 def convert_to_list(obj):
-    """Converts an object to a list as follows:
-
-    +-----------+-----------------------------------------------------------+
-    | obj       | Return                                                    |
-    +===========+===========================================================+
-    | None      | List with no members                                      |
-    +-----------+-----------------------------------------------------------+
-    | list      | The same passed object, obj, is returned - NOT A COPY     |
-    +-----------+-----------------------------------------------------------+
-    | tuple     | Tuple copied to a list                                    |
-    +-----------+-----------------------------------------------------------+
-    | All else  | List with the passed obj as the only member               |
-    +-----------+-----------------------------------------------------------+
-
-    :param obj: Object to be converted to list
-    :type obj: list, tuple, dict, str, float, int
-    :return: Converted list
-    :rtype: list
-    """
-    # This is a copy and paste from brcddb_util.convert_to_list(). It takes care of scenarios that should never be
-    # encountered here but I didn't want to change something that was working and its future proof.
-    if obj is None:
-        return list()
-    if isinstance(obj, list):
-        return obj
-    if isinstance(obj, dict):
-        return list() if len(obj.keys()) == 0 else [obj]
-    if isinstance(obj, tuple):
-        return list(obj)
-    return [obj]
+    """Moved to brcdapi.gen_util"""
+    return gen_util.convert_to_list(obj)
 
 
 def class_getvalue(obj, keys, flag=False):
-    """Returns the value associated with a key.
+    """Returns the value associated with a key. Key may be multiple keys using "/" notation
 
     :param obj: Any brcddb.classes object
     :type obj: ChassisObj, FabricObj, LoginObj, FdmiNodeObj, FdmiPortObj, PortObj, ProjectObj, SwitchObj, ZoneCfgObj \
