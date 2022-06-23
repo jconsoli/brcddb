@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -17,6 +17,43 @@
 
     * Add FOS RESTConf requested fabric information (fabric, name server, and FDMI) to brcddb class objects
     * Analyze zoning
+
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | best_fab_name         | Returns the user friendly fabric name, optionally with the WWN of just the WWN if a   |
+    |                       | user friendly name wasn't defined.                                                    |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | switch_for_did        | Returns the switch object in a fabric for a specified DID.                            |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | alias_analysis        | Analyzes the aliases in each fabric and adds an alert if any of the following         |
+    |                       | conditions exist:                                                                     |
+    |                       |   * There are multiple identical aliases                                              |
+    |                       |   * The alias is not used                                                             |
+    |                       |   * The alias contains no members                                                     |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | check_ficon_zoning    | Check to make sure all control units in the channel path share a zone with the channel|
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | zone_by_target        | inds all servers in the effective zone that are zoned to each target, does a speed    |
+    |                       | check, and adds _zoned_servers to each target login object. _zoned_servers is a       |
+    |                       | dictionary. Key = server WWN, value = list of zones that server and target are in.    |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | zone_analysis         | Analyzes zoning. Finds where all members are. Adds an alert if any issues found. See  |
+    |                       | method header for details of what checks are preformed.                               |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | fab_obj_for_name      | Finds the first fabric matching the user friendly fabric name                         |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | fab_fids              | Returns a list of FIDs in a fabric. Note that there can be multiple FIDs if FID check |
+    |                       | is disabled                                                                           |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | copy_fab_obj          | Makes a copy of a fabric object                                                       |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | zone_merge_group      | Determines all logins that would be effected a result of removing a WWN from a fabric |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | fab_match             | Returns a list of WWNs matching the search criteria                                   |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -40,18 +77,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.3     | 31 Dec 2021   | Made changes to adjust for fixes in brcddb.classes.iocp.py                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.4     | 28 Apr 2022   | Fixed wrong gen numbers in _speed_to_gen                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.5     | 23 Jun 2022   | Added link address to ZONE_LINK_NO_ADDR error message.                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
+__date__ = '23 Jun 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.3'
+__version__ = '3.1.5'
 
 import brcdapi.log
+import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.app_data.bp_tables as bt
@@ -64,9 +106,8 @@ import brcddb.brcddb_zone as brcddb_zone
 _MIN_SYMB_LEN = 10
 _CHECK_PEER_PROPERTY = True if bt.custom_tbl.get('peer_property') is None else bt.custom_tbl.get('peer_property')
 _CHECK_ZONE_MISMATCH = True if bt.custom_tbl.get('zone_mismatch') is None else bt.custom_tbl.get('zone_mismatch')
-# _speed_to_gen converts the brocade-name-server/link-speed to a fibre channel generation bump.
-# $ToDo - Check below. It looks off by 1.
-_speed_to_gen = {'1G': 0, '2G': 1, '4G': 2, '8G': 3, '16G': 4, '32G': 5, '64G': 6, '128G': 7}
+# _speed_to_gen converts the brocade-name-server/link-speed to a fibre channel generation.
+_speed_to_gen = {'1G': 0, '2G': 2, '4G': 3, '8G': 4, '16G': 5, '32G': 6, '64G': 7, '128G': 8}
 special_login = {
     'SIM Port': al.ALERT_NUM.LOGIN_SIM,
     # Should never get 'I/O Analytics Port' because I check for AE-Port but rather than over think it...
@@ -171,6 +212,11 @@ def check_ficon_zoning(fabric_obj):
 
             # For each link address, get the corresponding port object and check for at least one common zone
             for link_addr in chpid_obj.r_link_addresses():
+                if link_addr[2:] == 'FE':
+                    link_d = chpid_obj.r_link_addr(link_addr)
+                    if link_d is not None:
+                        if '2032' in link_d.values():
+                            continue  # It's CUP which is a virtual port so skip it.
 
                 # Get the FC address
                 did = fabric_obj.r_switch_objects()[0].r_did() if len(fabric_obj.r_switch_keys()) == 1 else None
@@ -180,11 +226,11 @@ def check_ficon_zoning(fabric_obj):
                 # Get the port object for the port corresponding to the link address
                 port_obj = brcddb_port.port_obj_for_addr(fabric_obj, fc_addr)
                 if port_obj is None:
+                    buf = iocp_obj.r_obj_key() + ' CHPID ' + brcddb_iocp.tag_to_text(tag) + ' (' + tag + ')'
                     chpid_port_obj.s_add_alert(al.AlertTable.alertTbl,
                                                al.ALERT_NUM.ZONE_LINK_NO_ADDR,
-                                               None,
-                                               iocp_obj.r_obj_key(),
-                                               brcddb_iocp.tag_to_text(tag) + ' (' + tag + ')')
+                                               p0=link_addr,
+                                               p1=buf)
                     continue
 
                 # See if the port for the link address and port for the CHPID share a zone
@@ -235,7 +281,7 @@ def zone_by_target(fab_obj):
 
         # Figure out what all the login speeds of the target and servers zoned to this target
         s_speed_l = list()
-        for s_login_obj in brcddb_util.remove_none([fab_obj.r_login_obj(wwn) for wwn in s_wwn_d]):
+        for s_login_obj in gen_util.remove_none([fab_obj.r_login_obj(wwn) for wwn in s_wwn_d]):
             s_port_obj = s_login_obj.r_port_obj()
             x = None if s_port_obj is None else s_port_obj.r_get('_search/speed')
             if isinstance(x, (int, float)):
@@ -308,14 +354,14 @@ def zone_analysis(fab_obj):
             mem_list = list()
             zmem_list = zone_obj.r_members() if i == 0 else zone_obj.r_pmembers()
             for zmem in zmem_list:
-                if brcddb_util.is_wwn(zmem, full_check=False):
+                if gen_util.is_wwn(zmem, full_check=False):
                     flag |= _WWN_MEM
                     mem_list.append(zmem)
                     if len(fab_obj.r_alias_for_wwn(zmem)) > 0:
                         # An alias was defined for this WWN, but the WWN was used to define the zone
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_ALIAS_USE, None, zmem,
                                              ', '.join(fab_obj.r_alias_for_wwn(zmem)))
-                elif brcddb_util.is_di(zmem):
+                elif gen_util.is_di(zmem):
                     mem_list.append(zmem)
                 else:  # It must be an alias
                     flag |= _ALIAS_IN_ZONE
@@ -332,7 +378,7 @@ def zone_analysis(fab_obj):
                 else:
                     pmem_list.append(mem)
 
-                if brcddb_util.is_di(mem):
+                if gen_util.is_di(mem):
                     flag |= _DI_IN_ZONE  # It's a d,i member - typically FICON
                     t = mem.split(',')
 
@@ -345,18 +391,29 @@ def zone_analysis(fab_obj):
                     if not found_flag:
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_FOUND, None, mem)
 
-                elif brcddb_util.is_wwn(mem, full_check=False):
+                elif gen_util.is_wwn(mem, full_check=False):
                     flag |= _WWN_IN_ZONE
-                    if _CHECK_PEER_PROPERTY and not brcddb_util.is_wwn(zmem, full_check=True):
+                    if _CHECK_PEER_PROPERTY and not gen_util.is_wwn(zmem, full_check=True):
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_PROPERTY, None, zmem, None)
                     # Is the member in this fabric?
                     if fab_obj.r_port_obj(mem) is None:
                         # Is it in a different fabric?
                         port_list = brcddb_util.global_port_list(other_fabrics, mem)
-                        if len(port_list) > 0:
-                            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_DIFF_FABRIC, None, mem,
-                                                 best_fab_name(port_list[0].r_fabric_obj()))
-                        else:
+                        for port_obj in port_list:
+                            switch_obj = port_obj.r_switch_obj()
+                            buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/user-friendly-name')
+                            if buf is None:
+                                buf = switch_obj.r_get('brocade-fabric/fabric-switch/switch-user-friendly-name')
+                            if buf is None:
+                                buf = switch_obj.r_obj_key()
+                            buf += ', port ' + port_obj.r_obj_key()
+                            buf = 'fabric ' + best_fab_name(switch_obj.r_fabric_obj()) + ', switch ' + buf
+                            zone_obj.s_add_alert(al.AlertTable.alertTbl,
+                                                 al.ALERT_NUM.ZONE_DIFF_FABRIC,
+                                                 key=None,
+                                                 p0=mem,
+                                                 p1=buf)
+                        if len(port_list) == 0:
                             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_FOUND, None, mem)
                 else:
                     brcdapi.log.exception('Zone member type undetermined: ' + str(mem), True)
@@ -582,8 +639,8 @@ def zone_merge_group(wwn_d, fab_obj, wwn):
     :rtype missing_l: list
     """
     missing_l = list()
-    wwn_l = brcddb_util.remove_duplicates(_zone_merge_group(wwn_d, missing_l, fab_obj, wwn))
-    return wwn_l, brcddb_util.remove_duplicates(missing_l)
+    wwn_l = gen_util.remove_duplicates(_zone_merge_group(wwn_d, missing_l, fab_obj, wwn))
+    return wwn_l, gen_util.remove_duplicates(missing_l)
 
 
 def fab_match(fab_obj, search_term_l_in, s_type_in):
@@ -600,7 +657,7 @@ def fab_match(fab_obj, search_term_l_in, s_type_in):
     :rtype: list()
     """
     # Condition the input
-    search_term_l = brcddb_util.convert_to_list(search_term_l_in)
+    search_term_l = gen_util.convert_to_list(search_term_l_in)
     if len(search_term_l) == 0 or fab_obj is None:
         return list()
     s_type = 'exact' if s_type_in is None else s_type_in
@@ -612,4 +669,4 @@ def fab_match(fab_obj, search_term_l_in, s_type_in):
         rl.extend(brcddb_search.match(search_l, 'w', search_term, ignore_case=False, stype=s_type))  # Matching WWNs
         rl.extend(brcddb_search.match(search_l, 'a', search_term, ignore_case=False, stype=s_type))  # Matching aliases
 
-    return brcddb_util.remove_duplicates([d['w'] for d in rl])
+    return gen_util.remove_duplicates([d['w'] for d in rl])

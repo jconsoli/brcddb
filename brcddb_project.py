@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -14,8 +14,31 @@
 # limitations under the License.
 
 """
-
 :mod:`brcddb_project` - Support for project level operations.
+
+Public Methods & Data::
+
+    +---------------------------+-----------------------------------------------------------------------------------+
+    | Method                    | Description                                                                       |
+    +===========================+===================================================================================+
+    | new                       | Creates a new project object                                                      |
+    +---------------------------+-----------------------------------------------------------------------------------+
+    | dup_wwn                   | Searches all fabrics in the project for duplicate WWNs.                           |
+    +---------------------------+-----------------------------------------------------------------------------------+
+    | read_from                 | Creates a new project object from a JSON dump of a previous project object.       |
+    +---------------------------+-----------------------------------------------------------------------------------+
+    | build_xref                | Builds cross references for brcddb objects. This is necessary because it's not    |
+    |                           | immediately obvious how request data is interrelated.                             |
+    +---------------------------+-----------------------------------------------------------------------------------+
+    | add_custom_search_terms   | The search utility cannot dereference embedded lists so create custom search      |
+    |                           | terms. See module header for details.                                             |
+    +---------------------------+-----------------------------------------------------------------------------------+
+    | fab_obj_for_user_name     | Returns a list of fabric objects matching a user friendly name. May be a regex    |
+    |                           | match, regex search, wild card, or exact match.                                   |
+    +---------------------------+-----------------------------------------------------------------------------------+
+    | switch_obj_for_user_name  | Returns a list of switch objects matching a user friendly name. May be a regex    |
+    |                           | match, regex search, wild card, or exact match.                                   |
+    +---------------------------+-----------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -43,22 +66,27 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 31 Dec 2021   | Added ability to determine remote SFP speed by HBA when remote speed unavailable  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 28 Apr 2022   | Updated documentation.                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 23 Jun 2022   | Added switch_obj_for_user_name()                                                  |
+    |           |               | Use proj_obj.r_login_obj() in dup_wwn() to find duplicate WWNs.                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '23 Jun 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.1.0'
 
-import brcddb.classes.project as project_class
-import brcddb.brcddb_fabric as brcddb_fabric
 import brcdapi.log as brcdapi_log
+import brcdapi.file as brcdapi_file
+import brcdapi.gen_util as gen_util
+import brcddb.classes.project as project_class
 import brcddb.util.copy as brcddb_copy
-import brcddb.util.file as brcddb_file
 import brcddb.util.util as brcddb_util
 import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_common as brcddb_common
@@ -70,6 +98,7 @@ _DUP_WWN_CHECK = True if bt.custom_tbl.get('dup_wwn') is None else bt.custom_tbl
 
 def new(name, date):
     """Creates a new project object
+
     :param name: User defined project date
     :type name: str
     :param date: Project date
@@ -80,51 +109,35 @@ def new(name, date):
 
 def dup_wwn(proj_obj):
     """Searches all fabrics in the project for duplicate WWNs.
+
     :param proj_obj: Project object
     :type proj_obj: ProjectObj
     :return: List of login objects for the duplicate WWNs. None entry separates multiple duplicates
     :rtype: list
     """
-    dup_login = list()
+    dup_login_l = list()
     if not _DUP_WWN_CHECK:
-        return dup_login
-    dup_wwn_l = list()
-    for fabObj in proj_obj.r_fabric_objects():
-        other_fab_list = proj_obj.r_fabric_objects()
-        other_fab_list.remove(fabObj)
+        return dup_login_l
 
-        for wwn in fabObj.r_login_keys():
-            dup_login_len = len(dup_login)
-            for fobj in other_fab_list:
-                if fobj.r_login_obj(wwn) is not None:
-                    if wwn not in dup_wwn_l:
-                        dup_wwn_l.append(wwn)
-                        proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_DUP_LOGIN, None, wwn)
-                    login_obj = fobj.r_login_obj(wwn)
-                    if login_obj not in dup_login:
-                        dup_login.append(login_obj)
-                        login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_DUP_LOGIN, None,
-                                              brcddb_fabric.best_fab_name(fabObj))
-                    login_obj = fabObj.r_login_obj(wwn)
-                    if login_obj not in dup_login:
-                        dup_login.append(login_obj)
-                        login_obj.s_add_alert(al.AlertTable.alertTbl,
-                                              al.ALERT_NUM.LOGIN_DUP_LOGIN,
-                                              None,
-                                              brcddb_fabric.best_fab_name(fobj))
-            if len(dup_login) > dup_login_len:
-                dup_login.append(None)
+    for wwn in gen_util.remove_duplicates(proj_obj.r_login_keys()):
+        login_l = proj_obj.r_login_obj(wwn)
+        if len(login_l) > 1:
+            dup_login_l.extend(login_l)
+            proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_DUP_LOGIN, None, wwn)
+            buf = ', '.join([login_obj.r_fabric_key() for login_obj in login_l])
+            for login_obj in login_l:
+                login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_DUP_LOGIN, p0=buf)
 
-    return dup_login
+    return dup_login_l
 
 
 def read_from(inf):
     """Creates a new project object from a JSON dump of a previous project object.
 
-    :param inf: Input file name written with brcddb_util.write_dump()
+    :param inf: Input file name written with brcdapi_file.write_dump()
     :type inf: str
     """
-    obj = brcddb_file.read_dump(inf)
+    obj = brcdapi_file.read_dump(inf)
     if obj is None or obj.get('_obj_key') is None or obj.get('_date') is None:
         brcdapi_log.log(inf + ' is not a valid project file.', True)
         return None
@@ -136,7 +149,7 @@ def read_from(inf):
 
 def build_xref(proj_obj):
     """Builds cross references for brcddb objects. This is necessary because it's not immediately obvious how request
-    data is interrelated.
+       data is interrelated.
 
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
@@ -173,9 +186,9 @@ def add_custom_search_terms(proj_obj):
         if isinstance(l, (list, tuple)):
             max_sfp = max(l)
             if 'sfp_max_speed' not in search:
-                search.update(dict(sfp_max_speed=max_sfp))
+                search.update(sfp_max_speed=max_sfp)
             if 'sfp_min_speed' not in search:
-                search.update(dict(sfp_min_speed=min(l)))
+                search.update(sfp_min_speed=min(l))
 
         # Get the maximum and minimum speeds supported by the remote (attached device) SFP
         l = port_obj.r_get('media-rdp/remote-media-speed-capability/speed')
@@ -187,32 +200,61 @@ def add_custom_search_terms(proj_obj):
         if isinstance(l, (list, tuple)):
             max_r_sfp = max(l)
             if 'remote_sfp_max_speed' not in search:
-                search.update(dict(remote_sfp_max_speed=max_r_sfp))
+                search.update(remote_sfp_max_speed=max_r_sfp)
             if 'remote_sfp_min_speed' not in search:
-                search.update(dict(remote_sfp_min_speed=min(l)))
+                search.update(remote_sfp_min_speed=min(l))
 
         # Get the maximum supported speed (the lesser of the maximum local speed and maximum attached speed)
         if isinstance(max_sfp, int) and isinstance(max_r_sfp, int):
             if 'max_login_speed' not in search:
-                search.update(dict(max_login_speed=min([max_sfp, max_r_sfp])))
+                search.update(max_login_speed=min([max_sfp, max_r_sfp]))
 
         # Convert the actual login speed, which is bps, to Gbps for easier comparisons to the SFP speed capabilities
         if 'speed' not in search:
-            v = brcddb_util.non_decimal.sub('', port_obj.c_login_speed())
+            v = gen_util.non_decimal.sub('', port_obj.c_login_speed())
             if len(v) > 0:
-                search.update(dict(speed=int(v)))
+                search.update(speed=int(v))
 
 
-def fab_obj_for_user_name(proj_obj, name):
-    """Returns a list of fabric objects matching a user friendly name
+def fab_obj_for_user_name(proj_obj, name, match_type='exact'):
+    """Returns a list of fabric objects matching a user friendly name.
 
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
     :param name: User friendly fabric name
     :type name: str
+    :param match_type: Type of match to perform. Accepts 'exact', 'regex_m', 'regex_s', and 'wild'
+    :type match_type: str
+    :return: List of fabric objects matching name
+    :rtype: list
     """
     sl = brcddb_search.match_test(
         proj_obj.r_switch_objects(),
-        dict(k='brocade-fibrechannel-switch/fibrechannel-switch/fabric-user-friendly-name', v=name, t='exact', i=False)
+        dict(
+            k='brocade-fibrechannel-switch/fibrechannel-switch/fabric-user-friendly-name',
+            v=name,
+            t=match_type,
+            i=False
+        )
     )
-    return brcddb_util.remove_duplicates([switch_obj.r_fabric_obj() for switch_obj in sl])
+    return gen_util.remove_duplicates([switch_obj.r_fabric_obj() for switch_obj in sl])
+
+
+def switch_obj_for_user_name(proj_obj, name, match_type='exact'):
+    """Returns a list of switch objects matching a user friendly name.
+
+    :param proj_obj: Project object
+    :type proj_obj: brcddb.classes.project.ProjectObj
+    :param name: User friendly switch name
+    :type name: str
+    """
+    return gen_util.remove_duplicates(
+        brcddb_search.match_test(
+            proj_obj.r_switch_objects(),
+            dict(
+                k='brocade-fibrechannel-switch/fibrechannel-switch/user-friendly-name',
+                v=name,
+                t=match_type,
+                i=False)
+        )
+    )
