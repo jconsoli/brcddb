@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -15,18 +15,26 @@
 """
 :mod:`brcddb_bp` - Best Practices checking
 
-Primary methods:
+**Description**
 
-best_practice()     Accepts a list of objects and a list of best practice or standards by key to be found in the objects
-                    to compare against. Comments categorized. Although any number of categories with any key can be
-                    defined, '_e' and '_w', are used in brcdapi.report to determine how comments are to be displayed.
-                    '_e' is displayed in bold red font (error_font). '_w' is displayed in bold orange font (warn_font).
-                    All other comments are displayed in standard font (std_font).
+    Accepts a list of objects and a list of best practice or standards by key to be found in the objects to compare
+    against. Comments categorized. Although any number of categories with any key can be defined, '_e' and '_w', are
+    used in brcdapi.report to determine how comments are to be displayed. '_e' is displayed in bold red font
+    (error_font). '_w' is displayed in bold orange font (warn_font). All other comments are displayed in standard font
+    (std_font).
 
-                    Although intended for determining best practice and standards (drift) violations, it can be used
-                    for any application that requires individual key comparisons.
+    Although intended for determining best practice and standards (drift) violations, it can be used for any application
+    that requires individual key comparisons.
 
-                    see brcddb.app_data.alert_tables for details in constructing these tables
+    see brcddb.app_data.alert_tables for details in constructing these tables
+
+Public Methods & Data::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | best_practice         | Checks for defined conditions and adds an alert for every out of bounds condition.    |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -51,21 +59,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 31 Dec 2021   | Miscellaneous clean up. No functional changes.                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 28 Apr 2022   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 23 Jun 2022   | Added ability to accumulate multiple values in p0 and p1                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '23 Jun 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.8'
 
 import collections
-import brcddb.util.util as brcddb_util
-import brcddb.util.search as brcddb_search
 import brcdapi.log as brcdapi_log
+import brcdapi.gen_util as gen_util
+import brcddb.util.search as brcddb_search
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.app_data.alert_tables as al
 import brcddb.app_data.bp_tables as bp_tables
@@ -215,7 +227,7 @@ def _isl_num_links(obj, t_obj):
             tl = switch_pair.get(k1)
             for trunk in tl:
                 isls_per_trunk.append(len(trunk))
-        if len(brcddb_util.remove_duplicates(isls_per_trunk)) > 1:
+        if len(gen_util.remove_duplicates(isls_per_trunk)) > 1:
             r_list.append({'a': t_obj.get('m'),
                            'p0': brcddb_switch.best_switch_name(obj),
                            'p1': brcddb_switch.best_switch_name(proj_obj.r_switch_obj(k)),
@@ -256,7 +268,7 @@ def _isl_bw(obj, t_obj):
                     speeds.append(s)
             except TypeError:
                 pass  # We get here if all switches in the project were not polled
-        if len(brcddb_util.remove_duplicates(speeds)) > 1:
+        if len(gen_util.remove_duplicates(speeds)) > 1:
             r_list.append({'a': t_obj.get('m'),
                            'p0': brcddb_switch.best_switch_name(obj),
                            'p1': brcddb_switch.best_switch_name(proj_obj.r_switch_obj(k)),
@@ -295,7 +307,7 @@ def _isl_fru(obj, t_obj):
             for trunk in tl:
                 if trunk[0] is not None:
                     slots.append(trunk[0].r_obj_key().split('/')[0])
-        if len(brcddb_util.remove_duplicates(slots)) == 1 and slots[0] != '0':
+        if len(gen_util.remove_duplicates(slots)) == 1 and slots[0] != '0':
             r_list.append({'a': t_obj.get('m'),
                            'p0': brcddb_switch.best_switch_name(obj),
                            'p1': brcddb_switch.best_switch_name(proj_obj.r_switch_obj(k)),
@@ -349,7 +361,7 @@ def _fc16_48_haa_p8(obj, t_obj):
     global _alert_tbl
 
     # Get all the ports number 8 in for FC16-32 blades matching P/N 60-1001945-* (built before 2016)
-    temp_l = brcddb_util.convert_to_list(obj.r_get('brocade-fru/blade'))
+    temp_l = gen_util.convert_to_list(obj.r_get('brocade-fru/blade'))
     fru_list = brcddb_search.match(temp_l, 'part-number', '60-1001945-*', False, 'wild')
     temp_l = [str(fru.get('slot-number')) for fru in fru_list]
 
@@ -380,25 +392,25 @@ def _chassis_fru_check(obj, t_obj):
 
     r_list = list()
     # Blades
-    for d in brcddb_util.convert_to_list(obj.r_get('brocade-fru/blade')):
+    for d in gen_util.convert_to_list(obj.r_get('brocade-fru/blade')):
         v = str(d.get('blade-state'))
         if 'ault' in v:  # Sometimes it's 'fault' and sometimes it's 'Fault'.
             r_list.append({'a': t_obj.get('m'), 'p0': 'blade: ' + str(d.get('slot-number')), 'p1': v, 'k': None})
 
     # Fans
-    for d in brcddb_util.convert_to_list(obj.r_get('brocade-fru/fan')):
+    for d in gen_util.convert_to_list(obj.r_get('brocade-fru/fan')):
         v = str(d.get('operational-state'))
         if v.upper() != 'OK':
             r_list.append({'a': t_obj.get('m'), 'p0': 'Fan: ' + str(d.get('unit-number')), 'p1': v, 'k': None})
 
     # Power Supply
-    for d in brcddb_util.convert_to_list(obj.r_get('brocade-fru/power-supply')):
+    for d in gen_util.convert_to_list(obj.r_get('brocade-fru/power-supply')):
         v = str(d.get('operational-state'))
         if v.upper() != 'OK':
             r_list.append({'a': t_obj.get('m'), 'p0': 'Power Supply: ' + str(d.get('unit-number')), 'p1': v, 'k': None})
 
     # Temp Sensor
-    for d in brcddb_util.convert_to_list(obj.r_get('brocade-fru/sensor')):
+    for d in gen_util.convert_to_list(obj.r_get('brocade-fru/sensor')):
         v = str(d.get('state'))
         if v.upper() != 'ABSENT':
             if v.upper() != 'OK':
@@ -569,7 +581,7 @@ def _bp_special_list(obj_list, t_obj):
     global _alert_tbl
 
     anum = t_obj.get('m')
-    k = brcddb_util.convert_to_list(t_obj.get('l'))[0].get('k')
+    k = gen_util.convert_to_list(t_obj.get('l'))[0].get('k')
     p0 = t_obj.get('p0')
     p1 = t_obj.get('p1')
     for obj in _bp_special_list_case_tbl[t_obj.get('s')](obj_list, t_obj):
@@ -611,11 +623,31 @@ def _check_best_practice(obj_list, test_list):
         else:
             for obj in brcddb_search.match_test(obj_list, t_obj.get('l'), t_obj.get('logic')):
                 # See documentation in brcddb.app_data.bp_tables for an explanation of 'm', 'p0', 'p0h', 'p1', & 'p1h'
-                p0 = t_obj.get('p0h') if t_obj.get('p0h') is not None else obj.r_get(t_obj.get('p0'))
-                p1 = t_obj.get('p1h') if t_obj.get('p1h') is not None else obj.r_get(t_obj.get('p1'))
+                p0 = t_obj.get('p0h')
+                if p0 is None:
+                    t_val = t_obj.get('p0')
+                    if isinstance(t_val, (tuple, list)):
+                        temp_l = [obj.r_get(k) for k in t_val if obj.r_get(k) is not None]
+                        if len(temp_l) > 0:
+                            p0 = temp_l.pop(0)
+                            for i in temp_l:
+                                p0 += i
+                    else:
+                        p0 = obj.r_get(t_val)
+                p1 = t_obj.get('p1h')
+                if p1 is None:
+                    t_val = t_obj.get('p1')
+                    if isinstance(t_val, (tuple, list)):
+                        temp_l = [obj.r_get(k) for k in t_val if obj.r_get(k) is not None]
+                        if len(temp_l) > 0:
+                            p1 = temp_l.pop(0)
+                            for i in temp_l:
+                                p1 += i
+                    else:
+                        p1 = obj.r_get(t_val)
                 obj.s_add_alert(_alert_tbl,
                                 t_obj.get('m'),
-                                brcddb_util.convert_to_list(t_obj.get('l'))[0].get('k'),
+                                gen_util.convert_to_list(t_obj.get('l'))[0].get('k'),
                                 p0,
                                 p1)
 
