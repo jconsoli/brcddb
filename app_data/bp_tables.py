@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -87,16 +87,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 31 Dec 2021   | Updated comments only. No functional changes.                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 22 Jun 2022   | Added port bit errors, framing errors, and logical errors                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '22 Jun 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.app_data.alert_tables as al
@@ -123,6 +125,40 @@ is_not_online = dict(k='fibrechannel/operational-status', t='!=', v=2)
 is_online = dict(k='fibrechannel/operational-status', t='==', v=2)
 is_no_light = dict(k='fibrechannel/physical-state', t='exact', v='no_light')
 is_asn = dict(k='fibrechannel/auto-negotiate', t='bool', v=True)
+_port_bit_errors = ('fibrechannel-statistics/in-crc-errors',
+                    'fibrechannel-statistics/crc-errors',
+                    'fibrechannel-statistics/fec-uncorrected')
+_port_framing_errors = ('fibrechannel-statistics/invalid-ordered-sets',
+                        'fibrechannel-statistics/frames-too-long',
+                        'fibrechannel-statistics/truncated-frame'
+                        'fibrechannel-statistics/address-errors',
+                        'fibrechannel-statistics/delimiter-errors',
+                        'fibrechannel-statistics/encoding-disparity-errors',
+                        'fibrechannel-statistics/bad-eofs-received',
+                        'fibrechannel-statistics/encoding-errors-outside-frame',
+                        'fibrechannel-statistics/invalid-transmission-words',
+                        'fibrechannel-statistics/primitive-sequence-protocol-error')
+_port_logical_errors = ('fibrechannel-statistics/in-link-resets',
+                        'fibrechannel-statistics/out-link-resets',
+                        'fibrechannel-statistics/in-offline-sequences',
+                        'fibrechannel-statistics/out-offline-sequences',
+                        'fibrechannel-statistics/too-many-rdys',
+                        'fibrechannel-statistics/multicast-timeouts',
+                        'fibrechannel-statistics/in-lcs',
+                        'fibrechannel-statistics/input-buffer-full',
+                        'fibrechannel-statistics/f-busy-frames',
+                        'fibrechannel-statistics/p-busy-frames',
+                        'fibrechannel-statistics/f-rjt-frames',
+                        'fibrechannel-statistics/p-rjt-frames',
+                        'fibrechannel-statistics/link-failures',
+                        'fibrechannel-statistics/loss-of-signal',
+                        'fibrechannel-statistics/loss-of-sync',
+                        'fibrechannel-statistics/ink-level-interrupts',
+                        'fibrechannel-statistics/frames-processing-required',
+                        'fibrechannel-statistics/frames-timed-out',
+                        'fibrechannel-statistics/frames-transmitter-unavailable-errors',
+                        'fibrechannel-statistics/non-operational-sequences-in',
+                        'fibrechannel-statistics/non-operational-sequences-out')
 
 port_tbl = (
 
@@ -163,6 +199,44 @@ port_tbl = (
         m=al.ALERT_NUM.PORT_C3_DISCARD,
         p0='fibrechannel-statistics/class-3-discards',
         l=dict(k='fibrechannel-statistics/class-3-discards', t='>', v=0),
+    ),
+    # Any port with TxC3 discards
+    dict(
+        skip=False,
+        m=al.ALERT_NUM.PORT_TXC3_DISCARD,
+        p0='fibrechannel-statistics/class3-out-discards',
+        l=dict(k='fibrechannel-statistics/class3-out-discards', t='>', v=0),
+    ),
+    # Any port with RxC3 discards
+    dict(
+        skip=False,
+        m=al.ALERT_NUM.PORT_RXC3_DISCARD,
+        p0='fibrechannel-statistics/class3-in-discards',
+        l=dict(k='fibrechannel-statistics/class3-in-discards', t='>', v=0),
+    ),
+    # Any port with bit errors
+    dict(
+        skip=False,
+        m=al.ALERT_NUM.PORT_BIT_ERRORS,
+        p0=_port_bit_errors,
+        l=[dict(k=buf, t='>', v=0) for buf in _port_bit_errors],
+        logic='or'
+    ),
+    # Any port with framing errors
+    dict(
+        skip=False,
+        m=al.ALERT_NUM.PORT_FRAME_ERRORS,
+        p0=_port_framing_errors,
+        l=[dict(k=buf, t='>', v=0) for buf in _port_framing_errors],
+        logic='or',
+    ),
+    # Any port with logical errors
+    dict(
+        skip=False,
+        m=al.ALERT_NUM.PORT_LOGICAL_ERRORS,
+        p0=_port_logical_errors,
+        l=[dict(k=buf, t='>', v=0) for buf in _port_logical_errors],
+        logic='or',
     ),
     # Make sure all enabled ports have something attached.
     dict(

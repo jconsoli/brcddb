@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -47,19 +47,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 31 Dec 2021   | Added IOCP alerts.                                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 22 Jun 2022   | Added link address to ZONE_LINK_NO_ADDR error message. Added PORT_TXC3_DISCARD,   |
+    |           |               | PORT_RXC3_DISCARD, PORT_LOGICAL_ERRORS, PORT_BIT_ERRORS, and PORT_FRAME_ERRORS.   |
+    |           |               | Added switch and port, via $p0, to ZONE_DIFF_FABRIC.                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '22 Jun 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import brcddb.classes.alert as al
-
 
 class ALERT_NUM:
     # MAPS alerts
@@ -148,6 +151,11 @@ class ALERT_NUM:
     REMOTE_PORT_L_TEMP_A = REMOTE_PORT_L_TEMP_W + 1
     LOGIN_SPEED_NOT_MAX_W = REMOTE_PORT_L_TEMP_A + 1
     PORT_SFP_HAA_F16_32_P8 = LOGIN_SPEED_NOT_MAX_W + 1
+    PORT_TXC3_DISCARD = PORT_SFP_HAA_F16_32_P8 + 1
+    PORT_RXC3_DISCARD = PORT_TXC3_DISCARD + 1
+    PORT_LOGICAL_ERRORS = PORT_RXC3_DISCARD + 1
+    PORT_BIT_ERRORS = PORT_LOGICAL_ERRORS + 1
+    PORT_FRAME_ERRORS = PORT_BIT_ERRORS + 1
 
     # Login level alerts
     LOGIN_BASE = 500
@@ -257,6 +265,16 @@ class AlertTable:
                                               k='fibrechannel/enabled-state'),
         ALERT_NUM.PORT_C3_DISCARD: dict(m='$p0 C3 discards on this port', s=al.ALERT_SEV.ERROR,
                                         k='fibrechannel-statistics/class-3-discards'),
+        ALERT_NUM.PORT_TXC3_DISCARD: dict(m='$p0 TxC3 discards on this port', s=al.ALERT_SEV.ERROR,
+                                        k='fibrechannel-statistics/class-3-discards'),
+        ALERT_NUM.PORT_RXC3_DISCARD: dict(m='$p0 RxC3 discards on this port', s=al.ALERT_SEV.ERROR,
+                                          k='fibrechannel-statistics/class-3-discards'),
+        ALERT_NUM.PORT_LOGICAL_ERRORS: dict(m='$p0 Logical errors. Check the port statistics page for details',
+                                            s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
+        ALERT_NUM.PORT_BIT_ERRORS: dict(m='$p0 Bit errors. Check the port statistics page for details',
+                                            s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
+        ALERT_NUM.PORT_FRAME_ERRORS: dict(m='$p0 Framing errors. Check the port statistics page for details',
+                                        s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
         ALERT_NUM.PORT_F_ZERO_CREDIT: dict(m='F-Port with $p0 zero credits', s=al.ALERT_SEV.WARN,
                                            k='fibrechannel-statistics/bb-credit-zero'),
         ALERT_NUM.PORT_TSB_2019_274_WARN: dict(m='Potential bad SFP per TSB 2019-274', s=al.ALERT_SEV.WARN),
@@ -342,7 +360,7 @@ class AlertTable:
                                            s=al.ALERT_SEV.GENERAL),
         # In ZONE_LINK_ADDR below: $p0 - CPC serial (sequence) number, $p1 CHPID tag
         ALERT_NUM.ZONE_LINK_ADDR: dict(m='Not in same zone for CPC $p0 CHPID $p1', s=al.ALERT_SEV.ERROR),
-        ALERT_NUM.ZONE_LINK_NO_ADDR: dict(m='Matching link address in path CPC $p0 CHPID $p1 not in fabric',
+        ALERT_NUM.ZONE_LINK_NO_ADDR: dict(m='Matching link address $p0 in path CPC $p1 not in fabric',
                                           s=al.ALERT_SEV.ERROR),
 
         # Zone members. In all cases, p0 must be the WWN because that is how the report associates an alert with a
@@ -350,7 +368,7 @@ class AlertTable:
         ALERT_NUM.ZONE_ALIAS_USE: dict(m='Consider using alias $p1', s=al.ALERT_SEV.WARN, f=True),
         ALERT_NUM.ZONE_PROB_AMP: dict(m='SIM Port or AMP trunk link', s=al.ALERT_SEV.GENERAL,
                                       f=True),
-        ALERT_NUM.ZONE_DIFF_FABRIC: dict(m='Member found in fabric $p1', s=al.ALERT_SEV.ERROR, f=True),
+        ALERT_NUM.ZONE_DIFF_FABRIC: dict(m='Zone member $p0 found in $p1.', s=al.ALERT_SEV.ERROR, f=True),
         ALERT_NUM.ZONE_NOT_FOUND: dict(m='Not found', s=al.ALERT_SEV.GENERAL, f=True),
         ALERT_NUM.ZONE_BASE_ZONED: dict(m='Base NPIV zoned', s=al.ALERT_SEV.ERROR, f=True),
         ALERT_NUM.ZONE_MAX_PARTICIPATION: dict(m='Maximum zone participation exceeded', s=al.ALERT_SEV.WARN),

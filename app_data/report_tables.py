@@ -79,16 +79,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 28 Apr 2022   | Added _CONFIG_LINK, _STATS_LINK, _ZONE_LINK, _SFP_LINK, _RNID_LINK                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 22 Jun 2022   | Fixed missing fibrechannel-name-server in brocade-name-server in                  |
+    |           |               | Login.login_display_tbl and Login.login_tbl                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '22 Jun 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 
 class Chassis:
@@ -305,56 +308,67 @@ class Security:
 
 
 class Port:
-    # How to display a port object key value is determined by looking up the key in the list of keys in display passed
-    # to port_page() in port_display_tbl. If a key is not found but exists in the port object, it is displayed with all
-    # the default settings. When NPIV is active, only the root login is applicable to the first row displayed for a
-    # port. If _LOGIN_WWN or _LOGIN_ADDR is specified, then each additional login is displayed directly below.
-    # In addition to the keys specified in the Rest API Guide, there are the following speicial keys:
-    # The keys are either one of the keys defined in 'brocade-interface/fibrechannel' + any of the leafs or one of the
-    #   _BEST_DESC          Finds the first descriptor for the associated WWN in this order:
-    #                           1   If E-Port, the upstream switch & port
-    #                           2   FDMI  Node descriptor - base port only when multiple logins (NPIV) are present
-    #                           3   Name server node descriptor - base port only when multiple logins (NPIV) are present
-    #                           4   FDMI Port descriptor
-    #                           5   Name server port descriptor
-    #                           6   FDMI Node descriptor - Additional NPIV logins only
-    #                           7   Name server node descriptor - Additional NPIV logins only
-    #   _PORT_COMMENTS      Display alerts
-    #   _FABRIC_NAME        Lookup the fabric name. WWN is used if fabric is not named
-    #   _FABRIC_NAME_AND_WWN Lookup the fabric name and include the wwn in parenthesis
-    #   _FABRIC_WWN         Lookup wth fabric WWN
-    #   _SWITCH_NAME        Lookup the switch name. WWN is used if the switch is not named
-    #   _SWITCH_NAME_AND_WWN Lookup the switch name and include the wwn in parenthesis
-    #   _SWITCH_WWN         Lookup wth switch WWN
-    #   _ALIAS              Lookup aliases for the logged in WWNs.
-    #   _PORT_WWN           Switch port WWN. Typically not used. The attached port WWN is _BASE_WWN and _NPIV_WWN
-    #   _LOGIN_WWN          Login WWN on this port. Multiple logins WWNs are listed directly below on the same row.
-    #   _LOGIN_ADDR         Login address on this port. Multiple logins WWNs are listed directly below on the same row.
-    #   _ZONES_DEF          Lookup all zones associated with the login WWN with _ALIAS
-    #   _ZONES_EFF          Same as _ZONES_DEF but for the effective zone only.  See note with _ALIAS
-    #   _NAME_SERVER_NODE   Node symbol in the name server data
-    #   _NAME_SERVER_PORT   Port symbol in the name server data
-    #   _FDMI_NODE          Node symbol in the FDMI data
-    #   _FDMI_PORT          Port symbol in the FDMI data
-    #   _MAPS_GROUP         MAPS group(s) associated with this port
-    #   _PORT_NUMBER        Port number - as it appears on the demarcation panel
-    #   _CONFIG_LINK        'Config' & link, if available, to the port on the "Port Configurations" worksheet
-    #   _STATS_LINK         'Stats' & link, if available, to the port on the "Port Configurations" worksheet
-    #   _ZONE_LINK          'Zone' & link, if available, to the port on the "Port Configurations" worksheet
-    #   _SFP_LINK           'SFP' & link, if available, to the port on the "Port Configurations" worksheet
-    #   _RNID_LINK          'RNID' & link, if available, to the port on the "Port Configurations" worksheet
-    # The values are dictionaries whose keys are as follows:
-    # 'v'   If True, displays the column header vertically. Default is False
-    # 'c'   The column width. Default is whatever the default Excel column width is
-    # 'd'   Descriptor (column header). If not specified, the key is used.
-    # 'dc'  If True, key is for display control only. No content is associated with the record
-    # 'm'   If True, the data should be centered. Default is False
+    """How to display a port object key value is determined by looking up the key in the list of keys in display passed
+    to port_page() in port_display_tbl. If a key is not found but exists in the port object, it is displayed with all
+    the default settings. When NPIV is active, only the root login is applicable to the first row displayed for a
+    port. If _LOGIN_WWN or _LOGIN_ADDR is specified, then each additional login is displayed directly below.
+    In addition to the keys specified in the Rest API Guide, there are the following speicial keys:
+    The keys are either one of the keys defined in 'brocade-interface/fibrechannel' + any of the leafs or one of the
+      _BEST_DESC          Finds the first descriptor for the associated WWN in this order:
+                              1   If E-Port, the upstream switch & port
+                              2   FDMI  Node descriptor - base port only when multiple logins (NPIV) are present
+                              3   Name server node descriptor - base port only when multiple logins (NPIV) are present
+                              4   FDMI Port descriptor
+                              5   Name server port descriptor
+                              6   FDMI Node descriptor - Additional NPIV logins only
+                              7   Name server node descriptor - Additional NPIV logins only
+      _PORT_COMMENTS      Display alerts
+      _FABRIC_NAME        Lookup the fabric name. WWN is used if fabric is not named
+      _FABRIC_NAME_AND_WWN Lookup the fabric name and include the wwn in parenthesis
+      _FABRIC_WWN         Lookup wth fabric WWN
+      _SWITCH_NAME        Lookup the switch name. WWN is used if the switch is not named
+      _SWITCH_NAME_AND_WWN Lookup the switch name and include the wwn in parenthesis
+      _SWITCH_WWN         Lookup wth switch WWN
+      _ALIAS              Lookup aliases for the logged in WWNs.
+      _PORT_WWN           Switch port WWN. Typically not used. The attached port WWN is _BASE_WWN and _NPIV_WWN
+      _LOGIN_WWN          Login WWN on this port. Multiple logins WWNs are listed directly below on the same row.
+      _LOGIN_ADDR         Login address on this port. Multiple logins WWNs are listed directly below on the same row.
+      _ZONES_DEF          Lookup all zones associated with the login WWN with _ALIAS
+      _ZONES_EFF          Same as _ZONES_DEF but for the effective zone only.  See note with _ALIAS
+      _NAME_SERVER_NODE   Node symbol in the name server data
+      _NAME_SERVER_PORT   Port symbol in the name server data
+      _FDMI_NODE          Node symbol in the FDMI data
+      _FDMI_PORT          Port symbol in the FDMI data
+      _MAPS_GROUP         MAPS group(s) associated with this port
+      _PORT_NUMBER        Port number - as it appears on the demarcation panel
+      _CONFIG_LINK        'Config' & link, if available, to the port on the "Port Configurations" worksheet
+      _STATS_LINK         'Stats' & link, if available, to the port on the "Port Configurations" worksheet
+      _ZONE_LINK          'Zone' & link, if available, to the port on the "Port Configurations" worksheet
+      _SFP_LINK           'SFP' & link, if available, to the port on the "Port Configurations" worksheet
+      _RNID_LINK          'RNID' & link, if available, to the port on the "Port Configurations" worksheet
+
+    The values are dictionaries whose keys are as follows:
+
+    +-------+-------+-----------------------------------------------------------------------------------------------+
+    | key   | Type  | Description                                                                                   |
+    +=======+=======+===============================================================================================+
+    | c     | int   | The column width. Default is whatever the default Excel column width is which is usally 8     |
+    +-------+-------+-----------------------------------------------------------------------------------------------+
+    | d     | str   | Descriptor (column header). If not specified, the key is used.                                |
+    +-------+-------+-----------------------------------------------------------------------------------------------+
+    | dc    | bool  | If True, key is for display control only. No content is associated with the record            |
+    +-------+-------+-----------------------------------------------------------------------------------------------+
+    | m     | bool  | If True, the data (not the column header) should be centered. Default is False                |
+    +-------+-------+-----------------------------------------------------------------------------------------------+
+    | v     | bool  | If True, displays the column header vertically and centered. Default is False                 |
+    +-------+-------+-----------------------------------------------------------------------------------------------+
+    """
     port_display_tbl = {
         # Custom
-        '_ALIAS': dict(c=22, d='Alias'),
+        '_ALIAS': dict(c=28, d='Alias'),
         '_BEST_DESC': dict(c=32, d='Description'),
-        '_FABRIC_NAME': dict(c=22, d='Fabric Name'),
-        '_FABRIC_NAME_AND_WWN': dict(c=22, d='Fabric Name'),
+        '_FABRIC_NAME': dict(c=28, d='Fabric Name'),
+        '_FABRIC_NAME_AND_WWN': dict(c=28, d='Fabric Name'),
         '_FABRIC_WWN': dict(c=22, d='Fabric WWN'),
         '_FDMI_NODE': dict(c=35, d='FDMI Node Symbol'),
         '_FDMI_PORT': dict(c=35, d='FDMI Port Symbol'),
@@ -373,8 +387,8 @@ class Port:
         '_SWITCH_NAME': dict(c=22, d='Switch Name'),
         '_SWITCH_NAME_AND_WWN': dict(c=22, d='Switch Name'),
         '_SWITCH_WWN': dict(c=22, d='Switch WWN'),
-        '_ZONES_DEF': dict(c=26, d='In Defined Zone(s)'),
-        '_ZONES_EFF': dict(c=26, d='In Effective Zone(s)'),
+        '_ZONES_DEF': dict(c=48, d='In Defined Zone(s)'),
+        '_ZONES_EFF': dict(c=48, d='In Effective Zone(s)'),
         # Internal
         '_search/sfp_max_speed': dict(v=True, c=5, d='Max switch port speed Gbps'),
         '_search/sfp_min_speed': dict(v=True, c=5, d='Min switch port speed Gbps'),
@@ -888,44 +902,49 @@ class Login:
     login_display_tbl = {
         # Custom
         '_LOGIN_COMMENTS': dict(c=26, d='Comments'),
-        '_FABRIC_NAME': dict(c=22, d='Fabric Name'),
+        '_FABRIC_NAME': dict(c=28, d='Fabric Name'),
         '_FABRIC_NAME_AND_WWN': dict(c=22, d='Fabric Name'),
         '_FABRIC_WWN': dict(c=22, d='Fabric WWN'),
-        '_SWITCH_NAME': dict(c=22, d='Switch Name'),
-        '_SWITCH_NAME_AND_WWN': dict(c=22, d='Switch Name'),
+        '_SWITCH_NAME': dict(c=28, d='Switch Name'),
+        '_SWITCH_NAME_AND_WWN': dict(c=50, d='Switch Name'),
         '_SWITCH_WWN': dict(c=22, d='Switch WWN'),
         '_PORT_NUMBER': dict(c=7, d='Port'),
-        '_ALIAS': dict(c=22, d='Alias'),
-        '_ZONES_DEF': dict(c=26, d='In Defined Zone(s)'),
-        '_ZONES_EFF': dict(c=26, d='In Effective Zone(s)'),
+        '_ALIAS': dict(c=28, d='Alias'),
+        '_ZONES_DEF': dict(c=48, d='In Defined Zone(s)'),
+        '_ZONES_EFF': dict(c=48, d='In Effective Zone(s)'),
         # fibrechannel-name-server
-        'brocade-name-server/class-of-service': dict(v=True, c=8, d='Class of Service'),
-        'brocade-name-server/fabric-port-name': dict(v=False, c=22, d='Fabric Port WWN'),
-        'brocade-name-server/fc4-features': dict(v=False, c=24, d='FC4 Features'),
-        'brocade-name-server/fc4-type': dict(v=False, c=12, d='FC4 Type'),
-        'brocade-name-server/link-speed': dict(v=False, c=8, d='Speed'),
-        'brocade-name-server/name-server-device-type': dict(v=False, c=30, d='Device Type'),
-        'brocade-name-server/node-name': dict(v=False, c=22, d='HBA Node WWN'),
-        'brocade-name-server/node-symbolic-name': dict(v=False, c=42, d='Node Symbol'),
-        'brocade-name-server/permanent-port-name': dict(v=False, c=22, d='Permenant Port WWN'),
-        'brocade-name-server/port-id': dict(v=False, c=10, d='Address'),
-        'brocade-name-server/port-index': dict(v=False, c=6, d='Port Index'),
-        'brocade-name-server/port-name': dict(v=False, c=22, d='Login WWN'),
-        'brocade-name-server/port-properties': dict(v=False, c=12, d='Port properties'),
-        'brocade-name-server/port-symbolic-name': dict(v=False, c=35, d='Port Symbol'),
-        'brocade-name-server/port-type': dict(v=False, c=7, d='Port Type'),
-        'brocade-name-server/state-change-registration': dict(v=False, c=30, d='State Change Registration'),
+        'brocade-name-server/fibrechannel-name-server/class-of-service': dict(v=True, c=8, d='Class of Service'),
+        'brocade-name-server/fibrechannel-name-server/fabric-port-name': dict(v=False, c=22, d='Fabric Port WWN'),
+        'brocade-name-server/fibrechannel-name-server/fc4-features': dict(v=False, c=24, d='FC4 Features'),
+        'brocade-name-server/fibrechannel-name-server/fc4-type': dict(v=False, c=12, d='FC4 Type'),
+        'brocade-name-server/fibrechannel-name-server/link-speed': dict(v=False, c=8, d='Speed'),
+        'brocade-name-server/fibrechannel-name-server/name-server-device-type': dict(v=False, c=30, d='Device Type'),
+        'brocade-name-server/fibrechannel-name-server/node-name': dict(v=False, c=22, d='HBA Node WWN'),
+        'brocade-name-server/fibrechannel-name-server/node-symbolic-name': dict(v=False, c=42, d='Node Symbol'),
+        'brocade-name-server/fibrechannel-name-server/permanent-port-name': dict(v=False, c=22, d='Permenant Port WWN'),
+        'brocade-name-server/fibrechannel-name-server/port-id': dict(v=False, c=10, d='Address'),
+        'brocade-name-server/fibrechannel-name-server/port-index': dict(v=False, c=6, d='Port Index'),
+        'brocade-name-server/fibrechannel-name-server/port-name': dict(v=False, c=22, d='Login WWN'),
+        'brocade-name-server/fibrechannel-name-server/port-properties': dict(v=False, c=12, d='Port properties'),
+        'brocade-name-server/fibrechannel-name-server/port-symbolic-name': dict(v=False, c=35, d='Port Symbol'),
+        'brocade-name-server/fibrechannel-name-server/port-type': dict(v=False, c=7, d='Port Type'),
+        'brocade-name-server/fibrechannel-name-server/state-change-registration': dict(v=False, c=30,
+                                                                                       d='State Change Registration'),
 
-        'brocade-name-server/share-area': dict(v=True, m=True, c=5, d='Shared area addressing'),
-        'brocade-name-server/frame-redirection': dict(v=True, m=True, c=5, d='Frame redirection zoning'),
-        'brocade-name-server/partial': dict(v=True, m=True, c=5, d='Login incomplete'),
-        'brocade-name-server/lsan': dict(v=True, m=True, c=5, d='Part of LSAN zone'),
-        'brocade-name-server/cascaded-ag': dict(v=True, m=True, c=5, d='Connected to AG'),
-        'brocade-name-server/connected-through-ag': dict(v=True, m=True, c=5, d='Connected through AG'),
-        'brocade-name-server/real-device-behind-ag':
+        'brocade-name-server/fibrechannel-name-server/share-area': dict(v=True, m=True, c=5,
+                                                                        d='Shared area addressing'),
+        'brocade-name-server/fibrechannel-name-server/frame-redirection': dict(v=True, m=True, c=5,
+                                                                               d='Frame redirection zoning'),
+        'brocade-name-server/fibrechannel-name-server/partial': dict(v=True, m=True, c=5, d='Login incomplete'),
+        'brocade-name-server/fibrechannel-name-server/lsan': dict(v=True, m=True, c=5, d='Part of LSAN zone'),
+        'brocade-name-server/fibrechannel-name-server/cascaded-ag': dict(v=True, m=True, c=5, d='Connected to AG'),
+        'brocade-name-server/fibrechannel-name-server/connected-through-ag': dict(v=True, m=True, c=5,
+                                                                                  d='Connected through AG'),
+        'brocade-name-server/fibrechannel-name-server/real-device-behind-ag':
             dict(v=True, m=True, c=5, d='Real device (not NPIV) in AG'),
-        'brocade-name-server/fcoe-device': dict(v=True, m=True, c=5, d='FCoE device'),
-        'brocade-name-server/slow-drain-device-quarantine': dict(v=True, m=True, c=5, d='SDDQ'),
+        'brocade-name-server/fibrechannel-name-server/fcoe-device': dict(v=True, m=True, c=5, d='FCoE device'),
+        'brocade-name-server/fibrechannel-name-server/slow-drain-device-quarantine': dict(v=True, m=True, c=5,
+                                                                                          d='SDDQ'),
 
         # FDMI Node
         '_FDMI_NODE.brocade-fdmi/boot-bios-version': dict(v=True, c=12, d='FDMI Boot BIOS Version'),
@@ -971,7 +990,7 @@ class Login:
     login_tbl = (
         # Namne Server
         '_LOGIN_COMMENTS',
-        'brocade-name-server/port-name',
+        'brocade-name-server/fibrechannel-name-server/port-name',
         '_ALIAS',
         '_FABRIC_NAME',
         # '_FABRIC_NAME_AND_WWN',
@@ -980,36 +999,36 @@ class Login:
         # '_SWITCH_NAME_AND_WWN',
         # '_SWITCH_WWN',
         '_PORT_NUMBER',
-        'brocade-name-server/port-id',
+        'brocade-name-server/fibrechannel-name-server/port-id',
         '_ZONES_DEF',
         '_ZONES_EFF',
-        'brocade-name-server/class-of-service',
+        'brocade-name-server/fibrechannel-name-server/class-of-service',
         # 'fabric-port-name',  # This is the WWN of the switch port where this logged in.
-        'brocade-name-server/fc4-features',
-        'brocade-name-server/fc4-type',
-        'brocade-name-server/link-speed',
-        'brocade-name-server/name-server-device-type',
-        'brocade-name-server/node-name',
-        'brocade-name-server/node-symbolic-name',
-        'brocade-name-server/port-symbolic-name',
+        'brocade-name-server/fibrechannel-name-server/fc4-features',
+        'brocade-name-server/fibrechannel-name-server/fc4-type',
+        'brocade-name-server/fibrechannel-name-server/link-speed',
+        'brocade-name-server/fibrechannel-name-server/name-server-device-type',
+        'brocade-name-server/fibrechannel-name-server/node-name',
+        'brocade-name-server/fibrechannel-name-server/node-symbolic-name',
+        'brocade-name-server/fibrechannel-name-server/port-symbolic-name',
         '_FDMI_NODE.brocade-fdmi/node-symbolic-name',
         '_FDMI_PORT.brocade-fdmi/port-symbolic-name',
-        # 'brocade-name-server/permanent-port-name',
-        # 'brocade-name-server/port-index',
-        'brocade-name-server/port-properties',
-        'brocade-name-server/port-type',
-        'brocade-name-server/state-change-registration',
+        # 'brocade-name-server/fibrechannel-name-server/permanent-port-name',
+        # 'brocade-name-server/fibrechannel-name-server/port-index',
+        'brocade-name-server/fibrechannel-name-server/port-properties',
+        'brocade-name-server/fibrechannel-name-server/port-type',
+        'brocade-name-server/fibrechannel-name-server/state-change-registration',
 
         # Flags
-        'brocade-name-server/share-area',
-        'brocade-name-server/frame-redirection',
-        'brocade-name-server/partial',
-        'brocade-name-server/lsan',
-        'brocade-name-server/cascaded-ag',
-        'brocade-name-server/connected-through-ag',
-        'brocade-name-server/real-device-behind-ag',
-        'brocade-name-server/fcoe-device',
-        'brocade-name-server/slow-drain-device-quarantine',
+        'brocade-name-server/fibrechannel-name-server/share-area',
+        'brocade-name-server/fibrechannel-name-server/frame-redirection',
+        'brocade-name-server/fibrechannel-name-server/partial',
+        'brocade-name-server/fibrechannel-name-server/lsan',
+        'brocade-name-server/fibrechannel-name-server/cascaded-ag',
+        'brocade-name-server/fibrechannel-name-server/connected-through-ag',
+        'brocade-name-server/fibrechannel-name-server/real-device-behind-ag',
+        'brocade-name-server/fibrechannel-name-server/fcoe-device',
+        'brocade-name-server/fibrechannel-name-server/slow-drain-device-quarantine',
 
         # Remaining FDMI Node
         '_FDMI_NODE.brocade-fdmi/boot-bios-version',
@@ -1068,10 +1087,10 @@ class BestPractice:
         # Custom
         _TYPE=dict(c=14, d='Type'),
         _SEV=dict(c=6, d='Sev'),
-        _AREA_1=dict(c=30, d='Area 1'),
+        _AREA_1=dict(c=42, d='Area 1'),
         _AREA_2=dict(c=8, d='Area 2'),
         _LINK=dict(c=5, d='Link'),
-        _DESCRIPTION=dict(c=57, d='Description'),
+        _DESCRIPTION=dict(c=60, d='Description'),
     )
 
     bp_tbl = (
