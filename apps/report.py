@@ -55,16 +55,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.1     | 28 Apr 2022   | Added links                                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 22 Jun 2022   | Fixed hyper link to table of contents in _add_project_dup(), added full IOCP name,|
+    |           |               | sorted ports in _add_port_page()                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '22 Jun 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.2'
 
 import collections
 import copy
@@ -178,19 +181,20 @@ _unique_index = 0  # The openpyxl librarys appends a number if necessary to make
 # module creates all worksheet names in advance so that links to them can be added before the worksheet has been
 # created. _unique_index therefore is used to ensure all worksheet names are unique before they are created.
 _dup_login_tbl = (
-    'port-name',
+    '_LOGIN_COMMENTS',
+    'brocade-name-server/fibrechannel-name-server/port-name',
     '_ALIAS',
     '_FABRIC_NAME',
     '_SWITCH_NAME',
     '_PORT_NUMBER',
-    'port-id',
+    'brocade-name-server/fibrechannel-name-server/port-id',
     '_ZONES_DEF',
-    'fc4-features',
-    'link-speed',
-    'name-server-device-type',
-    'node-name',
-    'node-symbolic-name',
-    'port-symbolic-name',
+    'brocade-name-server/fibrechannel-name-server/fc4-features',
+    'brocade-name-server/fibrechannel-name-server/link-speed',
+    'brocade-name-server/fibrechannel-name-server/name-server-device-type',
+    'brocade-name-server/fibrechannel-name-server/node-name',
+    'brocade-name-server/fibrechannel-name-server/node-symbolic-name',
+    'brocade-name-server/fibrechannel-name-server/port-symbolic-name',
 )
 _port_links_tbl = (
     '_PORT_COMMENTS',
@@ -306,7 +310,7 @@ def _add_port_page(fab_obj, wb, sheet_index, control_d, config_tbl, login_flag, 
                           control_d['sn'],
                           sheet_index,
                           control_d['t'],
-                          fab_obj.r_port_objects(),
+                          brcddb_util.sort_ports(fab_obj.r_port_objects()),
                           in_display=config_tbl,
                           in_port_display_tbl=rt.Port.port_display_tbl,
                           login_flag=login_flag,
@@ -459,7 +463,7 @@ def _add_project_dup(proj_obj, wb, sheet_index):
     wl = brcddb_project.dup_wwn(proj_obj)
     if len(wl) > 0:
         report_login.login_page(wb,
-                                tc_page,
+                                proj_obj.r_get('report_app/hyperlink/tc'),
                                 control_d['sn'],
                                 sheet_index,
                                 control_d['t'],
@@ -532,7 +536,7 @@ def _add_project_tc(proj_obj, wb, sheet_index):
         cl = [dict(t=obj.r_get('report_app/control/iocp/tc'), l=obj.r_get('report_app/hyperlink/iocp')) for \
               obj in proj_obj.r_iocp_objects()]
         contents_l.append(dict(t='IOCPs',
-                               cl=[dict(t=obj.r_get('report_app/control/iocp/tc'),
+                               cl=[dict(t=obj.r_get('report_app/control/iocp/t'),
                                         l=obj.r_get('report_app/hyperlink/iocp')) \
                                    for obj in proj_obj.r_iocp_objects()]))
 
