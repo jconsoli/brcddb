@@ -51,16 +51,18 @@ Version Control::
     |           |               | PORT_RXC3_DISCARD, PORT_LOGICAL_ERRORS, PORT_BIT_ERRORS, and PORT_FRAME_ERRORS.   |
     |           |               | Added switch and port, via $p0, to ZONE_DIFF_FABRIC.                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 25 Jul 2022   | Improved error message LOGIN_DUP_LOGIN                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '22 Jun 2022'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import brcddb.classes.alert as al
 
@@ -327,7 +329,7 @@ class AlertTable:
                                               s=al.ALERT_SEV.WARN),
 
         # Login
-        ALERT_NUM.LOGIN_DUP_LOGIN: dict(m='Duplicate WWN. Also found in fabric $p0', s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.LOGIN_DUP_LOGIN: dict(m='Duplicate WWN. Found in ', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.LOGIN_NOT_ZONED: dict(m='Inaccessible. Not in any zone.', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_BASE_ZONED: dict(m='Base NPIV login address in zone', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION: dict(m='$p1 devices zoned to this target. Maximum allowed is $p0.',

@@ -89,16 +89,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 22 Jun 2022   | Added port bit errors, framing errors, and logical errors                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 25 Jul 2022   | Added custom_tbl                                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '22 Jun 2022'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.app_data.alert_tables as al
@@ -383,6 +385,7 @@ custom_tbl = dict(
     # Used in brcddb_fabric
     peer_property=False,  # peer property WWNs in a zone. Typically True but False for sh_capture output
     zone_mismatch=False,  # defined zone matches the effective zone. Typically True but False for sh_capture output
+    fport_zc=False,  # Typically True. PORT_F_ZERO_CREDIT
     # Used in brcddb_project.py
     dup_wwn=True,  # Duplicate WWNs in project
 )
