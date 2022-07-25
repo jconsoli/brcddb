@@ -24,8 +24,6 @@ Public Methods::
     +-----------------------+---------------------------------------------------------------------------------------+
     | port_obj_for_wwn      | Returns the port object for a switch port WWN.                                        |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | sp_port_sort          | Sorts a list of port objects by slot then port number.                                |
-    +-----------------------+---------------------------------------------------------------------------------------+
     | sort_ports            | Sorts a list of port objects by switch, then slot, then port number.                  |
     +-----------------------+---------------------------------------------------------------------------------------+
     | login_to_port_map     | Creates a map of logins to the port where the login occured for                       |
@@ -77,21 +75,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.5     | 28 Apr 2022   | Moved generic utility stuff to brcdapi.                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.6     | 25 Jul 2022   | Deprecated sp_port_sort(). Moved it to brcdapi.port as sort_ports()               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.5'
+__version__ = '3.1.6'
 
 import re
 import datetime
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
 import brcddb.classes.util as brcddb_class_util
+import brcdapi.port as brcdapi_port
 
 _DEBUG_FICON = False  # Intended for lab use only. Few, if any, will use this to zone a FICON switch
 _MAX_LINE_COUNT = 20  # Maximum number of lines before inserting a space when generating CLI
@@ -137,30 +138,8 @@ def port_obj_for_wwn(objx, wwn):
 
 
 def sp_port_sort(port_list):
-    """Sorts a list of port objects by slot then port number.
-
-    :param port_list: list of ports in s/p notation
-    :type port_list: list
-    :return return_list: Sorted list of ports
-    :rtype: list
-    """
-    wd = dict()  # Working dictionary of slots which contains a dictionary of ports
-    for port in port_list:
-        t = port.split('/')
-        if int(t[0]) not in wd:
-            wd.update({int(t[0]): dict()})
-        wd[int(t[0])].update({int(t[1]): port})
-
-    # Now sort them and create the return list
-    rl = list()
-    slot_l = list(wd.keys())
-    slot_l.sort()
-    for slot in slot_l:
-        port_l = list(wd[slot].keys())
-        port_l.sort()
-        rl.extend([wd[slot][port] for port in port_l])
-
-    return rl
+    """Sorts a list of port objects by slot then port number. Deprecated."""
+    return brcdapi_port.sort_ports(port_list)
 
 
 def sort_ports(port_obj_list):
@@ -189,7 +168,7 @@ def sort_ports(port_obj_list):
     rl = list()
     for switch in sl:
         switch_obj = proj_obj.r_switch_obj(switch)
-        rl.extend([switch_obj.r_port_obj(port) for port in sp_port_sort(wd[switch])])
+        rl.extend([switch_obj.r_port_obj(port) for port in brcdapi_port.sort_ports(wd[switch])])
 
     return rl
 

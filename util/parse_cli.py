@@ -55,16 +55,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 1.0.2     | 28 Apr 2022   | Updated documentation                                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 1.0.3     | 25 Jul 2022   | Fixed missing neighbor WWN for port_obj in nsshow()                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 
 import re
 import time
@@ -211,8 +213,8 @@ _sfp_to_api_1 = {
     'Serial No': dict(p=2, id='media-rdp/serial-number', type='str'),
     'Temperature': dict(p=1, id='media-rdp/temperature', type='int'),
     'TX Power': dict(p=4, id='media-rdp/tx-power', type='float'),
-    'Vendor Name': dict(p=0, id='media-rdp/vendor-name', type='str'),
-    'Vendor OUI': dict(p=0, id='media-rdp/vendor-oui', type='str'),
+    'Vendor Name': dict(p=2, id='media-rdp/vendor-name', type='str'),
+    'Vendor OUI': dict(p=2, id='media-rdp/vendor-oui', type='str'),
     'Vendor Rev': dict(p=2, id='media-rdp/vendor-revision', type='str'),
     'Voltage': dict(p=1, id='media-rdp/voltage', type='float'),
     'Wavelength': dict(p=1, id='media-rdp/wavelength', type='int'),
@@ -808,7 +810,7 @@ def fabricshow(obj, content):
     while len(content) > ri:
         buf = content[ri]
         ri += 1
-        if 'The Fabric has' in buf or 'Fabric had' in buf or 'SS CMD END' in buf:
+        if len(buf) == 0 or 'The Fabric has' in buf or 'Fabric had' in buf or 'SS CMD END' in buf:
             break
         l = gen_util.remove_duplicate_space(buf.strip()).split(' ')
         if len(l) > 5:
@@ -834,19 +836,19 @@ def fabricshow(obj, content):
 
 # nsshow CLI output to API map. Used in nsshow() to add data from nsshow output to the login object
 _nsshow_to_api = {
-    'SCR': 'brocade-name-server/state-change-registration',
-    'PortSymb': 'brocade-name-server/port-symbolic-name',
-    'NodeSymb': 'brocade-name-server/node-symbolic-name',
-    'Fabric Port Name': 'brocade-name-server/fabric-port-name',
-    'Permanent Port Name': 'brocade-name-server/permanent-port-name',
-    'Port Index': 'brocade-name-server/port-index',
-    'Partial': 'brocade-name-server/partial',
-    'LSAN': 'brocade-name-server/lsan',
-    'Slow Drain Device': 'brocade-name-server/slow-drain-device-quarantine',
-    'Device link speed': 'brocade-name-server/link-speed',
-    'Connected through AG': 'brocade-name-server/connected-through-ag',
-    'Real device behind AG': 'brocade-name-server/real-device-behind-ag',
-    'FCoE': 'brocade-name-server/fcoe-device',
+    'SCR': 'brocade-name-server/fibrechannel-name-server/state-change-registration',
+    'PortSymb': 'brocade-name-server/fibrechannel-name-server/port-symbolic-name',
+    'NodeSymb': 'brocade-name-server/fibrechannel-name-server/node-symbolic-name',
+    'Fabric Port Name': 'brocade-name-server/fibrechannel-name-server/fabric-port-name',
+    'Permanent Port Name': 'brocade-name-server/fibrechannel-name-server/permanent-port-name',
+    'Port Index': 'brocade-name-server/fibrechannel-name-server/port-index',
+    'Partial': 'brocade-name-server/fibrechannel-name-server/partial',
+    'LSAN': 'brocade-name-server/fibrechannel-name-server/lsan',
+    'Slow Drain Device': 'brocade-name-server/fibrechannel-name-server/slow-drain-device-quarantine',
+    'Device link speed': 'brocade-name-server/fibrechannel-name-server/link-speed',
+    'Connected through AG': 'brocade-name-server/fibrechannel-name-server/connected-through-ag',
+    'Real device behind AG': 'brocade-name-server/fibrechannel-name-server/real-device-behind-ag',
+    'FCoE': 'brocade-name-server/fibrechannel-name-server/fcoe-device',
 }
 
 
@@ -877,16 +879,16 @@ def nsshow(obj, content):
             if buf[0:3] in (' N ', ' U ', ' NL'):  # Is there a new login?
                 cl = [b.lower() for b in buf[3:].replace(' ', '').split(';')]
                 login_obj = fab_obj.s_add_login(cl[2].lower())
-                brcddb_util.add_to_obj(login_obj, 'brocade-name-server/port-id', '0x' + cl[0])
-                brcddb_util.add_to_obj(login_obj, 'brocade-name-server/node-name', cl[3])
-                brcddb_util.add_to_obj(login_obj, 'brocade-name-server/port-name', cl[2])
+                brcddb_util.add_to_obj(login_obj, 'brocade-name-server/fibrechannel-name-server/port-id', '0x' + cl[0])
+                brcddb_util.add_to_obj(login_obj, 'brocade-name-server/fibrechannel-name-server/node-name', cl[3])
+                brcddb_util.add_to_obj(login_obj, 'brocade-name-server/fibrechannel-name-server/port-name', cl[2])
                 port_obj = fab_obj.r_port_obj_for_pid(cl[0])
                 if port_obj is not None:
                     nl = port_obj.r_get('fibrechannel/neighbor/wwn')
                     if nl is None:
                         nl = list()
                         brcddb_util.add_to_obj(port_obj, 'fibrechannel/neighbor/wwn', nl)
-                    nl.append(cl[0])
+                    nl.append(cl[2])
 
             else:
                 cl = [b.strip() for b in buf.split(':', 1)]
@@ -919,16 +921,26 @@ def sfpshow(obj, content):
     :return ri: Index into content where we left off
     :rtype ri: int
     """
+    global _sfp_sep, _sfp_sep_len, _sfpshow_state_start, _sfpshow_state_port, _sfpshow_state_1st_sep, _sfp_start_match
+    global _sfp_to_api_1
+
     switch_obj, state, port_num, port_obj, ri = obj.r_switch_obj(), _sfpshow_state_start, None, None, 0
 
     for buf in content:
         buf = gen_util.remove_duplicate_space(buf.replace('\t', ' '))
 
-        if state == _sfpshow_state_start:
+        if 'CURRENT CONTEXT' in buf:
+            pass
+
+        elif state == _sfpshow_state_start:
+            # I don't remember why I check for the port seperator, ===== right away. It should always begin with
+            # sfpshow -all.
             if len(buf) >= _sfp_sep_len and buf[0:_sfp_sep_len] == _sfp_sep:
                 port_num, port_obj, state = None, None, _sfpshow_state_port
-            elif len(buf) > 0:
-                if 'sfpshow -all' not in buf:
+            elif len(buf) > 0:  # Ignore blank lines
+                if 'sfpshow -all' in buf:
+                    state = _sfpshow_state_1st_sep
+                else:
                     break  # There are no SFPs in this switch
 
         elif state == _sfpshow_state_1st_sep:  # Looking for the first line separator before the port number
@@ -947,14 +959,14 @@ def sfpshow(obj, content):
                 port_num = '0/' + port_num
             port_obj = switch_obj.r_port_obj(port_num)
             if port_obj is None:
-                brcdapi_log.exception(port_num + ' not found.', False)  # It's probably an IP port so just log it
+                brcdapi_log.exception(port_num + ' not found.', echo=False)  # It's probably an IP port so just log it
             state = _sfpshow_state_2nd_sep
 
         elif state == _sfpshow_state_2nd_sep:  # Looking for ==== separator after port number
             if len(buf) >= _sfp_sep_len and buf[0:_sfp_sep_len] == _sfp_sep:
                 state = _sfpshow_state_parms
             else:
-                brcdapi_log.exception('Invalid sfpshow output. Expected "=====", found ' + buf, True)
+                brcdapi_log.exception('Invalid sfpshow output. Expected "=====", found ' + buf, echo=True)
                 state = _sfpshow_state_start
 
         elif state == _sfpshow_state_parms:  # Parsing parameters. Exit this state on "Last poll time:"
@@ -964,7 +976,7 @@ def sfpshow(obj, content):
                 continue
             if port_obj.r_get('media-rdp/name') is None:
                 brcddb_util.add_to_obj(port_obj, 'media-rdp/name', 'fc/' + port_num)
-            cl = gen_util.remove_duplicate_space(buf.replace(':', ': ')).split(' ')
+            cl = gen_util.remove_duplicate_space(buf.replace(':', ': ', 1)).split(' ')
             param = buf.split(':')[0]
 
             # Transceiver requires special handling
@@ -1024,6 +1036,9 @@ def _cfgshow_zone_gen(fab_obj, member_l):
             pc += 1 if alias_obj is None else len(alias_obj.r_members())
             i += 1
         pmem_l, peer_mem_l = member_l[1:i], member_l[i:]
+
+    else:
+        peer_mem_l = member_l
 
     return zone_type, peer_mem_l, pmem_l
 
