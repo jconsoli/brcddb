@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -42,16 +42,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 31 Dec 2021   | Added ability to determine remote SFP speed by HBA when remote speed unavailable  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 25 Jul 2022   | Added new port types with 9.1                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 #################################################################################
 #                                   Project                                     #
@@ -61,7 +63,7 @@ __version__ = '3.0.7'
 #   obj.is_build_xref_called()
 # If the order of any of the warings or errors below change or a new warn/error flag is added, _exit_code() for class
 #  ProjectObj in brcddb_classes.py must be modified
-project_warn = 0b1                             # Encountered a recoverable programming error
+project_warn = 0b1                            # Encountered a recoverable programming error
 project_api_warn = project_warn << 1          # Encountered a recoverable error in the API response
 project_user_warn = project_api_warn << 1     # Encountered a recoverable error in a user application
 project_error = project_user_warn << 1        # Encountered a non-recoverable programming error
@@ -280,6 +282,9 @@ PORT_TYPE_VE = 25
 PORT_TYPE_ETH_FLEX = 26
 PORT_TYPE_FLEX = 29
 PORT_TYPE_N = 30
+PORT_TYPE_MIRROR = 31
+PORT_TYPE_ICL = 32
+PORT_TYPE_FC_LAG = 33
 PORT_TYPE_LB = 32768
 
 port_conversion_tbl = {
@@ -300,6 +305,9 @@ port_conversion_tbl = {
         PORT_TYPE_ETH_FLEX: 'Ethernet Flex Port',
         PORT_TYPE_FLEX: 'Flex Port',
         PORT_TYPE_N: 'N-Port',
+        PORT_TYPE_MIRROR: 'Mirror',
+        PORT_TYPE_ICL: 'ICL',
+        PORT_TYPE_FC_LAG: 'FC-LAG',
         PORT_TYPE_LB: 'LB-Port',
     },
     'fibrechannel/operational-status': {

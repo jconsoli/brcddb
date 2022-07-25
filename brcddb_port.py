@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,13 +14,28 @@
 """
 :mod:`brcddb_chassis` - Methods and tables to support the class ChassisObj.
 
-Primary Methods::
+Public Methods::
 
-    +-----------------------------+----------------------------------------------------------------------------------+
-    | Method                      | Description                                                                      |
-    +=============================+==================================================================================+
-    | best_port_name()            | Returns the port name, if available.                                             |
-    +-----------------------------+----------------------------------------------------------------------------------+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | port_best_desc        | Finds the first descriptor for what's attached to the port. See module header for     |
+    |                       | details.                                                                              |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | best_port_name        | Returns the user defined port name, if available. Otherwise the port number           |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | port_type             | Returns the port type (F-Port, E-Port, etc.) in plain text                            |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | port_obj_for_index    | Returns the port object for a port index.                                             |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | port_obj_for_wwn      | Returns the port object for a logged in WWN                                           |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | port_obj_for_chpid    | Returns the port object matching the rnid/sequence-number and rnid/tag. Used for      |
+    |                       | finding CHPIDs                                                                        |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | port_obj_for_addr     | Returns the port object for a port in a given fabric matching a link address. Used    |
+    |                       | for finding control units                                                             |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -41,17 +56,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 31 Dec 2021   | Improved comments only. No functional changes.                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 28 Apr 2022   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 25 Jul 2022   | Adde check for unknown port types in port_type()                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.8'
 
+import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
@@ -74,7 +94,7 @@ def port_best_desc(port_obj):
     """
     if port_obj is None:
         return 'Unknown'
-    wwn_list = brcddb_util.convert_to_list(port_obj.r_get('fibrechannel/neighbor/wwn'))
+    wwn_list = gen_util.convert_to_list(port_obj.r_get('fibrechannel/neighbor/wwn'))
     if len(wwn_list) == 0:
         return ''
 
@@ -128,7 +148,10 @@ def port_type(port_obj, num_flag=False):
     port_type_s = port_obj.r_get('fibrechannel/port-type')
     if port_type_s is None:
         return ''
-    buf = brcddb_common.port_conversion_tbl['fibrechannel/port-type'][port_type_s]
+    try:
+        buf = brcddb_common.port_conversion_tbl['fibrechannel/port-type'][port_type_s]
+    except KeyError:
+        buf = 'unknown'
     return buf + '(' + str(port_type_s) + ')' if num_flag else buf
 
 
@@ -162,10 +185,10 @@ def port_obj_for_wwn(obj, wwn):
     :return: Port object. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
-    if not brcddb_util.is_wwn(wwn):
+    if not gen_util.is_wwn(wwn):
         return None
     for port_obj in obj.r_port_objects():
-        for port_wwn in brcddb_util.convert_to_list(port_obj.r_get('fibrechannel/neighbor/wwn')):
+        for port_wwn in gen_util.convert_to_list(port_obj.r_get('fibrechannel/neighbor/wwn')):
             if port_wwn is not None and port_wwn == wwn:
                 return port_obj
 

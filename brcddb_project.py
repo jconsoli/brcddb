@@ -71,16 +71,18 @@ Version Control::
     | 3.1.0     | 23 Jun 2022   | Added switch_obj_for_user_name()                                                  |
     |           |               | Use proj_obj.r_login_obj() in dup_wwn() to find duplicate WWNs.                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 25 Jul 2022   | Improved error messaging in read_from() for invalid project files.                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '23 Jun 2022'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.file as brcdapi_file
@@ -92,6 +94,7 @@ import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.search as brcddb_search
 import brcddb.app_data.bp_tables as bt
+import brcddb.brcddb_switch as brcddb_switch
 
 _DUP_WWN_CHECK = True if bt.custom_tbl.get('dup_wwn') is None else bt.custom_tbl.get('dup_wwn')
 
@@ -124,9 +127,12 @@ def dup_wwn(proj_obj):
         if len(login_l) > 1:
             dup_login_l.extend(login_l)
             proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_DUP_LOGIN, None, wwn)
-            buf = ', '.join([login_obj.r_fabric_key() for login_obj in login_l])
+            temp_l = list()
             for login_obj in login_l:
-                login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_DUP_LOGIN, p0=buf)
+                temp_l.append('Switch: ' + brcddb_switch.best_switch_name(login_obj.r_switch_obj(), wwn=True) +
+                              ' Port: ' + login_obj.r_port_obj().r_obj_key())
+            for login_obj in login_l:
+                login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_DUP_LOGIN, p0='; '.join(temp_l))
 
     return dup_login_l
 
@@ -138,7 +144,7 @@ def read_from(inf):
     :type inf: str
     """
     obj = brcdapi_file.read_dump(inf)
-    if obj is None or obj.get('_obj_key') is None or obj.get('_date') is None:
+    if not isinstance(obj, dict) or obj.get('_obj_key') is None or obj.get('_date') is None:
         brcdapi_log.log(inf + ' is not a valid project file.', True)
         return None
     # Make sure there is a valid Excel tab name.
@@ -247,6 +253,7 @@ def switch_obj_for_user_name(proj_obj, name, match_type='exact'):
     :type proj_obj: brcddb.classes.project.ProjectObj
     :param name: User friendly switch name
     :type name: str
+    :param match_type: Allowed types are: 'exact', 'wild', 'regex-m', 'regex-s'
     """
     return gen_util.remove_duplicates(
         brcddb_search.match_test(

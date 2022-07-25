@@ -81,16 +81,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.5     | 23 Jun 2022   | Added link address to ZONE_LINK_NO_ADDR error message.                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.6     | 25 Jul 2022   | Improved error messaging.                                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '23 Jun 2022'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.5'
+__version__ = '3.1.6'
 
 import brcdapi.log
 import brcdapi.gen_util as gen_util
@@ -106,6 +108,7 @@ import brcddb.brcddb_zone as brcddb_zone
 _MIN_SYMB_LEN = 10
 _CHECK_PEER_PROPERTY = True if bt.custom_tbl.get('peer_property') is None else bt.custom_tbl.get('peer_property')
 _CHECK_ZONE_MISMATCH = True if bt.custom_tbl.get('zone_mismatch') is None else bt.custom_tbl.get('zone_mismatch')
+_CHECK_ZONE_WWN_ALIAS  = True if bt.custom_tbl.get('wwn_alias_zone') is None else bt.custom_tbl.get('wwn_alias_zone')
 # _speed_to_gen converts the brocade-name-server/link-speed to a fibre channel generation.
 _speed_to_gen = {'1G': 0, '2G': 2, '4G': 3, '8G': 4, '16G': 5, '32G': 6, '64G': 7, '128G': 8}
 special_login = {
@@ -462,7 +465,7 @@ def zone_analysis(fab_obj):
         # Check for mixed zone members
         if flag & _DI_IN_ZONE and flag & _WWN_IN_ZONE:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MIXED)
-        if flag & _WWN_MEM and flag & _ALIAS_IN_ZONE:
+        if _CHECK_ZONE_WWN_ALIAS and flag & _WWN_MEM and flag & _ALIAS_IN_ZONE:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_WWN_ALIAS)
 
         # Make sure the defined zone matches the effective zone
