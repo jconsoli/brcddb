@@ -54,15 +54,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 28 Apr 2022   | Updated comments only.                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 25 Jul 2022   | Fixed missing effective zone config in defined config in build_zonecfg_content()  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import brcdapi.zone as brcdapi_zone
 import brcddb.brcddb_fabric as brcddb_fabric
@@ -141,7 +143,7 @@ def build_zonecfg_content(fab_obj):
     # Add the zone configurations
     l = list()
     for obj in fab_obj.r_zonecfg_objects():
-        if not obj.r_is_effective():
+        if obj.r_obj_key() != '_effective_zone_cfg':
             members = obj.r_members()
             if len(members) > 0:
                 l.append({'cfg-name': obj.r_obj_key(), 'member-zone': {'zone-name': members}})
@@ -214,6 +216,7 @@ def replace_zoning(session, fab_obj, fid):
 
     # If we got this far, something went wrong so abort the transaction.
     brcdapi_zone.abort(session, fid)
+
     return obj
 
 
@@ -226,15 +229,15 @@ def enable_zonecfg(session, fab_obj, fid, eff_cfg):
     :type fab_obj: brcddb.classes.fabric.FabricObj, None
     :param fid: Fabric ID.
     :type fid: int
-    :param eff_cfg: Name of the zone configuration to enable. None = no zone configuration to enable
-    :type eff_cfg: str, None
+    :param eff_cfg: Name of the zone configuration to enable.
+    :type eff_cfg: str
     :return: Object returned from FOS API
     :rtype: dict
     """
     # Get the checksum - this is needed to save the configuration.
     checksum, obj = brcdapi_zone.checksum(session, fid)
-    if fos_auth.is_error(obj):
-        return obj
+    if not fos_auth.is_error(obj):
+        # Activate the zone configuration.
+        obj = brcdapi_zone.enable_zonecfg(session, checksum, fid, eff_cfg)
 
-    # Activate the zone configuration.
-    return brcdapi_zone.enable_zonecfg(session, checksum, fid, eff_cfg, True)
+    return obj
