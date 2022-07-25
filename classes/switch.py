@@ -38,16 +38,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 28 Apr 2022   | Fixed r_active_group_objects() so that None is never added to the return list.    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 25 Jul 2022   | Removed requirement for leading '0x' in r_port_obj_for_pid()                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -465,16 +467,18 @@ class SwitchObj:
                     return port_obj
         return None
 
-    def r_port_obj_for_pid(self, pid):
+    def r_port_obj_for_pid(self, in_pid):
         """Returns the port object matching an FC address
-        :param pid: Port ID (fibre channel address)
-        :type pid: str
+        :param in_pid: Port ID (fibre channel address)
+        :type in_pid: str
         :return: PortObj or None if not found
         :rtype: PortObj, None
         """
+        pid = in_pid.replace('0x', '')
         if isinstance(pid, str):
             for port_obj in self.r_port_objects():
-                if port_obj.r_get('fibrechannel/fcid-hex') == pid:
+                port_pid = port_obj.r_get('fibrechannel/fcid-hex')
+                if isinstance(port_pid, str) and port_pid.replace('0x', '') == pid:
                     return port_obj
         return None
 
