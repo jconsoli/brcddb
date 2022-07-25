@@ -52,15 +52,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 28 Apr 2022   | Added hyperlinks for ports                                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 25 Jul 2022   | Fixe case where link may not have been assigned in port_page()                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '25 Jul 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import datetime
 import collections
@@ -504,10 +506,10 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
             if len(login) > 1:
                 addl_row.update({k: col})
             alignment = _align_wrap_c if k in port_display_tbl and bool(port_display_tbl[k].get('m')) else _align_wrap
+            link = None
             if k in _port_case:
                 font = calc_font
                 buf = _port_case[k](port_obj, k, lwwn)
-                link = None
             elif k in _port_link_case:
                 buf, link = _port_link_case[k](port_obj, k, lwwn)
                 font = calc_font if link is None else _link_font
