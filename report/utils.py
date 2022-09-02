@@ -80,16 +80,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.2     | 28 Apr 2022   | Moved generic Excel utilities to brcdapi.excel_util                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 22 Jun 2022   | Added _parse_chassis_sheet(), additional parameters from the switch configuration |
+    |           |               | workbook, fixed font reference in title_page().                                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '22 Jun 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.2'
+__version__ = '3.1.3'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
@@ -343,7 +346,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
                     excel_util.cell_update(sheet, row, col, buf,
                                            link=obj.get('hyper'),
                                            font=excel_fonts.font_type(obj.get('font')),
-                                           align=sexcel_fonts.align_type(obj.get('align')),
+                                           align=excel_fonts.align_type(obj.get('align')),
                                            border=excel_fonts.border_type(obj.get('border')),
                                            fill=excel_fonts.fill_type(obj.get('fill')))
                     if 'merge' in obj:
@@ -359,7 +362,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
                     else:
                         col += 1
                 if 'new_row' not in obj or ('new_row' in obj and obj.get('new_row')):
-                    row, col = row+1, col
+                    row, col = row+1, 1
             else:
                 brcdapi_log.exception('Invalid type in content list, ' + str(type(obj)) + ', at row ' + str(row), True)
     else:
@@ -608,6 +611,78 @@ def parse_sfp_file(file):
     return parsed_sfp_sheet[0: i]
 
 
+def find_headers(hdr_row_l, hdr_l):
+    """Match columns to headers
+
+    :param hdr_row_l: Typically al[0] from sl, al = excel_util.read_sheet(sheet, 'row')
+    :type hdr_row_l: list
+    :param hdr_l: Headers to find
+    :type hdr_l: list
+    :return: Dictionary of headers. Key is the header in hdr_l. The value is the index into hdr_row where it was found.
+             if not found, the value is None
+    :rtype: dict
+    """
+    rd = dict()
+    for buf in hdr_l:
+        rd.update({buf: None})
+        for col in range(0, len(hdr_row_l)):
+            if hdr_row_l[col] == buf:
+                rd[buf] = col
+                break
+
+    return rd
+
+
+def _parse_chassis_sheet(sheet):
+    """Parses the "Chassis" worksheet from a switch configuration workbook into a dictionary. The key is the KPI. The
+    value is the content.
+
+    :param sheet: Chassis worksheet
+    :type sheet: Worksheet
+    :return: Dictionary for chassis. None if an error was encountered.
+    :rtype: dict, None
+    """
+    ml, rd = list(), dict()
+    sl, al = excel_util.read_sheet(sheet, 'row')
+    if len(al) < 2:
+        return rd
+
+    # Find the 'Area' and 'Parameter' columns
+    col_d = find_headers(al[0], ('Area', 'Parameter'))
+    for k, v in col_d.items():
+        if v is None:
+            ml.append('Sheet ' + sheet.title + ' missing column ' + k)
+    if len(ml) > 0:
+        brcdapi_log.log(ml, True)
+        return None
+
+    # Add all the data to the return dictionary
+    area_i, content_d, working_key = col_d['Area'], None, None
+    for row in range(1, len(al)):
+        new_key, row_l = False, al[row]
+        for k in ('running', 'operations'):
+            if len(row_l[area_i]) > len(k) and row_l[area_i][0:len(k)] == k:
+                new_key, working_key, content_d = True, row_l[area_i], rd.get(working_key)
+                if content_d is None:
+                    content_d = dict()
+                    rd.update({working_key: content_d})
+                break
+        if new_key:
+            continue
+        if content_d is None:
+            ml.append('Chassis sheet: Content found before a KPI was defined in row ' + str(row+1))
+            continue
+        val = row_l[col_d['Parameter']]
+        if val is None:
+            continue
+        content_d.update({row_l[area_i]: val})
+    if len(ml) > 0:
+        brcdapi_log.log(ml, True)
+        return None
+
+    return rd
+
+
 """ _switch_find_d is used in _parse_switch_sheet() to determine what should be parsed out of the spreadsheet and how it
 should be interpreted. The key is the value in the cell in the "Area" column. The value is a dict as follows:
     +-------+-------------------------------------------------------------------------------------------------------+
@@ -626,14 +701,14 @@ should be interpreted. The key is the value in the cell in the "Area" column. Th
     | yn    | Convert "Yes" to True and "No" to False                                                               |
     +-------+-------------------------------------------------------------------------------------------------------+
 """
-_switch_find_d = {  # Key is the 'Area' column. Value dict is: k=Key for return data structure, d=default value,
-    # r=required, h=True if value is hex and should be converted to the decimal int equivalent, yn=Convert Yes/No to
-    # True/False. This table is used in _parse_switch_sheet()
+_switch_find_d = {  # See above for definitions. This table is used in _parse_switch_sheet()
     'Fabric ID (FID)': dict(k='fid', d=None, r=True, h=False, yn=False),
     'Fabric Name': dict(k='fab_name', d=None, r=False, i=False, h=False, yn=False),
     'Switch Name': dict(k='switch_name', d=None, r=False, i=False, h=False, yn=False),
     'Domain ID (DID)': dict(k='did', d=None, r=True, h=True, yn=False),
     'Insistent DID': dict(k='idid', d=True, r=False, h=False, yn=True),
+    'Fabric Principal Enable': dict(k='p_fab_enable', d=False, r=False, i=False, h=False, yn=True),
+    'Fabric Principal Priority': dict(k='p_fab_priority', d=None, r=False, i=False, h=False, yn=False),
     'Allow XISL': dict(k='xisl', d=False, r=False, i=False, h=False, yn=True),
     'Enable Switch': dict(k='enable_switch', d=False, r=False, i=False, h=False, yn=True),
     'Enable Ports': dict(k='enable_ports', d=False, r=False, i=False, h=False, yn=True),
@@ -670,7 +745,7 @@ def _parse_switch_sheet(sheet):
     | ports         | dict      | Key is the port number and value is the link address                              |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | switch_flag   | bool      | When True, a corresponding switch sheet was not found. This happens when a FID on |
-    |               |           | on a "Slot x" sheet without a sheet  to match.                                    |
+    |               |           | on a "Slot x" sheet without a sheet to match.                                     |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | switch_name   | None, str | Switch name. Not set if None                                                      |
     +---------------+-----------+-----------------------------------------------------------------------------------+
@@ -679,8 +754,8 @@ def _parse_switch_sheet(sheet):
     | xisl          | bool      | If True, base switch usage is allowed.                                            |
     +---------------+-----------+-----------------------------------------------------------------------------------+
 
-    :param sheet: openpyxl worksheet
-    :type sheet: str
+    :param sheet: Switch worksheet
+    :type sheet: Worksheet
     :return: Dictionary for switch. None if an error was encountered.
     :rtype: dict, None
     """
@@ -689,23 +764,16 @@ def _parse_switch_sheet(sheet):
     sl, al = excel_util.read_sheet(sheet, 'row')
 
     # Find the 'Area' and 'Parameter' columns
-    find_l = ('Area', 'Parameter')
-    col_d = dict()
-    hdr = al[0]
-    for buf in find_l:
-        found = False
-        for col in range(0, len(hdr)):
-            if hdr[col] == buf:
-                col_d.update({buf: col})
-                found = True
-                break
-        if not found:
-            brcdapi_log.log('Sheet ' + sheet.title + ' missing column ' + buf, True)
-            return None
+    ml, rd = list(), dict(switch_flag=True, ports=dict())
+    col_d = find_headers(al[0], ('Area', 'Parameter'))
+    for k, v in col_d.items():
+        if v is None:
+            ml.append('Sheet ' + sheet.title + ' missing column ' + k)
+    if len(ml) > 0:
+        brcdapi_log.log(ml, True)
+        return None
 
     # Add and validate all the data from the worksheet to return dictionary
-    rd = dict(switch_flag=True, ports=dict())
-    ml = list()
     for k, d in _switch_find_d.items():
         found = False
         for row in range(1, len(al)):
@@ -738,13 +806,15 @@ def _parse_switch_sheet(sheet):
 
 """
 +-------+-----------------------------------------------------------------------------------------------+
-| k     | Key used in the dictionaries returned from _parse_slot_sheet()                                |
+| k     | Key used in the dictionaries returned from _parse_slot_sheet(). IDK why I didn't just use the |
+|       | same key as is used in the API. That would have saved the trouble of needing a look up table, |
+|       | _switch_d_to_api, in switch_config.py but I'm not changing working code.                      |
 +-------+-----------------------------------------------------------------------------------------------+
 | h     | If True, treat the cell value as a hex number and convert to a decimal int                    |
 +-------+-----------------------------------------------------------------------------------------------+
 | s     | If True, convert the cell value to a str                                                      |
 +-------+-----------------------------------------------------------------------------------------------+
-| slot  | If True, prepend the slot number an '/' to the value. Used to convert ports to s/p notation   |
+| slot  | If True, prepend the slot number + '/' to the value. Used to convert ports to s/p notation    |
 +-------+-----------------------------------------------------------------------------------------------+
 | p     | When the length of the cell value is less than that specified by p, 0s are prepended to make  |
 |       | the value this length. Used for creating FC addresses.                                        | 
@@ -756,8 +826,9 @@ _slot_d_find = {  # See table above
     'Port Addr (Hex)': dict(k='port_addr', h=False, s=True, slot=False, p=2),
     'Link Addr': dict(k='link_addr', h=False, s=True, slot=False, p=4),
     'FID': dict(k='fid', h=False, s=False, slot=False, p=0),
-    'Attached Device': dict(k='desc', h=False, s=True, slot=False, p=0),
-    'ICL Description': dict(k='desc', h=False, s=True, slot=False, p=0),
+    'Attached Device': dict(k='desc', h=False, s=False, slot=False, p=0),
+    'ICL Description': dict(k='desc', h=False, s=False, slot=False, p=0),
+    'Port Name': dict(k='port_name', h=False, s=False, slot=False, p=0),
     'Low Qos VC': dict(k='low_vc', h=False, s=False, slot=False, p=0),
     'Med Qos VC': dict(k='med_vc', h=False, s=False, slot=False, p=0),
     'High Qos VC': dict(k='high_vc', h=False, s=False, slot=False, p=0),
@@ -806,10 +877,7 @@ def _parse_slot_sheet(sheet):
             break
 
     # Find the column headers
-    col_d = [dict(), dict()]
-    col_start = [0, 0]
-    hdr = al[1]
-    max_col = 0
+    col_d, col_start, hdr, max_col = [dict(), dict()], [0, 0], al[1], 0
     for i in range(0, 2):
         col_start[i] = max_col
         for k in _slot_d_find.keys():
@@ -872,7 +940,7 @@ def parse_switch_file(file):
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | switch_name   | None, str | Switch name. Not set if None                                                      |
     +---------------+-----------+-----------------------------------------------------------------------------------+
-    | Domain ID     | int       | Although read from the workbook as a str in Hex, it is returned as a decimal int  |
+    | did           | int       | Although read from the workbook as a str in Hex, it is returned as a decimal int  |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | xisl          | bool      | If True, base switch usage is allowed.                                            |
     +---------------+-----------+-----------------------------------------------------------------------------------+
@@ -905,11 +973,13 @@ def parse_switch_file(file):
         brcdapi_log.log('Workbook ' + str(file) + ' not found', True)
         return rd
 
-    # Sort out the "Sheet_x" and "Slot x" worksheets
-    port_d = dict()
+    # Parse the "Chassis", "Sheet_x", and "Slot x" worksheets
+    chassis_d, port_d = None, dict()
     for sheet in wb.worksheets:
         title = sheet.title
-        if len(title) >= len('Switch') and title[0:len('Switch')] == 'Switch':
+        if len(title) >= len('Chassis') and title[0:len('Chassis')] == 'Chassis':
+            chassis_d = _parse_chassis_sheet(sheet)
+        elif len(title) >= len('Switch') and title[0:len('Switch')] == 'Switch':
             d = _parse_switch_sheet(sheet)
             d.update(sheet_name=title)
             fid = d.get('fid')
@@ -928,7 +998,7 @@ def parse_switch_file(file):
         switch_d = dict(switch_flag=False, fid=fid, ports=dict()) if rd.get(fid) is None else rd.get(fid)
         switch_d['ports'].update({k: port})
 
-    return rd
+    return chassis_d, [switch_d for switch_d in rd.values()]
 
 ###################################################################
 #
