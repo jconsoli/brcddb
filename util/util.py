@@ -77,15 +77,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.6     | 25 Jul 2022   | Deprecated sp_port_sort(). Moved it to brcdapi.port as sort_ports()               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.7     | xx xxx 2022   | Added some bullet proofing.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '25 Jul 2022'
+__date__ = 'xx xxx 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Released'
-__version__ = '3.1.6'
+__status__ = 'Development'
+__version__ = '3.1.7_r0'
 
 import re
 import datetime
@@ -150,25 +152,36 @@ def sort_ports(port_obj_list):
     :return return_list: Sorted list of port objects from obj_list
     :rtype: list
     """
+    rl = list()
     if len(port_obj_list) == 0:
-        return list()
+        return rl
     proj_obj = port_obj_list[0].r_project_obj()  # Assume the same project for all ports
 
-    # Sort by switch
+    # Use wd below to sort the port objects by the switch they belong to
     wd = dict()
     for port_obj in port_obj_list:
-        switch = port_obj.r_switch_key()
-        if switch not in wd:
-            wd.update({switch: list()})
-        wd[switch].append(port_obj.r_obj_key())
-    sl = list(wd.keys())
-    sl.sort()
+        switch_obj = port_obj.r_switch_obj()
+        switch_key = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/user-friendly-name')
+        if switch_key is None:
+            switch_key = switch_obj.r_get('brocade-fabric/fabric-switch/switch-user-friendly-name')
+        if switch_key is None:
+            switch_key = ''
+        switch_key += '_' + switch_obj.r_obj_key()
+        switch_d = wd.get(switch_key)
+        if switch_d is None:
+            switch_d = dict(switch_obj=switch_obj, port_obj_l=list())
+            wd.update({switch_key: switch_d})
+        switch_d['port_obj_l'].append(port_obj)
 
-    # Build the return list, sorted by port
-    rl = list()
-    for switch in sl:
-        switch_obj = proj_obj.r_switch_obj(switch)
-        rl.extend([switch_obj.r_port_obj(port) for port in brcdapi_port.sort_ports(wd[switch])])
+    # Sort the switch keys
+    switch_key_l = list(wd.keys())
+    switch_key_l.sort()
+
+    # Sort the ports on a per switch basis and add to the return list
+    for switch_d in [wd[k] for k in switch_key_l]:
+        switch_obj = switch_d['switch_obj']
+        rl.extend([switch_obj.r_port_obj(port) for port in \
+                   brcdapi_port.sort_ports([port_obj.r_obj_key() for port_obj in switch_d['port_obj_l']])] )
 
     return rl
 
@@ -178,20 +191,19 @@ def login_to_port_map(fab_obj):
 
     :param fab_obj: Fabric Object
     :type fab_obj: brcddb.classes.fabric.FabricObj
-    :return map: Dictionary - key: login WWN, value: port object
-    :rtype map: dict
-    :return base: List of NPIV base port logins
-    :rtype base: list
+    :return port_to_wwn_d: Dictionary - key: login WWN, value: port object
+    :rtype port_to_wwn_d: dict
+    :return base_l: List of NPIV base port logins
+    :rtype base_l: list
     """
-    port_to_wwn_map = dict()
-    base_list = list()
+    base_l, port_to_wwn_d = list(), dict()
     for port_obj in fab_obj.r_port_objects():
         nl = list(port_obj.r_login_keys())
         if len(nl) > 1:
-            base_list.append(nl[0])
+            base_l.append(nl[0])
         for wwn in nl:
-            port_to_wwn_map.update({wwn: port_obj})
-    return port_to_wwn_map, base_list
+            port_to_wwn_d.update({wwn: port_obj})
+    return port_to_wwn_d, base_l
 
 
 def build_login_port_map(proj_obj):
@@ -217,11 +229,14 @@ def _fc_port(switch_obj, group):
     :param group: MAPS group
     :type group: dict
     """
-    name = group.get('name')
-    for port in gen_util.convert_to_list(group.get('members').get('member')):
-        port_obj = switch_obj.r_port_obj(port)
-        if port_obj is not None:
-            port_obj.s_add_maps_fc_port_group(name)
+    try:
+        name = group['name']
+        for port in gen_util.convert_to_list(group['members']['member']):
+            port_obj = switch_obj.r_port_obj(port)
+            if port_obj is not None:
+                port_obj.s_add_maps_fc_port_group(name)
+    except (TypeError, KeyError):
+        return
 
 
 def _sfp(switch_obj, group):
@@ -232,11 +247,14 @@ def _sfp(switch_obj, group):
     :param group: MAPS group
     :type group: dict
     """
-    name = group.get('name')
-    for port in gen_util.convert_to_list(group.get('members').get('member')):
-        port_obj = switch_obj.r_port_obj(port)
-        if port_obj is not None:
-            port_obj.s_add_maps_sfp_group(name)
+    try:
+        name = group['name']
+        for port in gen_util.convert_to_list(group['members']['member']):
+            port_obj = switch_obj.r_port_obj(port)
+            if port_obj is not None:
+                port_obj.s_add_maps_sfp_group(name)
+    except (TypeError, KeyError):
+        return
 
 
 def _null(switch_obj, group):
@@ -249,7 +267,7 @@ def _null(switch_obj, group):
     """
     if isinstance(group, dict) and group.get('name') is not None:
         return
-    brcdapi_log.exception('Invalid MAPS group', True)
+    brcdapi_log.exception('Invalid MAPS group', echo=True)
 
 
 # Case tables used by add_maps_groups()
@@ -300,7 +318,7 @@ def add_maps_groups(proj_obj):
             except ValueError:  # Log it and let the operator know but keep chugging
                 buf = 'Invalid MAPS group for switch ' + switch_obj.r_obj_key() + '. group-type: ' +\
                       str(group.get('group-type'))
-                brcdapi_log.exception(buf, True)
+                brcdapi_log.exception(buf, echo=True)
 
 
 def global_port_list(fabric_objects, wwn_list):
@@ -426,13 +444,8 @@ def parse_cli(file_buf):
         temp_l = mod_line.split(' ') if len(mod_line) > 0 else list()
         for i in range(len(temp_l)):
             temp_l[i] = temp_l[i].replace('"', '')
-        c = None
-        o = None
-        p0 = None
-        p1 = None
-        peer = False
-        flag = False  # Use this to flag malformed command lines
-        state = _state_cmd
+        # flag, below, is for malformed command lines
+        c, o, p0, p1, peer, flag, state = None, None, None, None, False, False, _state_cmd
         for p_buf in temp_l:
             if state == _state_cmd:
                 c = p_buf
@@ -489,7 +502,7 @@ def add_to_obj(obj, k, v):
     global error_asserted
 
     if not isinstance(k, str):
-        brcdapi_log.exception('Invalid key. Expected type str, received type ' + str(type(k)), True)
+        brcdapi_log.exception('Invalid key. Expected type str, received type ' + str(type(k)), echo=True)
         error_asserted = True
         return
     key_list = k.split('/')
@@ -505,12 +518,12 @@ def add_to_obj(obj, k, v):
         add_to_obj(d, '/'.join(key_list), v)
     elif brcddb_class_util.get_simple_class_type(obj) is None:
         brcdapi_log.exception('Invalid object type: ' + str(type(obj)) + '. k = ' + k + ', v type: ' + str(type(v)),
-                              True)
+                              echo=True)
         error_asserted = True
     else:
         key = key_list.pop(0)
         if len(key_list) == 0:
-            obj.s_new_key(key, v, True)
+            obj.s_new_key(key, v, f=True)
             return
         r_obj = obj.r_get(key)
         if r_obj is None:
@@ -532,7 +545,7 @@ def get_from_obj(obj, k):
     if isinstance(obj, dict):
         return gen_util.get_from_obj(obj, k)
     elif brcddb_class_util.get_simple_class_type(obj) is None:
-        brcdapi_log.exception('Invalid object type.', True)
+        brcdapi_log.exception('Invalid object type.', echo=True)
     else:
         return obj.r_get(k)
 
