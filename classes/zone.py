@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -39,16 +39,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 31 Dec 2021   | No functional changes. Replaced bare except with explicit except.                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 04 Sep 2022   | Added r_alert_nums() to ZoneObj and AliasObj                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -205,9 +207,12 @@ class ZoneCfgObj:
         """Adds zone members to the zone configuration if the zone is not already a member of the zone configuration
 
         :param members: Member or members to add
-        :type members: list, str
+        :type members: list, str, None
         """
-        self._members.extend([mem for mem in util.convert_to_list(members) if mem not in self._members])
+        try:
+            self._members.extend([mem for mem in util.convert_to_list(members) if mem not in self._members])
+        except TypeError:
+            return
 
     def s_del_member(self, members):
         """Deletes zone members from the zone configuration
@@ -396,6 +401,14 @@ class ZoneObj:
         :rtype: list
         """
         return self._alerts
+
+    def r_alert_nums(self):
+        """Returns a list of alert numbers associated with this object
+
+        :return: List of alert objects (brcddb.classes.alert.AlertObj)
+        :rtype: list
+        """
+        return [alert_obj.alert_num() for alert_obj in self._alerts]
 
     def r_reserved_keys(self):
         """Returns a list of reserved words (keys) associated with this object

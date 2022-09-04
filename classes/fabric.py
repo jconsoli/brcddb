@@ -51,22 +51,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 31 Dec 2021   | Updated comments only. No functional changes.                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 04 Sep 2022   | Fixed bug in r_defined_eff_zonecfg_obj()                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
 import brcddb.classes.zone as zone_class
 import brcddb.classes.login as login_class
+import brcdapi.log as brcdapi_log
 
 # Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
 # on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
@@ -399,7 +402,7 @@ class FabricObj:
         :rtype: brcddb.classes.zone.ZoneCfgObj, None
         """
         zone_key = self.r_defined_eff_zonecfg_key()
-        return None if zone_key is None else zone_key
+        return None if zone_key is None else self._zonecfg_objs.get(zone_key)
 
     def s_add_eff_zonecfg(self, members=None):
         """Adds a special zone configuration named '_effective_zone_cfg' if it doesn't already exist.
