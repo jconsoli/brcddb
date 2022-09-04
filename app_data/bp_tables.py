@@ -40,34 +40,30 @@ Table Definitions::
 
     These values are passed to brcddb.brcddb_bp.best_practice()
 
-    +-----------+-------------------------------------------------------+
-    | Key       | Description                                           |
-    +===========+=======================================================+
-    | 'm'       | Alert number - See brcddb.app_data.alert_tables       |
-    +-----------+-------------------------------------------------------+
-    | 'p0'      | Retrieved with obj.getvalue(key) which becomes the    |
-    |           | value for brcddb.classes.alert.AlertObj._p0           |
-    +-----------+-------------------------------------------------------+
-    | 'p1'      | Same as 'p0' but for the _p1 value                    |
-    +-----------+-------------------------------------------------------+
-    | 'p0h'     | Hard codded value for p0. When this key is present    |
-    |           | 'p0' is ignored.                                      |
-    +-----------+-------------------------------------------------------+
-    | 'p1h'     | Same as 'p0h' but for the _p1h value                  |
-    +-----------+-------------------------------------------------------+
-    | 'l'       | Tables passed to brcdb.util.search.match_test()       |
-    +-----------+-------------------------------------------------------+
-    | 'logic'   | Logic passed to brcdb.util.search.match_test()        |
-    +-----------+-------------------------------------------------------+
-    | 'skip'    | If True, skips the test                               |
-    +-----------+-------------------------------------------------------+
-    | 's'       | Special test. Use this when a simple key value test   |
-    |           | isn't sufficient. The value associated with this key  |
-    |           | must be in brcddb_bp.bp_special_case_tbl or           |
-    |           | brcddb._bp_special_list_case_tbl. The method          |
-    |           | specified in this table is called which gives you the |
-    |           | ability to create any best practice test you want.    |
-    +-----------+-------------------------------------------------------+
+    +-----------+---------------------------------------------------------------------------------------------------+
+    | Key       | Description                                                                                       |
+    +===========+===================================================================================================+
+    | 'm'       | Alert number - See brcddb.app_data.alert_tables                                                   |
+    +-----------+---------------------------------------------------------------------------------------------------+
+    | 'p0'      | Retrieved with obj.getvalue(key) which becomes the value for brcddb.classes.alert.AlertObj._p0    |
+    +-----------+---------------------------------------------------------------------------------------------------+
+    | 'p1'      | Same as 'p0' but for the _p1 value                                                                |
+    +-----------+---------------------------------------------------------------------------------------------------+
+    | 'p0h'     | Hard codded value for p0. When this key is present, 'p0' is ignored.                              |
+    +-----------+---------------------------------------------------------------------------------------------------+
+    | 'p1h'     | Same as 'p0h' but for the _p1h value                                                              |
+    +-----------+---------------------------------------------------------------------------------------------------+
+    | 'l'       | Tables passed to brcdb.util.search.match_test()                                                   |
+    +-----------+---------------------------------------------------------------------------------------------------+
+    | 'logic'   | Logic passed to brcdb.util.search.match_test()                                                    |
+    +-----------+---------------------------------------------------------------------------------------------------+
+    | 'skip'    | If True, skips the test                                                                           |
+    +-----------+---------------------------------------------------------------------------------------------------+
+    | 's'       | Special test. Use this when a simple key value test isn't sufficient. The value associated with   |
+    |           | this key must be in brcddb_bp.bp_special_case_tbl or brcddb._bp_special_list_case_tbl. The method |
+    |           | specified in this table is called which gives you the ability to create any best practice test    |
+    |           | you want.                                                                                         |
+    +-----------+---------------------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -89,13 +85,13 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 22 Jun 2022   | Added port bit errors, framing errors, and logical errors                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 25 Jul 2022   | Added custom_tbl                                                                  |
+    | 3.0.7     | 04 Sep 2022   | Added zone_alias_use to custom_tbl                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '25 Jul 2022'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
@@ -381,11 +377,13 @@ chassis_tbl = (
     ),
 )
 
-custom_tbl = dict(
+custom_tbl = dict(  # WARNING: Flags in this table evaluate True when not present
     # Used in brcddb_fabric
-    peer_property=False,  # peer property WWNs in a zone. Typically True but False for sh_capture output
-    zone_mismatch=False,  # defined zone matches the effective zone. Typically True but False for sh_capture output
-    fport_zc=False,  # Typically True. PORT_F_ZERO_CREDIT
+    peer_property=True,  # peer property WWNs in a zone. Typically True but False for sh_capture output
+    zone_mismatch=True,  # defined zone matches the effective zone. Typically True but False for sh_capture output
+    fport_zc=True,  # Typically True. PORT_F_ZERO_CREDIT
+    zone_alias_use=True,  # Typically True. Set False for Cisco SAN Health reports.
+    wwn_alias_zone=True,  # ZONE_WWN_ALIAS. Typically True. Checks for zones with mixed alias and WWN.
     # Used in brcddb_project.py
     dup_wwn=True,  # Duplicate WWNs in project
 )

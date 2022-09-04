@@ -82,16 +82,18 @@ Version Control::
     | 3.1.1     | 22 Jun 2022   | Fixed missing fibrechannel-name-server in brocade-name-server in                  |
     |           |               | Login.login_display_tbl and Login.login_tbl                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 04 Sep 2022   | Fixed brocade-fdmi references. Used _LOGIN_WWN login_tbl                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '22 Jun 2022'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.2'
 
 
 class Chassis:
@@ -902,6 +904,7 @@ class Login:
     login_display_tbl = {
         # Custom
         '_LOGIN_COMMENTS': dict(c=26, d='Comments'),
+        '_LOGIN_WWN': dict(c=22, d='Login WWN'),
         '_FABRIC_NAME': dict(c=28, d='Fabric Name'),
         '_FABRIC_NAME_AND_WWN': dict(c=22, d='Fabric Name'),
         '_FABRIC_WWN': dict(c=22, d='Fabric WWN'),
@@ -947,50 +950,50 @@ class Login:
                                                                                           d='SDDQ'),
 
         # FDMI Node
-        '_FDMI_NODE.brocade-fdmi/boot-bios-version': dict(v=True, c=12, d='FDMI Boot BIOS Version'),
-        '_FDMI_NODE.brocade-fdmi/domain-id': dict(v=True, c=5, d='FDMI Node Domain ID'),
-        '_FDMI_NODE.brocade-fdmi/driver-version': dict(v=False, c=12, d='FDMI Driver Version'),
-        '_FDMI_NODE.brocade-fdmi/fabric-name': dict(v=False, c=22, d='FDMI Node Fabric Name'),
-        '_FDMI_NODE.brocade-fdmi/firmware-version': dict(v=False, c=12, d='FDMI Firmware Version'),
-        '_FDMI_NODE.brocade-fdmi/hardware-version': dict(v=False, c=12, d='FDMI Hardware Version'),
-        '_FDMI_NODE.brocade-fdmi/manufacturer': dict(v=False, c=13, d='FDMI Manufacturer'),
-        '_FDMI_NODE.brocade-fdmi/max-ct-payload': dict(v=True, c=8, d='FDMI Max Payload'),
-        '_FDMI_NODE.brocade-fdmi/model': dict(v=False, c=12, d='FDMI Model'),
-        '_FDMI_NODE.brocade-fdmi/model-description': dict(v=False, c=30, d='FDMI Model Description'),
-        '_FDMI_NODE.brocade-fdmi/node-name': dict(v=False, c=22, d='FDMI Node Name'),
-        '_FDMI_NODE.brocade-fdmi/node-symbolic-name': dict(v=False, c=35, d='FDMI Node Symbolic Name'),
-        '_FDMI_NODE.brocade-fdmi/number-of-ports': dict(v=True, c=5, d='FDMI Number Of Ports'),
-        '_FDMI_NODE.brocade-fdmi/option-rom-version': dict(v=False, c=12, d='FDMI ROM Version'),
-        '_FDMI_NODE.brocade-fdmi/os-name-and-version': dict(v=False, c=30, d='FDMI OS Version'),
-        '_FDMI_NODE.brocade-fdmi/serial-number': dict(v=False, c=16, d='FDMI Serial Number'),
-        '_FDMI_NODE.brocade-fdmi/vendor-id': dict(v=False, c=12, d='FDMI Vendor ID'),
+        '_FDMI_NODE.brocade-fdmi/hba/boot-bios-version': dict(v=True, c=12, d='FDMI Boot BIOS Version'),
+        '_FDMI_NODE.brocade-fdmi/hba/domain-id': dict(v=True, c=5, d='FDMI Node Domain ID'),
+        '_FDMI_NODE.brocade-fdmi/hba/driver-version': dict(v=False, c=12, d='FDMI Driver Version'),
+        '_FDMI_NODE.brocade-fdmi/hba/fabric-name': dict(v=False, c=22, d='FDMI Node Fabric Name'),
+        '_FDMI_NODE.brocade-fdmi/hba/firmware-version': dict(v=False, c=12, d='FDMI Firmware Version'),
+        '_FDMI_NODE.brocade-fdmi/hba/hardware-version': dict(v=False, c=12, d='FDMI Hardware Version'),
+        '_FDMI_NODE.brocade-fdmi/hba/manufacturer': dict(v=False, c=13, d='FDMI Manufacturer'),
+        '_FDMI_NODE.brocade-fdmi/hba/max-ct-payload': dict(v=True, c=8, d='FDMI Max Payload'),
+        '_FDMI_NODE.brocade-fdmi/hba/model': dict(v=False, c=12, d='FDMI Model'),
+        '_FDMI_NODE.brocade-fdmi/hba/model-description': dict(v=False, c=30, d='FDMI Model Description'),
+        '_FDMI_NODE.brocade-fdmi/hba/node-name': dict(v=False, c=22, d='FDMI Node Name'),
+        '_FDMI_NODE.brocade-fdmi/hba/node-symbolic-name': dict(v=False, c=35, d='FDMI Node Symbolic Name'),
+        '_FDMI_NODE.brocade-fdmi/hba/number-of-ports': dict(v=True, c=5, d='FDMI Number Of Ports'),
+        '_FDMI_NODE.brocade-fdmi/hba/option-rom-version': dict(v=False, c=12, d='FDMI ROM Version'),
+        '_FDMI_NODE.brocade-fdmi/hba/os-name-and-version': dict(v=False, c=30, d='FDMI OS Version'),
+        '_FDMI_NODE.brocade-fdmi/hba/serial-number': dict(v=False, c=16, d='FDMI Serial Number'),
+        '_FDMI_NODE.brocade-fdmi/hba/vendor-id': dict(v=False, c=12, d='FDMI Vendor ID'),
 
         # FDMI Port
-        '_FDMI_PORT.brocade-fdmi/active-fc4-type': dict(v=False, c=13, d='FDMI Active FC4 Type'),
-        '_FDMI_PORT.brocade-fdmi/current-port-speed': dict(v=False, c=12, d='FDMI Current Port Speed'),
-        '_FDMI_PORT.brocade-fdmi/domain-id': dict(v=True, c=5, d='FDMI Port Domain ID'),
-        '_FDMI_PORT.brocade-fdmi/fabric-name': dict(v=False, c=22, d='FDMI Fabric Name'),
-        '_FDMI_PORT.brocade-fdmi/hba-id': dict(v=False, c=22, d='FDMI HBA ID'),
-        '_FDMI_PORT.brocade-fdmi/host-name': dict(v=False, c=22, d='FDMI Host Name'),
-        '_FDMI_PORT.brocade-fdmi/maximum-frame-size': dict(v=True, c=6, d='FDMI Maximum Frame Size'),
-        '_FDMI_PORT.brocade-fdmi/node-name': dict(v=False, c=22, d='FDMI Node Name'),
-        '_FDMI_PORT.brocade-fdmi/number-of-discovered-ports': dict(v=True, c=5, d='FDMI Discovered Ports'),
-        '_FDMI_PORT.brocade-fdmi/os-device-name': dict(v=False, c=13, d='FDMI OS Device Name'),
-        '_FDMI_PORT.brocade-fdmi/port-id': dict(v=False, c=9, d='FDMI Port ID'),
-        '_FDMI_PORT.brocade-fdmi/port-name': dict(v=False, c=22, d='FDMI Port Name'),
-        '_FDMI_PORT.brocade-fdmi/port-state': dict(v=False, c=11, d='FDMI Port State'),
-        '_FDMI_PORT.brocade-fdmi/port-symbolic-name': dict(v=False, c=35, d='FDMI Port Symbolic Name'),
-        '_FDMI_PORT.brocade-fdmi/port-type': dict(v=False, c=8, d='FDMI Port Type'),
-        '_FDMI_PORT.brocade-fdmi/supported-class-of-service': dict(v=False, c=10,
+        '_FDMI_PORT.brocade-fdmi/port/active-fc4-type': dict(v=False, c=13, d='FDMI Active FC4 Type'),
+        '_FDMI_PORT.brocade-fdmi/port/current-port-speed': dict(v=False, c=12, d='FDMI Current Port Speed'),
+        '_FDMI_PORT.brocade-fdmi/port/domain-id': dict(v=True, c=5, d='FDMI Port Domain ID'),
+        '_FDMI_PORT.brocade-fdmi/port/fabric-name': dict(v=False, c=22, d='FDMI Fabric Name'),
+        '_FDMI_PORT.brocade-fdmi/port/hba-id': dict(v=False, c=22, d='FDMI HBA ID'),
+        '_FDMI_PORT.brocade-fdmi/port/host-name': dict(v=False, c=22, d='FDMI Host Name'),
+        '_FDMI_PORT.brocade-fdmi/port/maximum-frame-size': dict(v=True, c=6, d='FDMI Maximum Frame Size'),
+        '_FDMI_PORT.brocade-fdmi/port/node-name': dict(v=False, c=22, d='FDMI Node Name'),
+        '_FDMI_PORT.brocade-fdmi/port/number-of-discovered-ports': dict(v=True, c=5, d='FDMI Discovered Ports'),
+        '_FDMI_PORT.brocade-fdmi/port/os-device-name': dict(v=False, c=13, d='FDMI OS Device Name'),
+        '_FDMI_PORT.brocade-fdmi/port/port-id': dict(v=False, c=9, d='FDMI Port ID'),
+        '_FDMI_PORT.brocade-fdmi/port/port-name': dict(v=False, c=22, d='FDMI Port Name'),
+        '_FDMI_PORT.brocade-fdmi/port/port-state': dict(v=False, c=11, d='FDMI Port State'),
+        '_FDMI_PORT.brocade-fdmi/port/port-symbolic-name': dict(v=False, c=35, d='FDMI Port Symbolic Name'),
+        '_FDMI_PORT.brocade-fdmi/port/port-type': dict(v=False, c=8, d='FDMI Port Type'),
+        '_FDMI_PORT.brocade-fdmi/port/supported-class-of-service': dict(v=False, c=10,
                                                                    d='FDMI Supported Class Of Service'),
-        '_FDMI_PORT.brocade-fdmi/supported-fc4-type': dict(v=False, c=29, d='FDMI Supported FC4 Type'),
-        '_FDMI_PORT.brocade-fdmi/supported-speed': dict(v=False, c=22, d='FDMI Supported Speed'),
+        '_FDMI_PORT.brocade-fdmi/port/supported-fc4-type': dict(v=False, c=29, d='FDMI Supported FC4 Type'),
+        '_FDMI_PORT.brocade-fdmi/port/supported-speed': dict(v=False, c=22, d='FDMI Supported Speed'),
     }
 
     login_tbl = (
         # Namne Server
         '_LOGIN_COMMENTS',
-        'brocade-name-server/fibrechannel-name-server/port-name',
+        '_LOGIN_WWN',
         '_ALIAS',
         '_FABRIC_NAME',
         # '_FABRIC_NAME_AND_WWN',
@@ -1011,8 +1014,8 @@ class Login:
         'brocade-name-server/fibrechannel-name-server/node-name',
         'brocade-name-server/fibrechannel-name-server/node-symbolic-name',
         'brocade-name-server/fibrechannel-name-server/port-symbolic-name',
-        '_FDMI_NODE.brocade-fdmi/node-symbolic-name',
-        '_FDMI_PORT.brocade-fdmi/port-symbolic-name',
+        '_FDMI_NODE.brocade-fdmi/hba/node-symbolic-name',
+        '_FDMI_PORT.brocade-fdmi/port/port-symbolic-name',
         # 'brocade-name-server/fibrechannel-name-server/permanent-port-name',
         # 'brocade-name-server/fibrechannel-name-server/port-index',
         'brocade-name-server/fibrechannel-name-server/port-properties',
@@ -1031,41 +1034,41 @@ class Login:
         'brocade-name-server/fibrechannel-name-server/slow-drain-device-quarantine',
 
         # Remaining FDMI Node
-        '_FDMI_NODE.brocade-fdmi/boot-bios-version',
-        '_FDMI_NODE.brocade-fdmi/domain-id',
-        '_FDMI_NODE.brocade-fdmi/driver-version',
-        '_FDMI_NODE.brocade-fdmi/fabric-name',
-        '_FDMI_NODE.brocade-fdmi/firmware-version',
-        '_FDMI_NODE.brocade-fdmi/hardware-version',
-        '_FDMI_NODE.brocade-fdmi/manufacturer',
-        '_FDMI_NODE.brocade-fdmi/max-ct-payload',
-        '_FDMI_NODE.brocade-fdmi/model',
-        '_FDMI_NODE.brocade-fdmi/model-description',
-        '_FDMI_NODE.brocade-fdmi/node-name',
-        '_FDMI_NODE.brocade-fdmi/number-of-ports',
-        '_FDMI_NODE.brocade-fdmi/option-rom-version',
-        '_FDMI_NODE.brocade-fdmi/os-name-and-version',
-        '_FDMI_NODE.brocade-fdmi/serial-number',
-        '_FDMI_NODE.brocade-fdmi/vendor-id',
+        '_FDMI_NODE.brocade-fdmi/hba/boot-bios-version',
+        '_FDMI_NODE.brocade-fdmi/hba/domain-id',
+        '_FDMI_NODE.brocade-fdmi/hba/driver-version',
+        '_FDMI_NODE.brocade-fdmi/hba/fabric-name',
+        '_FDMI_NODE.brocade-fdmi/hba/firmware-version',
+        '_FDMI_NODE.brocade-fdmi/hba/hardware-version',
+        '_FDMI_NODE.brocade-fdmi/hba/manufacturer',
+        '_FDMI_NODE.brocade-fdmi/hba/max-ct-payload',
+        '_FDMI_NODE.brocade-fdmi/hba/model',
+        '_FDMI_NODE.brocade-fdmi/hba/model-description',
+        '_FDMI_NODE.brocade-fdmi/hba/node-name',
+        '_FDMI_NODE.brocade-fdmi/hba/number-of-ports',
+        '_FDMI_NODE.brocade-fdmi/hba/option-rom-version',
+        '_FDMI_NODE.brocade-fdmi/hba/os-name-and-version',
+        '_FDMI_NODE.brocade-fdmi/hba/serial-number',
+        '_FDMI_NODE.brocade-fdmi/hba/vendor-id',
 
         # Remaining FDMI Port
-        '_FDMI_PORT.brocade-fdmi/active-fc4-type',
-        '_FDMI_PORT.brocade-fdmi/current-port-speed',
-        '_FDMI_PORT.brocade-fdmi/domain-id',
-        '_FDMI_PORT.brocade-fdmi/fabric-name',
-        '_FDMI_PORT.brocade-fdmi/hba-id',
-        '_FDMI_PORT.brocade-fdmi/host-name',
-        '_FDMI_PORT.brocade-fdmi/maximum-frame-size',
-        '_FDMI_PORT.brocade-fdmi/node-name',
-        '_FDMI_PORT.brocade-fdmi/number-of-discovered-ports',
-        '_FDMI_PORT.brocade-fdmi/os-device-name',
-        '_FDMI_PORT.brocade-fdmi/port-id',
-        '_FDMI_PORT.brocade-fdmi/port-name',
-        '_FDMI_PORT.brocade-fdmi/port-state',
-        '_FDMI_PORT.brocade-fdmi/port-type',
-        '_FDMI_PORT.brocade-fdmi/supported-class-of-service',
-        '_FDMI_PORT.brocade-fdmi/supported-fc4-type',
-        '_FDMI_PORT.brocade-fdmi/supported-speed',
+        '_FDMI_PORT.brocade-fdmi/port/active-fc4-type',
+        '_FDMI_PORT.brocade-fdmi/port/current-port-speed',
+        '_FDMI_PORT.brocade-fdmi/port/domain-id',
+        '_FDMI_PORT.brocade-fdmi/port/fabric-name',
+        '_FDMI_PORT.brocade-fdmi/port/hba-id',
+        '_FDMI_PORT.brocade-fdmi/port/host-name',
+        '_FDMI_PORT.brocade-fdmi/port/maximum-frame-size',
+        '_FDMI_PORT.brocade-fdmi/port/node-name',
+        '_FDMI_PORT.brocade-fdmi/port/number-of-discovered-ports',
+        '_FDMI_PORT.brocade-fdmi/port/os-device-name',
+        '_FDMI_PORT.brocade-fdmi/port/port-id',
+        '_FDMI_PORT.brocade-fdmi/port/port-name',
+        '_FDMI_PORT.brocade-fdmi/port/port-state',
+        '_FDMI_PORT.brocade-fdmi/port/port-type',
+        '_FDMI_PORT.brocade-fdmi/port/supported-class-of-service',
+        '_FDMI_PORT.brocade-fdmi/port/supported-fc4-type',
+        '_FDMI_PORT.brocade-fdmi/port/supported-speed',
     )
 
 
