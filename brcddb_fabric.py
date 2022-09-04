@@ -15,9 +15,6 @@
 """
 :mod:`brcddb_fabric` - Fabric level utilities. Primarily:
 
-    * Add FOS RESTConf requested fabric information (fabric, name server, and FDMI) to brcddb class objects
-    * Analyze zoning
-
 Public Methods & Data::
 
     +-----------------------+---------------------------------------------------------------------------------------+
@@ -83,20 +80,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.6     | 25 Jul 2022   | Improved error messaging.                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.7     | 04 Sep 2022   | Replaced fabric name code with library call                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '25 Jul 2022'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.6'
+__version__ = '3.1.7'
 
-import brcdapi.log
+import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
+import brcddb.brcddb_switch as brcddb_switch
 import brcddb.util.util as brcddb_util
 import brcddb.app_data.bp_tables as bt
 import brcddb.util.search as brcddb_search
@@ -105,10 +105,15 @@ import brcddb.brcddb_port as brcddb_port
 import brcddb.util.iocp as brcddb_iocp
 import brcddb.brcddb_zone as brcddb_zone
 
+import brcdapi.oui as oui
+
 _MIN_SYMB_LEN = 10
-_CHECK_PEER_PROPERTY = True if bt.custom_tbl.get('peer_property') is None else bt.custom_tbl.get('peer_property')
-_CHECK_ZONE_MISMATCH = True if bt.custom_tbl.get('zone_mismatch') is None else bt.custom_tbl.get('zone_mismatch')
-_CHECK_ZONE_WWN_ALIAS  = True if bt.custom_tbl.get('wwn_alias_zone') is None else bt.custom_tbl.get('wwn_alias_zone')
+_FC4_FEATURES = 'brocade-name-server/fibrechannel-name-server/fc4-features'
+
+_check_peer_property = True if bt.custom_tbl.get('peer_property') is None else bt.custom_tbl.get('peer_property')
+_check_zone_mismatch = True if bt.custom_tbl.get('zone_mismatch') is None else bt.custom_tbl.get('zone_mismatch')
+_check_zone_wwn_alias  = True if bt.custom_tbl.get('wwn_alias_zone') is None else bt.custom_tbl.get('wwn_alias_zone')
+_check_zone_alias_use  = True if bt.custom_tbl.get('zone_alias_use') is None else bt.custom_tbl.get('zone_alias_use')
 # _speed_to_gen converts the brocade-name-server/link-speed to a fibre channel generation.
 _speed_to_gen = {'1G': 0, '2G': 2, '4G': 3, '8G': 4, '16G': 5, '32G': 6, '64G': 7, '128G': 8}
 special_login = {
@@ -263,10 +268,10 @@ def zone_by_target(fab_obj):
     :param fab_obj: brcddb fabric object
     :type fab_obj: FabricObj class
     """
-    global _speed_to_gen
+    global _speed_to_gen, _FC4_FEATURES
 
     # Get a list of all the target (storage) logins
-    t_obj_l = brcddb_search.match(fab_obj.r_login_objects(), 'brocade-name-server/fc4-features', 'Target',
+    t_obj_l = brcddb_search.match(fab_obj.r_login_objects(), _FC4_FEATURES, 'Target',
                                   ignore_case=True, stype='regex-s')  # List of target objects in the fabric
 
     for t_login_obj in t_obj_l:
@@ -326,7 +331,7 @@ def zone_analysis(fab_obj):
     :param fab_obj: brcddb fabric object
     :type fab_obj: brcddb.classes.fabric.FabricObj
     """
-    global _CHECK_ZONE_MISMATCH, _CHECK_PEER_PROPERTY
+    global _check_zone_mismatch, _check_peer_property
 
     # $ToDo - Break this up into multiple methods or review to shorten. This is way too long
     _WWN_MEM = 0b1  # The member was entered as a WWN or d,i, not an alias
@@ -346,7 +351,7 @@ def zone_analysis(fab_obj):
     for zone_obj in fab_obj.r_zone_objects():
         pmem_list = list()  # pmem_list and nmem_list was an after thought to save time resolving them again in the
         nmem_list = list()  # effective zone to defined zone comparison. These are the aliases converted to WWN
-        flag &= ~(_IN_DEFINED_ZONECFG | _WWN_IN_ZONE | _ALIAS_IN_ZONE | _DI_IN_ZONE)
+        flag &= ~(_IN_DEFINED_ZONECFG | _WWN_IN_ZONE | _ALIAS_IN_ZONE | _DI_IN_ZONE | _WWN_MEM)
 
         # Is the zone used in any configuration?
         if len(zone_obj.r_zone_configurations()) == 0:
@@ -360,7 +365,7 @@ def zone_analysis(fab_obj):
                 if gen_util.is_wwn(zmem, full_check=False):
                     flag |= _WWN_MEM
                     mem_list.append(zmem)
-                    if len(fab_obj.r_alias_for_wwn(zmem)) > 0:
+                    if _check_zone_alias_use and len(fab_obj.r_alias_for_wwn(zmem)) > 0:
                         # An alias was defined for this WWN, but the WWN was used to define the zone
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_ALIAS_USE, None, zmem,
                                              ', '.join(fab_obj.r_alias_for_wwn(zmem)))
@@ -396,21 +401,16 @@ def zone_analysis(fab_obj):
 
                 elif gen_util.is_wwn(mem, full_check=False):
                     flag |= _WWN_IN_ZONE
-                    if _CHECK_PEER_PROPERTY and not gen_util.is_wwn(zmem, full_check=True):
+                    if _check_peer_property and not gen_util.is_wwn(zmem, full_check=True):
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_PROPERTY, None, zmem, None)
                     # Is the member in this fabric?
                     if fab_obj.r_port_obj(mem) is None:
                         # Is it in a different fabric?
                         port_list = brcddb_util.global_port_list(other_fabrics, mem)
                         for port_obj in port_list:
-                            switch_obj = port_obj.r_switch_obj()
-                            buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/user-friendly-name')
-                            if buf is None:
-                                buf = switch_obj.r_get('brocade-fabric/fabric-switch/switch-user-friendly-name')
-                            if buf is None:
-                                buf = switch_obj.r_obj_key()
-                            buf += ', port ' + port_obj.r_obj_key()
-                            buf = 'fabric ' + best_fab_name(switch_obj.r_fabric_obj()) + ', switch ' + buf
+                            buf = 'fabric ' + best_fab_name(port_obj.r_fabric_obj()) + ', switch ' +\
+                                  brcddb_switch.best_switch_name(port_obj.r_switch_obj()) + ', port ' +\
+                                  port_obj.r_obj_key()
                             zone_obj.s_add_alert(al.AlertTable.alertTbl,
                                                  al.ALERT_NUM.ZONE_DIFF_FABRIC,
                                                  key=None,
@@ -419,7 +419,7 @@ def zone_analysis(fab_obj):
                         if len(port_list) == 0:
                             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_FOUND, None, mem)
                 else:
-                    brcdapi.log.exception('Zone member type undetermined: ' + str(mem), True)
+                    brcdapi_log.exception('Zone member type undetermined: ' + str(mem), echo=True)
 
         # Do all the zone membership count checks
         if zone_obj.r_is_peer():  # It's a peer zone
@@ -434,42 +434,37 @@ def zone_analysis(fab_obj):
                 zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NO_MEMBERS)
             elif len(nmem_list) == 1:
                 zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_ONE_MEMBER)
-        if flag and ():
-            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MIXED)
 
         # Check for single initiator zoning.
+        # elist = brcddb_zone.zoned_initiators(zone_obj)
         elist = list()
         if zone_obj.r_is_peer():
-            for wwn in pmem_list:
-                login_obj = fab_obj.r_login_obj(wwn)
-                if login_obj is not None:
-                    if login_obj.r_get('brocade-name-server/name-server-device-type') == 'Initiator':
-                        elist.append(wwn)
-                        break
-            for wwn in nmem_list:
-                login_obj = fab_obj.r_login_obj(wwn)
-                if login_obj is not None:
-                    if login_obj.r_get('brocade-name-server/name-server-device-type') == 'Initiator':
-                        elist.append(wwn)
-                        break
+            for mem_l in (pmem_list, nmem_list):
+                for wwn in mem_l:
+                    login_obj = fab_obj.r_login_obj(wwn)
+                    if login_obj is not None:
+                        fc4_features = str(login_obj.r_get(_FC4_FEATURES)).lower()
+                        if 'target' not in fc4_features and 'initiator' in fc4_features:
+                            elist.append(wwn)
+                            break
         else:
             for wwn in nmem_list:
                 login_obj = fab_obj.r_login_obj(wwn)
                 if login_obj is not None:
-                    if login_obj.r_get('brocade-name-server/name-server-device-type') == 'Initiator':
+                    fc4_features = str(login_obj.r_get(_FC4_FEATURES)).lower()
+                    if 'target' not in fc4_features and 'initiator' in fc4_features:
                         elist.append(wwn)
         if len(elist) > 1:
-            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MULTI_INITIATOR, None,
-                                 ', '.join(elist))
+            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MULTI_INITIATOR, None, ', '.join(elist))
 
         # Check for mixed zone members
         if flag & _DI_IN_ZONE and flag & _WWN_IN_ZONE:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MIXED)
-        if _CHECK_ZONE_WWN_ALIAS and flag & _WWN_MEM and flag & _ALIAS_IN_ZONE:
+        if _check_zone_wwn_alias and flag & _WWN_MEM and flag & _ALIAS_IN_ZONE:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_WWN_ALIAS)
 
         # Make sure the defined zone matches the effective zone
-        if _CHECK_ZONE_MISMATCH:
+        if _check_zone_mismatch:
             eff_zone_obj = fab_obj.r_eff_zone_obj(zone_obj.r_obj_key())
             if eff_zone_obj is not None:
                 zone_obj.s_or_flags(brcddb_common.zone_flag_effective)
@@ -480,11 +475,11 @@ def zone_analysis(fab_obj):
                     zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MISMATCH)
                     flag |= _ZONE_MISMATCH
 
-    if flag & _ZONE_MISMATCH and _CHECK_ZONE_MISMATCH:
+    if flag & _ZONE_MISMATCH and _check_zone_mismatch:
         try:
             fab_obj.r_defined_eff_zonecfg_obj().s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MISMATCH)
-        except TypeError:
-            pass  # Defined configuration was deleted - I'm not certain FOS allows it so this is just to be sure
+        except AttributeError:
+            pass  # Defined configuration was deleted
 
     for login_obj in fab_obj.r_login_objects():
         wwn = login_obj.r_obj_key()
@@ -492,8 +487,7 @@ def zone_analysis(fab_obj):
         # Make sure that all logins are zoned.
         if len(fab_obj.r_zones_for_wwn(wwn)) > 0:
             if wwn in fab_obj.r_base_logins():
-                pass  # I need to think this through
-                # login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_BASE_ZONED)
+                login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_BASE_ZONED)
         elif wwn not in fab_obj.r_base_logins():
             login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_NOT_ZONED)
 

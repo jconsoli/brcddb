@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -16,7 +16,25 @@
 
 :mod:`brcddb_login` - Login level utilities.
 
-    * Best login name
+Public Methods::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | fdmi_node_name        | Returns the FDMI node symbolic name                                                   |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | ns_node_name          | Returns the Name Server node symbolic name                                            |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | login_best_node_desc  | Finds the first descriptor for what's attached to the port. See module header for     |
+    |                       | details                                                                               |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | login_best_port_desc  | Finds the first descriptor for what's attached to the port. See module header for     |
+    |                       | details.                                                                              |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | best_login_name       | Returns the alias, WWN, or d,i for the name parameter                                 |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | login_type            | Returns the login type, if available. Otherwise ''                                    |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -34,16 +52,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.3     | 31 Dec 2021   | Miscellaneous clean up. No functional changes.                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.4     | 28 Apr 2022   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 04 Sep 2022   | Added references for new API branches.                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.3'
+__version__ = '3.0.5'
 
 import brcddb.util.util as brcddb_util
 
@@ -61,7 +83,7 @@ def fdmi_node_name(fdmi_obj, wwn):
     :rtype: str, None
     """
     if fdmi_obj is not None and isinstance(wwn, str):
-        buf = fdmi_obj.r_get('brocade-fdmi/node-symbolic-name')
+        buf = fdmi_obj.r_get('brocade-fdmi/hba/node-symbolic-name')
         if isinstance(buf, str) and len(buf) < _MIN_SYMB_LEN:
             return buf
     return None
@@ -75,7 +97,7 @@ def ns_node_name(login_obj):
     :return: Node name
     :rtype: str, None
     """
-    return None if login_obj is None else login_obj.r_get('brocade-name-server/node-symbolic-name')
+    return None if login_obj is None else login_obj.r_get('brocade-name-server/brocade-name-server/node-symbolic-name')
 
 
 def login_best_node_desc(login_obj):
@@ -141,7 +163,7 @@ def login_best_port_desc(login_obj):
         pass
 
     # Try the name server port data
-    buf = login_obj.r_get('brocade-name-server/port-symbolic-name')
+    buf = login_obj.r_get('brocade-name-server/brocade-name-server/port-symbolic-name')
     if buf is not None:
         if _MIN_SYMB_LEN > len(buf) > len(maybe):
             maybe = buf
@@ -170,12 +192,12 @@ def best_login_name(fab_obj, name, flag=False):
 
 
 def login_type(login_obj):
-    """Returns the login type, if available. Otherwise ''
+    """Returns the login type as returned from the API. Returns '' if unavailable.
 
-    :param login_obj: Chassis Object
+    :param login_obj: Login Object
     :type login_obj: brcddb_classes.login.LoginObj
     :return: Login type
     :rtype: str
     """
-    fc4_type = login_obj.r_get('brocade-name-server/fc4-type')
+    fc4_type = login_obj.r_get('brocade-name-server/brocade-name-server/fc4-type')
     return '' if fc4_type is None else fc4_type
