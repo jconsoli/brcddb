@@ -61,15 +61,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.1     | 28 Apr 2022   | Added report links to zone and alias objects                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 22 Jun 2022   | Increased column width for 'Member'                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 04 Sep 2022   | Fixed missing zones on zone by target page.                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '28 Apr 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.3'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -213,7 +217,7 @@ _zone_hdr = {
     'Target Driven': dict(c=5, v=True, z=_zone_target_case, m=_null_case),
     'Principal': dict(c=5, v=True, z=_null_case, m=_mem_principal_case),
     'Configurations': dict(c=22, z=_zone_cfg_case, m=_null_case),
-    'Member': dict(c=22, z=_zone_member_case, m=_mem_member_case),
+    'Member': dict(c=32, z=_zone_member_case, m=_mem_member_case),
     'Member WWN': dict(c=22, z=_zone_member_wwn_case, m=_mem_member_wwn_case),
     'Switch': dict(c=22, z=_null_case, m=_mem_switch_case),
     'Port': dict(c=7, z=_null_case, m=_mem_port_case),
@@ -595,7 +599,7 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
     # Fill out all the zone information for each target
     t_obj_l = brcddb_search.match(fab_obj.r_login_objects(),  # List of login objects that are targets
-                                  'brocade-name-server/fc4-features',
+                                  'brocade-name-server/fibrechannel-name-server/fc4-features',
                                   'Target',
                                   ignore_case=True,
                                   stype='regex-s')  # List of target objects in the fabric
@@ -653,7 +657,7 @@ def non_target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
     # Fill out all the zone information for each target
     t_obj_l = brcddb_search.match(fab_obj.r_login_objects(),
-                                  'brocade-name-server/fc4-features',
+                                  'brocade-name-server/fibrechannel-name-server/fc4-features',
                                   'Target',
                                   ignore_case=True,
                                   stype='regex-s')  # List of target objects in the fabric

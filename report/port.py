@@ -54,15 +54,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 25 Jul 2022   | Fixe case where link may not have been assigned in port_page()                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 04 Sep 2022   | Modified default column widths                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '25 Jul 2022'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import datetime
 import collections
@@ -448,7 +450,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
     elif not isinstance(p_list, (list, tuple)):
         err_msg.append('p_list was type ' + str(type(p_list)) + '. Must be a list or tuple.')
     if len(err_msg) > 0:
-        brcdapi_log.exception(err_msg, True)
+        brcdapi_log.exception(err_msg, echo=True)
         return None
     display = rt.Port.port_config_tbl if in_display is None else in_display
     port_display_tbl = rt.Port.port_display_tbl if in_port_display_tbl is None else in_port_display_tbl
@@ -476,7 +478,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
             buf = port_display_tbl[k]['d'] if bool(port_display_tbl[k].get('d')) else k
             alignment = _align_wrap_vc if bool(port_display_tbl[k].get('v')) else _align_wrap
         else:
-            brcdapi_log.exception('Item ' + k + ' not in port_display_tbl.', True)
+            brcdapi_log.exception('Item ' + k + ' not in port_display_tbl.', echo=True)
             alignment = _align_wrap
             buf = k
         excel_util.cell_update(sheet, row, col, buf, font=_bold_font, align=alignment, border=_border_thin)
@@ -484,9 +486,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
 
     # Add the ports
     last_switch, row = '', row + 1
-    for port_obj in p_list:
-        if port_obj is None:
-            continue  # For lazy programmers :-)
+    for port_obj in [obj for obj in p_list if obj is not None]:
         col = 1
         cell = xl.get_column_letter(col) + str(row)
         if link_type is not None:

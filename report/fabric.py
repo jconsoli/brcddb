@@ -43,15 +43,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 28 Apr 2022   | Added report links                                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 02 Sep 2022   | Removed extra rows on fabric summary sheet.                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 04 Sep 2022   | Fixed mis-labled version number.                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.7'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -156,16 +160,8 @@ def _fabric_summary(sheet, row, fabric_obj):
         col += 1
     row += 1
 
-    # Setup the common cell attributes
-    switch_obj_l = fabric_obj.r_switch_objects()
-    row = row
-    for switch_obj in switch_obj_l:
-        for col in range(1, len(_hdr)+1):
-            excel_util.cell_update(sheet, row, col, None, font=_std_font, align=_align_wrap, border=_border_thin)
-        row += 1
-
     # Add the switch summary
-    for switch_obj in switch_obj_l:
+    for switch_obj in fabric_obj.r_switch_objects():
         col = 1
 
         # Switch name
@@ -354,7 +350,7 @@ def fabric_page(wb, tc, sheet_i, sheet_name, sheet_title, fabric_obj):
     elif brcddb_class_util.get_simple_class_type(fabric_obj) != 'FabricObj':
         err_msg.append('Wrong object type, ' + str(type(fabric_obj)) + 'Must be brcddb.classes.fabric.FabricObj.')
     if len(err_msg) > 0:
-        brcdapi_log.exception(err_msg, True)
+        brcdapi_log.exception(err_msg, echo=True)
         return
 
     # Set up the worksheet and add the fabric

@@ -1,4 +1,4 @@
-# Copyright 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -35,19 +35,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.2     | 28 Apr 2022   | Updated documentation.                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.3     | 04 Sep 2022   | Fixed table of contents hyper link                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020 Jack Consoli'
-__date__ = '28 Apr 2022'
+__copyright__ = 'Copyright 2022 Jack Consoli'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.2'
+__version__ = '3.0.3'
 
 from openpyxl.chart import AreaChart, AreaChart3D, BarChart, BarChart3D, LineChart, LineChart3D, Reference
 from openpyxl.chart.axis import DateAxis
+import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
+
+_link_font = excel_fonts.font_type('link')
 
 chart_types = {
     'area': AreaChart,
@@ -97,7 +102,7 @@ def graph(wb, tc, sheet_name, sheet_i, data_ref):
 
     :param wb: Workbook object
     :type wb: Workbook object
-    :param tc: Table of context page. A link to this page is place in cell A1
+    :param tc: Link to table of context page.
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
@@ -107,18 +112,16 @@ def graph(wb, tc, sheet_name, sheet_i, data_ref):
     :type data_ref: dict
     :rtype: None
     """
+    global _link_font
 
     # Create the worksheet, add the headers, and set up the column widths
     sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     ref_sheet = data_ref['sheet']
-    y = data_ref['y']
-    x = data_ref['x']
+    y, x = data_ref['y'], data_ref['x']
     if isinstance(tc, str):
-        sheet['A1'].hyperlink = '#' + tc + '!A1'
-        sheet['A1'].font = excel_fonts.font_type('link')
-        sheet['A1'] = 'Contents'
+        excel_util.cell_update(sheet, 1, 1, 'Contents', link=tc, font=_link_font)
 
     data = Reference(ref_sheet, min_col=y['min_col'], min_row=y['min_row'], max_col=y['max_col'], max_row=y['max_row'])
     # Chart with date axis

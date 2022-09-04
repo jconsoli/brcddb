@@ -46,15 +46,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 28 Apr 2022   | Added report links to zone and alias objects                                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 22 Jun 2022   | Fixed align in login_page()                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 04 Sep 2022   | Use check marks instead of 'yes', 'no' for login flags. Added _LOGIN_WWN to       |
+    |           |               | _login_case                                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.8'
 
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
@@ -75,11 +80,23 @@ _align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
 _align_wrap_c = excel_fonts.align_type('wrap_center')
 _border_thin = excel_fonts.border_type('thin')
 
+_login_flags = dict(yes='\u221A', no='', unknown='?')
+
 ##################################################################
 #
 #        Case statements in login_page()
 #
 ###################################################################
+
+# Common flag method
+def _login_flag(login_obj, k):
+    val = login_obj.r_get('brocade-name-server/fibrechannel-name-server/' + k)
+    if val is not None:
+        try:
+            return _login_flags[val]
+        except KeyError:
+            brcdapi_log.exception('Unknown login flag: ' + str(val) + ' for ' + login_obj.r_obj_key(), echo=True)
+    return ''
 
 # Custom
 def _l_switch_name_case(login_obj):
@@ -135,8 +152,7 @@ def _l_fdmi_port_case(login_obj, k):
 
 
 def _l_port_name_case(login_obj):
-    port_name = login_obj.r_get('port-name')  # There isn't anything in here if it's AMP
-    return login_obj.r_obj_key() if port_name is None else login_obj.r_get('port-name')
+    return login_obj.r_obj_key()
 
 
 def _l_comment_case(login_obj):
@@ -144,8 +160,45 @@ def _l_comment_case(login_obj):
     return '\n'.join([obj.fmt_msg() for obj in a_list]) if len(a_list) > 0 else ''
 
 
+def _l_share_area_case(login_obj):
+    return _login_flag(login_obj, 'share-area')
+
+
+def _l_frame_redirection_case(login_obj):
+    return _login_flag(login_obj, 'frame-redirection')
+
+
+def _l_partial_case(login_obj):
+    return _login_flag(login_obj, 'partial')
+
+
+def _l_lsan_case(login_obj):
+    return _login_flag(login_obj, 'lsan')
+
+
+def _l_cascaded_ag_case(login_obj):
+    return _login_flag(login_obj, 'cascaded-ag')
+
+
+def _l_connected_through_ag_case(login_obj):
+    return _login_flag(login_obj, 'connected-through-ag')
+
+
+def _l_real_device_behind_ag_case(login_obj):
+    return _login_flag(login_obj, 'real-device-behind-ag')
+
+
+def _l_fcoe_device_case(login_obj):
+    return _login_flag(login_obj, 'fcoe-device')
+
+
+def _l_slow_drain_device_quarantine_case(login_obj):
+    return _login_flag(login_obj, 'slow-drain-device-quarantine')
+
+
 _login_case = {
     '_FABRIC_NAME': report_utils.fabric_name_case,
+    '_LOGIN_WWN': _l_port_name_case,
     '_FABRIC_NAME_AND_WWN': report_utils.fabric_name_or_wwn_case,
     '_FABRIC_WWN': report_utils.fabric_wwn_case,
     '_LOGIN_COMMENTS': _l_comment_case,
@@ -156,13 +209,22 @@ _login_case = {
     '_ALIAS': _l_alias_case,
     '_ZONES_DEF': _l_zones_def_case,
     '_ZONES_EFF': _l_zones_eff_case,
-    'port-name': _l_port_name_case,
+    # 'brocade-name-server/fibrechannel-name-server/port-name': _l_port_name_case,
+    'brocade-name-server/fibrechannel-name-server/share-area': _l_share_area_case,
+    'brocade-name-server/fibrechannel-name-server/frame-redirection': _l_frame_redirection_case,
+    'brocade-name-server/fibrechannel-name-server/partial': _l_partial_case,
+    'brocade-name-server/fibrechannel-name-server/lsan': _l_lsan_case,
+    'brocade-name-server/fibrechannel-name-server/cascaded-ag': _l_cascaded_ag_case,
+    'brocade-name-server/fibrechannel-name-server/connected-through-ag': _l_connected_through_ag_case,
+    'brocade-name-server/fibrechannel-name-server/real-device-behind-ag': _l_real_device_behind_ag_case,
+    'brocade-name-server/fibrechannel-name-server/fcoe-device': _l_fcoe_device_case,
+    'brocade-name-server/fibrechannel-name-server/slow-drain-device-quarantine': _l_slow_drain_device_quarantine_case,
 }
 
-_fdmi_case = {
-    '_FDMI_NODE': _l_fdmi_node_case,
-    '_FDMI_PORT': _l_fdmi_port_case,
-}
+_fdmi_case = dict(
+    _FDMI_NODE=_l_fdmi_node_case,
+    _FDMI_PORT=_l_fdmi_port_case,
+)
 
 
 def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None, in_login_display_tbl=None, s=True):
@@ -188,7 +250,7 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
     :rtype: None
     """
     global _login_case, _fdmi_case, _align_wrap_vc, _align_wrap_c, _align_wrap, _border_thin, _bold_font, _std_font
-    global _link_font, _hdr1_font
+    global _link_font, _hdr1_font, _login_flag_case
 
     # Validate the user input
     err_msg = list()
@@ -198,7 +260,7 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
         err_msg.append('l_list was type ' + str(type(l_list)) + '. Must be a list or tuple.')
     if len(err_msg) > 0:
         err_msg.append('Failed to create login_page().')
-        brcdapi_log.exception(err_msg, True)
+        brcdapi_log.exception(err_msg, echo=True)
         return
     login_display_tbl = brcddb_rt.Login.login_display_tbl if in_login_display_tbl is None else in_login_display_tbl
     display = brcddb_rt.Login.login_tbl if in_display is None else in_display
@@ -216,16 +278,15 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
     sheet.freeze_panes = sheet['A3']
     row, col = row + 1, 1
     for k in display:
+        buf, align = k, _align_wrap
         if k in login_display_tbl and 'dc' in login_display_tbl[k] and login_display_tbl[k]['dc']:
             continue
-        report_utils.cell_update(sheet, row, col, sheet_title, font=_bold_font)
         if k in login_display_tbl:
             if 'c' in login_display_tbl[k]:
                 sheet.column_dimensions[xl.get_column_letter(col)].width = login_display_tbl[k]['c']
-            align = _align_wrap_vc if 'v' in login_display_tbl[k] and login_display_tbl[k]['v'] else _align_wrap
+            if 'v' in login_display_tbl[k] and login_display_tbl[k]['v']:
+                align = _align_wrap_vc
             buf = login_display_tbl[k]['d'] if 'd' in login_display_tbl[k] else k
-        else:
-            buf = k  # This happens when a new key is introduced before updating the display table
         report_utils.cell_update(sheet, row, col, buf, font=_bold_font, align=align, border=_border_thin)
         col += 1
 
@@ -241,7 +302,7 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
     temp_l = [login_obj.r_port_obj() for login_obj in wl if login_obj is not None]
     port_obj_l = list()
     login_l = list()
-    for login_obj in [login_obj for login_obj in wl if login_obj is not None]:
+    for login_obj in [obj for obj in wl if obj is not None]:
         # The name server is on a per switch basis so port_obj can be None if some switches weren't polled
         port_obj = login_obj.r_port_obj()
         if port_obj is None:
@@ -257,7 +318,6 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
             continue
         col = 1
 
-
         # Report link
         brcddb_util.add_to_obj(login_obj,
                                'report_app/hyperlink/log',
@@ -266,17 +326,19 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
         # Add it to the report
         font = report_utils.font_type(report_utils.combined_login_alert_objects(login_obj))
         for k in display:
-            if k in login_display_tbl and 'dc' in login_display_tbl[k] and login_display_tbl[k]['dc']:
-                continue
-            align = _align_wrap_c if k in login_display_tbl and 'm' in login_display_tbl[k] and \
-                                     login_display_tbl[k]['m'] else _align_wrap
+            align = _align_wrap
+            if k in login_display_tbl:
+                if 'dc' in login_display_tbl[k] and login_display_tbl[k]['dc']:
+                    continue
+                if 'm' in login_display_tbl[k] and login_display_tbl[k]['m']:
+                    align = _align_wrap_c
             k_list = k.split('.')
             if len(k_list) > 1:
                 try:
                     buf = _fdmi_case[k_list[0]](login_obj, k_list[1])
                 except BaseException as e:
                     buf = ''
-                    brcdapi_log.exception(['Unknown key: ' + k_list[0], 'Exception: ' + str(e)], True)
+                    brcdapi_log.exception(['Unknown key: ' + k_list[0], 'Exception: ' + str(e)], echo=True)
             elif k in _login_case:
                 buf = _login_case[k](login_obj)
             elif k in login_display_tbl:
