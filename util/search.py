@@ -51,30 +51,34 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 28 Apr 2022   | Updated documentation                                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 22 Jun 2022   | Removed duplicates in logical OR test.                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 04 Sep 2022   | Fixed duplicated match finds in match() when there are multiple key matches       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.9'
 
 import re
 import fnmatch
 import brcdapi.log as brcdapi_log
+import brcdapi.gen_util as gen_util
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_common as brcddb_common
-
 
 # Common search terms
 disabled_ports = dict(k='fibrechannel/is-enabled-state', t='bool', v=False)
 enabled_ports = dict(k='fibrechannel/is-enabled-state', t='bool', v=True)
 f_ports = dict(k='fibrechannel/port-type', t='==', v=brcddb_common.PORT_TYPE_F)
 e_ports = dict(k='fibrechannel/port-type', t='==', v=brcddb_common.PORT_TYPE_E)
-target = dict(k='brocade-name-server/fc4-features', v='FCP-Target', t='exact', i=False)
-initiator = dict(k='brocade-name-server/fc4-features', v='FCP-Initiator', t='exact', i=False)
+target = dict(k='brocade-name-server/fibrechannel-name-server/fc4-features', v='FCP-Target', t='exact', i=False)
+initiator = dict(k='brocade-name-server/fibrechannel-name-server/fc4-features', v='FCP-Initiator', t='exact', i=False)
 port_online = dict(k='fibrechannel/operational-status', t='==', v=2)
 port_offline = dict(k='fibrechannel/operational-status', t='==', v=3)
 # Reminder: The login speed is only valid if the port is online. Use the port_online filter in conjunction with these:
@@ -86,6 +90,8 @@ login_16G = dict(k='fibrechannel/speed', t='==', v=16000000000)  # 16G
 login_32G = dict(k='fibrechannel/speed', t='==', v=32000000000)  # 32G
 login_64G = dict(k='fibrechannel/speed', t='==', v=64000000000)  # 64G
 
+class Found(Exception):
+    pass
 
 # The case statements for numerical_test_case used in test_threshold()
 def _test_greater(v1, v2):
@@ -153,7 +159,7 @@ def test_threshold(obj_list, key, test, val):
     if not isinstance(val, (int, float, str)):
         msg.append('\nval is type ' + str(type(val)) + '. It must be an int, float, or reference (str)')
     if len(msg) > 0:
-        brcdapi_log.exception('\nInvalid parameter passed to test_threshold\n' + '\n'.join(msg) + '\n', True)
+        brcdapi_log.exception('\nInvalid parameter passed to test_threshold\n' + '\n'.join(msg) + '\n', echo=True)
         return None
 
     # Now do the test
@@ -229,13 +235,13 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
 
     # Validate user input
     if not isinstance(search_term, (str, list, tuple, bool)):
-        brcdapi_log.exception('Invalid search_term type: ' + str(type(search_term)), True)
+        brcdapi_log.exception('Invalid search_term type: ' + str(type(search_term)), echo=True)
         return return_list
     if isinstance(stype, str):
         if stype in ('regex-m', 'regex-s'):
             regex_obj = re.compile(search_term, re.IGNORECASE) if ignore_case else re.compile(search_term)
         elif stype not in ('wild', 'exact', 'bool'):
-            brcdapi_log.exception('Invalid search type: ' + stype, True)
+            brcdapi_log.exception('Invalid search type: ' + stype, echo=True)
             return return_list
     else:
         brcdapi_log.exception('Search type must be str. Search type is: ' + str(type(stype)),
@@ -245,49 +251,45 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
     search_key_list = brcddb_util.convert_to_list(search_key)
     obj_list = brcddb_util.convert_to_list(search_objects)
     for obj in obj_list:
-        for sk in search_key_list:
-            sub_obj = brcddb_util.get_key_val(obj, sk)
-            if sub_obj is not None:
+        try:
+            for sk in search_key_list:
+                sub_obj = brcddb_util.get_key_val(obj, sk)
+                if sub_obj is None:
+                    continue
                 if isinstance(sub_obj, dict):
                     if len(match(sub_obj, list(sub_obj.keys()), search_term, ignore_case, stype)) > 0:
-                        return_list.append(obj)
+                        raise Found
                 elif isinstance(sub_obj, (str, list, tuple)):
                     for buf in brcddb_util.convert_to_list(sub_obj):  # Any match within that list is a match
                         if isinstance(buf, str):
                             test_buf = buf.lower() if ignore_case else buf
                             if stype == 'regex-m':
                                 if regex_obj.match(test_buf):
-                                    return_list.append(obj)
-                                    break
+                                    raise Found
                             elif stype == 'regex-s':
                                 if regex_obj.search(test_buf):
-                                    return_list.append(obj)
-                                    break
+                                    raise Found
                             elif stype == 'exact':
                                 if search_term == test_buf:
-                                    return_list.append(obj)
-                                    break
+                                    raise Found
                             elif stype == 'wild':
                                 if fnmatch.fnmatch(test_buf, search_term):
-                                    return_list.append(obj)
-                                    break
+                                    raise Found
                             elif stype == 'bool':
                                 if isinstance(buf, bool) and isinstance(search_term, bool):
                                     if bool({search_term: buf}):
-                                        return_list.append(obj)
-                                        break
+                                        raise Found
                         elif isinstance(buf, dict):
                             if len(match([buf.get(k) for k in buf], None, search_term, ignore_case, stype)) > 0:
-                                return_list.append(obj)
-                                break
+                                raise Found
                         elif isinstance(buf, (list, tuple)):
                             if len(match(buf, None, search_term, ignore_case, stype)) > 0:
-                                return_list.append(obj)
-                                break
+                                raise Found
                 elif isinstance(sub_obj, bool):
                     if (search_term and sub_obj) or (not search_term and not sub_obj):
-                        return_list.append(obj)
-                        break
+                        raise Found
+        except Found:
+            return_list.append(obj)
 
     if len(return_list) > 0 and 'brcddb' in str(type(return_list[0])):
         return brcddb_util.remove_duplicates(return_list)
@@ -365,7 +367,7 @@ def match_test(obj_list, test_obj, logic=None):
             elif t_obj['t'] in ('>', '<', '<=', '>=', '==', '=', '!='):
                 m_list = test_threshold(w_list, t_obj['k'], t_obj['t'], t_obj['v'])
             else:
-                brcdapi_log.exception('Invalid search key, ' + t_obj['t'], True)
+                brcdapi_log.exception('Invalid search key, ' + t_obj['t'], echo=True)
                 return list()
 
         # Apply the test logic
@@ -382,11 +384,10 @@ def match_test(obj_list, test_obj, logic=None):
             # All tests must evaluate False so remove any test that evaluates True from w_list.
             w_list = [obj for obj in w_list if obj not in m_list]
         else:
-            brcdapi_log.exception('Invalid logic, ' + lg, True)
+            brcdapi_log.exception('Invalid logic, ' + lg, echo=True)
             return list()
 
     if lg == 'or':
-        # if lg == 'nand' or lg == 'or':
-        w_list = o_list
+        w_list = gen_util.remove_duplicates(o_list)
 
     return list(w_list)

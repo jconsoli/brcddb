@@ -74,15 +74,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 28 Apr 2022   | Updated documentation                                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 04 Sep 2022   | Minor performance enhancements. No functional changes.                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import copy
 import re
@@ -129,8 +131,7 @@ def _check_control(ref, control_tbl):
     :return gt: Greater than or equal amount for this ref in control_tbl. 0 if not found
     :rtype gt: int, float
     """
-    skip_flag = False
-    lt = gt = 0
+    skip_flag, lt, gt = False, 0, 0
     if isinstance(control_tbl, dict):
         for k in control_tbl.keys():
             if re.search(k, ref):
@@ -139,6 +140,7 @@ def _check_control(ref, control_tbl):
                 lt = 0 if cd.get('lt') is None else cd.get('lt')
                 gt = 0 if cd.get('gt') is None else cd.get('gt')
                 break
+
     return skip_flag, lt, gt
 
 
@@ -339,6 +341,7 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
             if not skip_flag_0:
                 _update_r_obj(r_obj, {k: {'b': '', 'c': k, 'r': _NEW}})
             c += 1
+
     return c
 
 
@@ -391,8 +394,7 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
         compare_obj = obj_list[i]
 
     if not all_str_flag:
-        len_c_obj = len(c_obj)
-        len_b_obj = len(b_obj)
+        len_c_obj, len_b_obj = len(c_obj), len(b_obj)
         for i in range(0, len_b_obj):
             new_r_obj = dict()
             if i < len_c_obj:
@@ -428,28 +430,28 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
 
 
 # Object type look up table used in _compare()
-_obj_type_action = {
-    'ChassisObj': _brcddb_compare,
-    'FabricObj': _brcddb_compare,
-    'FdmiNodeObj': _brcddb_compare,
-    'FdmiPortObj': _brcddb_compare,
-    'LoginObj': _brcddb_compare,
-    'PortObj': _brcddb_compare,
-    'ProjectObj': _brcddb_compare,
-    'SwitchObj': _brcddb_compare,
-    'ZoneCfgObj': _brcddb_compare,
-    'ZoneObj': _brcddb_compare,
-    'AliasObj': _brcddb_compare,
-    # 'AlertObj': _null_compare,
-    'dict': _dict_compare,
-    'bool': _num_compare,
-    'int': _num_compare,  # Just in case someone removes normalizing int to num
-    'float': _num_compare,  # Just in case someone removes normalizing float to num
-    'str': _str_compare,
-    'list': _list_compare,
-    'tuple': _list_compare,
-    'num': _num_compare,
-}
+_obj_type_action = dict(
+    ChassisObj=_brcddb_compare,
+    FabricObj=_brcddb_compare,
+    FdmiNodeObj=_brcddb_compare,
+    FdmiPortObj=_brcddb_compare,
+    LoginObj=_brcddb_compare,
+    PortObj=_brcddb_compare,
+    ProjectObj=_brcddb_compare,
+    SwitchObj=_brcddb_compare,
+    ZoneCfgObj=_brcddb_compare,
+    ZoneObj=_brcddb_compare,
+    AliasObj=_brcddb_compare,
+    # AlertObj=null_compare,
+    dict=_dict_compare,
+    bool=_num_compare,
+    int=_num_compare,  # Just in case someone removes normalizing int to num
+    float=_num_compare,  # Just in case someone removes normalizing float to num
+    str=_str_compare,
+    list=_str_compare,
+    tuple=_str_compare,
+    num=_num_compare,
+)
 
 
 def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
@@ -472,7 +474,7 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
 
     # Make sure we have a valid reference.
     if not isinstance(ref, str):
-        brcdapi_log.exception('Invalid reference type: ' + str(type(ref)), True)
+        brcdapi_log.exception('Invalid reference type: ' + str(type(ref)), echo=True)
         _update_r_obj(r_obj, {'b': '', 'c': '', 'r': _INVALID_REF})
         return 0
 
@@ -502,8 +504,9 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
     if b_type in _obj_type_action:
         return _obj_type_action[b_type](r_obj, ref, b_obj, c_obj, control_tbl)
 
-    brcdapi_log.log('Unknown base object type: ' + b_type, True)
+    brcdapi_log.log('Unknown base object type: ' + b_type, echo=True)
     _update_r_obj(r_obj, {'b': b_type, 'c': '', 'r': _INVALID_REF})
+
     return 1
 
 

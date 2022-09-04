@@ -77,17 +77,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.6     | 25 Jul 2022   | Deprecated sp_port_sort(). Moved it to brcdapi.port as sort_ports()               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.7     | xx xxx 2022   | Added some bullet proofing.                                                       |
+    | 3.1.7     | 04 Sep 2022   | Added some bullet proofing.                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = 'xx xxx 2022'
+__date__ = '04 Sep 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Development'
-__version__ = '3.1.7_r0'
+__status__ = 'Released'
+__version__ = '3.1.7'
 
 import re
 import datetime
