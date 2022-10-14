@@ -56,20 +56,26 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 25 Jul 2022   | Fixed missing effective zone config in defined config in build_zonecfg_content()  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 14 Oct 2022   | Updated zone configuration by alias, zone, and zonecfg to help isolate errors.    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '25 Jul 2022'
+__date__ = '14 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
+import copy
+import re
+import brcdapi.log as brcdapi_log
 import brcdapi.zone as brcdapi_zone
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.fos_auth as fos_auth
+import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
 
@@ -178,6 +184,59 @@ def build_all_zone_content(fab_obj):
 
 
 def replace_zoning(session, fab_obj, fid):
+    """Replaces the zoning database in a fabric by clearing it and then PATCHing it with a new zoning database
+
+     Relevant resource: 'zoning/defined-configuration'
+     An error is returned if there is no zone database in in the fab_obj. Use clear_zoning() to clear out zoning.
+
+    :param session: Login session object from brcdapi.brcdapi_rest.login()
+    :type session: dict
+    :param fab_obj: Fabric object whose zone database will be sent to the switch
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param fid: Fabric ID. If FID check is disabled, this must be the FID of the switch where the request is sent.
+    :type fid: int
+    :return: Object returned from FOS API
+    :rtype: dict
+    """
+    # Get the dict to be converted to JSON and sent to the switch
+    content = build_all_zone_content(fab_obj)
+    if content is None:
+        return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST,
+                                     'No zone database in ' + brcddb_fabric.best_fab_name(fab_obj.r_fabric_obj()),
+                                     '')
+
+    # Get the checksum - this is needed to save the configuration.
+    checksum, obj = brcdapi_zone.checksum(session, fid)
+    if fos_auth.is_error(obj):
+        brcdapi_log.log('Failed to get checksum', echo=True)
+        return obj
+
+    # Clear the zone database
+    obj = brcdapi_zone.clear_zone(session, fid)
+    if fos_auth.is_error(obj):
+        brcdapi_zone.abort(session, fid)
+        brcdapi_log.log('Failed to clear zone database', echo=True)
+        return obj
+
+    # Send the zoning request
+    for k, zone_l in content['defined-configuration'].items():
+        temp_content = {'defined-configuration': {k: copy.deepcopy(zone_l)}}
+        obj = brcdapi_rest.send_request(session, 'brocade-zone/defined-configuration', 'PATCH', temp_content, fid)
+        if fos_auth.is_error(obj):
+            brcdapi_zone.abort(session, fid)
+            brcdapi_log.log('Failed to update ' + str(k) + ' in zone database', echo=True)
+            return obj
+
+    # Save the zoning changes
+    obj = brcdapi_zone.save(session, fid, checksum)
+    if fos_auth.is_error(obj):
+        brcdapi_zone.abort(session, fid)
+        brcdapi_log.log('Failed to save zoning changes', echo=True)
+
+    return obj
+
+
+def replace_zoning_save(session, fab_obj, fid):
     """Replaces the zoning database in a fabric by clearing it and then PATCHing it with a new zoning database
 
      Relevant resource: 'zoning/defined-configuration'
