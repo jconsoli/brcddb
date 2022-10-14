@@ -84,16 +84,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.2     | 04 Sep 2022   | Fixed brocade-fdmi references. Used _LOGIN_WWN login_tbl                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 14 Oct 2022   | Added port type to the port configuration table, port_display_tbl.port_sfp_tbl.   |
+    |           |               | Adjust some default column widths.                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '04 Sep 2022'
+__date__ = '14 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.2'
+__version__ = '3.1.3'
 
 
 class Chassis:
@@ -410,11 +413,11 @@ class Port:
         'fibrechannel/octet-speed-combo': dict(c=20, d='Speed Combo'),
         'fibrechannel/operational-status': dict(c=10, d='Status'),
         'fibrechannel/physical-state': dict(c=11, d='State'),
-        'fibrechannel/port-type': dict(c=15, d='Port Type'),
+        'fibrechannel/port-type': dict(c=7, d='Port Type'),
         'fibrechannel/rate-limit-enabled': dict(v=True, c=8, d='Rate Limit'),
         'fibrechannel/speed': dict(v=True, c=6, d='Login Speed Gbps'),
         'fibrechannel/max-speed': dict(v=True, c=6, d='Max Speed Gbps'),
-        'fibrechannel/user-friendly-name': dict(c=18, d='Port Name'),
+        'fibrechannel/user-friendly-name': dict(c=28, d='Port Name'),
         'fibrechannel/wwn': dict(c=22, d='Switch Port WWN'),
         'fibrechannel/average-receive-frame-size': dict(v=True, c=8, d='Average Rx Frame Size'),
         'fibrechannel/average-transmit-frame-size': dict(v=True, c=8, d='Average Tx Frame Size'),
@@ -561,7 +564,7 @@ class Port:
         'media-rdp/remote-optical-product-data/serial-number': dict(c=18, d='Remote Serial Number'),
         'media-rdp/temperature': dict(v=True, c=6, d='Temperature (C)'),
         'media-rdp/remote-media-temperature': dict(v=True, c=6, d='Remote Temperature (C)'),
-        'media-rdp/vendor-name': dict(c=10, d='Vendor'),
+        'media-rdp/vendor-name': dict(c=15, d='Vendor'),
         'media-rdp/remote-optical-product-data/vendor-name': dict(c=10, d='Remote Vendor'),
         'media-rdp/vendor-oui': dict(c=8, d='Vendor OUI'),
         'media-rdp/vendor-revision': dict(v=True, m=True, c=4, d='Revision'),
@@ -608,6 +611,7 @@ class Port:
         'fibrechannel/user-friendly-name',
         'fibrechannel/fcid-hex',
         'fibrechannel/port-type',
+        'media-rdp/wavelength',
         'fibrechannel/is-enabled-state',
         'fibrechannel/operational-status',
         'fibrechannel/physical-state',
@@ -807,6 +811,7 @@ class Port:
         '_SWITCH_NAME',
         '_PORT_NUMBER',
         'fibrechannel/fcid-hex',
+        'fibrechannel/port-type',
         'fibrechannel/operational-status',
         'media-rdp/serial-number',
         'media-rdp/remote-optical-product-data/serial-number',
