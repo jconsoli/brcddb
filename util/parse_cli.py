@@ -57,16 +57,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 1.0.3     | 25 Jul 2022   | Fixed missing neighbor WWN for port_obj in nsshow()                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 1.0.4     | 14 Oct 2022   | Added slotshow_m, fixed case and type errors in nsshow()                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '25 Jul 2022'
+__date__ = '14 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '1.0.3'
+__version__ = '1.0.4'
 
 import re
 import time
@@ -78,6 +80,35 @@ import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_port as brcddb_port
+
+
+def _conv_to_int(buf):
+    """
+    :param buf: Value to convert to an integer
+    :type buf: str
+    :return: None if non-integer, otherwise the value in buf converted to an integer
+    :rtype: None, int
+    """
+    try:
+        return int(buf)
+    except TypeError:
+        pass
+    return None
+
+
+def _conv_to_lower(buf):
+    """
+    :param buf: Value to convert to lower case
+    :type buf: str
+    :return: Value as passed if buf is not a string. Otherwise buf converted to lower case
+    :rtype: str
+    """
+    try:
+        return buf.lower()
+    except TypeError:
+        pass
+    return buf
+
 
 _BFS_FS = 'brocade-fibrechannel-switch/fibrechannel-switch/'
 _BF_FS = 'brocade-fabric/fabric-switch/'
@@ -259,7 +290,7 @@ _unit_conv_tbl = {
     'WWN Unit': dict(key='brocade-fru/wwn', unit='unit-number', status='operational-state', ok_status='ok', b=False),
     'UNKNOWN': dict(key=None, unit=None, status=None, ok_status=None, b=False),
 }
-""" _fru_conv_tbl
+""" _slotshow_d576_tbl
 key     API leaf
 api     i:      position in in command line after conditioning with xxx and split on ' '
         c:      If present, the conversion between the command output and the value for the API
@@ -269,37 +300,71 @@ _slotshow_fru_id = {'brocade-fru/blade': 'blade-id',
                     'brocade-fru/power-supply': 'unit-number',
                     'brocade-fru/fan': 'unit-number',
                     'brocade-fru/wwn': 'unit-number'}
-_slotshow_state = dict(ON='enabled', OFF='disabled', OUT='vacant', FLTY='faulty')
+_slotshow_state = dict(ON='enabled',
+                       ENABLED='enabled',
+                       OFF='disabled',
+                       DISABLED='disabled',
+                       OUT='vacant',
+                       FLTY='faulty')
 _slotshow_ps = {'unit-number': dict(i=0, int=True), 'operational-state': dict(i=2, c=dict(ON='ok', FLTY='faulty'))}
-_fru_conv_tbl = {
-    'AP_BLADE': dict(key='brocade-fru/blade',
-                     api={'blade-id': dict(i=2, int=True),
-                          'slot-number': dict(i=0, int=True),
-                          'blade-state': dict(i=3, c=_slotshow_state),
-                          'blade-type': dict(i=1, c=dict(AP_BLADE='ap blade'))},),
-    'CP_BLADE': dict(key='brocade-fru/blade',
-                     api={'blade-id': dict(i=2, int=True),
-                          'slot-number': dict(i=0, int=True),
-                          'blade-state': dict(i=3, c=_slotshow_state),
-                          'blade-type': dict(i=1, c=dict(CP_BLADE='cp blade'))},),
-    'SW_BLADE': dict(key='brocade-fru/blade',
-                     api={'blade-id': dict(i=2, int=True),
-                          'slot-number': dict(i=0, int=True),
-                          'blade-state': dict(i=3, c=_slotshow_state),
-                          'blade-type': dict(i=1, c=dict(SW_BLADE='sw blade'))},),
-    'CORE_BLADE': dict(key='brocade-fru/blade',
-                       api={'blade-id': dict(i=2, int=True),
-                            'slot-number': dict(i=0, int=True),
-                            'blade-state': dict(i=3, c=_slotshow_state),
-                            'blade-type': dict(i=1, c=dict(CORE_BLADE='core blade'))},),
-    'UNKNOWN': dict(key='brocade-fru/blade',
-                    api={'slot-number': dict(i=0, int=True),
-                         'blade-state': dict(i=2, c=_slotshow_state),
-                         'blade-type': dict(i=1, c=dict(UNKNOWN='unknown'))},),
-    'PWR_SUPP': dict(key='brocade-fru/power-supply', api=_slotshow_ps),
-    'BLOWER': dict(key='brocade-fru/fan', api=_slotshow_ps),
-    'WWN_CARD': dict(key='brocade-fru/wwn', api={'unit-number': dict(i=0)})
-}
+_slotshow_d576_tbl = dict(
+    AP_BLADE=dict(key='brocade-fru/blade',
+                  api={'blade-id': dict(i=2, int=True),
+                       'slot-number': dict(i=0, int=True),
+                       'blade-state': dict(i=3, c=_slotshow_state),
+                       'blade-type': dict(i=1, c=dict(AP_BLADE='ap blade'))},),
+    CP_BLADE=dict(key='brocade-fru/blade',
+                  api={'blade-id': dict(i=2, int=True),
+                       'slot-number': dict(i=0, int=True),
+                       'blade-state': dict(i=3, c=_slotshow_state),
+                       'blade-type': dict(i=1, c=dict(CP_BLADE='cp blade'))},),
+    SW_BLADE=dict(key='brocade-fru/blade',
+                  api={'blade-id': dict(i=2, int=True),
+                       'slot-number': dict(i=0, int=True),
+                       'blade-state': dict(i=3, c=_slotshow_state),
+                       'blade-type': dict(i=1, c=dict(SW_BLADE='sw blade'))},),
+    CORE_BLADE=dict(key='brocade-fru/blade',
+                    api={'blade-id': dict(i=2, int=True),
+                         'slot-number': dict(i=0, int=True),
+                         'blade-state': dict(i=3, c=_slotshow_state),
+                         'blade-type': dict(i=1, c=dict(CORE_BLADE='core blade'))},),
+    UNKNOWN=dict(key='brocade-fru/blade',
+                 api={'slot-number': dict(i=0, int=True),
+                      'blade-state': dict(i=2, c=_slotshow_state),
+                      'blade-type': dict(i=1, c=dict(UNKNOWN='unknown'))},),
+    PWR_SUPP=dict(key='brocade-fru/power-supply', api=_slotshow_ps),
+    BLOWER=dict(key='brocade-fru/fan', api=_slotshow_ps),
+    WWN_CARD=dict(key='brocade-fru/wwn', api={'unit-number': dict(i=0)})
+)
+_slotshow_m_tbl = dict(
+    AP_BLADE=dict(key='brocade-fru/blade',
+                  api={'blade-id': dict(i=2, int=True),
+                       'slot-number': dict(i=0, int=True),
+                       'blade-state': dict(i=4, c=_slotshow_state),
+                       'blade-type': dict(i=1, c=dict(AP_BLADE='ap blade'))},),
+    CP_BLADE=dict(key='brocade-fru/blade',
+                  api={'blade-id': dict(i=2, int=True),
+                       'slot-number': dict(i=0, int=True),
+                       'blade-state': dict(i=4, c=_slotshow_state),
+                       'blade-type': dict(i=1, c=dict(CP_BLADE='cp blade'))},),
+    SW_BLADE=dict(key='brocade-fru/blade',
+                  api={'blade-id': dict(i=2, int=True),
+                       'slot-number': dict(i=0, int=True),
+                       'blade-state': dict(i=4, c=_slotshow_state),
+                       'blade-type': dict(i=1, c=dict(SW_BLADE='sw blade'))},),
+    CORE_BLADE=dict(key='brocade-fru/blade',
+                    api={'blade-id': dict(i=2, int=True),
+                         'slot-number': dict(i=0, int=True),
+                         'blade-state': dict(i=4, c=_slotshow_state),
+                         'blade-type': dict(i=1, c=dict(CORE_BLADE='core blade'))},),
+    UNKNOWN=dict(key='brocade-fru/blade',
+                 api={'slot-number': dict(i=0, int=True),
+                      'blade-state': dict(i=2, c=_slotshow_state),
+                      'blade-type': dict(i=1, c=dict(UNKNOWN='unknown'))},),
+    PWR_SUPP=dict(key='brocade-fru/power-supply', api=_slotshow_ps),
+    BLOWER=dict(key='brocade-fru/fan', api=_slotshow_ps),
+    WWN_CARD=dict(key='brocade-fru/wwn', api={'unit-number': dict(i=0)})
+)
 
 
 def _split_parm(buf):
@@ -402,7 +467,7 @@ def switchshow(obj, content, append_buf=''):
     while len(content) > i:
         buf = content[i]
         if 'Index' in buf and 'Media' in buf:
-            cl = gen_util.remove_duplicate_space(buf).strip().split(' ')
+            cl = gen_util.remove_duplicate_char(buf, ' ').strip().split(' ')
             for x in range(0, len(cl)):
                 port_index.update({cl[x]: x})
             break
@@ -414,7 +479,7 @@ def switchshow(obj, content, append_buf=''):
     i += 2  # Skip the line just below it that has ================ in it
     while len(content) > i:
         buf = content[i].replace('\t', ' ').strip()
-        cl = gen_util.remove_duplicate_space(buf).split(' ')
+        cl = gen_util.remove_duplicate_char(buf, ' ').split(' ')
         if len(cl) < 7:
             break
         if cl[port_index['Proto']] == 'FC':
@@ -596,7 +661,7 @@ def portstatsshow(obj, content):
         buf = buf.replace('er_multi_credit_loss', 'er_multi_credit_loss ')
         buf = buf.replace('fec_corrected_rate', 'fec_corrected_rate ')
         buf = buf.replace('latency_dma_ts', 'latency_dma_ts ')
-        tl = gen_util.remove_duplicate_space(buf).split(' ')
+        tl = gen_util.remove_duplicate_char(buf, ' ').split(' ')
         if len(tl) < 2:
             continue
 
@@ -635,7 +700,7 @@ def portstats64show(obj, content):
     while len(content) > i:
 
         # Get the port object
-        buf = gen_util.remove_duplicate_space(content[i].replace('\t', ' '))
+        buf = gen_util.remove_duplicate_char(content[i].replace('\t', ' '), ' ')
         if len(buf) == 0:
             i += 1
             continue
@@ -654,13 +719,13 @@ def portstats64show(obj, content):
         # Parse the port statistics
         i += 1
         while len(content) > i and len(content[i]) > 0:
-            buf = gen_util.remove_duplicate_space(content[i].replace('\t', ' '))
+            buf = gen_util.remove_duplicate_char(content[i].replace('\t', ' '), ' ')
             cl = buf.split(' ')
             key = _portstats_to_api.get(cl[0])
             if key is not None:
                 if 'top_int :' in buf:
                     i += 1
-                    lv = int(gen_util.remove_duplicate_space(content[i].replace('\t', ' ').strip()).split(' ')[0])
+                    lv = int(gen_util.remove_duplicate_char(content[i].replace('\t', ' ').strip()).split(' ')[0], ' ')
                     v = int('{:x}'.format(int(cl[1])) + '{:08x}'.format(lv), 16)
                 else:
                     v = int(cl[1])
@@ -697,7 +762,7 @@ def _chassishow_unit_parse(chassis_obj, content, cl, i, n, d):
             else:
                 d.update({_chassis_to_api[cl[0]]: cl[1]})
         x += 1
-        cl = [p.strip() for p in gen_util.remove_duplicate_space(content[x].replace('\t', ' ')).split(':')]
+        cl = [p.strip() for p in gen_util.remove_duplicate_char(content[x].replace('\t', ' '), ' ').split(':')]
 
     return x
 
@@ -750,20 +815,28 @@ def chassisshow(obj, content):
     """
     ri, chassis_obj, proj_obj = 0, None, obj.r_project_obj()
 
-    # Get a chassis S/N by first finding "WWN  Unit:", then look for Factory Serial Num:
     for buf in content:
-        ri += 1
-        if 'WWN  Unit:' in buf:
-            break
-        elif 'timeout' in buf:
-            return chassis_obj, ri
-
-    for buf in content[ri:]:
-        ri += 1
-        if 'Factory Serial Num:' in buf:
+        if 'Chassis Factory Serial Num:' in buf:
             chassis_obj = proj_obj.s_add_chassis(buf.split(':')[1].strip())
-        elif 'timeout' in buf:
             break
+
+    if chassis_obj is None:
+        # If we haven't found it yet, pick the first WWN card. Get a chassis S/N by first finding "WWN  Unit:", then
+        # look for Factory Serial Num:
+        for buf in content:
+            ri += 1
+            if 'WWN  Unit:' in buf:
+                break
+            elif 'timeout' in buf:
+                return chassis_obj, ri
+
+        for buf in content[ri:]:
+            ri += 1
+            if 'Factory Serial Num:' in buf:
+                chassis_obj = proj_obj.s_add_chassis(buf.split(':')[1].strip())
+                break
+            elif 'timeout' in buf:
+                break
 
     # Parse the chassis data and add to the chassis object
     if chassis_obj != None:
@@ -771,7 +844,7 @@ def chassisshow(obj, content):
         i = 1
         while len(tl) > i:
             buf = tl[i]
-            cl = [p.strip() for p in gen_util.remove_duplicate_space(buf.replace('\t', ' ')).split(':')]
+            cl = [p.strip() for p in gen_util.remove_duplicate_char(buf.replace('\t', ' '), ' ').split(':')]
             if len(cl) > 1:
                 if cl[0] in _chassisshow_actions:
                     i = _chassisshow_actions[cl[0]]['m'](chassis_obj, tl, cl, i, _chassisshow_actions[cl[0]]['n'])
@@ -812,7 +885,7 @@ def fabricshow(obj, content):
         ri += 1
         if len(buf) == 0 or 'The Fabric has' in buf or 'Fabric had' in buf or 'SS CMD END' in buf:
             break
-        l = gen_util.remove_duplicate_space(buf.strip()).split(' ')
+        l = gen_util.remove_duplicate_char(buf.strip(), ' ').split(' ')
         if len(l) > 5:
             if l[5][0] == '>':  # It's the principal switch
                 fab_obj = proj_obj.s_add_fabric(l[2])
@@ -834,21 +907,38 @@ def fabricshow(obj, content):
     return fab_obj, ri
 
 
-# nsshow CLI output to API map. Used in nsshow() to add data from nsshow output to the login object
+"""nsshow CLI output to API map. Used in nsshow() to add data from nsshow output to the login object. The sub-dictionary
+is as follow:
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Key       | Type          | Description                                                                           |
++===========+===============+=======================================================================================+
+| uri       | str           | URI used in the API                                                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| conv      | None, dict    | Conversion table or method to convert the values from CLI output to the API value.    |
+|           | method        | Note: As of this writting, there were no dictionaries but the mechanics are present   |
+|           |               | in the code to use one. The ability to hardcode an int, str, list, or tuple has also  |
+|           |               | been coded.                                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+"""
 _nsshow_to_api = {
-    'SCR': 'brocade-name-server/fibrechannel-name-server/state-change-registration',
-    'PortSymb': 'brocade-name-server/fibrechannel-name-server/port-symbolic-name',
-    'NodeSymb': 'brocade-name-server/fibrechannel-name-server/node-symbolic-name',
-    'Fabric Port Name': 'brocade-name-server/fibrechannel-name-server/fabric-port-name',
-    'Permanent Port Name': 'brocade-name-server/fibrechannel-name-server/permanent-port-name',
-    'Port Index': 'brocade-name-server/fibrechannel-name-server/port-index',
-    'Partial': 'brocade-name-server/fibrechannel-name-server/partial',
-    'LSAN': 'brocade-name-server/fibrechannel-name-server/lsan',
-    'Slow Drain Device': 'brocade-name-server/fibrechannel-name-server/slow-drain-device-quarantine',
-    'Device link speed': 'brocade-name-server/fibrechannel-name-server/link-speed',
-    'Connected through AG': 'brocade-name-server/fibrechannel-name-server/connected-through-ag',
-    'Real device behind AG': 'brocade-name-server/fibrechannel-name-server/real-device-behind-ag',
-    'FCoE': 'brocade-name-server/fibrechannel-name-server/fcoe-device',
+    'SCR': dict(uri='brocade-name-server/fibrechannel-name-server/state-change-registration'),
+    'PortSymb': dict(uri='brocade-name-server/fibrechannel-name-server/port-symbolic-name'),
+    'NodeSymb': dict(uri='brocade-name-server/fibrechannel-name-server/node-symbolic-name'),
+    'Fabric Port Name': dict(uri='brocade-name-server/fibrechannel-name-server/fabric-port-name', conv=_conv_to_lower),
+    'Permanent Port Name': dict(uri='brocade-name-server/fibrechannel-name-server/permanent-port-name',
+                                conv=_conv_to_lower),
+    'Port Index': dict(uri='brocade-name-server/fibrechannel-name-server/port-index', conv=_conv_to_int),
+    'Partial': dict(uri='brocade-name-server/fibrechannel-name-server/partial', conv=_conv_to_lower),
+    'LSAN': dict(uri='brocade-name-server/fibrechannel-name-server/lsan', conv=_conv_to_lower),
+    'Slow Drain Device': dict(uri='brocade-name-server/fibrechannel-name-server/slow-drain-device-quarantine',
+                              conv=_conv_to_lower),
+    'Device link speed': dict(uri='brocade-name-server/fibrechannel-name-server/link-speed'),
+    'Connected through AG': dict(uri='brocade-name-server/fibrechannel-name-server/connected-through-ag',
+                                 conv=_conv_to_lower),
+    'Real device behind AG': dict(uri='brocade-name-server/fibrechannel-name-server/real-device-behind-ag',
+                                  conv=_conv_to_lower),
+    'FCoE': dict(uri='brocade-name-server/fibrechannel-name-server/fcoe-device', conv=_conv_to_lower),
 }
 
 
@@ -865,8 +955,11 @@ def nsshow(obj, content):
     fab_obj, port_obj, ri = obj.r_fabric_obj(), None, 0
 
     buf = content[ri]
+    if 'nsshow' in buf:
+        ri += 1
+        buf = content[ri]  # Skip past the invocation line
     if len(buf) == 0 or 'There is no entry' in buf:
-        return ri
+        return ri + 1
 
     while len(content) > ri:
         buf = content[ri]
@@ -892,9 +985,19 @@ def nsshow(obj, content):
 
             else:
                 cl = [b.strip() for b in buf.split(':', 1)]
-                api_k = _nsshow_to_api.get(cl[0])
-                if api_k is not None:
-                    brcddb_util.add_to_obj(login_obj, api_k, cl[1])
+                cntl_d = _nsshow_to_api.get(cl[0])
+                if isinstance(cntl_d, dict):
+                    api_k = cntl_d['uri']
+                    if api_k is not None:
+                        val = cl[1]
+                        val_c = cntl_d.get('conv')
+                        if callable(val_c):
+                            val = val_c(val)
+                        elif isinstance(val_c, dict):
+                            val = val if val_c.get(val) is None else val_c[val]
+                        elif isinstance(val_c, (int, str, list, tuple)):
+                            val = val_c
+                        brcddb_util.add_to_obj(login_obj, api_k, val)
 
     return ri
 
@@ -927,7 +1030,7 @@ def sfpshow(obj, content):
     switch_obj, state, port_num, port_obj, ri = obj.r_switch_obj(), _sfpshow_state_start, None, None, 0
 
     for buf in content:
-        buf = gen_util.remove_duplicate_space(buf.replace('\t', ' '))
+        buf = gen_util.remove_duplicate_char(buf.replace('\t', ' '), ' ')
 
         if 'CURRENT CONTEXT' in buf:
             pass
@@ -976,7 +1079,7 @@ def sfpshow(obj, content):
                 continue
             if port_obj.r_get('media-rdp/name') is None:
                 brcddb_util.add_to_obj(port_obj, 'media-rdp/name', 'fc/' + port_num)
-            cl = gen_util.remove_duplicate_space(buf.replace(':', ': ', 1)).split(' ')
+            cl = gen_util.remove_duplicate_char(buf.replace(':', ': ', 1), ' ').split(' ')
             param = buf.split(':')[0]
 
             # Transceiver requires special handling
@@ -1015,7 +1118,7 @@ def sfpshow(obj, content):
 
 
 def _cfgshow_zone_gen(fab_obj, member_l):
-    zone_type, peer_mem_l, pmem_l = None, list(), list()
+    zone_type, peer_mem_l, pmem_l = brcddb_common.ZONE_STANDARD_ZONE, list(), list()
 
     if len(member_l) > 0 and gen_util.is_wwn(member_l[0], full_check=False) and member_l[0].split(':')[0] == '00':
         """It's a peer zone. Note that a WWN with a leading '00' is not a valid WWN so this is used to indicate that the
@@ -1030,7 +1133,7 @@ def _cfgshow_zone_gen(fab_obj, member_l):
         property member is 02
         00:02:00:00:00:03:01:02, peer_alias, alias_1, alias_2
         """
-        zone_type, p, i, pc = 1, int(member_l[0].split(':')[7], 16), 1, 0
+        zone_type, p, i, pc = brcddb_common.ZONE_USER_PEER, int(member_l[0].split(':')[7], 16), 1, 0
         while pc < p:
             alias_obj = fab_obj.r_alias_obj(member_l[i])
             pc += 1 if alias_obj is None else len(alias_obj.r_members())
@@ -1122,7 +1225,7 @@ def _cfgshow_process(state, buf):
     # Clean up the line for processing
     for tl in _cfgshow_clean_buf:
         t_buf = t_buf.replace(tl[0], tl[1])
-    tl = [b.strip() for b in gen_util.remove_duplicate_space(t_buf.strip()).split(' ') if len(b.strip()) > 0]
+    tl = [b.strip() for b in gen_util.remove_duplicate_char(t_buf.strip(), ' ').split(' ') if len(b.strip()) > 0]
 
     # Figure out what the key, operand, and content is
     k = tl[0] if len(tl) > 0 else None
@@ -1226,7 +1329,7 @@ def ficonshow(obj, content):
             break
 
         # Process each entry
-        cl = gen_util.remove_duplicate_space(buf.replace('\t', ' ')).strip().split(' ')
+        cl = gen_util.remove_duplicate_char(buf.replace('\t', ' '), ' ').strip().split(' ')
         if len(cl) > 12:  # It should always be 13
             pid = '0x' + cl[2].lower()
             port_obj = switch_obj.r_port_obj_for_pid(pid)
@@ -1304,16 +1407,20 @@ def _slotshow_get_fru(chassis_obj, api_key):
     return rl, rd
 
 
-def slotshow_d576(obj, content):
-    """Parse slotshow_d576 output
+def _slotshow(obj, content, slotshow_d):
+    """Parse slotshow -d576 output
 
     :param obj: Chassis object or object with a switch object associated with it
     :type obj: brcddb.classes.chassis.ChassisObj
-    :param content: Begining of nsshow output text
+    :param content: Begining of slotshow output text
     :type content: list
+    :param slotshow_d: Either _slotshow_d576_tbl or _slotshow_m_tbl
+    :type slotshow_d: dict
     :return ri: Index into content where we left off
     :rtype ri: int
     """
+    global _slotshow_d576_clean, _slotshow_get_fru
+
     chassis_obj, ri = obj.r_chassis_obj(), 0
 
     # Skip past the header
@@ -1327,14 +1434,14 @@ def slotshow_d576(obj, content):
         ri += 1
         for tl in _slotshow_d576_clean:
             buf = buf.replace(tl[0], tl[1])
-        cl = gen_util.remove_duplicate_space(buf.strip()).split(' ')
+        cl = gen_util.remove_duplicate_char(buf.strip(), ' ').split(' ')
         if len(cl) < 4:
             break
         if '*' in cl[0]:  # It's a note at the end of the slotshow for one of the FRUs - typically faulty
             break
 
         # Get the FRU
-        unit_d = _fru_conv_tbl.get(cl[1])
+        unit_d = slotshow_d.get(cl[1])
         if unit_d is None:
             brcdapi_log.exception(['Unkown FRU Type: ' + cl[1] + ' in:', buf], True)
             continue
@@ -1354,6 +1461,36 @@ def slotshow_d576(obj, content):
                     d.update({k: val})
 
     return ri
+
+
+def slotshow_d576(obj, content):
+    """Parse slotshow -d576 output
+
+    :param obj: Chassis object or object with a switch object associated with it
+    :type obj: brcddb.classes.chassis.ChassisObj
+    :param content: Begining of slotshow output text
+    :type content: list
+    :return ri: Index into content where we left off
+    :rtype ri: int
+    """
+    global _slotshow_d576_tbl
+
+    return _slotshow(obj, content, _slotshow_d576_tbl)
+
+
+def slotshow_m(obj, content):
+    """Parse slotshow -m output
+
+    :param obj: Chassis object or object with a switch object associated with it
+    :type obj: brcddb.classes.chassis.ChassisObj
+    :param content: Begining of slotshow output text
+    :type content: list
+    :return ri: Index into content where we left off
+    :rtype ri: int
+    """
+    global _slotshow_m_tbl
+
+    return _slotshow(obj, content, _slotshow_m_tbl)
 
 
 def defzone(obj, content):

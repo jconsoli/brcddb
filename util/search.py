@@ -55,15 +55,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 04 Sep 2022   | Fixed duplicated match finds in match() when there are multiple key matches       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 14 Oct 2022   | Added common port searches                                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '04 Sep 2022'
+__date__ = '14 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import re
 import fnmatch
@@ -77,6 +79,9 @@ disabled_ports = dict(k='fibrechannel/is-enabled-state', t='bool', v=False)
 enabled_ports = dict(k='fibrechannel/is-enabled-state', t='bool', v=True)
 f_ports = dict(k='fibrechannel/port-type', t='==', v=brcddb_common.PORT_TYPE_F)
 e_ports = dict(k='fibrechannel/port-type', t='==', v=brcddb_common.PORT_TYPE_E)
+non_icl_ports = dict(k='fibrechannel/port-type', t='!=', v=brcddb_common.PORT_TYPE_ICL)
+icl_ports = dict(k='fibrechannel/port-type', t='==', v=brcddb_common.PORT_TYPE_ICL)
+fc_lag_ports = dict(k='fibrechannel/port-type', t='==', v=brcddb_common.PORT_TYPE_FC_LAG)
 target = dict(k='brocade-name-server/fibrechannel-name-server/fc4-features', v='FCP-Target', t='exact', i=False)
 initiator = dict(k='brocade-name-server/fibrechannel-name-server/fc4-features', v='FCP-Initiator', t='exact', i=False)
 port_online = dict(k='fibrechannel/operational-status', t='==', v=2)
