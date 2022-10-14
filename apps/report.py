@@ -58,16 +58,18 @@ Version Control::
     | 3.1.2     | 22 Jun 2022   | Fixed hyper link to table of contents in _add_project_dup(), added full IOCP name,|
     |           |               | sorted ports in _add_port_page()                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 14 Oct 2022   | Fix long sheet names and double '_'                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '22 Jun 2022'
+__date__ = '14 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.2'
+__version__ = '3.1.3'
 
 import collections
 import copy
@@ -690,13 +692,16 @@ def _add_sheet_names(proj_obj):
                 prefix = d['p'] if 'p' in d else ''
                 st_flag = d['st'] if 'st' in d else False
                 unique_flag = d['u'] if 'u' in d else False
-                sname = prefix if k == 'tc' else prefix + sname_base
+                sname = excel_util.valid_sheet_name.sub('_', prefix if k == 'tc' else prefix + sname_base)
                 if unique_flag:
-                    sname += '_' + str(_unique_index)
+                    if len(sname) > 26:
+                        sname = sname[0:27]
                     _unique_index += 1
+                    sname += '_' + str(_unique_index)
+                sname = gen_util.remove_duplicate_char(sname, '_')
                 temp_d = dict(sn=sname, t=obj_d['name_m']) if st_flag else dict(sn=sname)
                 d.update(temp_d)
-                sname_d.update({k: '#' + sname + '!A1'})
+                sname_d.update(k='#' + sname + '!A1')
             brcddb_util.add_to_obj(obj, 'report_app/control', control_d)
             brcddb_util.add_to_obj(obj, 'report_app/hyperlink', sname_d)
 
