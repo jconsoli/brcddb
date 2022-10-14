@@ -82,16 +82,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.7     | 04 Sep 2022   | Replaced fabric name code with library call                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.8     | 14 Oct 2022   | Fixed incorrect peer zone control member in peer zone alert.                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '04 Sep 2022'
+__date__ = '14 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.7'
+__version__ = '3.1.8'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -104,8 +106,6 @@ import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_port as brcddb_port
 import brcddb.util.iocp as brcddb_iocp
 import brcddb.brcddb_zone as brcddb_zone
-
-import brcdapi.oui as oui
 
 _MIN_SYMB_LEN = 10
 _FC4_FEATURES = 'brocade-name-server/fibrechannel-name-server/fc4-features'
@@ -401,7 +401,7 @@ def zone_analysis(fab_obj):
 
                 elif gen_util.is_wwn(mem, full_check=False):
                     flag |= _WWN_IN_ZONE
-                    if _check_peer_property and not gen_util.is_wwn(zmem, full_check=True):
+                    if _check_peer_property and not gen_util.is_wwn(mem, full_check=True):
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_PROPERTY, None, zmem, None)
                     # Is the member in this fabric?
                     if fab_obj.r_port_obj(mem) is None:
