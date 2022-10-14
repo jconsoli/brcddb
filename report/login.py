@@ -51,15 +51,17 @@ Version Control::
     | 3.0.8     | 04 Sep 2022   | Use check marks instead of 'yes', 'no' for login flags. Added _LOGIN_WWN to       |
     |           |               | _login_case                                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 14 Oct 2022   | Added more verbose error messages.                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '04 Sep 2022'
+__date__ = '14 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
@@ -95,7 +97,8 @@ def _login_flag(login_obj, k):
         try:
             return _login_flags[val]
         except KeyError:
-            brcdapi_log.exception('Unknown login flag: ' + str(val) + ' for ' + login_obj.r_obj_key(), echo=True)
+            brcdapi_log.exception('Unknown login flag: ' + str(val) + ' for ' + str(k) + ' ' + login_obj.r_obj_key(),
+                                  echo=True)
     return ''
 
 # Custom

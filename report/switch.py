@@ -48,27 +48,31 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 28 Apr 2022   | Added references for report_app, allowed single switch in switch_page()           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 14 Oct 2022   | Added zone and port statistics summary                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '14 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import collections
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
+import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_chassis as brcddb_chassis
-import brcddb.report.utils as report_utils
 import brcddb.app_data.alert_tables as al
 import brcddb.app_data.report_tables as rt
+import brcddb.util.search as brcddb_search
+import brcddb.report.utils as report_utils
 
 _hdr = collections.OrderedDict()
 # Key is the column header and value is the width
@@ -204,9 +208,9 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title):
         col += 1
     col = 1
     if isinstance(tc, str):
-        report_utils.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
+        excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    report_utils.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
+    excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
     sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
     sheet.freeze_panes = sheet['A2']
 
@@ -229,24 +233,68 @@ def _maps_dashboard(sheet, row, switch_obj):
 
     col, merge_len = 1, 2  # merge_len is the number of columns to be merged for the MAPS dashboard
     sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + merge_len)
-    report_utils.cell_update(sheet, row, col, 'MAPS Dashboard Alerts', font=_bold_font, align=_align_wrap)
+    excel_util.cell_update(sheet, row, col, 'MAPS Dashboard Alerts', font=_bold_font, align=_align_wrap)
     i = 0
     for alert_obj in switch_obj.r_alert_objects():
         if alert_obj.alert_num() in al.AlertTable.maps_alerts:
             row += 1
             sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + merge_len)
             for col in range(1, merge_len+2):
-                report_utils.cell_update(sheet, row, col, None, border=_border_thin)
+                excel_util.cell_update(sheet, row, col, None, border=_border_thin)
             col = 1
-            report_utils.cell_update(sheet, row, col, alert_obj.fmt_msg(), font=_std_font, align=_align_wrap)
+            excel_util.cell_update(sheet, row, col, alert_obj.fmt_msg(), font=_std_font, align=_align_wrap)
             i += 1
     if i == 0:
         row += 1
         sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col + merge_len)
         for col in range(1, merge_len+2):
-            report_utils.cell_update(sheet, row, col, None, border=_border_thin)
+            excel_util.cell_update(sheet, row, col, None, border=_border_thin)
         col = 1
-        report_utils.cell_update(sheet, row, col, 'None', font=_std_font, align=_align_wrap, border=_border_thin)
+        excel_util.cell_update(sheet, row, col, 'None', font=_std_font, align=_align_wrap, border=_border_thin)
+
+    return row
+
+
+def _switch_statistics(sheet, row, switch_obj):
+    """Adds switch detail to the worksheet.
+
+    :param sheet: Workbook sheet
+    :type sheet: openpyxl.Worksheet
+    :param row: Starting row
+    :type row: int
+    :param switch_obj: Switch object
+    :type switch_obj: brcddb.classes.switch.SwitchObj
+    :return: Next row
+    :rtype: int
+    """
+    global _border_thin, _align_wrap, _hdr2_font, _bold_font
+    
+    # Figure out what to put in the statistics summary section
+    switch_stats_d = collections.OrderedDict()
+    port_obj_l = switch_obj.r_port_objects()
+    switch_stats_d['Physical Ports'] = len(port_obj_l)
+    switch_stats_d['ICL-Ports'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.icl_ports))
+    switch_stats_d['ISL (E-Ports)'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.e_ports))
+    switch_stats_d['FC-Lag Ports'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.fc_lag_ports))
+    port_obj_l = brcddb_search.match_test(port_obj_l, brcddb_search.f_ports)
+    sum_logins = 0
+    for port_obj in port_obj_l:
+        sum_logins += len(port_obj.r_login_keys())
+    switch_stats_d['Name Server Logins'] = sum_logins
+    switch_stats_d['Port Logins at 1G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_1G))
+    switch_stats_d['Port Logins at 2G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_2G))
+    switch_stats_d['Port Logins at 4G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_4G))
+    switch_stats_d['Port Logins at 8G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_8G))
+    switch_stats_d['Port Logins at 16G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_16G))
+    switch_stats_d['Port Logins at 32G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_32G))
+    switch_stats_d['Port Logins at 64G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_64G))
+
+    # Add the statistics summary items to the sheet
+    for k, v in switch_stats_d.items():
+        excel_util.cell_update(sheet, row, 1, None, border=_border_thin)
+        excel_util.cell_update(sheet, row, 2, k, font=_std_font, align=_align_wrap, border=_border_thin)
+        excel_util.cell_update(sheet, row, 3, v, font=_std_font, border=_border_thin)
+        row += 1
 
     return row
 
@@ -283,7 +331,7 @@ def _add_switch(sheet, row, switch_obj, display, sheet_name, switch_name):
     if switch_name:
         col = 1
         sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
-        report_utils.cell_update(sheet, row, col, brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True),
+        excel_util.cell_update(sheet, row, col, brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True),
                                  font=_hdr2_font)
         row += 2
 
@@ -293,7 +341,7 @@ def _add_switch(sheet, row, switch_obj, display, sheet_name, switch_name):
     # Add the switch details header
     col = 1
     for k in _hdr.keys():
-        report_utils.cell_update(sheet, row, col, k, font=_bold_font)
+        excel_util.cell_update(sheet, row, col, k, font=_bold_font)
         col += 1
 
     row += 1
@@ -315,7 +363,7 @@ def _add_switch(sheet, row, switch_obj, display, sheet_name, switch_name):
         cell_fill_l = [report_utils.comments_for_alerts(switch_obj, k), display[k] if k in display else k, val]
 
         for buf in cell_fill_l:
-            report_utils.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
+            excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
             col += 1
 
     return row
@@ -354,20 +402,15 @@ def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list_in, in_display=
 
         # Add the worksheet
         row = _add_switch(sheet, row, switch_obj, display, sheet_name, switch_name)
+        row = _switch_statistics(sheet, row, switch_obj)
 
-        # Add the number of ports in the switch
-        col = 1
-        for buf in ('', 'Total ports', len(switch_obj.r_port_keys())):
-            report_utils.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
-            col += 1
-
-        # Add the links to the ports
-        row, col = row+1, 2
+        # Add the links to the port sheets
+        col = 2
         for k, v in _sw_quick_d.items():
             link = switch_obj.r_get(v)
             if link is not None:
                 sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+1)
-                report_utils.cell_update(sheet, row, col, k, font=_link_font, align=_align_wrap, link=link)
+                excel_util.cell_update(sheet, row, col, k, font=_link_font, align=_align_wrap, link=link)
                 row += 1
 
     return

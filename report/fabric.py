@@ -47,15 +47,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 04 Sep 2022   | Fixed mis-labled version number.                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 14 Oct 2022   | Added zone and port statistics summary                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '04 Sep 2022'
+__date__ = '14 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -66,15 +68,14 @@ import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.app_data.alert_tables as al
 import brcddb.classes.util as brcddb_class_util
+import brcddb.util.search as brcddb_search
 
-sheet = None
-row = 1
 _hdr = collections.OrderedDict()
 # Key is the column header and value is the width
 _hdr['Name'] = 30
 _hdr['WWN'] = 22
-_hdr['DID'] = 10
-_hdr['Fabric ID'] = 10
+_hdr['DID'] = 12
+_hdr['Fabric ID'] = 12
 _hdr['Firmware'] = 22
 _zone_key_conv = {
     'cfg-action': 'Configuration actions',
@@ -243,6 +244,60 @@ def _maps_dashboard(sheet, row, fabric_obj):
     return row + 1
 
 
+def _fabric_statistics(sheet, row, fabric_obj):
+    """Adds the zone statistics summary to the worksheet.
+
+    :param sheet: Workbook sheet object
+    :type sheet: worksheet
+    :param row: Starting row number
+    :param row: int
+    :param fabric_obj: Fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :return: Next row number
+    :rtype: int
+    """
+    global _hdr, _border_thin, _align_wrap, _bold_font, _std_font
+
+    # Add the section header
+    col = 1
+    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr)+1)
+    excel_util.cell_update(sheet, row, col, 'Fabric Statistics', font=_bold_font, align=_align_wrap)
+
+    # Figure out what to put in the statistics summary section
+    fab_stats_d = collections.OrderedDict()
+    port_obj_l = fabric_obj.r_port_objects()
+    fab_stats_d['Physical Ports'] = len(port_obj_l)
+    fab_stats_d['ICL-Ports'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.icl_ports))
+    fab_stats_d['ISL (E-Ports)'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.e_ports))
+    fab_stats_d['FC-Lag Ports'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.fc_lag_ports))
+    port_obj_l = brcddb_search.match_test(port_obj_l, brcddb_search.f_ports)
+    sum_logins = 0
+    for port_obj in port_obj_l:
+        sum_logins += len(port_obj.r_login_keys())
+    fab_stats_d['Name Server Logins'] = sum_logins
+    fab_stats_d['Port Logins at 1G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_1G))
+    fab_stats_d['Port Logins at 2G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_2G))
+    fab_stats_d['Port Logins at 4G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_4G))
+    fab_stats_d['Port Logins at 8G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_8G))
+    fab_stats_d['Port Logins at 16G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_16G))
+    fab_stats_d['Port Logins at 32G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_32G))
+    fab_stats_d['Port Logins at 64G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_64G))
+
+    # Add the statistics summary items to the sheet
+    for k, v in fab_stats_d.items():
+        row, col = row+1, 1
+        excel_util.cell_update(sheet, row, col, k, font=_std_font, align=_align_wrap)
+        sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+1)
+        col += 2
+        excel_util.cell_update(sheet, row, col, v, font=_std_font)
+        sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
+        for col in range(1, len(_hdr) + 1):
+            excel_util.cell_update(sheet, row, col, None, border=_border_thin)
+        row += 1
+
+    return row+1
+
+
 def _zone_configuration(sheet, row, fabric_obj):
     """Adds the zone configuration summary to the worksheet.
 
@@ -297,7 +352,7 @@ def _zone_configuration(sheet, row, fabric_obj):
 
     # Effective zone configuration summary
     if obj is not None:
-        row, col = row+2, 1
+        row, col = row+1, 1
         sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
         excel_util.cell_update(sheet, row, col, 'Effective Zone Configuration Summary', font=_bold_font)
         ec_obj = fabric_obj.r_get('brocade-zone/effective-configuration')
@@ -353,9 +408,9 @@ def fabric_page(wb, tc, sheet_i, sheet_name, sheet_title, fabric_obj):
         brcdapi_log.exception(err_msg, echo=True)
         return
 
-    # Set up the worksheet and add the fabric
+    # Set up the worksheet and add the sections to the fabric sheet
     sheet, row = _setup_worksheet(wb, tc, 0 if sheet_i is None else sheet_i, sheet_name, sheet_title)
-    row = _fabric_summary(sheet, row+1, fabric_obj)
-    row = _maps_dashboard(sheet, row+1, fabric_obj)
-    row = _zone_configuration(sheet, row+1, fabric_obj)
+    for method in (_fabric_summary, _maps_dashboard, _zone_configuration, _fabric_statistics):
+        row = method(sheet, row+1, fabric_obj)
+
     return
