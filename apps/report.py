@@ -60,16 +60,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.3     | 14 Oct 2022   | Fix long sheet names and double '_'                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.4     | 19 Oct 2022   | Fixed hyper links                                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '14 Oct 2022'
+__date__ = '19 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.3'
+__version__ = '3.1.4'
 
 import collections
 import copy
@@ -510,14 +512,13 @@ def _add_project_tc(proj_obj, wb, sheet_index):
     # control_d and hyper_d are set to the 'report_app/control' and 'report_app/hyperlink' of the project object.
     # contents_l is a list of dictionaries. 't' is the section title for the table of contents and cl is a list of
     # dictionaries that describes the sub-sections. In cl, 't' is the sub-section title and 'l' is the link
-    if control_d['dup']['sn'] in wb.sheetnames:
-        dup_d = dict(t=control_d['dup']['tc'], l=hyper_d['dup'])
-    else:
-        dup_d = dict(t='No Duplicate WWNs Found')
+    dup_d = dict(t=control_d['dup']['tc'], l=hyper_d['dup']) if control_d['dup']['sn'] in wb.sheetnames \
+        else dict(t='No Duplicate WWNs Found')
+
     contents_l = [
         dict(t='Best Practice Violations', cl=[dict(t=control_d['bp']['tc'], l=hyper_d['bp'])]),
         dict(t='Duplicate WWNs', cl=[dup_d]),
-        dict(t=control_d['db']['tc'], cl=[dict(t=control_d['db']['tc'], l=hyper_d['db'])]),
+        dict(t=control_d['db']['tc'], cl=[dict(t=control_d['db']['tc'], l=hyper_d['bp'])]),
         dict(t='Chassis',
              cl=[dict(t=brcddb_chassis.best_chassis_name(obj), l=obj.r_get('report_app/hyperlink/chassis')) \
                  for obj in proj_obj.r_chassis_objects()]),
@@ -529,7 +530,7 @@ def _add_project_tc(proj_obj, wb, sheet_index):
         hyper_d = fab_obj.r_get('report_app/hyperlink')
         # temp_l = ('fab', 'db', 'sw', 'pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'ali', 'log')
         temp_l = ('fab', 'db', 'sw', 'pl', 'za', 'zt', 'znt', 'ali', 'log')
-        contents_l.append(dict(t=brcddb_fabric.best_fab_name(fab_obj),
+        contents_l.append(dict(t=brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True),
                                cl=[dict(t=control_d[key]['tc'], l=hyper_d[key]) for key in temp_l]))
 
     # Add the IOCPs
@@ -701,7 +702,7 @@ def _add_sheet_names(proj_obj):
                 sname = gen_util.remove_duplicate_char(sname, '_')
                 temp_d = dict(sn=sname, t=obj_d['name_m']) if st_flag else dict(sn=sname)
                 d.update(temp_d)
-                sname_d.update(k='#' + sname + '!A1')
+                sname_d.update({k: '#' + sname + '!A1'})
             brcddb_util.add_to_obj(obj, 'report_app/control', control_d)
             brcddb_util.add_to_obj(obj, 'report_app/hyperlink', sname_d)
 
