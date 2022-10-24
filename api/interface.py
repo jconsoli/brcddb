@@ -62,16 +62,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 28 Apr 2022   | Switch to brcdapi.gen_util and updated comments.                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | xx xxx 2022   | Improve error messaging and recovery.                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = 'xx xxx 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Released'
-__version__ = '3.0.8'
+__status__ = 'Development'
+__version__ = '3.0.9'
 
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.fos_auth as fos_auth
@@ -117,7 +119,7 @@ def _process_errors(session, uri, obj, wobj, e=None):
     ml = [' Request FAILED for :' + ip_addr, p1]
     if e is not None:
         ml.append(e)
-    brcdapi_log.log(ml, True)
+    brcdapi_log.log(ml, echo=True)
     if wobj is None:
         return
     proj_obj = wobj.r_project_obj()
@@ -180,7 +182,7 @@ def get_chassis(session, proj_obj):
             _process_errors(session, uri, obj, chassis_obj)
             results_action(session, chassis_obj, obj, uri)
     except BaseException as e:
-        _process_errors(session, uri, session, proj_obj, str(e))
+        _process_errors(session, uri, session, proj_obj, str(e) if isinstance(e, (bytes, str)) else str(type(e)))
 
     return chassis_obj
 
@@ -202,14 +204,14 @@ def login(user_id, pw, ip_addr, https='none', proj_obj=None):
     :rtype: dict
     """
     # Attempt to log in
-    tip = brcdapi_util.mask_ip_addr(ip_addr, True)
+    tip = brcdapi_util.mask_ip_addr(ip_addr, keep_last=True)
     session = brcdapi_rest.login(user_id, pw, ip_addr, https)
     if fos_auth.is_error(session):
-        brcdapi_log.log(tip + ' Login failed', True)
+        brcdapi_log.log(tip + ' Login failed', echo=True)
         _process_errors(session, '/rest/login', session, proj_obj)
         return session
     else:
-        brcdapi_log.log(tip + ' Login succeeded', True)
+        brcdapi_log.log(tip + ' Login succeeded', echo=True)
     return session
 
 
@@ -227,7 +229,7 @@ def get_rest(session, uri, wobj=None, fid=None):
     :return: obj
     :rtype: dict
     """
-    brcdapi_log.log('GET: ' + uri + brcdapi_rest.vfid_to_str(fid), True)
+    brcdapi_log.log('GET: ' + uri + brcdapi_rest.vfid_to_str(fid), echo=True)
     obj = brcdapi_rest.get_request(session, uri, fid)
     _process_errors(session, uri, obj, wobj)
     return obj
@@ -305,14 +307,15 @@ def _update_brcddb_obj_from_list(objx, obj, uri, skip_list=None):
         temp_l = brcdapi_util.split_uri(uri, run_op_out=True)
         key = '/'.join(temp_l)
         obj_key = temp_l.pop()
-        temp_obj = _mask_ip_addr(obj, True)
+        temp_obj = _mask_ip_addr(obj, keep_last=True)
         working_obj = obj[obj_key] if obj_key in obj else obj
         for k, v in working_obj.items():
             brcddb_util.add_to_obj(objx, key + '/' + k, v)
     except BaseException as e:
-        brcdapi_log.exception([_GEN_CASE_ERROR_MSG, 'Exception: ' + str(e)], True)
+        e_buf = 'Exception: ' + str(e) if isinstance(e, (bytes, str)) else str(type(e))
+        brcdapi_log.exception([_GEN_CASE_ERROR_MSG, e_buf], echo=True)
         objx.r_project_obj().s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_PROGRAM_ERROR, None,
-                                         _GEN_CASE_ERROR_MSG, str(e))
+                                         _GEN_CASE_ERROR_MSG, e_buf)
         try:
             objx.r_project_obj().s_warn_flag()
         except (TypeError, AttributeError):
@@ -335,7 +338,7 @@ def _update_brcddb_obj(objx, obj, uri):
         temp_l = brcdapi_util.split_uri(uri, run_op_out=True)
         key = '/'.join(temp_l)
         obj_key = temp_l.pop()
-        working_obj = _mask_ip_addr(obj, True)
+        working_obj = _mask_ip_addr(obj, keep_last=True)
         if obj_key in working_obj:
             working_obj = working_obj[obj_key]
         if isinstance(working_obj, dict):
@@ -344,9 +347,10 @@ def _update_brcddb_obj(objx, obj, uri):
         else:
             brcddb_util.add_to_obj(objx, key, working_obj)
     except BaseException as e:
-        brcdapi_log.exception([_GEN_CASE_ERROR_MSG, 'Exception: ' + str(e)], True)
+        e_buf = str(e) if isinstance(e, (bytes, str)) else str(type(e))
+        brcdapi_log.exception([_GEN_CASE_ERROR_MSG, 'Exception: ' + e_buf], echo=True)
         objx.r_project_obj().s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_PROGRAM_ERROR, None,
-                                         _GEN_CASE_ERROR_MSG, str(e))
+                                         _GEN_CASE_ERROR_MSG, e_buf)
         try:
             objx.r_project_obj().s_warn_flag()
         except (TypeError, AttributeError):
@@ -476,7 +480,7 @@ def _fabric_switch_case(switch_obj, obj, uri):
             _update_brcddb_obj_from_list(switch_obj, switch, uri)
         else:
             brcdapi_log.log('Bad switch WWN, , returned from ' + uri + ' for switch ' +
-                            brcddb_switch.best_switch_name(switch_obj), True)
+                            brcddb_switch.best_switch_name(switch_obj), echo=True)
 
 
 def _switch_from_list_case(switch_obj, obj, uri):
@@ -631,7 +635,7 @@ def _mask_ip_addr(obj, keep_last):
                 rd.update({k: v})
         return rd
 
-    brcdapi_log.exception('Unkonwn object type: ' + str(type(obj)), True)
+    brcdapi_log.exception('Unkonwn object type: ' + str(type(obj)), echo=True)
     return None
 
 
@@ -658,7 +662,7 @@ def results_action(session, brcddb_obj, fos_obj, kpi):
         except (TypeError, ValueError, KeyError):
             buf = 'Could not add ' + kpi + ' to ' + str(type(brcddb_obj)) + '. This typically occurs when something '
             buf += 'for the fabric was polled but the fabric WWN is unknown.'
-            brcdapi_log.log(buf, True)
+            brcdapi_log.log(buf, echo=True)
 
 
 def get_batch(session, proj_obj, kpi_list, fid=None):
@@ -676,18 +680,20 @@ def get_batch(session, proj_obj, kpi_list, fid=None):
     :type kpi_list: list, str
     :param fid: FID, or list of FIDs for logical switch level requests. If None, execute requests for all FIDs.
     :type fid: int, list, tuple, None
-    :rtype: None
+    :return: True if no errors encountered, otherwise False
+    :rtype: bool
     """
     # Get the chassis object
     chassis_obj = get_chassis(session, proj_obj)
     if chassis_obj is None:
-        brcdapi_log.log(brcdapi_util.mask_ip_addr(session.get('ip_addr')) + ' Chassis not found.', True)
-        return
+        brcdapi_log.log(brcdapi_util.mask_ip_addr(session.get('ip_addr')) + ' Chassis not found.', echo=True)
+        return False
     kl = gen_util.convert_to_list(kpi_list)
 
     # Get all the chassis data
     for kpi in [kpi for kpi in kl if not brcdapi_util.uri_d(session, kpi)['fid']]:
-        results_action(session, chassis_obj, get_rest(session, kpi, chassis_obj), kpi)
+        obj = get_rest(session, kpi, chassis_obj)
+        results_action(session, chassis_obj, obj, kpi)
 
     # Figure out which logical switches to poll switch level data from.
     if chassis_obj.r_is_vf_enabled() and fid is not None:
@@ -695,7 +701,7 @@ def get_batch(session, proj_obj, kpi_list, fid=None):
         for fab_id in gen_util.convert_to_list(fid):
             switch_obj = chassis_obj.r_switch_obj_for_fid(fab_id)
             if switch_obj is None:
-                brcdapi_log.log('FID ' + str(fab_id) + ' not found', True)
+                brcdapi_log.log('FID ' + str(fab_id) + ' not found', echo=True)
             else:
                 switch_list.append(switch_obj)
     else:
@@ -704,7 +710,7 @@ def get_batch(session, proj_obj, kpi_list, fid=None):
     # Now process all the switch (FID) level commands.
     for switch_obj in switch_list:
         for kpi in [kpi for kpi in kl if brcdapi_util.uri_d(session, kpi)['fid']]:
-            results_action(session,
-                           switch_obj,
-                           get_rest(session, kpi, switch_obj, brcddb_switch.switch_fid(switch_obj)),
-                           kpi)
+            obj = get_rest(session, kpi, switch_obj, brcddb_switch.switch_fid(switch_obj))
+            results_action(session, switch_obj, obj, kpi)
+
+    return True
