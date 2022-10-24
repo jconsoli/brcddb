@@ -178,15 +178,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 28 Apr 2022   | Updated documentation and adjusted for new URI format                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 24 Oct 2022   | Improved error messaging and add Control-C to exit                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '24 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import sys
 import datetime
@@ -988,7 +990,7 @@ def _defzone(session, cmd, fid):
     except BaseException as e:
         return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                     reason='Invalid operand',
-                    err_msg=[action, 'Exception code: ' + str(e)],
+                    err_msg=[action, 'Exception code: ' + str(e) if isinstance(e, (bytes, str)) else str(type(e))],
                     io=False,
                     changed=False,
                     fail=True)
@@ -1668,13 +1670,14 @@ def send_zoning(content, cur_session=None):
                             fail_flag = True
                             break
                 except BaseException as e:
+                    e_buf = 'Exception: ' + str(e) if isinstance(e, (bytes, str)) else str(type(e))
                     ml = ['Programming error processing ' + c_type,
                           'Operand: str(change_req.get("operand"))',
                           'Line: ' + str(i),
-                          'Exception: ' + str(e)]
-                    brcdapi_log.exception(ml, True)
+                          e_buf]
+                    brcdapi_log.exception(ml, echo=True)
                     response.append(dict(status=brcdapi_util.HTTP_INT_SERVER_ERROR,
-                                         reason='Unknown',
+                                         reason=e_buf,
                                          err_msg=ml,
                                          io=False,
                                          changed=False,
@@ -1702,10 +1705,11 @@ def send_zoning(content, cur_session=None):
                 response.append(_format_return(obj))
         except BaseException as e:
             buf = 'Programming error in api_zone.replace_zoning()'
-            brcdapi_log.exception([buf, 'Exception: ' + str(e)], True)
+            e_buf = str(e) if isinstance(e, (bytes, str)) else str(type(e))
+            brcdapi_log.exception([buf, 'Exception: ' + e_buf], echo=True)
             response.append(dict(status=brcdapi_util.HTTP_INT_SERVER_ERROR,
                                  reason=buf,
-                                 err_msg=['Exception: ' + str(e)],
+                                 err_msg=['Exception: ' + e_buf],
                                  io=False,
                                  changed=False,
                                  fail=True))
@@ -1729,6 +1733,6 @@ def send_zoning(content, cur_session=None):
     if session is not None and cur_session is None:
         obj = brcdapi_rest.logout(session)
         if fos_auth.is_error(obj):
-            brcdapi_log.log(fos_auth.formatted_error_msg(obj), True)
+            brcdapi_log.log(fos_auth.formatted_error_msg(obj), echo=True)
 
     return response
