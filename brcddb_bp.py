@@ -63,16 +63,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 23 Jun 2022   | Added ability to accumulate multiple values in p0 and p1                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 24 Oct 2022   | Improved error messaging                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '23 Jun 2022'
+__date__ = '24 Oct 2022'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -213,7 +215,7 @@ def _isl_num_links(obj, t_obj):
     if obj_type is None:
         obj_type = str(type(obj))
     if obj_type != 'SwitchObj':
-        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, True)
+        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, echo=True)
         return r_list
 
     proj_obj = obj.r_project_obj()
@@ -251,7 +253,7 @@ def _isl_bw(obj, t_obj):
     if obj_type is None:
         obj_type = str(type(obj))
     if obj_type != 'SwitchObj':
-        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, True)
+        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, echo=True)
         return r_list
 
     proj_obj = obj.r_project_obj()
@@ -292,7 +294,7 @@ def _isl_fru(obj, t_obj):
     if obj_type is None:
         obj_type = str(type(obj))
     if obj_type != 'SwitchObj':
-        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, True)
+        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, echo=True)
         return r_list
 
     proj_obj = obj.r_project_obj()
@@ -331,7 +333,7 @@ def _isl_redundant(obj, t_obj):
     if obj_type is None:
         obj_type = str(type(obj))
     if obj_type != 'SwitchObj':
-        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, True)
+        brcdapi_log.exception('Invalid object type. Expected switch_obj. Received: ' + obj_type, echo=True)
         return r_list
 
     proj_obj = obj.r_project_obj()
@@ -461,11 +463,12 @@ def _check_sfps(obj_list, t_obj):
                                 for p_obj in brcddb_search.match_test(tlist, {'k': k0, 't': obj_1.get('t'), 'v': val}):
                                     p_obj.s_add_alert(_alert_tbl, m, k0, p_obj.r_get(k0), val)
             else:
-                brcdapi_log.log('Missing P/N in ' + sfp_rules + ', Group: ' + str(group), True)
+                brcdapi_log.log('Missing P/N in ' + sfp_rules + ', Group: ' + str(group), echo=True)
 
         except BaseException as e:
-            ml = ['Invalid SFP rules file ' + sfp_rules, 'Group: ' + str(group), 'Exception: ' + str(e)]
-            brcdapi_log.exception(ml, True)
+            e_buf = 'Exception: ' + str(e) if isinstance(e, (bytes, str)) else str(type(e))
+            ml = ['Invalid SFP rules file ' + sfp_rules, 'Group: ' + str(group), e_buf]
+            brcdapi_log.exception(ml, echo=True)
             return
 
     return
@@ -602,7 +605,7 @@ def _check_best_practice(obj_list, test_list):
     if len(obj_list) == 0:
         return
     if not isinstance(test_list, (list, tuple)):
-        brcdapi_log.exception('Invalid test_list type, ' + str(type(test_list)), True)
+        brcdapi_log.exception('Invalid test_list type, ' + str(type(test_list)), echo=True)
         return
 
     # Spin through each item in the test_list and perform the specified test
@@ -618,7 +621,7 @@ def _check_best_practice(obj_list, test_list):
             else:
                 brcdapi_log.exception(
                     'Unknown special test case: ' + str(special) + ', type: ' + str(type(special)),
-                    True)
+                    echo=True)
 
         else:
             for obj in brcddb_search.match_test(obj_list, t_obj.get('l'), t_obj.get('logic')):
@@ -664,7 +667,7 @@ def best_practice(a_tbl, proj_obj):
 
     _alert_tbl = a_tbl  # I could have handled this better but I'm not fixing working code.
 
-    brcdapi_log.log('Checking best practices', True)
+    brcdapi_log.log('Checking best practices', echo=True)
     _check_best_practice(proj_obj.r_port_objects(), bp_tables.port_tbl)
     _check_best_practice(proj_obj.r_switch_objects(), bp_tables.switch_tbl)
     _check_best_practice(proj_obj.r_login_objects(), bp_tables.login_node_tbl)
