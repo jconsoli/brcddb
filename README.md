@@ -1,5 +1,10 @@
 # brcddb
 
+**Updates 01 Jan 2023**
+
+* Primary change was shifting from a hard coded best practice table to one dynamically read from a Workbook
+* Several utilitarian additions such as the ability to return FC-4 features in brcddb_login.py
+
 **Updates: 17 July 2021**
 
 * Miscellaneous bug fixes
