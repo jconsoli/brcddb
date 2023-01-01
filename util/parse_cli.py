@@ -1,4 +1,4 @@
-# Copyright 2021, 2022 Broadcom.  All rights reserved.
+# Copyright 2021, 2022, 2023 Broadcom.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,16 +59,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 1.0.4     | 14 Oct 2022   | Added slotshow_m, fixed case and type errors in nsshow()                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 1.0.5     | 01 Jan 2023   | Changed _cfgshow_zone_gen() to cfgshow_zone_gen(), making it public. This was     |
+    |           |               | to support an internal utility that parses SAN Health reports.                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '14 Oct 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '1.0.4'
+__version__ = '1.0.5'
 
 import re
 import time
@@ -408,7 +411,7 @@ def switchshow(obj, content, append_buf=''):
             switch_obj = proj_obj.s_add_switch(v + append_buf)
             break
     if switch_obj is None:
-        brcdapi_log.exception('Could not find switchWwn in', True)
+        brcdapi_log.exception('Could not find switchWwn in', echo=True)
         return switch_obj
 
     # Get the basic switch information
@@ -668,7 +671,7 @@ def portstatsshow(obj, content):
         if tl[0] == 'port:':
             port_obj = brcddb_port.port_obj_for_index(switch_obj, int(tl[1].strip()))
             if port_obj is None:
-                brcdapi_log.exception('Could not find port matching: ' + buf, False)  # Just so it gets in the log
+                brcdapi_log.exception('Could not find port matching: ' + buf, echo=False)  # Just so it gets in the log
                 raise Exception('Could not find port matching: ' + buf)
             port_stats_d = port_obj.r_get('fibrechannel-statistics')
             if port_stats_d is None:
@@ -709,7 +712,7 @@ def portstats64show(obj, content):
         index = int(buf.split(' ')[1])
         port_obj = brcddb_port.port_obj_for_index(chassis_obj, int(buf.split(' ')[1]))
         if port_obj is None:
-            brcdapi_log.exception('Could not find port matching: ' + buf, False)  # Just so it gets in the log
+            brcdapi_log.exception('Could not find port matching: ' + buf, echo=False)  # Just so it gets in the log
             raise Exception('Could not find port matching: ' + buf)
         port_stats_d = port_obj.r_get('fibrechannel-statistics')
         if port_stats_d is None:
@@ -1117,21 +1120,26 @@ def sfpshow(obj, content):
     return ri
 
 
-def _cfgshow_zone_gen(fab_obj, member_l):
+def cfgshow_zone_gen(fab_obj, member_l):
     zone_type, peer_mem_l, pmem_l = brcddb_common.ZONE_STANDARD_ZONE, list(), list()
 
     if len(member_l) > 0 and gen_util.is_wwn(member_l[0], full_check=False) and member_l[0].split(':')[0] == '00':
         """It's a peer zone. Note that a WWN with a leading '00' is not a valid WWN so this is used to indicate that the
-        WWN is a property parameter for a peer zone. For a peer zone, the property member is always first, followed by
-        the principal members, and then the peer members. The last byte of the property WWN is the number of absolute
-        principal members. This is easiest to explain with a example:
+        WWN is a property parameter for a peer zone. This is easiest to explain with a example:
         
-        When peer_alias = WWN_1; the principal member is peer_alias and the peer members are alias_1 and alias_2
-        00:02:00:00:00:03:01:01, peer_alias, alias_1, alias_2
+        00:02:00:00:00:03:01:02, principal_alias_1, principal_alias_2, member_alias_1, member_alias_2
         
-        When peer_alias = WWN_1, WWN_2 the principal and peer members are as above but note that the last byte of the
-        property member is 02
-        00:02:00:00:00:03:01:02, peer_alias, alias_1, alias_2
+        The only bytes I ever look at are the first byte and the last byte of the WWN. Breaking the WWN down:
+        
+        00          This indicates it's a peer zone and that this WWN is a peer zone property member (not an actual
+                    zone member)
+        02:00:00:00 Not relevant
+        03:01       I can take a guess but I don't use this. Since I don't use, my example may not be correct.
+        02          The last byte is the number of principal WWN members, not the number of aliases that follow. Keep in
+                    mind that an alias can have multiple WWNs. Assuming each alias represents a single WWN, this means
+                    the next two members are the principal members. All remaining members therefore are the peer members
+                    
+        Keep in mind that all bytes in a WWN, including the property member described above, are hex values.
         """
         zone_type, p, i, pc = brcddb_common.ZONE_USER_PEER, int(member_l[0].split(':')[7], 16), 1, 0
         while pc < p:
@@ -1147,7 +1155,7 @@ def _cfgshow_zone_gen(fab_obj, member_l):
 
 
 def _cfgshow_def_zone_act(fab_obj, name, mem_l):
-    zone_type, sl, pl = _cfgshow_zone_gen(fab_obj, mem_l)
+    zone_type, sl, pl = cfgshow_zone_gen(fab_obj, mem_l)
     fab_obj.s_add_zone(name, zone_type, sl, pl)
 
 
@@ -1161,7 +1169,7 @@ def _cfgshow_def_cfg_act(fab_obj, name, mem_l):
 
 
 def _cfgshow_eff_zone_act(fab_obj, name, mem_l):
-    zone_type, sl, pl = _cfgshow_zone_gen(fab_obj, mem_l)
+    zone_type, sl, pl = cfgshow_zone_gen(fab_obj, mem_l)
     fab_obj.s_add_eff_zone(name, zone_type, sl, pl)
 
 
@@ -1288,7 +1296,7 @@ def cfgshow(obj, content):
     active_l.append(active_d.copy())
 
     # Process (add to brcddb objects) the parsed data. Note that an alias must be unbundled, see comments in
-    # _cfgshow_zone_gen(), before evaluating peer zone. Hence the order below.
+    # cfgshow_zone_gen(), before evaluating peer zone. Hence the order below.
     action_key = 'da'
     for active_l in (def_l, eff_l):
         for cfg_key in ('alias:', 'zone:', 'cfg:'):
@@ -1334,7 +1342,7 @@ def ficonshow(obj, content):
             pid = '0x' + cl[2].lower()
             port_obj = switch_obj.r_port_obj_for_pid(pid)
             if port_obj is None:
-                brcdapi_log.exception(['Could not find port matching ' + pid + ' in:', buf], True)
+                brcdapi_log.exception(['Could not find port matching ' + pid + ' in:', buf], echo=True)
                 continue
             ficon_d = {
                 'link-address': pid[0:6],
@@ -1353,7 +1361,7 @@ def ficonshow(obj, content):
             }
             port_obj.s_new_key('rnid', ficon_d)
         else:
-            brcdapi_log.exception(['Invalid data for ficonshow rnid table:', buf],True)
+            brcdapi_log.exception(['Invalid data for ficonshow rnid table:', buf], echo=True)
 
     return ri
 
@@ -1399,7 +1407,7 @@ def _slotshow_get_fru(chassis_obj, api_key):
         return rl, rd
     s_key = _slotshow_fru_id.get(api_key)
     if s_key is None:
-        brcdapi_log.exception('Unknown key: ' + api_key, True)
+        brcdapi_log.exception('Unknown key: ' + api_key, echo=True)
         return rl, rd
     for d in rl:
         if d.get(s_key) is not None and d.get(s_key) == id:
@@ -1443,7 +1451,7 @@ def _slotshow(obj, content, slotshow_d):
         # Get the FRU
         unit_d = slotshow_d.get(cl[1])
         if unit_d is None:
-            brcdapi_log.exception(['Unkown FRU Type: ' + cl[1] + ' in:', buf], True)
+            brcdapi_log.exception(['Unkown FRU Type: ' + cl[1] + ' in:', buf], echo=True)
             continue
         fru_l, fru_d = _slotshow_get_fru(chassis_obj, unit_d['key'])
         api_d = unit_d['api']
@@ -1513,7 +1521,7 @@ def defzone(obj, content):
                 brcddb_util.add_to_obj(fabric_obj, 'brocade-zone/effective-configuration/default-zone-access', access)
             break
         elif 'zone --show' in buf and 'defzone' not in buf:
-            brcdapi_log.exception(['Could not find in "committed" in:'] + content[0:7])
+            brcdapi_log.exception(['Could not find in "committed" in:'] + content[0:7], echo=True)
             ri = max(0, ri-1)
             break
 

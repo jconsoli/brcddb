@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -79,15 +79,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.7     | 04 Sep 2022   | Added some bullet proofing.                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.8     | 01 Jan 2023   | Added fos_to_dict()                                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '04 Sep 2022'
+__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.7'
+__version__ = '3.1.8'
 
 import re
 import datetime
@@ -645,6 +647,70 @@ def zone_cli(fab_obj, filter_fab_obj=None):
     rl.append('')
 
     return rl
+
+
+_letter_to_num = dict(a=1, b=2, c=3, d=4, e=5, f=6, g=7, h=8, i=9, j=10, k=11, l=12, m=13, n=14, o=15, p=16, q=17, r=18,
+                      s=19, t=20, u=21, v=22, w=23, x=24, y=25, z=26)  # Used in fos_to_dict()
+
+
+def fos_to_dict(version_in, valid_check=True):
+    """Converts a FOS version into a dictionary to be used for comparing for version numbers
+
+    +-----------+-------+-------------------------------------------------------------------------------+
+    | Key       | Type  |Description                                                                    |
+    +===========+=======+===============================================================================+
+    | version   | str   | Same as version_in                                                            |
+    +-----------+-------+-------------------------------------------------------------------------------+
+    | major     | int   | In example 9.1.0b, this is 9                                                  |
+    +-----------+-------+-------------------------------------------------------------------------------+
+    | feature   | int   | In example 9.1.0b, this is 1                                                  |
+    +-----------+-------+-------------------------------------------------------------------------------+
+    | minor     | int   | In example 9.1.0b, this is 0                                                  |
+    +-----------+-------+-------------------------------------------------------------------------------+
+    | bug       | int   | In example 9.1.0b, this is 2 (converted to a numeric for easier comparisons). |
+    |           |       | In example 9.1.0, this is 0.                                                  |
+    +-----------+-------+-------------------------------------------------------------------------------+
+    | patch     | str   | In example 9.1.0b, this is an empty str. In 9.1.0b_01, this is "_01"          |
+    +-----------+-------+-------------------------------------------------------------------------------+
+
+    :param version_in: FOS version
+    :type version_in: str
+    :param valid_check: If True, creates an exception entry in the log if the version of FOS is not valid
+    :type valid_check: bool
+    :return: Dictionary as described above
+    :rtype dict
+    """
+    global _letter_to_num
+
+    try:
+        version = version_in.lower()
+        if version[0] == 'v':
+            version = version[1:]
+        version_l = version.split('.')
+        if len(version_l[2]) > 1:
+            try:
+                bug = _letter_to_num[version_l[2][1:2]]
+                patch = version_l[2][2:] if len(version_l[2]) > 1 else ''
+            except KeyError:
+                bug = 0
+                patch = version_l[2][1:]
+        else:
+            bug = 0
+            patch = ''
+        return dict(version=str(version_in),
+                    major=int(version_l[0]),
+                    feature=int(version_l[1]),
+                    minor=int(version_l[2][0:1]),
+                    bug=bug,
+                    patch=patch)
+    except (IndexError, TypeError, ValueError, AttributeError):
+        if valid_check:
+            brcdapi_log.exception(['Invalid FOS version: ' + str(version_in), 'Type: ' + str(type(version_in))],
+                                  echo=True)
+
+    return dict(version=str(version_in), major=0, feature=0, minor=0, bug=0, patch='')
+
+
 
 ###################################################################
 #

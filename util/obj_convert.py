@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -49,16 +49,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 28 Apr 2022   | Updated documentation                                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 01 Jan 2023   | Improved error messaging                                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -75,7 +77,8 @@ def _zone_obj_list(fab_obj, zl):
     :return: List of zone objects, brcddb.classes.zone.ZoneObj, associated with the zone names in zl
     :rtype: list
     """
-    return list() if fab_obj is None else [fab_obj.r_zone_obj(z) for z in zl if fab_obj.r_zone_obj(z) is not None]
+    return list() if fab_obj is None else gen_util.remove_none([fab_obj.r_zone_obj(z) for z in zl])
+
 
 def _obj_self(obj):
     """Returns itself as a list
@@ -155,7 +158,7 @@ def _port_obj_for_alias(obj):
         return list()
     rl = [fab_obj.r_port_obj_for_wwn(mem) for mem in obj.r_members() if gen_util.is_wwn(mem)]
     rl.extend([fab_obj.r_port_object_for_di(mem) for mem in obj.r_members() if gen_util.is_di(mem)])
-    return [mem for mem in rl if mem is not None]  # I don't think mem can ever be None but I'm not fixing working code
+    return gen_util.remove_none(rl)
 
 
 def _ports_for_zone_obj(obj):
@@ -173,7 +176,7 @@ def _ports_for_zone_obj(obj):
             alias_obj = fab_obj.r_alias_obj(mem)
             if alias_obj is not None:
                 rl.extend(_port_obj_for_alias(alias_obj))
-    return [mem for mem in rl if mem is not None]  # I don't think mem can ever be None but I'm not fixing working code
+    return gen_util.remove_none(rl)
 
 
 def _ports_for_zonecfg_obj(obj):
@@ -240,7 +243,7 @@ def _fdmi_node_obj_for_alias(obj):
         for mem in obj.r_members():
             if gen_util.is_wwn(mem):
                 rl.append(fab_obj.r_fdmi_node_obj(mem))
-    return [mem for mem in rl if mem is not None]
+    return gen_util.remove_none(rl)
 
 
 def _fdmi_port_obj_for_alias(obj):
@@ -251,7 +254,7 @@ def _fdmi_port_obj_for_alias(obj):
         for mem in obj.r_members():
             if gen_util.is_wwn(mem):
                 rl.append(fab_obj.r_fdmi_port_obj(mem))
-    return [fdmi_port_obj for fdmi_port_obj in rl if fdmi_port_obj is not None]
+    return gen_util.remove_none(rl)
 
 
 def _login_obj_for_alias(obj):
@@ -304,7 +307,7 @@ def _alias_obj_for_switch(obj):
     if fab_obj is not None:
         for wwn in obj.r_login_keys():
             rl.extend(fab_obj.r_alias_obj_for_wwn(wwn))
-    return [mem for mem in rl if mem is not None]
+    return gen_util.remove_none(rl)
 
 
 def _alias_obj_for_chassis(obj):
@@ -378,7 +381,7 @@ def _fdmi_node_obj_for_login(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    return [mem for mem in gen_util.convert_to_list(fab_obj.r_fdmi_node_obj(obj.r_obj_key())) if mem is not None]
+    return gen_util.remove_none(gen_util.convert_to_list(fab_obj.r_fdmi_node_obj(obj.r_obj_key())))
 
 
 def _fdmi_port_obj_for_login(obj):
@@ -386,7 +389,7 @@ def _fdmi_port_obj_for_login(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    return [mem for mem in gen_util.convert_to_list(fab_obj.r_fdmi_port_obj(obj.r_obj_key())) if mem is not None]
+    return gen_util.remove_none(gen_util.convert_to_list(fab_obj.r_fdmi_port_obj(obj.r_obj_key())))
 
 
 def _fdmi_node_for_fdmi_port(obj):
@@ -394,7 +397,7 @@ def _fdmi_node_for_fdmi_port(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    return [mem for mem in gen_util.convert_to_list(fab_obj.r_fdmi_node_obj(obj.r_obj_key())) if mem is not None]
+    return gen_util.remove_none(gen_util.convert_to_list(fab_obj.r_fdmi_node_obj(obj.r_obj_key())))
 
 
 def _fdmi_port_for_fdmi_node(obj):
@@ -402,7 +405,7 @@ def _fdmi_port_for_fdmi_node(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    return [mem for mem in gen_util.convert_to_list(fab_obj.r_fdmi_port_obj(obj.r_obj_key())) if mem is not None]
+    return gen_util.remove_none(gen_util.convert_to_list(fab_obj.r_fdmi_port_obj(obj.r_obj_key())))
 
 
 def _zone_obj_for_login(obj):
@@ -410,8 +413,7 @@ def _zone_obj_for_login(obj):
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
-    return [fab_obj.r_zone_obj(zone) for zone in fab_obj.r_zones_for_wwn(obj.r_obj_key()) if
-            fab_obj.r_zone_obj(zone) is not None]
+    return gen_util.remove_none([fab_obj.r_zone_obj(zone) for zone in fab_obj.r_zones_for_wwn(obj.r_obj_key())])
 
 
 def _zonecfg_obj_for_login(obj):
@@ -427,7 +429,7 @@ def _alias_obj_for_project(obj):
     rl = list()
     for fab_obj in obj.r_fabric_objects():
         rl.extend(fab_obj.r_alias_objects())
-    return [mem for mem in rl if mem is not None]
+    return gen_util.remove_none(rl)
 
 
 def _zone_obj_for_project(obj):
@@ -492,7 +494,7 @@ def _login_for_zone(obj):
                 zone_obj = fab_obj.r_zone_obj(mem)
                 if zone_obj is not None:
                     rl.extend(_login_obj_for_alias(zone_obj))
-    return [mem for mem in rl if mem is not None]
+    return gen_util.remove_none(rl)
 
 
 def _fdmi_node_for_zone(obj):
@@ -500,7 +502,7 @@ def _fdmi_node_for_zone(obj):
     fab_obj = obj.r_fabric_obj()
     rl = list() if fab_obj is None else \
         [fab_obj.r_fdmi_node_obj(login_obj.r_obj_key()) for login_obj in _login_for_zone(obj) if login_obj is not None]
-    return [mem for mem in rl if mem is not None]
+    return gen_util.remove_none(rl)
 
 
 def _fdmi_port_for_zone(obj):
@@ -508,7 +510,7 @@ def _fdmi_port_for_zone(obj):
     fab_obj = obj.r_fabric_obj()
     rl = list() if fab_obj is None else \
         [fab_obj.r_fdmi_port_obj(login_obj.r_obj_key()) for login_obj in _login_for_zone(obj) if login_obj is not None]
-    return [mem for mem in rl if mem is not None]
+    return gen_util.remove_none(rl)
 
 
 def _login_for_zonecfg(obj):
@@ -738,7 +740,7 @@ def obj_extract(from_obj, to_type):
     for in_obj in gen_util.convert_to_list(from_obj):
         from_type = brcddb_class_util.get_simple_class_type(in_obj)
         if from_type is None:
-            brcdapi_log.exception('Unknown from_obj object type: ' + str(type(from_type)))
+            brcdapi_log.exception('Unknown from_obj object type: ' + str(type(from_type)), echo=True)
         else:
             rl.extend([obj for obj in _obj_convert_tbl[from_type][to_type](in_obj) if obj is not None])
     return gen_util.remove_duplicates(rl)
