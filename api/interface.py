@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -62,17 +62,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 28 Apr 2022   | Switch to brcdapi.gen_util and updated comments.                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | xx xxx 2022   | Improve error messaging and recovery.                                             |
+    | 3.0.9     | 01 Jan 2023   | Improve error messaging and recovery.                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = 'xx xxx 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Development'
+__status__ = 'Released'
 __version__ = '3.0.9'
 
 import brcdapi.brcdapi_rest as brcdapi_rest
