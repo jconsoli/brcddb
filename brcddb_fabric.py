@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -84,36 +84,40 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.8     | 14 Oct 2022   | Fixed incorrect peer zone control member in peer zone alert.                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.9     | 01 Jan 2023   | Added skip_zone and skip_zonecfg options to copy_fab_obj(). Modified to support   |
+    |           |               | brcddb_bp overhaul.                                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '14 Oct 2022'
+__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.8'
+__version__ = '3.1.9'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.util.util as brcddb_util
-import brcddb.app_data.bp_tables as bt
 import brcddb.util.search as brcddb_search
 import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_port as brcddb_port
 import brcddb.util.iocp as brcddb_iocp
 import brcddb.brcddb_zone as brcddb_zone
 
-_MIN_SYMB_LEN = 10
 _FC4_FEATURES = 'brocade-name-server/fibrechannel-name-server/fc4-features'
 
-_check_peer_property = True if bt.custom_tbl.get('peer_property') is None else bt.custom_tbl.get('peer_property')
-_check_zone_mismatch = True if bt.custom_tbl.get('zone_mismatch') is None else bt.custom_tbl.get('zone_mismatch')
-_check_zone_wwn_alias  = True if bt.custom_tbl.get('wwn_alias_zone') is None else bt.custom_tbl.get('wwn_alias_zone')
-_check_zone_alias_use  = True if bt.custom_tbl.get('zone_alias_use') is None else bt.custom_tbl.get('zone_alias_use')
+_check_d = dict(peer_property=False,
+                zone_mismatch=False,
+                wwn_alias_zone=False,
+                zone_alias_use=False,
+                multi_initiator=False,
+                max_zone_participation=1000)
+
 # _speed_to_gen converts the brocade-name-server/link-speed to a fibre channel generation.
 _speed_to_gen = {'1G': 0, '2G': 2, '4G': 3, '8G': 4, '16G': 5, '32G': 6, '64G': 7, '128G': 8}
 special_login = {
@@ -121,6 +125,22 @@ special_login = {
     # Should never get 'I/O Analytics Port' because I check for AE-Port but rather than over think it...
     'I/O Analytics Port': al.ALERT_NUM.LOGIN_AMP,
 }
+
+
+def set_bp_check(key, val):
+    """Set the zone checks in _check_d
+
+    :param key: Key in _check_d to be set
+    :type key: str
+    :param val: State: True or False, or an integer for zone checks
+    :type val: bool
+    """
+    global _check_d
+
+    try:
+        _check_d[key] = val
+    except KeyError:
+        brcdapi_log.exception('Invalid key: ' + str(val))
 
 
 def best_fab_name(fab_obj, wwn=False, fid=False):
@@ -268,7 +288,7 @@ def zone_by_target(fab_obj):
     :param fab_obj: brcddb fabric object
     :type fab_obj: FabricObj class
     """
-    global _speed_to_gen, _FC4_FEATURES
+    global _speed_to_gen, _FC4_FEATURES, _check_d
 
     # Get a list of all the target (storage) logins
     t_obj_l = brcddb_search.match(fab_obj.r_login_objects(), _FC4_FEATURES, 'Target',
@@ -284,7 +304,7 @@ def zone_by_target(fab_obj):
 
         # Get a list of all the server login objects zoned to this target
         s_wwn_d = brcddb_zone.eff_zoned_to_wwn(fab_obj, t_wwn, target=False, initiator=True)
-        if len(s_wwn_d) > bt.MAX_ZONE_PARTICIPATION:
+        if len(s_wwn_d) > _check_d['max_zone_participation']:
             t_login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MAX_PARTICIPATION)
 
         # Figure out what all the login speeds of the target and servers zoned to this target
@@ -321,7 +341,7 @@ def zone_analysis(fab_obj):
     * Effective zone doesn't match defined zone
     * Zone member not found
     * Base port (HBA) of NPIV logins is in a zone
-    * Maximum number of devices zoned to a device. See brcddb.app_data.bp_tables.MAX_ZONE_PARTICIPATION
+    * Maximum number of devices zoned to a device. See _check_d['max_zone_participation']
     * Mix of WWN and alias in the same zone
     * Peer zone property member in zone
     * Duplicate aliases
@@ -331,7 +351,7 @@ def zone_analysis(fab_obj):
     :param fab_obj: brcddb fabric object
     :type fab_obj: brcddb.classes.fabric.FabricObj
     """
-    global _check_zone_mismatch, _check_peer_property
+    global _check_d
 
     # $ToDo - Break this up into multiple methods or review to shorten. This is way too long
     _WWN_MEM = 0b1  # The member was entered as a WWN or d,i, not an alias
@@ -365,7 +385,7 @@ def zone_analysis(fab_obj):
                 if gen_util.is_wwn(zmem, full_check=False):
                     flag |= _WWN_MEM
                     mem_list.append(zmem)
-                    if _check_zone_alias_use and len(fab_obj.r_alias_for_wwn(zmem)) > 0:
+                    if _check_d['zone_alias_use'] and len(fab_obj.r_alias_for_wwn(zmem)) > 0:
                         # An alias was defined for this WWN, but the WWN was used to define the zone
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_ALIAS_USE, None, zmem,
                                              ', '.join(fab_obj.r_alias_for_wwn(zmem)))
@@ -401,7 +421,7 @@ def zone_analysis(fab_obj):
 
                 elif gen_util.is_wwn(mem, full_check=False):
                     flag |= _WWN_IN_ZONE
-                    if _check_peer_property and not gen_util.is_wwn(mem, full_check=True):
+                    if _check_d['peer_property'] and not gen_util.is_wwn(mem, full_check=True):
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_PROPERTY, None, zmem, None)
                     # Is the member in this fabric?
                     if fab_obj.r_port_obj(mem) is None:
@@ -454,17 +474,17 @@ def zone_analysis(fab_obj):
                     fc4_features = str(login_obj.r_get(_FC4_FEATURES)).lower()
                     if 'target' not in fc4_features and 'initiator' in fc4_features:
                         elist.append(wwn)
-        if len(elist) > 1:
+        if len(elist) > 1 and _check_d['multi_initiator']:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MULTI_INITIATOR, None, ', '.join(elist))
 
         # Check for mixed zone members
         if flag & _DI_IN_ZONE and flag & _WWN_IN_ZONE:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MIXED)
-        if _check_zone_wwn_alias and flag & _WWN_MEM and flag & _ALIAS_IN_ZONE:
+        if _check_d['wwn_alias_zone'] and flag & _WWN_MEM and flag & _ALIAS_IN_ZONE:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_WWN_ALIAS)
 
         # Make sure the defined zone matches the effective zone
-        if _check_zone_mismatch:
+        if _check_d['zone_mismatch']:
             eff_zone_obj = fab_obj.r_eff_zone_obj(zone_obj.r_obj_key())
             if eff_zone_obj is not None:
                 zone_obj.s_or_flags(brcddb_common.zone_flag_effective)
@@ -475,7 +495,7 @@ def zone_analysis(fab_obj):
                     zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MISMATCH)
                     flag |= _ZONE_MISMATCH
 
-    if flag & _ZONE_MISMATCH and _check_zone_mismatch:
+    if flag & _ZONE_MISMATCH and _check_d['zone_mismatch']:
         try:
             fab_obj.r_defined_eff_zonecfg_obj().s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MISMATCH)
         except AttributeError:
@@ -539,7 +559,7 @@ def fab_fids(fab_obj):
     return rl
 
 
-def copy_fab_obj(fab_obj, fab_key=None, full_copy=False):
+def copy_fab_obj(fab_obj, fab_key=None, full_copy=False, skip_zone=False, skip_zonecfg=False):
     """Makes a copy of a fabric object
 
     :param fab_obj: The fabric object to be copied
@@ -548,31 +568,42 @@ def copy_fab_obj(fab_obj, fab_key=None, full_copy=False):
     :type fab_key: str, None
     :param full_copy: If True, copies all data added with s_new_key(). Otherwise, just the private members are copied
     :type full_copy: bool
+    :param skip_zone: If True, copying of zones is skipped.
+    :type skip_zone: bool
+    :param skip_zonecfg: If True, copying of zone configurations is skipped.
+    :type skip_zonecfg: bool
+    :return: Copy of fabric object
+    :rtype: brcddb.classes.fabric.FabricObj
     """
     proj_obj = fab_obj.r_project_obj()
     new_key = fab_obj.r_obj_key() + '_copy' if fab_key is None else fab_key
     fab_obj_copy = proj_obj.s_add_fabric(new_key, add_switch=False)
     fab_obj_copy.s_or_flags(fab_obj.r_flags())
-    for obj in fab_obj.r_switch_keys():
-        fab_obj_copy.s_add_switch(obj)
-    for obj in fab_obj.r_login_keys():
-        fab_obj_copy.s_add_login(obj)
+    for key in fab_obj.r_switch_keys():
+        fab_obj_copy.s_add_switch(key)
+    for obj in fab_obj.r_login_objects():
+        login_obj_copy = fab_obj_copy.s_add_login(obj.r_obj_key())
+        if full_copy:
+            for key in login_obj_copy.r_keys():
+                login_obj_copy.s_new_key(key, obj.r_get(key))
     for obj in fab_obj.r_alias_objects():
         fab_obj_copy.s_add_alias(obj.r_obj_key(), obj.r_members())
-    for obj in fab_obj.r_zone_objects():
-        fab_obj_copy.s_add_zone(obj.r_obj_key(), obj.r_type(), obj.r_members(), obj.r_pmembers())
-    for obj in fab_obj.r_zonecfg_objects():
-        if obj.r_obj_key() == '_effective_zone_cfg':
-            fab_obj_copy.s_add_eff_zonecfg(obj.r_members())
-        else:
-            fab_obj_copy.s_add_zonecfg(obj.r_obj_key(), obj.r_members())
+    if not skip_zone:
+        for obj in fab_obj.r_zone_objects():
+            fab_obj_copy.s_add_zone(obj.r_obj_key(), obj.r_type(), obj.r_members(), obj.r_pmembers())
+    if not skip_zonecfg:
+        for obj in fab_obj.r_zonecfg_objects():
+            if obj.r_obj_key() == '_effective_zone_cfg':
+                fab_obj_copy.s_add_eff_zonecfg(obj.r_members())
+            else:
+                fab_obj_copy.s_add_zonecfg(obj.r_obj_key(), obj.r_members())
     for obj in fab_obj.r_fdmi_node_keys():
         fab_obj_copy.s_add_fdmi_node(obj)
     for obj in fab_obj.r_fdmi_port_keys():
         fab_obj_copy.s_add_fdmi_port(obj)
     if full_copy:
-        for obj in fab_obj.r_keys():
-            fab_obj_copy.s_new_key(obj, fab_obj.r_get(obj))
+        for key in fab_obj.r_keys():
+            fab_obj_copy.s_new_key(key, fab_obj.r_get(key))
 
     return fab_obj_copy
 

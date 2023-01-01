@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -35,6 +35,8 @@ Public Methods::
     +-----------------------+---------------------------------------------------------------------------------------+
     | login_type            | Returns the login type, if available. Otherwise ''                                    |
     +-----------------------+---------------------------------------------------------------------------------------+
+    | login_features        | Returns the FC-4 features as returned from the API. Returns '' if unavailable.        |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -56,16 +58,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 04 Sep 2022   | Added references for new API branches.                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 01 Jan 2022   | Added login_feature()                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '04 Sep 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.util.util as brcddb_util
 
@@ -199,5 +203,17 @@ def login_type(login_obj):
     :return: Login type
     :rtype: str
     """
-    fc4_type = login_obj.r_get('brocade-name-server/brocade-name-server/fc4-type')
+    fc4_type = login_obj.r_get('brocade-name-server/fibrechannel-name-server/fc4-type')
     return '' if fc4_type is None else fc4_type
+
+
+def login_features(login_obj):
+    """Returns the FC-4 features as returned from the API. Returns '' if unavailable.
+
+    :param login_obj: Login Object
+    :type login_obj: brcddb_classes.login.LoginObj
+    :return: Login type
+    :rtype: str
+    """
+    fc4_feature = login_obj.r_get('brocade-name-server/fibrechannel-name-server/fc4-features')
+    return '' if fc4_feature is None else fc4_feature

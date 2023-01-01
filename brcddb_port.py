@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,6 +36,9 @@ Public Methods::
     | port_obj_for_addr     | Returns the port object for a port in a given fabric matching a link address. Used    |
     |                       | for finding control units                                                             |
     +-----------------------+---------------------------------------------------------------------------------------+
+    | port_objects_for_addr | Returns a list of port objects using an exact, wild card, or regex match of the fibre |
+    |                       | channel address.                                                                      |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -58,18 +61,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 28 Apr 2022   | Updated documentation                                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 25 Jul 2022   | Adde check for unknown port types in port_type()                                  |
+    | 3.0.8     | 25 Jul 2022   | Added check for unknown port types in port_type()                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 01 Jan 2023   | Added port_objects_for_addr()                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '25 Jul 2022'
+__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
@@ -224,6 +229,25 @@ def port_obj_for_chpid(obj, seq, tag):
     return port_list[0] if len(port_list) > 0 else None
 
 
+def port_objects_for_addr(obj, addr, search='exact'):
+    """Returns a list of port objects using an exact, wild card, or regex match of the fibre channel address.
+
+    :param obj: Object with port objects, obj.r_port_objects()
+    :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
+                brcddb.classes.chassis.ChassisObj
+    :param addr: Hex FC address. Not case sensitive. Must begin with '0x'. Remaining characters depend on search type.
+    :type addr: str
+    :param search: Search type. Must be one of the search types accpted by brcddb_search.match_test()
+    :type search: str
+    :rturn: Port object matching the link address. None if not found
+    :rtype: brcddb.classes.port.PortObj, None
+    """
+    return brcddb_search.match_test(
+        obj.r_port_objects(),
+        dict(k='fibrechannel/fcid-hex', t=search, v=addr, i=True)
+    )
+
+
 def port_obj_for_addr(obj, addr):
     """Returns the port object for a port in a given fabric matching a link address. Used for finding control units
 
@@ -235,8 +259,5 @@ def port_obj_for_addr(obj, addr):
     :rturn: Port object matching the link address. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
-    port_list = brcddb_search.match_test(
-        obj.r_port_objects(),
-        dict(k='fibrechannel/fcid-hex', t='exact', v=addr, i=True)
-    )
+    port_list = port_objects_for_addr(obj, addr)
     return port_list[0] if len(port_list) > 0 else None
