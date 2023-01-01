@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -56,15 +56,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 04 Sep 2022   | Modified default column widths                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 01 Jan 2023   | Fixed bug in remote speed reporting.                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '04 Sep 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import datetime
 import collections
@@ -272,7 +274,7 @@ def _p_login_addr_case(port_obj, k, wwn):
         return port_obj.r_fabric_obj().r_login_obj(wwn).r_get('brocade-name-server/port-id')
     except AttributeError:
         brcdapi_log.exception('No login address for ' + wwn + '. Switch ' + port_obj.r_switch_obj().r_obj_key() +
-                              ', port ' + port_obj.r_obj_key(), True)
+                              ', port ' + port_obj.r_obj_key(), echo=True)
     return 'Unknown'
 
 
@@ -335,17 +337,17 @@ def _p_media_distance_case(port_obj, k, wwn):
 
 
 def _p_media_speed_case(port_obj, k, wwn):
-    if port_obj.r_get('media-rdp/media-speed-capability/speed') is None:
-        return None
-    else:
+    try:
         return ', '.join([str(i) for i in port_obj.r_get('media-rdp/media-speed-capability/speed')])
+    except TypeError:
+        return None
 
 
 def _p_media_rspeed_case(port_obj, k, wwn):
-    if port_obj.r_get('media-rdp/remote-media-speed-capability/speed') is None:
+    try:
+        return ', '.join([str(i) for i in port_obj.r_get('media-rdp/remote-media-speed-capability/speed')])
+    except TypeError:
         return None
-    else:
-        return ', '.join([str(i) for i in port_obj.r_get('media-rdp/media-speed-capability/speed')])
 
 
 def _p_operational_status_case(port_obj, k, wwn):

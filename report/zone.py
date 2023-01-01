@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -65,15 +65,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.3     | 04 Sep 2022   | Fixed missing zones on zone by target page.                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.4     | 01 Jan 2023   | Fixed bad formatting of alert messages associated with logins.                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '04 Sep 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.3'
+__version__ = '3.1.4'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -162,9 +164,9 @@ def _mem_comment_case(obj, mem, wwn, port_obj):
     # Get any comments for this WWN in the zone object
     alert_l = [a.fmt_msg() for a in obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
     # If there is a login, add any comments associated with the login that are zone specific
-    if obj.r_fabric_obj() is not None and obj.r_fabric_obj().r_login_obj(wwn) is not None:
-        alert_l.extend('\n'.join([a.fmt_msg() for a in obj.r_fabric_obj().r_login_obj(wwn).r_alert_objects()
-                                  if a.is_flag() and a.p0() == mem]))
+    login_obj = obj.r_fabric_obj().r_login_obj(wwn)
+    if obj.r_fabric_obj() is not None and login_obj is not None:
+        alert_l.extend([a.fmt_msg() for a in login_obj.r_alert_objects() if a.is_flag() and a.p0() == mem])
     if port_obj is not None:  # Add the alerts associated with the port for this member
         alert_l.extend([a.fmt_msg() for a in port_obj.r_alert_objects() if a.is_error() or a.is_warn()])
     return '\n'.join(alert_l)
@@ -299,9 +301,9 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                 else:
                     port_obj = fab_obj.r_port_obj(wwn)
                 if port_obj is None:
-                    # Since brcddb_fabric.zone_analysis() already checked to see it's in another fabric, it would be
-                    # much faster to check for the associated alert, but this was easier to code and time is not of the
-                    # essence here.
+                    # brcddb_fabric.zone_analysis() already checked to see it's in another fabric. Although it would be
+                    # much faster to check for the associated alert, if that zoning check were disabled, we would miss
+                    # it. Time is not of the essence so spin through the loop once again.
                     for fobj in fab_obj.r_project_obj().r_fabric_objects():
                         if fab_obj.r_obj_key() != fobj.r_obj_key():
                             port_obj = fobj.r_port_obj(wwn)
@@ -691,8 +693,7 @@ def non_target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         # Add any targets zoned to this target
         for wwn, zone_l in target_d.items():
             login_obj = fab_obj.r_login_obj(wwn)
-            col = 1
-            row += 1
+            row, col = row+1, 1
             for k in _target_zone_hdr:
                 font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) if k == 'Comments' \
                     else _std_font

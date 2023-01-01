@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -49,15 +49,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 14 Oct 2022   | Added zone and port statistics summary                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 01 Jan 2023   | Added additional zone statistics                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '14 Oct 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -293,7 +295,6 @@ def _fabric_statistics(sheet, row, fabric_obj):
         sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
         for col in range(1, len(_hdr) + 1):
             excel_util.cell_update(sheet, row, col, None, border=_border_thin)
-        row += 1
 
     return row+1
 
@@ -350,11 +351,11 @@ def _zone_configuration(sheet, row, fabric_obj):
             excel_util.cell_update(sheet, row, col, d['t'], font=_link_font, link=d['l'])
             row += 1
 
-    # Effective zone configuration summary
+    # Zone configuration summary
     if obj is not None:
         row, col = row+1, 1
         sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
-        excel_util.cell_update(sheet, row, col, 'Effective Zone Configuration Summary', font=_bold_font)
+        excel_util.cell_update(sheet, row, col, 'Zone Configuration Summary', font=_bold_font)
         ec_obj = fabric_obj.r_get('brocade-zone/effective-configuration')
         if isinstance(ec_obj, dict):
             for k in ec_obj:
@@ -377,6 +378,21 @@ def _zone_configuration(sheet, row, fabric_obj):
             row, col = row+1, 1
             sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+1)
             excel_util.cell_update(sheet, row, col, 'No effective configuration', font=_std_font, align=_align_wrap)
+
+        # Total alias, zone, and zone configurtion summary
+        zone_l = [dict(d='Total Aliases', v=len(fabric_obj.r_alias_keys())),
+                  dict(d='Total Zones', v=len(fabric_obj.r_zone_keys())),
+                  dict(d='Total Zone Configurations', v=len(fabric_obj.r_zonecfg_keys()))]
+        for d in zone_l:
+            row, col = row+1, 1
+            sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+1)
+            excel_util.cell_update(sheet, row, col, d['d'], font=_std_font, align=_align_wrap, border=_border_thin)
+            excel_util.cell_update(sheet, row, col+1, None, border=_border_thin)
+            col += 2
+            sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
+            excel_util.cell_update(sheet, row, col, d['v'], font=_std_font, align=_align_wrap, border=_border_thin)
+            for col in range(col+1, len(_hdr)+1):
+                excel_util.cell_update(sheet, row, col, None, border=_border_thin)
 
     return row + 1
 

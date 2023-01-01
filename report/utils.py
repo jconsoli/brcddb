@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -14,7 +14,7 @@
 # limitations under the License.
 """
 
-:mod:`report.utils` - Create and save workbooks, title page, and miscellaneous common methods.
+:mod:`report.utils` - Common methods used for reading and generating Excel reports.
 
 Public Methods & Data::
 
@@ -53,14 +53,9 @@ Public Methods & Data::
     | get_next_switch_d             | Finds the first match in an sl list returned from excel_util.read_sheet() and |
     |                               | returns the next entry                                                        |
     +-------------------------------+-------------------------------------------------------------------------------+
-    | parse_sfp_file_for_rules      | Parses Excel file with the new SFP rules Formatted to be sent to the API. See |
-    |                               | sfp_rules_rx.xlsx                                                             |
-    +-------------------------------+-------------------------------------------------------------------------------+
     | parse_sfp_file                | Parses Excel file with the new SFP rules. See sfp_rules_rx.xlsx               |
     +-------------------------------+-------------------------------------------------------------------------------+
-    | parse_switch_file             | Parses Excel switch configuration Workbook. See                               |
-    |                               | X6_X7-4_Switch_Configuration, X6_X7-8_Switch_Configuration, and               |
-    |                               | Fixed_Port_Switch_Configuration                                               |
+    | parse_switch_file             | Parses Excel switch configuration Workbook.                                   |
     +-------------------------------+-------------------------------------------------------------------------------+
 
 Version Control::
@@ -83,26 +78,32 @@ Version Control::
     | 3.1.3     | 22 Jun 2022   | Added _parse_chassis_sheet(), additional parameters from the switch configuration |
     |           |               | workbook, fixed font reference in title_page().                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.4     | 01 Jan 2023   | Added the port index, routing poilcy, and CUP enable. Modified                    |
+    |           |               | parse_switch_file() to return an error list rather than print the errors to the   |
+    |           |               | log.                                                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '22 Jun 2022'
+__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '01 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.3'
+__version__ = '3.1.4'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
-import re
+import fnmatch
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
 import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.util.search as brcddb_search
+
+_conv_routing_policy_d = dict(EBR='exchange-based', DBR='device-based')
 
 #######################################################################
 #
@@ -341,7 +342,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
                         pass
                     else:
                         brcdapi_log.exception('Unknown disp type, ' + str(type((obj.get('disp')))) + ', at row ' +
-                                              str(row), True)
+                                              str(row), echo=True)
                 for buf in display:
                     excel_util.cell_update(sheet, row, col, buf,
                                            link=obj.get('hyper'),
@@ -357,16 +358,17 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
                                 col += obj.get('merge')
                         else:
                             brcdapi_log.exception('Merge must be an integer. Type: ' + str(type(obj.get('merge'))),
-                                                  True)
+                                                  echo=True)
                             col += 1
                     else:
                         col += 1
                 if 'new_row' not in obj or ('new_row' in obj and obj.get('new_row')):
                     row, col = row+1, 1
             else:
-                brcdapi_log.exception('Invalid type in content list, ' + str(type(obj)) + ', at row ' + str(row), True)
+                brcdapi_log.exception('Invalid type in content list, ' + str(type(obj)) + ', at row ' + str(row),
+                                      echo=True)
     else:
-        brcdapi_log.exception('Invalid content type: ' + str(type(content)), True)
+        brcdapi_log.exception('Invalid content type: ' + str(type(content)), echo=True)
 
 
 def get_next_switch_d(switch_list, val, test_type, ignore_case=False):
@@ -539,56 +541,6 @@ _rules = {
 }
 
 
-def parse_sfp_file_for_rules(file, groups):
-    """Parses Excel file with the new SFP rules Formatted to be sent to the API. See sfp_rules_rx.xlsx
-
-    :param file: Path and name of Excel Workbook with new SFP rules
-    :type file: str
-    :param groups: List of groups defined on this switch - returned from 'brocade-maps/group'
-    :type groups: list
-    :return: List of SFP rule dictionaries. None if file not found
-    :rtype: list, None
-    """
-    new_sfp_rules = list()  # The list of rule dictionaries that will be returned
-
-    # Load the workbook
-    try:
-        wb = xl.load_workbook(file, data_only=True)
-    except FileNotFoundError:
-        return None
-
-    # Find where all the columns are
-    sheet = wb['new_SFP_rules']
-    cell = cell_match_val(sheet, 'Group', None, 1)
-    if cell is None:
-        brcdapi_log.log('Could not find column with \'Group\'', True)
-        return None
-    group_col = xl_util.get_column_letter(excel_util.col_to_num(cell))
-    for k0, v0 in _rules.items():
-        for k1, v1 in v0.get('mem').items():
-            cell = cell_match_val(sheet, k1, None, 1)
-            if cell is not None:
-                v1.update({'col': xl_util.get_column_letter(excel_util.col_to_num(cell))})
-
-    # Build the list of rules to send to the switch.
-    row = 2
-    group = sheet[group_col + str(row)].value
-    while group != '__END__':
-        if group in groups:
-            for k0, v0 in _rules.items():
-                d = {'is-rule-on-rule': False, 'time-base': 'NONE', 'group-name': group}
-                for k1, v1 in v0.items():
-                    if k1 != 'mem':
-                        d.update({k1: v1})
-                for k1, v1 in v0.get('mem').items():
-                    d.update({v1.get('api'): v1.get('val')(group, sheet[v1.get('col') + str(row)].value)})
-                new_sfp_rules.append(d)
-        row += 1
-        group = sheet[group_col + str(row)].value
-
-    return new_sfp_rules
-
-
 def parse_sfp_file(file):
     """Parses Excel file with the new SFP rules. See sfp_rules_rx.xlsx
 
@@ -597,11 +549,14 @@ def parse_sfp_file(file):
     :return: List of dictionaries. The key for each dictionary is the column header and the value is the cell value
     :rtype: list
     """
+    if file is None:
+        return list()
+
     # Load the workbook & contents
     try:
         parsed_sfp_sheet = excel_util.parse_parameters(sheet_name='new_SFP_rules', hdr_row=0, wb_name=file)['content']
     except FileNotFoundError:
-        brcdapi_log.log('SFP rules workbook: ' + str(file) + ' not found.', True)
+        brcdapi_log.log('SFP rules workbook: ' + str(file) + ' not found.', echo=True)
         return list()
 
     # Get rid of everything past '__END__'
@@ -633,28 +588,29 @@ def find_headers(hdr_row_l, hdr_l):
     return rd
 
 
-def _parse_chassis_sheet(sheet):
+def _parse_chassis_sheet(sheet_d):
     """Parses the "Chassis" worksheet from a switch configuration workbook into a dictionary. The key is the KPI. The
     value is the content.
 
-    :param sheet: Chassis worksheet
-    :type sheet: Worksheet
-    :return: Dictionary for chassis. None if an error was encountered.
-    :rtype: dict, None
+    :param sheet_d: Output from excel_util.read_workbook() for the Chassis worksheet
+    :type sheet_d: list
+    :return error_l: List of error messages. Empty if no error encountered
+    :rtype error_l: list
+    :return: Dictionary for chassis.
+    :rtype: dict
     """
-    ml, rd = list(), dict()
-    sl, al = excel_util.read_sheet(sheet, 'row')
+    error_l, rd = list(), dict()
+    al = sheet_d['al']
     if len(al) < 2:
-        return rd
+        return error_l, rd
 
     # Find the 'Area' and 'Parameter' columns
     col_d = find_headers(al[0], ('Area', 'Parameter'))
     for k, v in col_d.items():
         if v is None:
-            ml.append('Sheet ' + sheet.title + ' missing column ' + k)
-    if len(ml) > 0:
-        brcdapi_log.log(ml, True)
-        return None
+            error_l.append('Sheet ' + sheet_d['switch_info']['sheet_name'] + ' missing column ' + k)
+    if len(error_l) > 0:
+        return error_l, None
 
     # Add all the data to the return dictionary
     area_i, content_d, working_key = col_d['Area'], None, None
@@ -670,138 +626,191 @@ def _parse_chassis_sheet(sheet):
         if new_key:
             continue
         if content_d is None:
-            ml.append('Chassis sheet: Content found before a KPI was defined in row ' + str(row+1))
+            error_l.append('Chassis sheet: Content found before a KPI was defined in row ' + str(row+1))
             continue
         val = row_l[col_d['Parameter']]
         if val is None:
             continue
         content_d.update({row_l[area_i]: val})
-    if len(ml) > 0:
-        brcdapi_log.log(ml, True)
-        return None
 
-    return rd
+    return error_l, rd
 
 
-""" _switch_find_d is used in _parse_switch_sheet() to determine what should be parsed out of the spreadsheet and how it
+# Case methods for _switch_d
+def _conv_add(error_l, obj_d, switch_d, val):
+    """Used in _switch_d to convert hex to decimal int
+
+    :param error_l: List of error messages to append error messges to
+    :type error_l: list
+    :param obj_d: Object to update with Rest API key and values
+    :type obj_d: dict
+    :param switch_d: Dictionary in _switch_d
+    :type switch_d: dict
+    :param val: Value from the configuration workbook to add to key
+    :type val: int, float, str, None
+    :rtype: None
+    """
+    add_val = switch_d['d'] if val is None else val
+    if add_val is not None:
+        gen_util.add_to_obj(obj_d, switch_d['k'], add_val)
+
+
+def _conv_hex(error_l, obj_d, switch_d, val):
+    """Used in _switch_d to convert hex to decimal int. See _conv_add for parameter definitions"""
+    try:
+        _conv_add(error_l, obj_d, switch_d, int(val.replace('0x', ''), 16))
+    except (ValueError, TypeError):
+        error_l.append('Value for ' + switch_d['k'] + ', ' + str(val) + ', is not a valid hex number.')
+
+
+def _conv_yn_bool(error_l, obj_d, switch_d, val):
+    """Used in _switch_d to convert "yes" or "no" to a bool. See _conv_add for parameter definitions"""
+    add_val = switch_d['d'] if val is None else val
+    if isinstance(add_val, str):
+        add_val = True if add_val.lower() == 'yes' else False
+    try:
+        _conv_add(error_l, obj_d, switch_d, add_val)
+    except AttributeError:
+        error_l.append('Expected type bool or str for ' + switch_d['k'] + '. Received type ' + str(type(val)))
+
+
+def _conv_req_int(error_l, obj_d, switch_d, val):
+    """Used in _switch_d. An int type val is required. See _conv_add for parameter definitions"""
+    add_val = switch_d['d'] if val is None else val
+    if isinstance(add_val, int):
+        _conv_add(error_l, obj_d, switch_d, add_val)
+    else:
+        error_l.append('Expected type int for ' + switch_d['k'] + '. Received type ' + str(type(val)))
+
+
+def _conv_cup(error_l, obj_d, switch_d, val):
+    """Enable CUP. See _conv_add for parameter definitions"""
+    val_bool = True if isinstance(val, str) and val.lower() == 'yes' else False
+    if obj_d['switch_info']['switch_type'] == 'ficon':
+        _conv_add(error_l, obj_d, switch_d, val_bool)
+        if val_bool:
+            gen_util.add_to_obj(obj_d, 'running/brocade-ficon/cup/active-equal-saved-mode', True)
+            # IDK why, but mihpto is read only in the API
+            # gen_util.add_to_obj(obj_d, 'running/brocade-ficon/cup/mihpto', 180)
+    elif val_bool:
+        error_l.append('Enable CUP is only supported on "ficon" switch types. Sheet: ' + '')
+
+
+def _conv_routing_policy(error_l, obj_d, switch_d, val):
+    """Used in _switch_d. To enable CUP. See _conv_add for parameter definitions"""
+    global _conv_routing_policy_d
+
+    add_val = switch_d['d'] if not isinstance(val, str) else None if val=='default' else _conv_routing_policy_d[val]
+    if isinstance(add_val, str):
+        _conv_add(error_l, obj_d, switch_d, add_val)
+
+
+""" _switch_d is used in _parse_switch_sheet() to determine what should be parsed out of the spreadsheet and how it
 should be interpreted. The key is the value in the cell in the "Area" column. The value is a dict as follows:
     +-------+-------------------------------------------------------------------------------------------------------+
     | key   | Description                                                                                           |
     +=======+=======================================================================================================+
-    | k     | The key used in the data structure returned from _parse_switch_sheet()                                |
+    | k     | Rest API branch corresponding to "Area" in the switch configuration workbooks. At the time this was   |
+    |       | written, only running branches were included. This is because "operations" branches require special   |
+    |       | handling. There is also a special key "switch_info". Most of the information in switch_info is what   |
+    |       | is passed to the brcdapi.switch.py module which handles "operations" branch and other switch actions  |
+    |       | that require special handling.                                                                        | 
     +-------+-------------------------------------------------------------------------------------------------------+
     | d     | The default value to assign in the event the parameter is missing from the spreadsheet                |
     +-------+-------------------------------------------------------------------------------------------------------+
-    | r     | If True, a value for the parameter is required                                                        |
-    +-------+-------------------------------------------------------------------------------------------------------+
-    | h     | If True, treat the value from the spreadsheet as a hex number and convert to a decimal int.           |
-    +-------+-------------------------------------------------------------------------------------------------------+
-    | i     | Convert the value from the spreadsheet to an int                                                      |
-    +-------+-------------------------------------------------------------------------------------------------------+
-    | yn    | Convert "Yes" to True and "No" to False                                                               |
+    | c     | Pointer to value conversion action.                                                                   |
     +-------+-------------------------------------------------------------------------------------------------------+
 """
-_switch_find_d = {  # See above for definitions. This table is used in _parse_switch_sheet()
-    'Fabric ID (FID)': dict(k='fid', d=None, r=True, h=False, yn=False),
-    'Fabric Name': dict(k='fab_name', d=None, r=False, i=False, h=False, yn=False),
-    'Switch Name': dict(k='switch_name', d=None, r=False, i=False, h=False, yn=False),
-    'Domain ID (DID)': dict(k='did', d=None, r=True, h=True, yn=False),
-    'Insistent DID': dict(k='idid', d=True, r=False, h=False, yn=True),
-    'Fabric Principal Enable': dict(k='p_fab_enable', d=False, r=False, i=False, h=False, yn=True),
-    'Fabric Principal Priority': dict(k='p_fab_priority', d=None, r=False, i=False, h=False, yn=False),
-    'Allow XISL': dict(k='xisl', d=False, r=False, i=False, h=False, yn=True),
-    'Enable Switch': dict(k='enable_switch', d=False, r=False, i=False, h=False, yn=True),
-    'Enable Ports': dict(k='enable_ports', d=False, r=False, i=False, h=False, yn=True),
-    'Login Banner': dict(k='banner', d=None, r=False, i=False, h=False, yn=False),
-    'Switch Type': dict(k='switch_type', d=None, r=False, i=False, h=False, yn=False),
-    'Duplicate WWN': dict(k='dup_wwn', d='First', r=False, i=True, h=False, yn=False),
-    'Bind': dict(k='bind', d=None, r=False, i=False, h=False, yn=True),
+_fc_switch = 'running/brocade-fibrechannel-switch/'
+_fc_config = 'running/brocade-fibrechannel-configuration/'
+_switch_d = {  # See above for definitions. This table is used in _parse_switch_sheet()
+    'Fabric ID (FID)': dict(k='switch_info/fid', d=None, c=_conv_req_int),
+    'Fabric Name': dict(k=_fc_switch+'fibrechannel-switch/fabric-user-friendly-name', d=None, c=_conv_add),
+    'Switch Name': dict(k=_fc_switch+'fibrechannel-switch/user-friendly-name', d=None, c=_conv_add),
+    'Domain ID (DID)': dict(k=_fc_switch+'fibrechannel-switch/domain-id', d=None, c=_conv_hex),
+    'Insistent DID': dict(k=_fc_config+'fabric/insistent-domain-id-enabled', d=True, c=_conv_yn_bool),
+    'Fabric Principal Enable': dict(k=_fc_config+'fabric/principal-selection-enabled', d=False, c=_conv_yn_bool),
+    'Fabric Principal Priority': dict(k=_fc_config+'fabric/principal-priority', d=None, c=_conv_add),
+    'Allow XISL': dict(k=_fc_config+'switch-configuration/xisl-enabled', d=False, c=_conv_yn_bool),
+    'Enable Switch': dict(k='switch_info/enable_switch', d=False, c=_conv_yn_bool),
+    'Enable Ports': dict(k='switch_info/enable_ports', d=False, c=_conv_yn_bool),
+    'Login Banner': dict(k=_fc_switch+'fibrechannel-switch/banner', d=None, c=_conv_add),
+    'Switch Type': dict(k='switch_info/switch_type', d=None, c=_conv_add),
+    'Duplicate WWN': dict(k=_fc_config+'f-port-login-settings/enforce-login', d=0, c=_conv_req_int),
+    'Bind': dict(k='switch_info/bind', d=False, c=_conv_yn_bool),
+    'Routing Policy': dict(k=_fc_switch+'fibrechannel-switch/advanced-performance-tuning-policy', d=None,
+                           c=_conv_routing_policy),
+    'Port Name': dict(k=_fc_config+'port-configuration/portname-mode', d=None, c=_conv_add),
+    'Port Name Format': dict(k=_fc_config+'port-configuration/dynamic-portname-format', d=None, c=_conv_add),
+    'Enable CUP': dict(k='running/brocade-ficon/cup/fmsmode-enabled', d=False, c=_conv_cup),
 }
 
 
-def _parse_switch_sheet(sheet):
-    """Parses a "Switch_x" worksheet from X6_X7-8_Slot_48_FICON_Link_Address_Planning.xlsx as this dictionary:
+def _parse_switch_sheet(sheet_d):
+    """Parses a "Switch_x" worksheet from one of the witch configuration worksheets and returns a dictionary of Rest API
+    branch and leaf names. The values are what to send to the switch. Also contains a dictionary whose key is
+
+    +---------------+-------+-------------------------------------------------------------------------------+
+    | Key           | type  | Value Description                                                             |
+    +===============+=======+===============================================================================+
+    | switch_info   | dict  | See switch_info below                                                         |
+    +---------------+-------+-------------------------------------------------------------------------------+
+    | err_msgs      | list  | Although no longer used by this module, the list is created and left empty    |
+    |               |       | because other modules may use it and expect this key to be present.           |
+    +---------------+-------+-------------------------------------------------------------------------------+
+    | port_d        | dict  | Key is port in s/p notation. Value is a dict as read from the Slot x sheets   |
+    +---------------+-------+-------------------------------------------------------------------------------+
+    | running       | dict  | Branch and leaves in Rest API format for the running branch                   |
+    +---------------+-------+-------------------------------------------------------------------------------+
+    | operations    | dict  | Branch and leaves in Rest API format for the operations branch. As of         |
+    |               |       | 29 Dec 2022 there was nothing to put in here so the branch was not present.   |
+    +---------------+-------+-------------------------------------------------------------------------------+
+
+    "switch_info" defined as follows:
 
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | key           | type      | Description                                                                       |
     +===============+===========+===================================================================================+
-    | banner        | None, str | Login banner. Not set if None.                                                    |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | bind          | bool      | If set, find the addresses                                                        |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | fab_name      | None, str | Fabric name. Not set if None                                                      |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | fid           | int       | Fabric ID as a decimal.                                                           |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | did           | int       | Domain ID. Although read from the workbook as a str in Hex, it is returned as a   |
-    |               |           | decimal int                                                                       |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | dup_wwn       | str       | Duplicate WWN handling: 'First', 'Second', 'Second FDISC'                         |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | enable_ports  | bool      | If True, enable the ports after configuration is complete.                        |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | enable_switch | bool      | If True, enable the switch after configuration is complete.                       |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | ports         | dict      | Key is the port number and value is the link address                              |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | switch_flag   | bool      | When True, a corresponding switch sheet was not found. This happens when a FID on |
-    |               |           | on a "Slot x" sheet without a sheet to match.                                     |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | switch_name   | None, str | Switch name. Not set if None                                                      |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | switch_type   | str       | default', 'ficon', 'base', or 'open'                                              |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | xisl          | bool      | If True, base switch usage is allowed.                                            |
+    | bind          | bool      | If True, bind the port addresses.                                                 |
+    | enable_ports  | bool      | If True, enable the ports when done.                                              |
+    | enable_switch | bool      | If True, enable the switch when done.                                             |
+    | fid           | int       | Fabric ID                                                                         |
+    | sheet_name    | str       | Sheet name from switch configuration workbook                                     |
+    | switch_type   | str       | base, ficon, or open                                                              |
     +---------------+-----------+-----------------------------------------------------------------------------------+
 
-    :param sheet: Switch worksheet
-    :type sheet: Worksheet
+    :param sheet_d: Output from excel_util.read_workbook() for the Chassis worksheet
+    :type sheet_d: list
+    :return error_l: List of error messages. Empty if no error encountered
+    :rtype error_l: list
     :return: Dictionary for switch. None if an error was encountered.
     :rtype: dict, None
     """
-    global _switch_find_d
-
-    sl, al = excel_util.read_sheet(sheet, 'row')
+    global _switch_d
 
     # Find the 'Area' and 'Parameter' columns
-    ml, rd = list(), dict(switch_flag=True, ports=dict())
+    error_l, rd, al = list(), dict(switch_info=dict(), port_d=dict(), err_msgs=list()), sheet_d['al']
     col_d = find_headers(al[0], ('Area', 'Parameter'))
     for k, v in col_d.items():
         if v is None:
-            ml.append('Sheet ' + sheet.title + ' missing column ' + k)
-    if len(ml) > 0:
-        brcdapi_log.log(ml, True)
+            error_l.append('Sheet ' + sheet_d['switch_info']['sheet_name'] + ' missing column ' + k)
+    if len(error_l) > 0:
+        brcdapi_log.log(error_l, echo=True)
         return None
 
-    # Add and validate all the data from the worksheet to return dictionary
-    for k, d in _switch_find_d.items():
-        found = False
-        for row in range(1, len(al)):
-            if k == al[row][col_d['Area']]:
-                v = d['d'] if al[row][col_d['Parameter']] is None else al[row][col_d['Parameter']]
-                if v is None and d['r']:
-                    ml.append('Missing required value for ' + k)
-                else:
-                    if d['h']:
-                        try:
-                            v = int(v, 16)
-                        except ValueError:
-                            ml.append('Value for ' + k + ', ' + str(v) + ', is not a valid hex number.')
-                    if d['yn']:
-                        v = True if v.lower() == 'yes' else False
-                    found = True
-                break
-        if not found:
-            v = d['d']
-        if d['r'] and v is None:
-            ml.append('Missing required value for ' + k)
-        rd.update({d['k']: v})
+    # Add and validate all the data from the worksheet and add it to the return dictionary, rd
+    for row_l in al[1:]:
+        switch_d = _switch_d.get(row_l[col_d['Area']])
+        if isinstance(switch_d, dict):  # error_l, k, val, def_val
+            switch_d['c'](error_l, rd, switch_d, row_l[col_d['Parameter']])
+        else:
+            error_l.append('Invalid key "' + row_l[col_d['Area']] + '" sheet: ' + sheet_d['switch_info']['sheet_name'])
 
-    # Return the switch dict or None if there was an error
-    if len(ml) > 0:
-        brcdapi_log.log(ml, True)
-        return None
-    return rd
+    # If it's a ficon switch, in order delivery and DLS needs to be set
+    if rd['switch_info']['switch_type'] == 'ficon':
+        gen_util.add_to_obj(rd, _fc_switch+'dynamic-load-sharing', 'two-hop-lossless-dls')
+
+    return error_l, rd
 
 
 """
@@ -812,6 +821,8 @@ def _parse_switch_sheet(sheet):
 +-------+-----------------------------------------------------------------------------------------------+
 | h     | If True, treat the cell value as a hex number and convert to a decimal int                    |
 +-------+-----------------------------------------------------------------------------------------------+
+| i     | If True, convert the cell value to an int.                                                    |
++-------+-----------------------------------------------------------------------------------------------+
 | s     | If True, convert the cell value to a str                                                      |
 +-------+-----------------------------------------------------------------------------------------------+
 | slot  | If True, prepend the slot number + '/' to the value. Used to convert ports to s/p notation    |
@@ -821,23 +832,24 @@ def _parse_switch_sheet(sheet):
 +-------+-----------------------------------------------------------------------------------------------+
 """
 _slot_d_find = {  # See table above
-    'Port': dict(k='port', h=False, s=True, slot=True, p=0),
-    'DID (Hex)': dict(k='did', h=True, s=True, slot=False, p=0),
-    'Port Addr (Hex)': dict(k='port_addr', h=False, s=True, slot=False, p=2),
-    'Link Addr': dict(k='link_addr', h=False, s=True, slot=False, p=4),
-    'FID': dict(k='fid', h=False, s=False, slot=False, p=0),
-    'Attached Device': dict(k='desc', h=False, s=False, slot=False, p=0),
-    'ICL Description': dict(k='desc', h=False, s=False, slot=False, p=0),
-    'Port Name': dict(k='port_name', h=False, s=False, slot=False, p=0),
-    'Low Qos VC': dict(k='low_vc', h=False, s=False, slot=False, p=0),
-    'Med Qos VC': dict(k='med_vc', h=False, s=False, slot=False, p=0),
-    'High Qos VC': dict(k='high_vc', h=False, s=False, slot=False, p=0),
+    'Port': dict(k='port', h=False, i=False, s=True, slot=True, p=0),
+    'DID (Hex)': dict(k='did', h=True, i=False, s=True, slot=False, p=0),
+    'Port Addr (Hex)': dict(k='port_addr', h=False, i=False, s=True, slot=False, p=2),
+    'Index': dict(k='index', h=False, i=True, s=True, slot=False, p=0),
+    'Link Addr': dict(k='link_addr', h=False, i=False, s=True, slot=False, p=4),
+    'FID': dict(k='fid', h=False, i=False, s=False, slot=False, p=0),
+    'Attached Device': dict(k='desc', h=False, i=False, s=False, slot=False, p=0),
+    'ICL Description': dict(k='desc', h=False, i=False, s=False, slot=False, p=0),
+    'Port Name': dict(k='port_name', h=False, i=False, s=False, slot=False, p=0),
+    'Low Qos VC': dict(k='low_vc', h=False, i=False, s=False, slot=False, p=0),
+    'Med Qos VC': dict(k='med_vc', h=False, i=False, s=False, slot=False, p=0),
+    'High Qos VC': dict(k='high_vc', h=False, i=False, s=False, slot=False, p=0),
 }
 
 
-def _parse_slot_sheet(sheet):
-    """Parses a "Slot x" worksheet from X6_X7-8_Slot_48_FICON_Link_Address_Planning.xlsx as a dictionary. The key is the
-    port number in s/p notation. The value for each port dictionary is as follows:
+def _parse_slot_sheet(sheet_d):
+    """Parses a "Slot x" worksheet from a configuration workbook into a dictionary. The key is the port number in s/p
+    notation. The value for each port dictionary is as follows:
 
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | key           | type      | Description                                                                       |
@@ -848,6 +860,8 @@ def _parse_slot_sheet(sheet):
     |               |           | decimal int                                                                       |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | port_addr     | str       | Port address in hex as read from the sheet (no leading 0x). Padded to 2 places.   |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | index         | int       | Port index                                                                        |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | link_addr     | str       | Link address in hex as read from the sheet (no leading 0x)                        |
     +---------------+-----------+-----------------------------------------------------------------------------------+
@@ -860,15 +874,16 @@ def _parse_slot_sheet(sheet):
     | high_vc       | int       | High Qos VC                                                                       |
     +---------------+-----------+-----------------------------------------------------------------------------------+
 
-    :param sheet: openpyxl worksheet
-    :type sheet: str
+    :param sheet_d: Output from excel_util.read_workbook() for the Chassis worksheet
+    :type sheet_d: list
+    :return error_l: List of error messages. Empty if no error encountered
+    :rtype error_l: list
     :return: Dictionary for switch. None if an error was encountered.
     :rtype: dict, None
     """
     global _slot_d_find
 
-    rd = dict()  # The return dictionary
-    sl, al = excel_util.read_sheet(sheet, 'row')
+    error_l, rd, al = list(), dict(), sheet_d['al']
 
     # Find the slot number
     for buf in al[0]:
@@ -888,11 +903,12 @@ def _parse_slot_sheet(sheet):
                     break
 
     # Add the data from the worksheet
-    ml = list()
     for row in range(3, len(al)):
+
         if al[row][col_d[0]['port']] is None:
-            break
-        for i in range(0, 2):
+            break  # If the port is None, we reached the end of the workbook
+
+        for i in range(0, 2):  # Director class products have 2 columns, each with the same headers
             if len(col_d[i]) == 0:
                 break
 
@@ -906,7 +922,13 @@ def _parse_slot_sheet(sheet):
                         try:
                             v = int(v, 16)
                         except ValueError:
-                            ml.append('Value for ' + k + ', ' + str(v) + ', is not a valid hex number.')
+                            error_l.append('Value for ' + k + ', ' + str(v) + ', is not a valid hex number.')
+                    if d['i']:
+                        try:
+                            v = int(v)
+                        except ValueError:
+                            error_l.append('Value for ' + k + ', ' + str(v) + ', is not a number in ' +
+                                           sheet_d['switch_info']['sheet_name'])
                     if isinstance(v, str):
                         while len(v) < d['p']:
                             v = '0' + v
@@ -915,45 +937,50 @@ def _parse_slot_sheet(sheet):
             rd.update({pd['port']: pd})
 
     # Return the slot dict or None if there was an error
-    if len(ml) > 0:
-        brcdapi_log.log(ml, True)
-        return None
-    return rd
+    return error_l, rd
 
 
 def parse_switch_file(file):
-    """Parses Excel switch configuration Workbook. X6_X7-4_Switch_Configuration, X6_X7-8_Switch_Configuration, and
-       Fixed_Port_Switch_Configuration
+    """Parses Excel switch configuration Workbook.
 
     :param file: Path and name of Excel Workbook with switch configuration definitions
     :type file: str
-    :return: Dictionary of logical switches (dict as described below). Key is the FID as an int.
-    :rtype: dict
+    :return error_l: List of errors. Empty list if no errors found
+    :rtype error_l: list
+    :return chassis_d: Dictionary of chassis parameters. None if error reding workbook
+    :rtype chassis_d: dict, None
+    :return switch_l: List of logical switch dictionaries as described below.
+    :rtype switch_l: list
+
+    Note: This started as as something very different. If I had to do it over again, I would have used the FOS API
+    mnemonics for these values.
 
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | key           | type      | Description                                                                       |
     +===============+===========+===================================================================================+
-    | switch_flag   | bool      | When True, a corresponding switch sheet was found. When False, the FID was found  |
-    |               |           | on a "Slot x" sheet without a matching sheet for the switch.                      |
+    | banner        | None, str | Login banner. Not set if None.                                                    |
     +---------------+-----------+-----------------------------------------------------------------------------------+
-    | fab_name      | None, str | Fabric name. Not set if None                                                      |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | switch_name   | None, str | Switch name. Not set if None                                                      |
+    | bind          | bool      | If True, bind the addresses to the ports.                                         |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | did           | int       | Although read from the workbook as a str in Hex, it is returned as a decimal int  |
     +---------------+-----------+-----------------------------------------------------------------------------------+
-    | xisl          | bool      | If True, base switch usage is allowed.                                            |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | enable_switch | bool      | If True, enable the switch after configuration is complete.                       |
+    | dup_wwn       | int       | 0 - First login takes precedence.                                                 |
+    |               |           | 1 - Second FLOGI and FDISC takes precedence.                                      |
+    |               |           | 2 - First FLOGI takes precedence. Second FDISC takes precedence                   |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | enable_ports  | bool      | If True, enable the ports after configuration is complete.                        |
     +---------------+-----------+-----------------------------------------------------------------------------------+
-    | banner        | None, str | Login banner. Not set if None.                                                    |
+    | enable_switch | bool      | If True, enable the switch after configuration is complete.                       |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | fab_name      | None, str | Fabric name. Not set if None                                                      |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | port_name     | None, str | User friendly port name                                                           |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | ports         | dict      | Key is the port number and value is a dictionary as follows:                      |
     |               |           |  Key          Type    Value                                                       |
     |               |           |  did          int     The hexadecimal DID converted to decimal.                   |
     |               |           |  port_addr    str     The hexadecimal port address (middle byte of the FC address)|
+    |               |           |  index        int     The port index                                              |
     |               |           |  link_addr    str     FICON link address in hex                                   |
     |               |           |  fid          int     Fabric ID                                                   |
     |               |           |  ad           str,None    Attached device description. None if left blank.        |
@@ -963,42 +990,50 @@ def parse_switch_file(file):
     +---------------+-----------+-----------------------------------------------------------------------------------+
     | sheet_name    | str       | Name of sheet in Workbook.                                                        |
     +---------------+-----------+-----------------------------------------------------------------------------------+
+    | switch_name   | None, str | Switch name. Not set if None                                                      |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | xisl          | bool      | If True, base switch usage is allowed.                                            |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
     """
-    rd = dict()  # Return dict
+    chassis_d, port_d, error_l, rd = None, dict(), list(), dict()
 
     # Load the workbook
+    skip_l = ('About', 'Summary', 'Sheet', 'Instructions', 'CLI_Bind', 'lists', 'VC')
     try:
-        wb = xl.load_workbook(file, data_only=True)
+        sheet_l = excel_util.read_workbook(file, dm=3, skip_sheets=skip_l)
     except FileNotFoundError:
-        brcdapi_log.log('Workbook ' + str(file) + ' not found', True)
-        return rd
+        error_l.append('Workbook ' + str(file) + ' not found')
+        return error_l, chassis_d, list()
 
     # Parse the "Chassis", "Sheet_x", and "Slot x" worksheets
-    chassis_d, port_d = None, dict()
-    for sheet in wb.worksheets:
-        title = sheet.title
-        if len(title) >= len('Chassis') and title[0:len('Chassis')] == 'Chassis':
-            chassis_d = _parse_chassis_sheet(sheet)
-        elif len(title) >= len('Switch') and title[0:len('Switch')] == 'Switch':
-            d = _parse_switch_sheet(sheet)
-            d.update(sheet_name=title)
-            fid = d.get('fid')
-            if fid is not None:
-                if fid in rd:
-                    buf = 'Duplicate FID, ' + str(fid) + '. Appears in ' + title + ' and ' + rd[fid]['sheet_name']
-                    brcdapi_log.log(buf, True)
-                else:
-                    rd.update({d['fid']: d})
-        elif len(title) >= len('Slot x') and title[0:len('Slot ')] == 'Slot ':
-            port_d.update(_parse_slot_sheet(sheet))
+    for sheet_d in sheet_l:
+        title = sheet_d['sheet']
+        if fnmatch.fnmatch(title, 'Chassis*'):
+            ml, chassis_d = _parse_chassis_sheet(sheet_d)
+            error_l.extend(ml)
+        elif fnmatch.fnmatch(title, 'Switch*'):
+            ml, d = _parse_switch_sheet(sheet_d)
+            error_l.extend(ml)
+            gen_util.add_to_obj(d, 'switch_info/sheet_name', title)
+            fid = d['switch_info']['fid']
+            if fid in rd:
+                error_l.append('Duplicate FID, ' + str(fid) + '. Appears in ' + title + ' and ' +
+                               rd[fid]['switch_info']['sheet_name'])
+            else:
+                rd.update({fid: d})
+        elif fnmatch.fnmatch(title, 'Slot ?*'):
+            ml, d = _parse_slot_sheet(sheet_d)
+            error_l.extend(ml)
+            port_d.update(d)
 
     # Build the return dictionary
-    for k, port in port_d.items():
-        fid = port.get('fid')
-        switch_d = dict(switch_flag=False, fid=fid, ports=dict()) if rd.get(fid) is None else rd.get(fid)
-        switch_d['ports'].update({k: port})
+    for k, d in port_d.items():
+        fid = d.get('fid')
+        switch_d = rd.get(fid)
+        if isinstance(switch_d, dict):
+            switch_d['port_d'].update({k: d})
 
-    return chassis_d, [switch_d for switch_d in rd.values()]
+    return error_l, chassis_d, [switch_d for switch_d in rd.values()]
 
 ###################################################################
 #
