@@ -69,16 +69,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 01 Jan 2023   | Added read of workbook with best practice definitions.                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 21 Jan 2023   | Fixed missing SFP threshold violations in report.                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '21 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import brcddb.util.util
 import collections
@@ -846,7 +848,7 @@ def best_practice(bp_file, sfp_file, a_tbl, proj_obj):
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
     """
-    global _alert_tbl_d, _bp_tbl_d
+    global _alert_tbl_d, _bp_tbl_d, _sfp_file, _sfp_rules
 
     _alert_tbl_d = a_tbl  # I could have handled this better but I'm not fixing working code.
     if sfp_file is not None:
