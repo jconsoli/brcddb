@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -62,16 +62,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.4     | 19 Oct 2022   | Fixed hyper links                                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.5     | 21 Jan 2023   | Fixed font in report description.                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '19 Oct 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '21 Jan 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.4'
+__version__ = '3.1.5'
 
 import collections
 import copy
@@ -502,10 +504,11 @@ def _add_project_tc(proj_obj, wb, sheet_index):
 
     # Add the project description and date
     row += 2
-    for d in (dict(t='Description', c=proj_obj.c_description()), dict(t='Data collected', c=proj_obj.r_date())):
+    for d in (dict(t='Description', c=proj_obj.c_description(), f=excel_fonts.font_type('cli')),
+              dict(t='Data collected', c=proj_obj.r_date(), f=_std_font)):
         sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
         excel_util.cell_update(sheet, row, 1, d['t'], font=_std_font, align=_align_wrap)
-        excel_util.cell_update(sheet, row, 3, d['c'], font=_std_font, align=_align_wrap)
+        excel_util.cell_update(sheet, row, 3, d['c'], font=d['f'], align=_align_wrap)
         row += 1
 
     # Figure out what to add to the table of contents. Start with basic project stuff & chassis
@@ -719,6 +722,12 @@ def _chassis_name(obj):
 
 
 def _project_name(obj):
+    try:
+        for buf in obj.r_description().split('\n'):
+            if 'In file, -i:' in buf:
+                return buf.split(':')[1].strip()
+    except IndexError:
+        pass
     return obj.r_description()
 
 
@@ -737,7 +746,6 @@ def report(proj_obj, outf):
     :type outf: str
     """
     # Set up the workbook and give all the major objects (Project, Chassis, Fabric, and Switch) sheet names
-    tbl_contents = list()
     sheet_index, wb = 0, excel_util.new_report()
     _add_sheet_names(proj_obj)
 
