@@ -1,5 +1,10 @@
 # brcddb
 
+**Updates 11 Feb 2023**
+
+* Added checks for FICON ports with addresses > 0xFD
+* Added zone groups to report
+
 **Updates 01 Jan 2023**
 
 * Primary change was shifting from a hard coded best practice table to one dynamically read from a Workbook
