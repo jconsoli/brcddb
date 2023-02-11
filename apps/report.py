@@ -64,16 +64,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.5     | 21 Jan 2023   | Fixed font in report description.                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.6     | 11 Feb 2023   | Added _add_zone_by_group()                                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '21 Jan 2023'
+__date__ = '11 Feb 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.5'
+__version__ = '3.1.6'
 
 import collections
 import copy
@@ -98,6 +100,7 @@ import brcddb.report.switch as report_switch
 import brcddb.report.zone as report_zone
 import brcddb.util.search as brcddb_search
 import brcddb.classes.util as brcddb_class_util
+import brcddb.util.obj_convert as obj_convert
 
 """
 References are added to most objects so that when creating the Workbook so that hyperlinks can be added. For example,
@@ -213,6 +216,7 @@ _port_links_tbl = (
     '_SFP_LINK',
     '_RNID_LINK',
 )
+
 _std_font = excel_fonts.font_type('std')
 _bold_font = excel_fonts.font_type('bold')
 _link_font = excel_fonts.font_type('link')
@@ -230,7 +234,7 @@ def _dashboard(obj, wb, sheet_index):
     global _MAX_DB_SIZE
 
     control_d = obj.r_get('report_app/control/db')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
 
     dashboard_item = collections.OrderedDict()
     dashboard_item['bad-eofs-received'] = dict(title='Top ' + str(_MAX_DB_SIZE) + ' Bad EOF', port_list=list())
@@ -272,7 +276,7 @@ def _add_fabric_sumary(fab_obj, wb, sheet_index):
     :rtype: int
     """
     control_d = fab_obj.r_get('report_app/control/fab')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_fabric.fabric_page(wb,
                               fab_obj.r_get('report_app/hyperlink/tc'),
                               sheet_index,
@@ -285,7 +289,7 @@ def _add_fabric_sumary(fab_obj, wb, sheet_index):
 def _add_switch_detail(fab_obj, wb, sheet_index):
     """Adds the port configuration page. See _add_fabric_sumary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/sw')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_switch.switch_page(wb,
                               fab_obj.r_get('report_app/hyperlink/tc'),
                               control_d['sn'],
@@ -310,7 +314,7 @@ def _add_port_page(fab_obj, wb, sheet_index, control_d, config_tbl, login_flag, 
     :type link_type: str, None
     """
     control_d = fab_obj.r_get('report_app/control/'+link_type)
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_port.port_page(wb,
                           fab_obj.r_get('report_app/hyperlink/tc'),
                           control_d['sn'],
@@ -367,7 +371,7 @@ def _add_port_sfp(fab_obj, wb, sheet_index):
 def _add_zone_analysis(fab_obj, wb, sheet_index):
     """Adds the Zone Analysis page. See _add_fabric_sumary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/za')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_zone.zone_page(fab_obj,
                           fab_obj.r_get('report_app/hyperlink/tc'),
                           wb,
@@ -380,7 +384,7 @@ def _add_zone_analysis(fab_obj, wb, sheet_index):
 def _add_zone_by_target(fab_obj, wb, sheet_index):
     """Adds the Zone by Target page. See _add_fabric_sumary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/zt')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_zone.target_zone_page(fab_obj,
                                  fab_obj.r_get('report_app/hyperlink/tc'),
                                  wb,
@@ -393,7 +397,7 @@ def _add_zone_by_target(fab_obj, wb, sheet_index):
 def _add_zone_by_non_target(fab_obj, wb, sheet_index):
     """Adds the Zone by Non-Target page. See _add_fabric_sumary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/znt')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_zone.non_target_zone_page(fab_obj,
                                      fab_obj.r_get('report_app/hyperlink/tc'),
                                      wb,
@@ -406,7 +410,7 @@ def _add_zone_by_non_target(fab_obj, wb, sheet_index):
 def _add_alias_detail(fab_obj, wb, sheet_index):
     """Adds the Alias Detail page. See _add_fabric_sumary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/ali')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_zone.alias_page(fab_obj,
                            fab_obj.r_get('report_app/hyperlink/tc'),
                            wb,
@@ -419,7 +423,7 @@ def _add_alias_detail(fab_obj, wb, sheet_index):
 def _add_login_detail(fab_obj, wb, sheet_index):
     """Adds the Logins page. See _add_fabric_sumary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/log')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_login.login_page(wb,
                             fab_obj.r_get('report_app/hyperlink/tc'),
                             control_d['sn'],
@@ -433,7 +437,7 @@ def _add_login_detail(fab_obj, wb, sheet_index):
 def _add_chassis(chassis_obj, wb, sheet_index):
     """Adds the port configuration page. See _add_fabric_sumary() for parameter definitions"""
     control_d = chassis_obj.r_get('report_app/control/chassis')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_chassis.chassis_page(wb,
                                 chassis_obj.r_get('report_app/hyperlink/tc'),
                                 control_d['sn'],
@@ -448,7 +452,7 @@ def _add_chassis(chassis_obj, wb, sheet_index):
 def _add_project_bp(proj_obj, wb, sheet_index):
     """Adds the best practice page. See _add_fabric_sumary() for parameter definitions"""
     control_d = proj_obj.r_get('report_app/control/bp')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_bp.bp_page(wb,
                       proj_obj.r_get('report_app/hyperlink/tc'),
                       control_d['sn'],
@@ -465,7 +469,7 @@ def _add_project_dup(proj_obj, wb, sheet_index):
     global _dup_login_tbl
 
     control_d = proj_obj.r_get('report_app/control/dup')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     wl = brcddb_project.dup_wwn(proj_obj)
     if len(wl) > 0:
         report_login.login_page(wb,
@@ -479,6 +483,23 @@ def _add_project_dup(proj_obj, wb, sheet_index):
                                 False)
         return 1
     return 0
+
+
+def _add_zone_by_group(proj_obj, wb, sheet_index):
+    """Adds the zone by groups page. See _add_fabric_sumary() for parameter definitions"""
+    if proj_obj.r_get('report_app/group_d') is None:
+        return 0
+
+    control_d = proj_obj.r_get('report_app/control/zg')
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
+    report_zone.group_zone_page(proj_obj,
+                                proj_obj.r_get('report_app/hyperlink/tc'),
+                                wb,
+                                control_d['sn'],
+                                sheet_index,
+                                control_d['t'])
+
+    return 1
 
 
 def _add_project_tc(proj_obj, wb, sheet_index):
@@ -522,6 +543,7 @@ def _add_project_tc(proj_obj, wb, sheet_index):
         dict(t='Best Practice Violations', cl=[dict(t=control_d['bp']['tc'], l=hyper_d['bp'])]),
         dict(t='Duplicate WWNs', cl=[dup_d]),
         dict(t=control_d['db']['tc'], cl=[dict(t=control_d['db']['tc'], l=hyper_d['bp'])]),
+        dict(t='Zone Groups', cl=[dict(t=control_d['zg']['tc'], l=hyper_d['zg'])]),
         dict(t='Chassis',
              cl=[dict(t=brcddb_chassis.best_chassis_name(obj), l=obj.r_get('report_app/hyperlink/chassis')) \
                  for obj in proj_obj.r_chassis_objects()]),
@@ -583,7 +605,7 @@ def _add_project_tc(proj_obj, wb, sheet_index):
 def _add_iocp(iocp_obj, wb, sheet_index):
     """Adds the IOCP pages, if any. See _add_fabric_sumary() for parameter definitions"""
     control_d = iocp_obj.r_get('report_app/control/iocp')
-    brcdapi_log.log('    Adding ' + control_d['sn'], True)
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_iocp.iocp_page(iocp_obj,
                           iocp_obj.r_get('report_app/hyperlink/tc'),
                           wb,
@@ -606,7 +628,7 @@ action methods.
 | st    | bool      | If True, the object name is added to the sheet title, 't', in _add_sheet_names(). Default is  |
 |       |           | False.                                                                                        |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| u     | bool      | If True, add a uniue number. Used to gaurantee unique sheet names. Default is False           |
+| u     | bool      | If True, add a unique number. Used to gaurantee unique sheet names. Default is False          |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | s     | bool      | If True, add the object name to the sheet name. Used in _add_sheet_names() to determine 'sn'  |
 |       |           | Default is False.                                                                             |
@@ -627,8 +649,12 @@ _proj_control_d=dict(tc=_tc,
                      db=dict(p='proj_dashboard', tc='Project Dashboard', t='Project Dashboard', a=_dashboard),
                      bp=dict(p='Best_Practice', tc='Best Practice Violations', t='Best Practice Violations',
                              a=_add_project_bp),
+                     zg=dict(p='Zone_Groups', tc='Zone Groups', t='Zone Groups', a=_add_zone_by_group),
                      dup=dict(p='dup_wwns', tc='Duplicate WWNs', t='Duplicate WWNs', a=_add_project_dup)
                      )
+# _zone_group_control_d=dict(tc=_tc,
+#                         zone_group=dict(tc='Zone Group 100', t='Zone Group 200', u=True, s=True, a=_add_zone_by_group),
+#                         )
 _fab_control_d=dict(tc=_tc,
                     fab=dict(p='fab_', tc='Fabric Summary', t='Fabric Summary: ', u=True, s=True, sf=True,
                              a=_add_fabric_sumary),
@@ -677,6 +703,7 @@ def _add_sheet_names(proj_obj):
     # Chassis, Fabric, Switch, and IOCP object control
     add_l = (
         dict(obj_l=[proj_obj], control_d=_proj_control_d, name_m=''),
+        # dict(obj_l=[proj_obj], control_d=_zone_group_control_d, name_m='Zone Groups 1234'),
         dict(obj_l=proj_obj.r_chassis_objects(), control_d=_chassis_control_d, name_m=brcddb_chassis.best_chassis_name),
         dict(obj_l=proj_obj.r_fabric_objects(), control_d=_fab_control_d, name_m=brcddb_fabric.best_fab_name),
         dict(obj_l=proj_obj.r_iocp_objects(), control_d=_iocp_control_d, name_m=_iocp_name),
@@ -735,19 +762,20 @@ def _iocp_name(obj):
     return obj.r_obj_key()
 
 
-def report(proj_obj, outf):
-
-
+def report(proj_obj, outf, group_d=dict()):
     """Creates an Excel report. Sort of a SAN Health like report.
 
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
     :param outf: Output file name
     :type outf: str
+    :param group_d: Zone groups. Key: Group name. Value: list of port objects
+    :type group_d: dict
     """
     # Set up the workbook and give all the major objects (Project, Chassis, Fabric, and Switch) sheet names
     sheet_index, wb = 0, excel_util.new_report()
     _add_sheet_names(proj_obj)
+    brcddb_util.add_to_obj(proj_obj, 'report_app/group_d', group_d)
 
     """report_l is a list of dictionaries in the order they are to be processed. The dictionaries control sheet creation
     as follows:
@@ -793,7 +821,8 @@ def report(proj_obj, outf):
              rs=True),
         dict(obj_l=[proj_obj],
              add_name=(),
-             order=('dup', 'bp', 'db', 'tc'),
+             order=('dup', 'zg', 'bp', 'db', 'tc'),
+             # order=('dup', 'bp', 'db', 'tc'),
              feedback='Processing: ',
              control=_proj_control_d,
              obj_name = _project_name,
@@ -811,20 +840,22 @@ def report(proj_obj, outf):
             if isinstance(control_d, dict):  # It should always be a dict. This is just belt and suspenders
                 for ctl_d in [control_d[k] for k in report_d['add_name']]:  # Add the object name to the titles
                     ctl_d['t'] += obj_name
-            brcdapi_log.log(report_d['feedback'] + obj_name, True)
+            brcdapi_log.log(report_d['feedback'] + obj_name, echo=True)
             for ctl_d in [report_d['control'][k] for k in report_d['order']]:
                 sheet_index += ctl_d['a'](obj,
                                           wb,
                                           start_i if 'sf' in ctl_d and ctl_d['sf'] else sheet_index)
 
     # Save the report.
+    brcdapi_log.log('Saving ' + outf, echo=True)
     try:
         excel_util.save_report(wb, outf)
     except PermissionError:
-        brcdapi_log.log(['', 'Permission error writing ' + outf + '. File may be open in another application.'], True)
+        brcdapi_log.log(['', 'Permission error writing ' + outf + '. File may be open in another application.'],
+                        echo=True)
         proj_obj.s_error_flag()
     except FileNotFoundError:
-        brcdapi_log.log(['', 'Write report failed. Folder in ' + outf + ' does not exist.'], True)
+        brcdapi_log.log(['', 'Write report failed. Folder in ' + outf + ' does not exist.'], echo=True)
         proj_obj.s_error_flag()
 
     return
