@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -15,7 +15,29 @@
 """
 :mod:`brcddb.brcddb_zone` - Zone utilities.
 
-*********************************************************************************************************
+Public Methods::
+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | alias_compare         | Compares two aliases                                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | is_alias_match        | Simple True/False comparison between two aliases                                      |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | zone_compare          | Compares two zones                                                                    |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | is_zone_match         | Simple True/False comparison between two zones                                        |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | cfg_compare           | Compares two zone configurations. Validates membership only. Does not compare         |
+    |                       | individual members                                                                    |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | is_cfg_match          | Simple True/False comparison between two configurations                               |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | zone_type             | Returns the zone type (User defined peer, Target driven peer, or Standard) in plain   |
+    |                       | text                                                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | eff_zoned_to_wwn      | Finds all WWNs in the effective zone that are zoned to wwn.                           |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -35,20 +57,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 14 Nov 2021   | Added all parameter to eff_zoned_to_wwn()                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 28 Apr 2022   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 11 Feb 2023   | Fixed filtering of targets in eff_zoned_to_wwn()                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Nov 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '11 Feb 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.6'
 
 import brcddb.brcddb_common as brcddb_common
-import brcddb.util.iocp as brcddb_iocp
-import brcddb.brcddb_port as brcddb_port
 
 
 def alias_compare(base_alias_obj, comp_alias_obj):
@@ -105,8 +129,10 @@ def zone_compare(base_zone_obj, comp_zone_obj):
     pbl = base_zone_obj.r_pmembers()
     pcl = comp_zone_obj.r_pmembers()
     return True if base_zone_obj.r_type() != comp_zone_obj.r_type() else False, \
-                [mem for mem in cl if mem not in bl], [mem for mem in bl if mem not in cl], \
-                [mem for mem in pcl if mem not in pbl], [mem for mem in pbl if mem not in pcl]
+           [mem for mem in cl if mem not in bl],\
+           [mem for mem in bl if mem not in cl], \
+           [mem for mem in pcl if mem not in pbl],\
+           [mem for mem in pbl if mem not in pcl]
             
 
 def is_zone_match(base_zone_obj, comp_zone_obj):
@@ -141,13 +167,13 @@ def cfg_compare(base_cfg_obj, comp_cfg_obj):
 
 
 def is_cfg_match(base_cfg_obj, comp_cfg_obj):
-    """Simple True/False comparison between two cfges
+    """Simple True/False comparison between two configurations
 
     :param base_cfg_obj: Alias object to compare against
     :type base_cfg_obj: brcddb.classes.zone.AliasObj
     :param comp_cfg_obj: New cfg object
     :type comp_cfg_obj: brcddb.classes.zone.AliasObj
-    :return: True if the cfges are the same, otherwise False
+    :return: True if the configurations are the same, otherwise False
     :rtype: bool
     """
     bl, cl = cfg_compare(base_cfg_obj, comp_cfg_obj)
@@ -155,21 +181,21 @@ def is_cfg_match(base_cfg_obj, comp_cfg_obj):
 
 
 def zone_type(zone_obj, num_flag=False):
-    """Returns the zone type (User defined peer, Target driven peer, or Stnadard) in plain text
+    """Returns the zone type (User defined peer, Target driven peer, or Standard) in plain text
 
     :param zone_obj: Zone Object
     :type zone_obj: brcddb_classes.ZoneObj
     :param num_flag: If True, append (type) where type is the numerical zone type returned from the API
     :type num_flag: bool
-    :return: Port type
+    :return: Zone type
     :rtype: str
     """
-    type = zone_obj.r_type()
+    z_type = zone_obj.r_type()
     try:
-        buf = brcddb_common.zone_conversion_tbl['zone-type'][type]
-        return buf + '(' + str(type) + ')' if num_flag else buf
-    except:
-        return 'Unknown (' + str(type) + ')'
+        buf = brcddb_common.zone_conversion_tbl['zone-type'][z_type]
+        return buf + '(' + str(z_type) + ')' if num_flag else buf
+    except KeyError:
+        return 'Unknown (' + str(z_type) + ')'
 
 
 def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=False):
@@ -199,14 +225,12 @@ def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=Fals
             if wwn == login_obj.r_obj_key():
                 continue
             add_wwn = None
-            fc4 = login_obj.r_get('brocade-name-server/fc4-features')
-            if fc4 is None:
-                if all_types:
-                    add_wwn = login_obj.r_obj_key()
-            elif 'target' in fc4.lower():
-                if target:
-                    add_wwn = login_obj.r_obj_key()
-            elif initiator:
+            fc4 = login_obj.r_get('brocade-name-server/fibrechannel-name-server/fc4-features')
+            if fc4 is None or all_types:
+                add_wwn = login_obj.r_obj_key()
+            elif target and 'target' in fc4.lower():
+                add_wwn = login_obj.r_obj_key()
+            elif initiator and 'initiator' in fc4.lower():
                 add_wwn = login_obj.r_obj_key()
             if add_wwn is not None:
                 zone_l = rd.get(add_wwn)

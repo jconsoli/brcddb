@@ -87,16 +87,18 @@ Version Control::
     | 3.1.9     | 01 Jan 2023   | Added skip_zone and skip_zonecfg options to copy_fab_obj(). Modified to support   |
     |           |               | brcddb_bp overhaul.                                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.2.0     | 11 Feb 2023   | Updated comments only                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '11 Feb 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.9'
+__version__ = '3.2.0'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -152,6 +154,7 @@ def best_fab_name(fab_obj, wwn=False, fid=False):
     :param wwn: If True, append (wwn) to the fabric name
     :type wwn: bool
     :param fid: If True, append (fid) to the fabric name
+    :type fid: bool
     :return: Fabric name
     :rtype: str, None
     """

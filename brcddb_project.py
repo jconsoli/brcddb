@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -39,6 +39,8 @@ Public Methods & Data::
     | switch_obj_for_user_name  | Returns a list of switch objects matching a user friendly name. May be a regex    |
     |                           | match, regex search, wild card, or exact match.                                   |
     +---------------------------+-----------------------------------------------------------------------------------+
+    | best_project_name         | Returns the project object key                                                    |
+    +---------------------------+-----------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -73,16 +75,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.1     | 25 Jul 2022   | Improved error messaging in read_from() for invalid project files.                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 10 Dec 2022   | Added the ability to set duplicate WWN checking externally. See _dup_wwn_check    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 11 Feb 2023   | Added best_project_name()                                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '25 Jul 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '11 Feb 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.3'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.file as brcdapi_file
@@ -93,10 +99,9 @@ import brcddb.util.util as brcddb_util
 import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.search as brcddb_search
-import brcddb.app_data.bp_tables as bt
 import brcddb.brcddb_switch as brcddb_switch
 
-_DUP_WWN_CHECK = True if bt.custom_tbl.get('dup_wwn') is None else bt.custom_tbl.get('dup_wwn')
+_dup_wwn_check = False
 
 
 def new(name, date):
@@ -110,6 +115,17 @@ def new(name, date):
     return project_class.ProjectObj(name, date)
 
 
+def set_dup_wwn(state):
+    """Sets _dup_wwn
+
+    :param state: True or False
+    :type state: bool
+    """
+    global _dup_wwn_check
+
+    _dup_wwn_check = state
+
+
 def dup_wwn(proj_obj):
     """Searches all fabrics in the project for duplicate WWNs.
 
@@ -118,8 +134,10 @@ def dup_wwn(proj_obj):
     :return: List of login objects for the duplicate WWNs. None entry separates multiple duplicates
     :rtype: list
     """
+    global _dup_wwn_check
+
     dup_login_l = list()
-    if not _DUP_WWN_CHECK:
+    if not _dup_wwn_check:
         return dup_login_l
 
     for wwn in gen_util.remove_duplicates(proj_obj.r_login_keys()):
@@ -145,7 +163,7 @@ def read_from(inf):
     """
     obj = brcdapi_file.read_dump(inf)
     if not isinstance(obj, dict) or obj.get('_obj_key') is None or obj.get('_date') is None:
-        brcdapi_log.log(inf + ' is not a valid project file.', True)
+        brcdapi_log.log(inf + ' is not a valid project file.', echo=True)
         return None
     # Make sure there is a valid Excel tab name.
     proj_obj = new(obj.get('_obj_key').replace(' ', '_').replace(':', '').replace('-', '_')[:32], obj.get('_date'))
@@ -174,7 +192,7 @@ def add_custom_search_terms(proj_obj):
     _search/remote_sfp_max_speed (in Gbps)
     _search/remote_sfp_min_speed (in Gbps)
     _search/max_login_speed (in Gbps. This is the maximum common to both the local and remote SFPs)
-    _search/speed (in Gbps - This is fibrechannel/speed, which is bps, converted to Gbps)
+    _search/speed (in Gbps - This is fibrechannel/speed, which is bps, converted to Gbps. The actual login speed)
 
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
@@ -265,3 +283,18 @@ def switch_obj_for_user_name(proj_obj, name, match_type='exact'):
                 i=False)
         )
     )
+
+
+def best_project_name(proj_obj):
+    """Returns the user friendly project name.
+
+    :param proj_obj: Project object
+    :type proj_obj: brcddb.classes.project.ProjectObj
+    :return: Project description
+    :rtype: str
+    """
+    try:
+        return proj_obj.r_obj_key()
+    except AttributeError:
+        pass
+    return 'unknown'

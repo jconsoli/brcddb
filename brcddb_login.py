@@ -58,18 +58,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 04 Sep 2022   | Added references for new API branches.                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 01 Jan 2022   | Added login_feature()                                                             |
+    | 3.0.6     | 01 Jan 2023   | Added login_feature()                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 11 Feb 2023   | Added object checking to login_type() and login_features(). Fixed name in         |
+    |           |               | login_best_port_desc()
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '11 Feb 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.util.util as brcddb_util
 
@@ -101,7 +104,10 @@ def ns_node_name(login_obj):
     :return: Node name
     :rtype: str, None
     """
-    return None if login_obj is None else login_obj.r_get('brocade-name-server/brocade-name-server/node-symbolic-name')
+    try:
+        return login_obj.r_get('brocade-name-server/brocade-name-server/node-symbolic-name')
+    except AttributeError:
+        return None
 
 
 def login_best_node_desc(login_obj):
@@ -157,7 +163,7 @@ def login_best_port_desc(login_obj):
 
     # Try FDMI port data
     try:
-        buf = fab_obj.r_fdmi_port_obj(wwn).r_get('brocade-fdmi/port-symbolic-name')
+        buf = fab_obj.r_fdmi_port_obj(wwn).r_get('brocade-fdmi/port/port-symbolic-name')
         if buf is not None:
             if len(buf) < _MIN_SYMB_LEN:
                 maybe = buf
@@ -203,8 +209,11 @@ def login_type(login_obj):
     :return: Login type
     :rtype: str
     """
-    fc4_type = login_obj.r_get('brocade-name-server/fibrechannel-name-server/fc4-type')
-    return '' if fc4_type is None else fc4_type
+    try:
+        fc4_type = login_obj.r_get('brocade-name-server/fibrechannel-name-server/fc4-type')
+        return '' if fc4_type is None else fc4_type
+    except AttributeError:
+        return ''
 
 
 def login_features(login_obj):
@@ -215,5 +224,8 @@ def login_features(login_obj):
     :return: Login type
     :rtype: str
     """
-    fc4_feature = login_obj.r_get('brocade-name-server/fibrechannel-name-server/fc4-features')
-    return '' if fc4_feature is None else fc4_feature
+    try:
+        fc4_feature = login_obj.r_get('brocade-name-server/fibrechannel-name-server/fc4-features')
+        return '' if fc4_feature is None else fc4_feature
+    except AttributeError:
+        return ''

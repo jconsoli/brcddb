@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,15 +14,32 @@
 """
 :mod:`brcddb_chassis` - Methods and tables to support the class ChassisObj.
 
-Primary Methods::
+Public Methods::
 
-    +-----------------------------+----------------------------------------------------------------------------------+
-    | Method                      | Description                                                                      |
-    +=============================+==================================================================================+
-    | blade_name()                | Converts the brocade-fru/blade/blade-id number to a user friendly blade type     |
-    +-----------------------------+----------------------------------------------------------------------------------+
-    | best_chassis_name()         | Returns the chassis name, if available. Otherwise, the WWN for the chassis       |
-    +-----------------------------+----------------------------------------------------------------------------------+
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | blade_name            | Converts the brocade-fru/blade/blade-id number to a user friendly blade type          |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | best_chassis_name     | Returns the chassis name, if available. Otherwise, the WWN for the chassis            |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | chassis_type          | Returns the chassis type (ie: G720)                                                   |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | eos_epoch             | Returns the End of Support (EOS) date in epoch time                                   |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | eos                   | Returns the End of Support (EOS) date in human readable format                        |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | gen                   | Returns the gen type as an integer                                                    |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | slots                 | Returns the number of slots for a switch or chassis                                   |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | ibm_machine_type      | Returns the IBM machine type for the switch                                           |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | sys_z_supported       | Returns True if z systems supported                                                   |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | chassis_speed         | Converts the switch type number to the max speed the switch is capable of as an int   |
+    |                       | in Gbps                                                                               |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -46,16 +63,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 31 Dec 2021   | Miscellaneous clean up. No functional changes.                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 28 Apr 2022   | Updated EOS date for 6520                                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 11 Feb 2023   | Added blde-id 232 (FC64-64) and switchtypes 182 (G730), 183 (G620), and 184 (G630)|
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '11 Feb 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.8'
 
 import time
 import brcdapi.log as brcdapi_log
@@ -105,6 +126,7 @@ blade_id_name = {
     215: 'CR64-8',
     218: 'FC32-X7-48',
     220: 'CPX7',
+    232: 'FC64-64',
 }
 cfg_unknown = 0
 cfg_fixed = 1
@@ -345,7 +367,7 @@ chassis_type_d = {
               gen=0, z=False, eos=4102549199.0),
     133: dict(brcd='6520', ibm='SAN96B-5', hpe='SN6500B', dell='DS-6520B', hv='6520',
               pure='Unknown', netapp='Unknown', ibm_t='2498-F96/N96', spd=16, cfg=cfg_fixed,
-              gen=5, z=False, eos=1750165199.0),
+              gen=5, z=False, eos=1821484800.0),
     134: dict(brcd='5432', ibm='Unknown', hpe='5432', dell='5432', hv='5432',
               pure='Unknown', netapp='Unknown', ibm_t='Unknown', spd=8, cfg=cfg_fixed,
               gen=4, z=False, eos=631256399.0),
@@ -370,26 +392,35 @@ chassis_type_d = {
     166: dict(brcd='X6-8', ibm='SAN512B-6', hpe='SN8600B-8', dell='ED-DCX6-8B', hv='X6-8',
               pure='X6-8', netapp='Unknown', ibm_t='8961-F08', spd=32, cfg=cfg_8_slot,
               gen=6, z=True, eos=None),
-    170: dict(brcd='G610', ibm='SAN64B-6', hpe='G620', dell='DS-6610B', hv='G610',
+    170: dict(brcd='G610', ibm='SAN64B-6', hpe='SN3600B', dell='DS-6610B', hv='G610',
               pure='G610', netapp='Unknown', ibm_t='8960-F64/N64', spd=32, cfg=cfg_fixed,
               gen=6, z=False, eos=None),
     171: dict(brcd='AMP_2_0', ibm='AMP_2_0', hpe='AMP_2_0', dell='AMP_2_0', hv='AMP_2_0',
               pure='Unknown', netapp='Unknown', ibm_t='AMP_2_0', spd=32, cfg=cfg_fixed,
               gen=6, z=False, eos=1572526799.0),
-    173: dict(brcd='G630', ibm='SAN128B-6', hpe='SN6650B', dell='DS-6630B', hv='G630',
+    173: dict(brcd='G630', ibm='SAN128B-6', hpe='SN6650B', dell='DS-6630', hv='G630',
               pure='G630', netapp='Unknown', ibm_t='8960-F128/N64', spd=32, cfg=cfg_fixed,
               gen=6, z=False, eos=None),
     178: dict(brcd='7810', ibm='SAN18B-6', hpe='SN2600B', dell='MP-7810B', hv='7810',
               pure='7810', netapp='Unknown', ibm_t='8960-R18', spd=32, cfg=cfg_fixed,
-              gen=6, z=False, eos=None),
+              gen=7, z=False, eos=None),
     179: dict(brcd='X7-4', ibm='SAN256B-7', hpe='SN8700B-4', dell='ED-DCX7-4B', hv='X7-4',
-              pure='X7-4', netapp='Unknown', ibm_t='8960-F128/N64', spd=32, cfg=cfg_fixed,
-              gen=6, z=True, eos=None),
+              pure='X7-4', netapp='Unknown', ibm_t='8960-F128/N64', spd=64, cfg=cfg_fixed,
+              gen=7, z=True, eos=None),
     180: dict(brcd='X7-8', ibm='SAN512B-7', hpe='SN8700B-8', dell='ED-DCX7-8B', hv='X7-8',
-              pure='X7-8', netapp='Unknown', ibm_t='8961-F78', spd=32, cfg=cfg_fixed,
+              pure='X7-8', netapp='Unknown', ibm_t='8961-F78', spd=64, cfg=cfg_fixed,
+              gen=7, z=True, eos=None),
+    181: dict(brcd='G720', ibm='SAN64B-7', hpe='SN6700B', dell='DS-7720', hv='HD-720',
+              pure='G720', netapp='Unknown', ibm_t='8960-R64/P64', spd=64, cfg=cfg_fixed,
+              gen=7, z=True, eos=None),
+    182: dict(brcd='G730', ibm='SAN128B-7', hpe='SN6700B', dell='DS-7730', hv='HD-730',
+              pure='G730', netapp='Unknown', ibm_t='8960-R64/P64', spd=64, cfg=cfg_fixed,
+              gen=7, z=True, eos=None),
+    183: dict(brcd='G620', ibm='SAN64B-6', hpe='SN6600B', dell='DS-6620', hv='HD-620',
+              pure='G620', netapp='Unknown', ibm_t='8960-F64/N64', spd=32, cfg=cfg_fixed,
               gen=6, z=True, eos=None),
-    181: dict(brcd='G720', ibm='SAN64B-7', hpe='SN6700B', dell='DS-7720B', hv='G720',
-              pure='G720', netapp='Unknown', ibm_t='8960-R64/P64', spd=32, cfg=cfg_fixed,
+    184: dict(brcd='G630', ibm='SAN64B-6', hpe='SN6650B', dell='DS-6630', hv='HD-630',
+              pure='G630', netapp='Unknown', ibm_t='8960-F64/N64', spd=32, cfg=cfg_fixed,
               gen=6, z=True, eos=None),
     1000: dict(brcd='VDX8770-4', ibm='Unknown', hpe='VDX8770-4', dell='VDX8770-4', hv='VDX8770-4',
                pure='Unknown', netapp='Unknown', ibm_t='Unknown', spd=0, cfg=cfg_fixed,
@@ -460,7 +491,7 @@ def chassis_type(chassis_obj, type_num=False, in_oem='brcd'):
     if in_oem.lower() in d:
         oem = in_oem.lower()
     else:
-        brcdapi_log.exception('Invalid oem, ' + str(in_oem), True)
+        brcdapi_log.exception('Invalid oem, ' + str(in_oem), echo=True)
         oem = 'brcd'
     return d[oem] + ' (' + str(switch_type) + ')' if type_num else d[oem]
 
@@ -489,7 +520,7 @@ def eos(obj):
 
 
 def gen(obj):
-    """Returns the gen type
+    """Returns the gen type as an integer
 
     :param obj: Chassis or switch object
     :type obj: brcddb.class.chassis.ChassisObj, brcddb.class.switch.SwitchObj
@@ -534,7 +565,7 @@ def sys_z_supported(obj):
 
 
 def chassis_speed(obj):
-    """Converts the switch type number to the max speed the switch is capable of
+    """Converts the switch type number to the max speed the switch is capable of as an int in Gbps
 
     :param obj: Chassis or switch object
     :type obj: brcddb.class.chassis.ChassisObj, brcddb.class.switch.SwitchObj

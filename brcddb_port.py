@@ -39,6 +39,9 @@ Public Methods::
     | port_objects_for_addr | Returns a list of port objects using an exact, wild card, or regex match of the fibre |
     |                       | channel address.                                                                      |
     +-----------------------+---------------------------------------------------------------------------------------+
+    | port_objects_for_name | Returns a list of port objects using an exact, wild card, or regex match of the port  |
+    |                       | name.                                                                                 |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -65,16 +68,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 01 Jan 2023   | Added port_objects_for_addr()                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 11 Feb 2023   | Added port_objects_for_name()                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '11 Feb 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
@@ -210,7 +215,7 @@ def port_obj_for_chpid(obj, seq, tag):
     :type seq: str
     :param tag: CHPID tag
     :type tag: str
-    :rturn: Port object where this CHPID is connected. None if not found
+    :return: Port object where this CHPID is connected. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
     # The tag from the IOCP will never have '0x' prefix so below is just in case I ever use this for something else.
@@ -239,7 +244,7 @@ def port_objects_for_addr(obj, addr, search='exact'):
     :type addr: str
     :param search: Search type. Must be one of the search types accpted by brcddb_search.match_test()
     :type search: str
-    :rturn: Port object matching the link address. None if not found
+    :return: Port object matching the link address. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
     return brcddb_search.match_test(
@@ -256,8 +261,29 @@ def port_obj_for_addr(obj, addr):
                 brcddb.classes.chassis.ChassisObj
     :param addr: Hex FC address (format is 0x123400)
     :type addr: str
-    :rturn: Port object matching the link address. None if not found
+    :return: Port object matching the link address. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
     port_list = port_objects_for_addr(obj, addr)
     return port_list[0] if len(port_list) > 0 else None
+
+
+def port_objects_for_name(obj, name, search='exact'):
+    """Returns a list of port objects using an exact, wild card, or regex match of the port name.
+
+    :param obj: Object with port objects, obj.r_port_objects()
+    :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
+                brcddb.classes.chassis.ChassisObj
+    :param name: Port name + search characters (if applicable). Case sensitive.
+    :type name: str
+    :param search: Search type. Must be one of the search types accpted by brcddb_search.match_test()
+    :type search: str
+    :return: Port object matching the link address. None if not found
+    :rtype: brcddb.classes.port.PortObj, None
+    """
+    return brcddb_search.match_test(
+        obj.r_port_objects(),
+        dict(k='fibrechannel/user-friendly-name', t=search, v=name, i=False)
+    )
+
+
