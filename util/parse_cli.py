@@ -62,16 +62,18 @@ Version Control::
     | 1.0.5     | 01 Jan 2023   | Changed _cfgshow_zone_gen() to cfgshow_zone_gen(), making it public. This was     |
     |           |               | to support an internal utility that parses SAN Health reports.                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 1.0.6     | 11 Feb 2023   | Fixed parsing of portstatsshow output                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '11 Feb 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '1.0.5'
+__version__ = '1.0.6'
 
 import re
 import time
@@ -92,11 +94,7 @@ def _conv_to_int(buf):
     :return: None if non-integer, otherwise the value in buf converted to an integer
     :rtype: None, int
     """
-    try:
-        return int(buf)
-    except TypeError:
-        pass
-    return None
+    return int(buf) if buf.isnumeric() else None
 
 
 def _conv_to_lower(buf):
@@ -106,11 +104,7 @@ def _conv_to_lower(buf):
     :return: Value as passed if buf is not a string. Otherwise buf converted to lower case
     :rtype: str
     """
-    try:
-        return buf.lower()
-    except TypeError:
-        pass
-    return buf
+    return buf.lower() if isinstance(buf, str) else buf
 
 
 _BFS_FS = 'brocade-fibrechannel-switch/fibrechannel-switch/'
@@ -728,7 +722,7 @@ def portstats64show(obj, content):
             if key is not None:
                 if 'top_int :' in buf:
                     i += 1
-                    lv = int(gen_util.remove_duplicate_char(content[i].replace('\t', ' ').strip()).split(' ')[0], ' ')
+                    lv = int(gen_util.remove_duplicate_char(content[i].replace('\t', ' ').strip().split(' ')[0], ' '))
                     v = int('{:x}'.format(int(cl[1])) + '{:08x}'.format(lv), 16)
                 else:
                     v = int(cl[1])

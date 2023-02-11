@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -76,20 +76,26 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 04 Sep 2022   | Minor performance enhancements. No functional changes.                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 11 Feb 2023   | Added user feedback for long projects and better handling of lists                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '04 Sep 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '11 Feb 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import copy
 import re
 import brcdapi.log as brcdapi_log
 import brcddb.classes.util as class_util
+import brcddb.brcddb_project as brcddb_project
+import brcddb.brcddb_chassis as brcddb_chassis
+import brcddb.brcddb_fabric as brcddb_fabric
+import brcddb.brcddb_switch as brcddb_switch
 
 _REMOVED = 'Removed'
 _NEW = 'Added'
@@ -117,11 +123,11 @@ def _update_r_obj(r_obj, d):
         r_obj.update(d)
 
 
-def _check_control(ref, control_tbl):
+def _check_control(in_ref, control_tbl):
     """Check the reference against the control table
 
-    :param ref: Reference object to look for in the control table
-    :type ref: str
+    :param in_ref: Reference object to look for in the control table
+    :type in_ref: str
     :param control_tbl: Control table.
     :type control_tbl: dict
     :return skip_flag: True if the ref was found in control_tbl and it indicated that the test should be skipped.
@@ -133,10 +139,21 @@ def _check_control(ref, control_tbl):
     """
     skip_flag, lt, gt = False, 0, 0
     if isinstance(control_tbl, dict):
+
+        # Remove the list index
+        ref_l = in_ref.split('[')
+        i, ref, len_rel_l = 1, ref_l[0], len(ref_l)
+        while i < len_rel_l:
+            try:
+                ref += ref_l[i].split(']')[1]
+            except IndexError:
+                pass
+            i += 1
+
         for k in control_tbl.keys():
             if re.search(k, ref):
                 cd = control_tbl.get(k)
-                skip_flag = False if cd.get('skip') is None else cd.get('skip')
+                skip_flag = bool(cd.get('skip'))
                 lt = 0 if cd.get('lt') is None else cd.get('lt')
                 gt = 0 if cd.get('gt') is None else cd.get('gt')
                 break
@@ -169,31 +186,31 @@ def _str_compare(r_obj, ref, b_str, c_str, control_tbl):
     if c_str is None:
         _update_r_obj(r_obj, {'b': b_str, 'c': '', 'r': _REMOVED})
         return 1
-    i_b_str = str(b_str)  # I shouldn't need str(b_str) but just in case I'm over looking something
-    i_c_str = str(c_str)
-    if i_b_str != i_c_str:
-        _update_r_obj(r_obj, {'b': i_b_str, 'c': i_c_str, 'r': _CHANGED})
+    if b_str != c_str:
+        _update_r_obj(r_obj, {'b': b_str, 'c': c_str, 'r': _CHANGED})
         return 1
 
     return 0
 
 
-def _num_compare(r_obj, ref, b_num, c_num, control_tbl):
-    """Generic number compare
+def _bool_compare(r_obj, ref, b_flag, c_flag, control_tbl):
+    """int or float compare. See _str_compare() for parameter definitions"""
+    global _REMOVED
 
-    :param r_obj: Return object - Dictionary of changes
-    :type r_obj: dict
-    :param ref: Reference key. Used as the key to the control check (_check_control)
-    :type ref: str
-    :param b_num: Base hex integer to compare against.
-    :type b_num: int, float
-    :param c_num: Compare number
-    :type c_num: int, float
-    :param control_tbl: Control table.
-    :type control_tbl: dict
-    :return: Change counter
-    :rtype: int
-    """
+    skip_flag, lt, gt = _check_control(ref, control_tbl)
+    if skip_flag:
+        return 0
+    if c_flag is None:
+        _update_r_obj(r_obj, {'b': str(b_flag), 'c': '', 'r': _REMOVED})
+        return 1
+    if c_flag != b_flag:
+        _update_r_obj(r_obj, {'b': str(b_flag), 'c': str(c_flag), 'r': _CHANGED})
+        return 1
+    return 0
+
+
+def _num_compare(r_obj, ref, b_num, c_num, control_tbl):
+    """int or float compare. See _str_compare() for parameter definitions"""
     global _REMOVED
 
     skip_flag, lt, gt = _check_control(ref, control_tbl)
@@ -213,21 +230,7 @@ def _num_compare(r_obj, ref, b_num, c_num, control_tbl):
 
 
 def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
-    """Compares two brcddb objects
-
-    :param r_obj: Return object - Dictionary of changes
-    :type r_obj: dict
-    :param ref: Reference key. Used as the key to the control check (_check_control)
-    :type ref: str
-    :param b_obj: Base object to compare against.
-    :type b_obj: brcddb.classes - chassis, fabric, login, port, project, switch, zone
-    :param c_obj: Compare object
-    :type c_obj: brcddb.classes - chassis, fabric, login, port, project, switch, zone
-    :param control_tbl: Control table.
-    :type control_tbl: dict
-    :return: Change counter
-    :rtype: int
-    """
+    """Compares two brcddb objects. See _str_compare() for parameter definitions"""
     global _REMOVED
 
     c = 0
@@ -262,21 +265,7 @@ def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
 
 
 def _brcddb_compare(r_obj, ref, b_obj, c_obj, control_tbl):
-    """Compares two brcddb objects
-
-    :param r_obj: Return object - Dictionary of changes
-    :type r_obj: dict
-    :param ref: Reference key. Used as the key to the control check (_check_control)
-    :type ref: str
-    :param b_obj: Base object to compare against.
-    :type b_obj: brcddb.classes - chassis, fabric, login, port, project, switch, zone
-    :param c_obj: Compare object
-    :type c_obj: brcddb.classes - chassis, fabric, login, port, project, switch, zone
-    :param control_tbl: Control table.
-    :type control_tbl: dict
-    :return: Change counter
-    :rtype: int
-    """
+    """Compares two brcddb objects. See _str_compare() for parameter definitions"""
     global _brcddb_control_tables
 
     skip_flag, lt, gt = _check_control(ref, control_tbl)
@@ -295,30 +284,13 @@ def _brcddb_compare(r_obj, ref, b_obj, c_obj, control_tbl):
 
 
 def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
-    """Compare dictionary objects
-
-    :param r_obj: Return object - Dictionary of changes
-    :type r_obj: dict
-    :param ref: Reference key (control_tbl look up).
-    :type ref: str
-    :param b_obj: Base dict object.
-    :type b_obj: dict
-    :param c_obj: Compare dict object
-    :type c_obj: dict
-    :param control_tbl: Control table.
-    :type control_tbl: dict
-    :return: Change counter
-    :rtype: int
-    """
-    global _REMOVED, _NEW, _MISMATCH
+    """Compare dictionary objects. See _str_compare() for parameter definitions"""
+    global _REMOVED, _NEW
 
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
         return 0
 
-    if not isinstance(c_obj, type(b_obj)):
-        _update_r_obj(r_obj, {'b': str(type(b_obj)), 'c': str(type(c_obj)), 'r': _MISMATCH})
-        return 1
     c = 0
     for k in b_obj.keys():  # Check existing
         new_ref = ref + '/' + k
@@ -346,26 +318,34 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
 
 
 def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
-    """Compare list objects
-
-    :param r_obj: Return object - Dictionary of changes
-    :type r_obj: dict
-    :param ref: Reference key (control_tbl look up).
-    :type ref: str
-    :param b_obj: Base list object.
-    :type b_obj: list, tuple
-    :param c_obj: Compare list object
-    :type c_obj: list, tuple
-    :param control_tbl: Control table.
-    :type control_tbl: dict
-    :return: Change counter
-    :rtype: int
-    """
-    global _REMOVED, _NEW, _MISMATCH
+    """Compare list or tuple objects. See _str_compare() for parameter definitions"""
+    global _REMOVED, _NEW, _MISMATCH, _CHANGED
 
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
         return 0
+
+    # Are they the same length?
+    len_b_obj, len_c_obj = len(b_obj), len(c_obj)
+    if len_b_obj == 0 and len_c_obj == 0:
+        return 0
+    if len_b_obj != len_c_obj:
+        _update_r_obj(r_obj, {'b': str(b_obj), 'c': str(c_obj), 'r': _CHANGED})
+        return 1
+
+    c = 0
+    for i in range(0, len_b_obj):
+        c += _compare(r_obj, ref+'['+str(i)+']', b_obj[i], c_obj[i], control_tbl)
+
+    return c
+
+    # Are the entries all the same type?
+    first_type = b_obj[0]
+    for i in range(0, len_b_obj):
+        if type(b_obj[i]) != type(c_obj[i]) or type(b_obj[i]) != first_type:
+            _update_r_obj(r_obj, {'b': str(b_obj), 'c': str(c_obj), 'r': _CHANGED})
+            return 1
+
 
     if not isinstance(c_obj, type(b_obj)):
         _update_r_obj(r_obj, {'b': str(type(b_obj)), 'c': str(type(c_obj)), 'r': _MISMATCH})
@@ -429,6 +409,15 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     return c
 
 
+def _unknown_compare(r_obj, ref, b_obj, c_obj, control_tbl):
+    """Compare list objects. See _str_compare() for parameter definitions"""
+    global _INVALID_REF
+
+    brcdapi_log.exception('Unknown base object type: ' + str(type(b_obj)), echo=True)
+    _update_r_obj(r_obj, {'b': str(type(b_obj)), 'c': '', 'r': _INVALID_REF})
+    return 1
+
+
 # Object type look up table used in _compare()
 _obj_type_action = dict(
     ChassisObj=_brcddb_compare,
@@ -445,13 +434,34 @@ _obj_type_action = dict(
     # AlertObj=null_compare,
     dict=_dict_compare,
     bool=_num_compare,
-    int=_num_compare,  # Just in case someone removes normalizing int to num
-    float=_num_compare,  # Just in case someone removes normalizing float to num
+    int=_num_compare,
+    float=_num_compare,
     str=_str_compare,
-    list=_str_compare,
-    tuple=_str_compare,
-    num=_num_compare,
+    list=_list_compare,
+    tuple=_list_compare,
+    unknown=_unknown_compare
 )
+
+
+def _simple_type(obj):
+    """Used to create the type for use in _obj_type_action"""
+    obj_type = class_util.get_simple_class_type(obj)
+    if obj_type is None:
+        obj_type = 'bool' if isinstance(obj, bool) else \
+            'int' if isinstance(obj, int) else \
+            'float' if isinstance(obj, float) else \
+            'dict' if isinstance(obj, dict) else \
+            'str' if isinstance(obj, str) else \
+            'list' if isinstance(obj, list) else \
+            'tuple' if isinstance(obj, tuple) else \
+            'unknown'
+    return obj_type if obj_type in _obj_type_action else 'unknown'
+
+
+_compare_feedback_d = dict(ProjectObj=brcddb_project.best_project_name,
+                           ChassisObj=brcddb_chassis.best_chassis_name,
+                           FabricObj=brcddb_fabric.best_fab_name,
+                           SwitchObj=brcddb_switch.best_switch_name)
 
 
 def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
@@ -472,6 +482,14 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
     """
     global _obj_type_action, _REMOVED, _NEW, _MISMATCH, _INVALID_REF
 
+    b_type, c_type = _simple_type(b_obj), _simple_type(c_obj)
+    if b_type in _compare_feedback_d:
+        brcdapi_log.log('Comparing ' + b_type + ': ' + _compare_feedback_d[b_type](b_obj), echo=True)
+
+    # Debug
+    # if b_type in ('SwitchObj',):
+    #     return 0
+
     # Make sure we have a valid reference.
     if not isinstance(ref, str):
         brcdapi_log.exception('Invalid reference type: ' + str(type(ref)), echo=True)
@@ -488,26 +506,12 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
         _update_r_obj(r_obj, {'b': ref, 'c': '', 'r': _REMOVED})
         return 1
 
-    # Are we comparing the same types? A mix of int and float is OK so that gets normalized to type 'num'
-    b_type = class_util.get_simple_class_type(b_obj)
-    if b_type is None:
-        b_type = 'num' if isinstance(b_obj, (int, float)) else \
-            str(type(b_obj)).replace('<class ', '').replace('>', '').replace("\'", '')
-    c_type = class_util.get_simple_class_type(c_obj)
-    if c_type is None:
-        c_type = 'num' if isinstance(c_obj, (int, float)) else \
-            str(type(c_obj)).replace('<class ', '').replace('>', '').replace("\'", '')
+    # Are we comparing the same types?
     if b_type != c_type:
         _update_r_obj(r_obj, {'b': b_type, 'c': c_type, 'r': _MISMATCH})
         return 1
 
-    if b_type in _obj_type_action:
-        return _obj_type_action[b_type](r_obj, ref, b_obj, c_obj, control_tbl)
-
-    brcdapi_log.log('Unknown base object type: ' + b_type, echo=True)
-    _update_r_obj(r_obj, {'b': b_type, 'c': '', 'r': _INVALID_REF})
-
-    return 1
+    return _obj_type_action[b_type](r_obj, ref, b_obj, c_obj, control_tbl)
 
 
 def compare(b_obj, c_obj, control_tbl=None, brcddb_control_tbl=None):
@@ -532,4 +536,5 @@ def compare(b_obj, c_obj, control_tbl=None, brcddb_control_tbl=None):
     if isinstance(brcddb_control_tbl, dict):
         _brcddb_control_tables = copy.deepcopy(brcddb_control_tbl)  # IDK why I made a copy
     r_obj = list() if isinstance(b_obj, (list, tuple)) else dict()
+
     return _compare(r_obj, '', b_obj, c_obj, control_tbl), r_obj
