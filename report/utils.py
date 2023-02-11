@@ -82,16 +82,19 @@ Version Control::
     |           |               | parse_switch_file() to return an error list rather than print the errors to the   |
     |           |               | log.                                                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.5     | 11 Feb 2023   | Added ability to handle 'open -n' and 'ficon -n' for port names. Added check for  |
+    |           |               | FICON ports with addresses > 0xFD                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '11 Feb 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.4'
+__version__ = '3.1.5'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
@@ -103,6 +106,7 @@ import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.util.search as brcddb_search
 
+_MAX_FICON_PORT_NAME = 24
 _conv_routing_policy_d = dict(EBR='exchange-based', DBR='device-based')
 
 #######################################################################
@@ -566,26 +570,9 @@ def parse_sfp_file(file):
     return parsed_sfp_sheet[0: i]
 
 
-def find_headers(hdr_row_l, hdr_l):
-    """Match columns to headers
-
-    :param hdr_row_l: Typically al[0] from sl, al = excel_util.read_sheet(sheet, 'row')
-    :type hdr_row_l: list
-    :param hdr_l: Headers to find
-    :type hdr_l: list
-    :return: Dictionary of headers. Key is the header in hdr_l. The value is the index into hdr_row where it was found.
-             if not found, the value is None
-    :rtype: dict
-    """
-    rd = dict()
-    for buf in hdr_l:
-        rd.update({buf: None})
-        for col in range(0, len(hdr_row_l)):
-            if hdr_row_l[col] == buf:
-                rd[buf] = col
-                break
-
-    return rd
+def find_headers(hdr_row_l, hdr_l=None, warn=False):
+    """Moved to brcdapi.excel_util.find_headers()"""
+    return excel_util.find_headers(hdr_row_l, hdr_l=hdr_l, warn=warn)
 
 
 def _parse_chassis_sheet(sheet_d):
@@ -605,7 +592,7 @@ def _parse_chassis_sheet(sheet_d):
         return error_l, rd
 
     # Find the 'Area' and 'Parameter' columns
-    col_d = find_headers(al[0], ('Area', 'Parameter'))
+    col_d = excel_util.find_headers(al[0], ('Area', 'Parameter'))
     for k, v in col_d.items():
         if v is None:
             error_l.append('Sheet ' + sheet_d['switch_info']['sheet_name'] + ' missing column ' + k)
@@ -638,7 +625,7 @@ def _parse_chassis_sheet(sheet_d):
 
 # Case methods for _switch_d
 def _conv_add(error_l, obj_d, switch_d, val):
-    """Used in _switch_d to convert hex to decimal int
+    """Used in _switch_d to add a key/value pair to obj_d
 
     :param error_l: List of error messages to append error messges to
     :type error_l: list
@@ -653,6 +640,16 @@ def _conv_add(error_l, obj_d, switch_d, val):
     add_val = switch_d['d'] if val is None else val
     if add_val is not None:
         gen_util.add_to_obj(obj_d, switch_d['k'], add_val)
+
+
+def _conv_port_name(error_l, obj_d, switch_d, val):
+    """Used in _switch_d to convert hex to decimal int. See _conv_add for parameter definitions"""
+    gen_util.add_to_obj(obj_d, 'switch_info/port_name', val)
+    port_name_mode = switch_d['d'] if not isinstance(val, str) else 'off' if val in ('open -n, ficon -n') else val
+    try:
+        _conv_add(error_l, obj_d, switch_d, port_name_mode)
+    except (ValueError, TypeError):
+        error_l.append('Value for ' + switch_d['k'] + ', ' + str(val) + ', is not a valid hex number.')
 
 
 def _conv_hex(error_l, obj_d, switch_d, val):
@@ -690,7 +687,7 @@ def _conv_cup(error_l, obj_d, switch_d, val):
         _conv_add(error_l, obj_d, switch_d, val_bool)
         if val_bool:
             gen_util.add_to_obj(obj_d, 'running/brocade-ficon/cup/active-equal-saved-mode', True)
-            # IDK why, but mihpto is read only in the API
+            # At the time this was written, modifying mihpto was not supported in the API. It was GET only.
             # gen_util.add_to_obj(obj_d, 'running/brocade-ficon/cup/mihpto', 180)
     elif val_bool:
         error_l.append('Enable CUP is only supported on "ficon" switch types. Sheet: ' + '')
@@ -740,8 +737,8 @@ _switch_d = {  # See above for definitions. This table is used in _parse_switch_
     'Bind': dict(k='switch_info/bind', d=False, c=_conv_yn_bool),
     'Routing Policy': dict(k=_fc_switch+'fibrechannel-switch/advanced-performance-tuning-policy', d=None,
                            c=_conv_routing_policy),
-    'Port Name': dict(k=_fc_config+'port-configuration/portname-mode', d=None, c=_conv_add),
-    'Port Name Format': dict(k=_fc_config+'port-configuration/dynamic-portname-format', d=None, c=_conv_add),
+    'Port Name': dict(k=_fc_config+'port-configuration/portname-mode', d=None, c=_conv_port_name),
+    'Port Name Format': dict(k=_fc_config+'port-configuration/dynamic-portname-format', d='S.T.I.A', c=_conv_add),
     'Enable CUP': dict(k='running/brocade-ficon/cup/fmsmode-enabled', d=False, c=_conv_cup),
 }
 
@@ -772,11 +769,18 @@ def _parse_switch_sheet(sheet_d):
     | key           | type      | Description                                                                       |
     +===============+===========+===================================================================================+
     | bind          | bool      | If True, bind the port addresses.                                                 |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
     | enable_ports  | bool      | If True, enable the ports when done.                                              |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
     | enable_switch | bool      | If True, enable the switch when done.                                             |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
     | fid           | int       | Fabric ID                                                                         |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
     | sheet_name    | str       | Sheet name from switch configuration workbook                                     |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
     | switch_type   | str       | base, ficon, or open                                                              |
+    +---------------+-----------+-----------------------------------------------------------------------------------+
+    | port_name     | str       | Port Name from switch configuration workbook                                      |
     +---------------+-----------+-----------------------------------------------------------------------------------+
 
     :param sheet_d: Output from excel_util.read_workbook() for the Chassis worksheet
@@ -790,7 +794,7 @@ def _parse_switch_sheet(sheet_d):
 
     # Find the 'Area' and 'Parameter' columns
     error_l, rd, al = list(), dict(switch_info=dict(), port_d=dict(), err_msgs=list()), sheet_d['al']
-    col_d = find_headers(al[0], ('Area', 'Parameter'))
+    col_d = excel_util.find_headers(al[0], ('Area', 'Parameter'))
     for k, v in col_d.items():
         if v is None:
             error_l.append('Sheet ' + sheet_d['switch_info']['sheet_name'] + ' missing column ' + k)
@@ -830,24 +834,26 @@ def _parse_switch_sheet(sheet_d):
 | p     | When the length of the cell value is less than that specified by p, 0s are prepended to make  |
 |       | the value this length. Used for creating FC addresses.                                        | 
 +-------+-----------------------------------------------------------------------------------------------+
+| pn    | When True, check the port naming convention and adjust the port name accordingly.             |
++-------+-----------------------------------------------------------------------------------------------+
 """
 _slot_d_find = {  # See table above
-    'Port': dict(k='port', h=False, i=False, s=True, slot=True, p=0),
-    'DID (Hex)': dict(k='did', h=True, i=False, s=True, slot=False, p=0),
-    'Port Addr (Hex)': dict(k='port_addr', h=False, i=False, s=True, slot=False, p=2),
-    'Index': dict(k='index', h=False, i=True, s=True, slot=False, p=0),
-    'Link Addr': dict(k='link_addr', h=False, i=False, s=True, slot=False, p=4),
-    'FID': dict(k='fid', h=False, i=False, s=False, slot=False, p=0),
-    'Attached Device': dict(k='desc', h=False, i=False, s=False, slot=False, p=0),
-    'ICL Description': dict(k='desc', h=False, i=False, s=False, slot=False, p=0),
-    'Port Name': dict(k='port_name', h=False, i=False, s=False, slot=False, p=0),
-    'Low Qos VC': dict(k='low_vc', h=False, i=False, s=False, slot=False, p=0),
-    'Med Qos VC': dict(k='med_vc', h=False, i=False, s=False, slot=False, p=0),
-    'High Qos VC': dict(k='high_vc', h=False, i=False, s=False, slot=False, p=0),
+    'Port': dict(k='port', h=False, i=False, s=True, slot=True, p=0, pn=False),
+    'DID (Hex)': dict(k='did', h=True, i=False, s=True, slot=False, p=0, pn=False),
+    'Port Addr (Hex)': dict(k='port_addr', h=False, i=False, s=True, slot=False, p=2, pn=False),
+    'Index': dict(k='index', h=False, i=True, s=True, slot=False, p=0, pn=False),
+    'Link Addr': dict(k='link_addr', h=False, i=False, s=True, slot=False, p=4, pn=False),
+    'FID': dict(k='fid', h=False, i=False, s=False, slot=False, p=0, pn=False),
+    'Attached Device': dict(k='desc', h=False, i=False, s=False, slot=False, p=0, pn=False),
+    'ICL Description': dict(k='desc', h=False, i=False, s=False, slot=False, p=0, pn=False),
+    'Port Name': dict(k='port_name', h=False, i=False, s=False, slot=False, p=0, pn=True),
+    'Low Qos VC': dict(k='low_vc', h=False, i=False, s=False, slot=False, p=0, pn=False),
+    'Med Qos VC': dict(k='med_vc', h=False, i=False, s=False, slot=False, p=0, pn=False),
+    'High Qos VC': dict(k='high_vc', h=False, i=False, s=False, slot=False, p=0, pn=False),
 }
 
 
-def _parse_slot_sheet(sheet_d):
+def _parse_slot_sheet(sheet_d, port_name_d):
     """Parses a "Slot x" worksheet from a configuration workbook into a dictionary. The key is the port number in s/p
     notation. The value for each port dictionary is as follows:
 
@@ -876,12 +882,14 @@ def _parse_slot_sheet(sheet_d):
 
     :param sheet_d: Output from excel_util.read_workbook() for the Chassis worksheet
     :type sheet_d: list
+    :param port_name_d: Key is the FID as an int. Value is the port naming convention
+    :type port_name_d: dict()
     :return error_l: List of error messages. Empty if no error encountered
     :rtype error_l: list
     :return: Dictionary for switch. None if an error was encountered.
     :rtype: dict, None
     """
-    global _slot_d_find
+    global _slot_d_find, _MAX_FICON_PORT_NAME
 
     error_l, rd, al = list(), dict(), sheet_d['al']
 
@@ -892,32 +900,35 @@ def _parse_slot_sheet(sheet_d):
             break
 
     # Find the column headers
-    col_d, col_start, hdr, max_col = [dict(), dict()], [0, 0], al[1], 0
-    for i in range(0, 2):
-        col_start[i] = max_col
-        for k in _slot_d_find.keys():
-            for col in range(col_start[i], len(hdr)):
-                if hdr[col] == k:
-                    col_d[i].update({_slot_d_find[k]['k']: col})
-                    max_col = max(max_col, col+1)
+    i, hdr_l, col_d_l = 0, al[1], [dict(), dict()]
+    for col in range(0, len(hdr_l)):
+        try:
+            r_key = _slot_d_find[hdr_l[col]]['k']
+            if r_key in col_d_l[i]:
+                i += 1  # A repeat means we're starting the second column of ports
+                if i > len(col_d_l):
+                    error_l.append('Invalid column header, "' + buf + '", on sheet ' + sheet_d['name'])
                     break
+            col_d_l[i].update({r_key: col})
+        except KeyError:
+            pass  # Other columns for documentation purposes may be present so just skip them
 
     # Add the data from the worksheet
     for row in range(3, len(al)):
 
-        if al[row][col_d[0]['port']] is None:
+        if al[row][col_d_l[0]['port']] is None:
             break  # If the port is None, we reached the end of the workbook
 
         for i in range(0, 2):  # Director class products have 2 columns, each with the same headers
-            if len(col_d[i]) == 0:
+            if len(col_d_l[i]) == 0:
                 break
 
             # Build the port dict and add to the return dict
             pd = dict()
             for k, d in _slot_d_find.items():
                 r_key = _slot_d_find[k]['k']
-                if r_key in col_d[i]:
-                    v = str(al[row][col_d[i][r_key]]) if d['s'] else al[row][col_d[i][r_key]]
+                if r_key in col_d_l[i]:
+                    v = str(al[row][col_d_l[i][r_key]]) if d['s'] else al[row][col_d_l[i][r_key]]
                     if d['h']:
                         try:
                             v = int(v, 16)
@@ -929,6 +940,22 @@ def _parse_slot_sheet(sheet_d):
                         except ValueError:
                             error_l.append('Value for ' + k + ', ' + str(v) + ', is not a number in ' +
                                            sheet_d['switch_info']['sheet_name'])
+                    if d['pn']:
+                        try:
+                            port_name = port_name_d[pd['fid']]
+                            if port_name in ('open -n', 'ficon -n'):
+                                if isinstance(v, str):
+                                    if port_name == 'ficon -n' and len(v) > _MAX_FICON_PORT_NAME:
+                                        buf = 'The port name, ' + v + ', for port ' + str(pd.get('port')) + ' is ' + \
+                                              str(len(v)) + '. The maximum supported FICON Port name length is ' + \
+                                              str(_MAX_FICON_PORT_NAME)
+                                        error_l.append(buf)
+                                        v = v[0: _MAX_FICON_PORT_NAME]
+                                else:
+                                    v = ''
+                        except KeyError:
+                            pass  # We're not configuring this FID
+
                     if isinstance(v, str):
                         while len(v) < d['p']:
                             v = '0' + v
@@ -995,7 +1022,7 @@ def parse_switch_file(file):
     | xisl          | bool      | If True, base switch usage is allowed.                                            |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     """
-    chassis_d, port_d, error_l, rd = None, dict(), list(), dict()
+    chassis_d, port_d, error_l, port_name_d, rd = None, dict(), list(), None, dict()
 
     # Load the workbook
     skip_l = ('About', 'Summary', 'Sheet', 'Instructions', 'CLI_Bind', 'lists', 'VC')
@@ -1022,15 +1049,28 @@ def parse_switch_file(file):
             else:
                 rd.update({fid: d})
         elif fnmatch.fnmatch(title, 'Slot ?*'):
-            ml, d = _parse_slot_sheet(sheet_d)
+            if not isinstance(port_name_d, dict):
+                # This could have been more elegant. I forgot that some port naming modes want all ports not explicitly
+                # named to be set to an empty string. Furthermore, ficon port names need to be truncated to a maximum of
+                # 24 characters so I jammed this in and made a hack in _parse_slot_sheet() to set the names correctly.
+                port_name_d = dict()
+                for fid, temp_switch_d in rd.items():
+                    port_name_d.update({fid: temp_switch_d['switch_info']['port_name']})
+            # if not isinstance(port_name_d, port_name_d):
+            ml, d = _parse_slot_sheet(sheet_d, port_name_d)
             error_l.extend(ml)
             port_d.update(d)
 
-    # Build the return dictionary
+    # Add all the ports to the the switch in the return dictionary, rd. I did it this way in case someone rearranged the
+    # sheets such that a "Slot x" worksheet came before the corresponding "Switch x" worksheet.
     for k, d in port_d.items():
-        fid = d.get('fid')
-        switch_d = rd.get(fid)
+        switch_d = rd.get(d['fid'])
         if isinstance(switch_d, dict):
+            if switch_d['switch_info']['switch_type'] == 'ficon' and int(d['port_addr'], 16) > 253:
+                ml = ['Skipping ' + 'FID: ' + str(d['fid']) + ', Port: ' + d['port'] + ' Address: ' + d['port_addr'],
+                      'Addresses greater than 0xFD are not supported in a ficon switch.']
+                brcdapi_log.log(ml, echo=True)
+                continue
             switch_d['port_d'].update({k: d})
 
     return error_l, chassis_d, [switch_d for switch_d in rd.values()]
