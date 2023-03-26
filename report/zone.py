@@ -70,15 +70,17 @@ Version Control::
     | 3.1.5     | 11 Feb 2023   | Fixed missing alias and WWN info on zoning pages. Added common zones to zone by   |
     |           |               | target and zone by initiator pages.                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.6     | 26 Mar 2023   | Added missing 'ha' member in _target_zone_hdr for "Target"                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = 'xx xxx 2023'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Development'
-__version__ = '3.1.5'
+__status__ = 'Released'
+__version__ = '3.1.6'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -224,9 +226,8 @@ def _zone_list_case(obj, mem, wwn, port_obj, obj_l=None):
     return ', '.join(gen_util.convert_to_list(obj_l))
 
 
-_zone_hdr = collections.OrderedDict()
 """
-Key is the column header. Value is a dict as follows:
+_zone_hdr & _zone_group_hdr_d: Key is the column header. Value is a dict as follows:
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | Key   | Type      | Description                                                                                   |
 +=======+===========+===============================================================================================+
@@ -241,29 +242,30 @@ Key is the column header. Value is a dict as follows:
 | g     | bool      | True - add this cell. Used by zone groups only so that only the switch and port are filled in |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 """
-_zone_hdr['Comments']: dict(c=30, z=_comment_case, m=_mem_comment_case)
-_zone_hdr['Zone']: dict(c=22, z=_name_case, m=_null_case)
-_zone_hdr['Effective']: dict(c=5, v=True, z=_zone_effective_case, m=_null_case)
-_zone_hdr['Peer']: dict(c=5, v=True, z=_zone_peer_case, m=_null_case)
-_zone_hdr['Target Driven']: dict(c=5, v=True, z=_zone_target_case, m=_null_case)
-_zone_hdr['Principal']: dict(c=5, v=True, z=_null_case, m=_mem_principal_case)
-_zone_hdr['Configurations']: dict(c=22, z=_zone_cfg_case, m=_null_case)
-_zone_hdr['Member']: dict(c=32, z=_zone_member_case, m=_mem_member_case)
-_zone_hdr['Member WWN']: dict(c=22, z=_zone_member_wwn_case, m=_mem_member_wwn_case)
-_zone_hdr['Switch']: dict(c=22, z=_null_case, m=_mem_switch_case)
-_zone_hdr['Port']: dict(c=7, z=_null_case, m=_mem_port_case)
-_zone_hdr['Speed Gbps']: dict(c=7, z=_null_case, m=_mem_speed_case)
-_zone_hdr['Description']: dict(c=50, z=_null_case, m=_mem_desc_case)
-
-_zone_group_hdr_d = collections.OrderedDict()  # Same format as _zone_hdr
-# _zone_group_hdr_d['Comments'] = dict(c=30, z=_comment_case, m=_mem_comment_case)
-_zone_group_hdr_d['Switch'] = dict(c=30, z=_comment_case, m=_mem_switch_case, g=True)
-_zone_group_hdr_d['Port'] = dict(c=8, z=_comment_case, m=_mem_port_case, g=True)
-_zone_group_hdr_d['Zone'] = dict(c=30, z=_comment_case, m=_zone_list_case)
-_zone_group_hdr_d['WWN'] = dict(c=23, z=_zone_member_wwn_case, m=_mem_member_wwn_case, g=True)
-_zone_group_hdr_d['Alias'] = dict(c=30, z=_comment_case, m=_alias_case, g=True)
-_zone_group_hdr_d['Description']: dict(c=50, z=_null_case, m=_mem_desc_case, g=True)
-
+_zone_hdr = collections.OrderedDict({
+    'Comments': dict(c=30, z=_comment_case, m=_mem_comment_case),
+    'Zone': dict(c=22, z=_name_case, m=_null_case),
+    'Effective': dict(c=5, v=True, z=_zone_effective_case, m=_null_case),
+    'Peer': dict(c=5, v=True, z=_zone_peer_case, m=_null_case),
+    'Target Driven': dict(c=5, v=True, z=_zone_target_case, m=_null_case),
+    'Principal': dict(c=5, v=True, z=_null_case, m=_mem_principal_case),
+    'Configurations': dict(c=22, z=_zone_cfg_case, m=_null_case),
+    'Member': dict(c=32, z=_zone_member_case, m=_mem_member_case),
+    'Member WWN': dict(c=22, z=_zone_member_wwn_case, m=_mem_member_wwn_case),
+    'Switch': dict(c=22, z=_null_case, m=_mem_switch_case),
+    'Port': dict(c=7, z=_null_case, m=_mem_port_case),
+    'Speed Gbps': dict(c=7, z=_null_case, m=_mem_speed_case),
+    'Description': dict(c=50, z=_null_case, m=_mem_desc_case)
+})
+_zone_group_hdr_d = collections.OrderedDict({  # Same format as _zone_hdr
+    # 'Comments': dict(c=30, z=_comment_case, m=_mem_comment_case),
+    'Switch': dict(c=30, z=_comment_case, m=_mem_switch_case, g=True),
+    'Port': dict(c=8, z=_comment_case, m=_mem_port_case, g=True),
+    'Zone': dict(c=30, z=_comment_case, m=_zone_list_case),
+    'WWN': dict(c=23, z=_zone_member_wwn_case, m=_mem_member_wwn_case, g=True),
+    'Alias': dict(c=30, z=_comment_case, m=_alias_case, g=True),
+    'Description': dict(c=50, z=_null_case, m=_mem_desc_case, g=True)
+})
 
 def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     """Creates a zone detail worksheet for the Excel report.
@@ -403,14 +405,15 @@ def _alias_member_case(obj, mem):
 #   'c' Column width
 #   'v' Case method to fill in the cell for alias and first member
 #   'm' Case method to fill the cell for remaining member information
-alias_hdr = collections.OrderedDict()
-alias_hdr['Comments'] = dict(c=40, v=_comment_case, m=_null_case)
-alias_hdr['Alias'] = dict(c=32, v=_name_case, m=_null_case)
-alias_hdr['Used in Zone'] = dict(c=32, v=_alias_used_in_zone_case, m=_null_case)
-alias_hdr['Member'] = dict(c=32, v=_alias_member_case, m=_alias_mem_member_case)
-alias_hdr['Switch'] = dict(c=22, v=_alias_mem_switch_case, m=_alias_mem_switch_case)
-alias_hdr['Port'] = dict(c=7, v=_alias_mem_port_case, m=_alias_mem_port_case)
-alias_hdr['Description'] = dict(c=50, v=_alias_node_desc_case, m=_alias_mem_desc_case)
+_alias_hdr = collections.OrderedDict({
+    'Comments': dict(c=40, v=_comment_case, m=_null_case),
+    'Alias': dict(c=32, v=_name_case, m=_null_case),
+    'Used in Zone': dict(c=32, v=_alias_used_in_zone_case, m=_null_case),
+    'Member': dict(c=32, v=_alias_member_case, m=_alias_mem_member_case),
+    'Switch': dict(c=22, v=_alias_mem_switch_case, m=_alias_mem_switch_case),
+    'Port': dict(c=7, v=_alias_mem_port_case, m=_alias_mem_port_case),
+    'Description': dict(c=50, v=_alias_node_desc_case, m=_alias_mem_desc_case)
+})
 
 
 def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
@@ -430,7 +433,7 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     :type sheet_title: str
     :rtype: None
     """
-    global alias_hdr, _hdr1_font, _std_font, _link_font, _hdr2_font, _align_wrap, _border_thin
+    global _alias_hdr, _hdr1_font, _std_font, _link_font, _hdr2_font, _align_wrap, _border_thin
 
     # Create the worksheet, add the headers, and set up the column widths
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
@@ -443,8 +446,8 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font, border=_border_thin)
     row, col = row+2, 1
     sheet.freeze_panes = sheet['A4']
-    for k in alias_hdr:
-        sheet.column_dimensions[xl.get_column_letter(col)].width = alias_hdr[k]['c']
+    for k in _alias_hdr:
+        sheet.column_dimensions[xl.get_column_letter(col)].width = _alias_hdr[k]['c']
         excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=_align_wrap, border=_border_thin)
         col += 1
 
@@ -459,9 +462,9 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                                'report_app/hyperlink/ali',
                                '#' + sheet_name + '!' + xl.get_column_letter(col) + str(row))
 
-        for k in alias_hdr:
+        for k in _alias_hdr:
             font = report_utils.font_type(alias_obj.r_alert_objects()) if k == 'Comments' else _std_font
-            excel_util.cell_update(sheet, row, col,  alias_hdr[k]['v'](alias_obj, mem), font=font, align=_align_wrap,
+            excel_util.cell_update(sheet, row, col,  _alias_hdr[k]['v'](alias_obj, mem), font=font, align=_align_wrap,
                                      border=_border_thin)
             col += 1
 
@@ -469,8 +472,8 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         while len(mem_list) > 1:
             mem = mem_list.pop(0)
             row, col = row+1, 1
-            for k in alias_hdr:
-                excel_util.cell_update(sheet, row, col, alias_hdr[k]['m'](alias_obj, mem), font=_std_font,
+            for k in _alias_hdr:
+                excel_util.cell_update(sheet, row, col, _alias_hdr[k]['m'](alias_obj, mem), font=_std_font,
                                          align=_align_wrap, border=_border_thin)
                 col += 1
 
@@ -530,31 +533,33 @@ def _tzone_s_count(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
     return len(server_d)
 
 
-_target_zone_hdr = collections.OrderedDict()
 # Key is the column header. Value is a dict as follows:
 #   'c' Column width
 #   'ha'    Case method to call when filling in the cell for the sub-header
 #   'a'     Case method to call when filling in the cell for the item associated with the sub-header
-_target_zone_hdr['Comments'] = dict(c=30, ha=_tzone_comment_case, a=_tzone_comment_case)
-_target_zone_hdr['Target'] = dict(c=30, a=_tzone_name_case)
-_target_zone_hdr['Non-Target'] = dict(c=30, ha=_tzone_s_count, a=_tzone_name_case)
-_target_zone_hdr['Zoned Target'] = dict(c=30, ha=_tzone_t_count, a=_tzone_name_case)
-_target_zone_hdr['Common Zone'] = dict(c=30, ha=_tzone_zone_case, a=_tzone_zone_case)
-_target_zone_hdr['Switch'] = dict(c=22, ha=_tzone_switch_case, a=_tzone_switch_case)
-_target_zone_hdr['Port'] = dict(c=22, ha=_tzone_port_case, a=_tzone_port_case)
-_target_zone_hdr['Speed Gbps'] = dict(c=7, ha=_tzone_speed_case, a=_tzone_speed_case)
-_target_zone_hdr['Description'] = dict(c=50, ha=_tzone_desc_case, a=_tzone_desc_case)
+_target_zone_hdr = collections.OrderedDict({
+    'Comments': dict(c=30, ha=_tzone_comment_case, a=_tzone_comment_case),
+    'Target': dict(c=30, ha=_tzone_name_case, a=_tzone_name_case),
+    'Non-Target': dict(c=30, ha=_tzone_s_count, a=_tzone_name_case),
+    'Zoned Target': dict(c=30, ha=_tzone_t_count, a=_tzone_name_case),
+    'Common Zone': dict(c=30, ha=_tzone_zone_case, a=_tzone_zone_case),
+    'Switch': dict(c=22, ha=_tzone_switch_case, a=_tzone_switch_case),
+    'Port': dict(c=22, ha=_tzone_port_case, a=_tzone_port_case),
+    'Speed Gbps': dict(c=7, ha=_tzone_speed_case, a=_tzone_speed_case),
+    'Description': dict(c=50, ha=_tzone_desc_case, a=_tzone_desc_case)
+})
 
-_server_zone_hdr = collections.OrderedDict()
-_server_zone_hdr['Comments'] = dict(c=30, ha=_tzone_comment_case, a=_tzone_comment_case)
-_server_zone_hdr['Initiator'] = dict(c=30, ha=_tzone_name_case, a=_tzone_name_case)
-_server_zone_hdr['Target'] = dict(c=30, ha=_tzone_t_count, a=_tzone_name_case)
-_server_zone_hdr['Zoned Server'] = dict(c=30, ha=_tzone_s_count, a=_tzone_name_case)
-_server_zone_hdr['Common Zone'] = dict(c=30, ha=_tzone_zone_case, a=_tzone_zone_case)
-_server_zone_hdr['Switch'] = dict(c=22, ha=_tzone_switch_case, a=_tzone_switch_case)
-_server_zone_hdr['Port'] = dict(c=22, ha=_tzone_port_case, a=_tzone_port_case)
-_server_zone_hdr['Speed Gbps'] = dict(c=7, ha=_tzone_speed_case, a=_tzone_speed_case)
-_server_zone_hdr['Description'] = dict(c=50, ha=_tzone_desc_case, a=_tzone_desc_case)
+_server_zone_hdr = collections.OrderedDict({
+    'Comments': dict(c=30, ha=_tzone_comment_case, a=_tzone_comment_case),
+    'Initiator': dict(c=30, ha=_tzone_name_case, a=_tzone_name_case),
+    'Target': dict(c=30, ha=_tzone_t_count, a=_tzone_name_case),
+    'Zoned Server': dict(c=30, ha=_tzone_s_count, a=_tzone_name_case),
+    'Common Zone': dict(c=30, ha=_tzone_zone_case, a=_tzone_zone_case),
+    'Switch': dict(c=22, ha=_tzone_switch_case, a=_tzone_switch_case),
+    'Port': dict(c=22, ha=_tzone_port_case, a=_tzone_port_case),
+    'Speed Gbps': dict(c=7, ha=_tzone_speed_case, a=_tzone_speed_case),
+    'Description': dict(c=50, ha=_tzone_desc_case, a=_tzone_desc_case)
+})
 
 
 def _common_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title, hdr):

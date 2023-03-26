@@ -85,16 +85,18 @@ Version Control::
     | 3.1.5     | 11 Feb 2023   | Added ability to handle 'open -n' and 'ficon -n' for port names. Added check for  |
     |           |               | FICON ports with addresses > 0xFD                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.6     | 26 Mar 2023   | Added user friendy error message for invalid file path in parse_sfp_file()        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Feb 2023'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.5'
+__version__ = '3.1.6'
 
 import openpyxl as xl
 import openpyxl.utils.cell as xl_util
@@ -553,21 +555,25 @@ def parse_sfp_file(file):
     :return: List of dictionaries. The key for each dictionary is the column header and the value is the cell value
     :rtype: list
     """
-    if file is None:
-        return list()
+    rl = list()
 
     # Load the workbook & contents
-    try:
-        parsed_sfp_sheet = excel_util.parse_parameters(sheet_name='new_SFP_rules', hdr_row=0, wb_name=file)['content']
-    except FileNotFoundError:
-        brcdapi_log.log('SFP rules workbook: ' + str(file) + ' not found.', echo=True)
-        return list()
+    if file is not None:
+        try:
+            # Return everything up to '__END__'
+            for d in excel_util.parse_parameters(sheet_name='new_SFP_rules', hdr_row=0, wb_name=file)['content']:
+                if d['Group'] == '__END__':
+                    break
+                else:
+                    rl.append(d)
+        except FileNotFoundError:
+            brcdapi_log.log('SFP rules workbook: ' + str(file) + ' not found.', echo=True)
+            return list()
+        except FileExistsError:
+            brcdapi_log.log('Folder in ' + file + ' does not exist', echo=True)
+            return list()
 
-    # Get rid of everything past '__END__'
-    for i in range(0, len(parsed_sfp_sheet)):
-        if parsed_sfp_sheet[i]['Group'] == '__END__':
-            break
-    return parsed_sfp_sheet[0: i]
+    return rl
 
 
 def find_headers(hdr_row_l, hdr_l=None, warn=False):
