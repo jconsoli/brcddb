@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -87,16 +87,18 @@ Version Control::
     | 3.1.3     | 14 Oct 2022   | Added port type to the port configuration table, port_display_tbl.port_sfp_tbl.   |
     |           |               | Adjust some default column widths.                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.4     | 26 Mar 2023   | Added the port index to port_rnid_tbl                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '14 Oct 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.3'
+__version__ = '3.1.4'
 
 
 class Chassis:
@@ -849,6 +851,7 @@ class Port:
         '_PORT_COMMENTS',
         '_SWITCH_NAME',
         '_PORT_NUMBER',
+        'fibrechannel/index',
         'fibrechannel/fcid-hex',
         'fibrechannel/operational-status',
         'fibrechannel/port-type',
