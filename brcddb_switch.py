@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -15,11 +15,27 @@
 """
 :mod:`brcddb.brcddb_switch` - Methods and tables to support the class SwitchObj.
 
-**Note**
+Public Methods::
 
-    The chassis types, often referred to as switch type, would make more sense in brcddb_chassis.py. The fact that they
-    are in this module is due to some now irrelevant history. I wish I cleaned it up a long time ago but at this point
-    I'm limiting the amount of working code I'm changing so I left it here.
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | Method                | Description                                                                           |
+    +=======================+=======================================================================================+
+    | add_rest_port_data    | Adds port statistics from rest request 'brocade-interface/fibrechannel-statistics' to |
+    |                       | each port object                                                                      |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | best_switch_name      | Returns the user friendly switch name, optionally with the switch WWN in parenthesis. |
+    |                       | If the swith is not named, ust the switch WWN is returned                             |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | switch_type           | Returns the switch type: Default, FICON, Base, FCP                                    |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | switch_fid            | Returns the switch FID as an integer                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | switch_ports          | Returns the list of ports in the switch                                               |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | switch_ge_ports       | Returns the list of GE ports in the switch                                            |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | port_obj_for_index    | Returns the port object matching port_index                                           |
+    +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -43,118 +59,30 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 31 Dec 2021   | Fixed potential mutable list in add_rest_port_data()                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 28 Apr 2022   | Added DID option to best_switch_name() and added sheet reference to switch object |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 26 Mar 2023   | Added FID to best_switch_name()                                                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.8'
 
-import brcddb.util.copy as brcddb_copy
-import brcddb.util.util as brcddb_util
-import brcddb.brcddb_chassis as brcddb_chassis  # To support deprecated methods
 import time
+import brcdapi.gen_util as gen_util
+import brcddb.util.copy as brcddb_copy
 
 area_mode = {
     0: ' 10-bit addressing mode',
     1: ' Zero-based area assignment',
     2: ' Port-based area assignment',
 }
-
-
-def _chassis_d(switch):
-    """Returns the dictionary associated with this switch number from brcddb_chassis.chassis_type_d
-
-    :param switch: fibrechannel-switch/model
-    :type switch: str
-    :return: Chassis dicrionary
-    :rtype: dict
-    """
-    d = brcddb_chassis.chassis_type_d.get(int(float(switch)))
-    return brcddb_chassis.chassis_type_d[0] if d is None else d
-
-
-def eos(switch):
-    """Deprecated. Use brcddb.brcddb_chassis.eos()
-
-    :param switch: fibrechannel-switch/model
-    :type switch: str
-    :return: EOS_date
-    :rtype: str
-    """
-    d = _chassis_d(switch)
-    return 'EOS not announced' if d['eos'] is None else time.strftime('%Y-%m-%d', d['eos'])
-
-
-def gen(switch):
-    """Deprecated. Use brcddb.brcddb_chassis.gen()
-
-    :param switch: fibrechannel-switch/model
-    :type switch: str
-    :return: Generation
-    :rtype: str
-    """
-    return _chassis_d(switch)['gen']
-
-
-def slots(switch):
-    """Deprecated. Use brcddb.brcddb_chassis.slots()
-
-    :param switch: fibrechannel-switch/model
-    :type switch: str
-    :return: Num slots
-    :rtype: int
-    """
-    cfg = _chassis_d(switch)['cfg']
-    return 4 if cfg == brcddb_chassis.cfg_4_slot else 8 if cfg == brcddb_chassis.cfg_8_slot else 0
-
-
-def ibm_machine_type(switch):
-    """Deprecated. Use brcddb.brcddb_chassis.ibm_machine_type()
-
-    :param switch: fibrechannel-switch/model
-    :type switch: str
-    :return: machine_type
-    :rtype: str
-    """
-    return _chassis_d(switch)['ibm_t']
-
-
-def sys_z_supported(switch):
-    """Deprecated. Use brcddb.brcddb_chassis.sys_z_supported()
-
-    :param switch: fibrechannel-switch/model
-    :type switch: str
-    :return: True if z Systems supported
-    :rtype: bool
-    """
-    return _chassis_d(switch)['z']
-
-
-def switch_speed(switch):
-    """Deprecated. Use brcddb.brcddb_chassis.chassis_speed()
-
-    :param switch: fibrechannel-switch/model
-    :type switch: str
-    :return: Maximum speed switch is capable of
-    :rtype: int
-    """
-    return _chassis_d(switch)['spd']
-
-
-def model_broadcom(switch):
-    """Deprecated. Use brcddb.brcddb_chassis.chassis_type()
-
-    :param switch: fibrechannel-switch/model
-    :type switch: str
-    :return: Switch model
-    :rtype: str
-    """
-    return _chassis_d(switch)['brcd']
 
 
 def add_rest_port_data(switch_obj, pobj, flag_obj=None, in_skip_list=list()):
@@ -175,7 +103,7 @@ def add_rest_port_data(switch_obj, pobj, flag_obj=None, in_skip_list=list()):
     sl = ['name', 'enabled-state']
     sl.extend(skip_list)
     for k in pobj.keys():
-        for pdict in brcddb_util.convert_to_list(pobj.get(k)):
+        for pdict in gen_util.convert_to_list(pobj.get(k)):
             if k == 'media-rdp':
                 # The media name is in the format type/s/p, but for everything else, it's just s/p, which is how the key
                 # is created for the port object in the switch object. By splitting on '/', removing the first list
@@ -193,25 +121,42 @@ def add_rest_port_data(switch_obj, pobj, flag_obj=None, in_skip_list=list()):
                     fab_obj.s_add_login(wwn)
 
 
-def best_switch_name(switch_obj, wwn=False):
+def best_switch_name(switch_obj, wwn=False, did=False, fid=False):
     """Returns the user friendly switch name, optionally with the switch WWN in parenthesis. If the swith is not named,
-        just the switch WWN is returned
+       just the switch WWN is returned
 
     :param switch_obj: Switch object
     :type switch_obj: brcddb.classes.switch.SwitchObj
     :param wwn: If True, append (wwn) to the switch name
     :type wwn: bool
+    :param did: If True, append (DID) to the switch name
+    :type did: bool
+    :param fid: If Ture, append (FID) to switch name
+    :type fid: bool
     :return: Switch name
-    :rtype: str, None
+    :rtype: str
     """
+    wwn_f = wwn
     if switch_obj is None:
         return 'Unknown'
     buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/user-friendly-name')
     if buf is None:
         buf = switch_obj.r_get('brocade-fabric/fabric-switch/switch-user-friendly-name')
-    if buf is None or len(buf) == 0:
-        return switch_obj.r_obj_key()
-    return buf + ' (' + switch_obj.r_obj_key() + ')' if wwn else buf
+    if buf is None:
+        buf = ''
+        wwn_f = True
+    if fid:
+        fid_num = switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
+        if fid_num is not None:
+            buf += ' FID: ' + str(fid_num)
+    if did:
+        did_num = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
+        if did_num is not None:
+            buf += ' DID: ' + str(did_num)
+    if wwn_f:
+        buf += ' (' + switch_obj.r_obj_key() + ')'
+
+    return buf
 
 
 def switch_type(switch_obj):
@@ -219,9 +164,11 @@ def switch_type(switch_obj):
 
     :param switch_obj: Switch object
     :type switch_obj: brcddb.classes.switch.SwitchObj
-    :return: Switch type
-    :rtype: str
+    :return: Switch type. None if switch_obj is None
+    :rtype: str, None
     """
+    if switch_obj is None:
+        return None
     if switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/default-switch-status'):
         return 'Default'
     if switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ficon-mode-enabled'):
@@ -232,14 +179,15 @@ def switch_type(switch_obj):
 
 
 def switch_fid(switch_obj):
-    """Returns the switch FID
+    """Returns the switch FID as an integer
 
     :param switch_obj: Switch object
     :type switch_obj: brcddb.classes.switch.SwitchObj
-    :return: Switch FID. Returns None if non-VF or logical switch data not yet captured
+    :return: Switch FID. Returns None if non-VF, logical switch data not yet captured, or  or switch_obj is None
     :rtype: int, None
     """
-    return switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
+    return None if switch_obj is None else\
+        switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
 
 
 def switch_ports(switch_obj):
@@ -247,10 +195,11 @@ def switch_ports(switch_obj):
 
     :param switch_obj: Switch object
     :type switch_obj: brcddb.classes.switch.SwitchObj
-    :return: List of ports in switch. Empty if no ports but None if not polled
+    :return: List of ports in switch. Empty if no ports but None if not polled or switch_obj is None
     :rtype: list, None
     """
-    return switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/port-member-list')
+    return None if switch_obj is None else\
+        switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/port-member-list')
 
 
 def switch_ge_ports(switch_obj):
@@ -258,7 +207,25 @@ def switch_ge_ports(switch_obj):
 
     :param switch_obj: Switch object
     :type switch_obj: brcddb.classes.switch.SwitchObj
-    :return: List of GE ports in switch. Empty if no ports but None if not polled
+    :return: List of GE ports in switch. Empty if no ports but None if not polled or switch_obj is None
     :rtype: list, None
     """
-    return switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ge-port-member-list')
+    return None if switch_obj is None else\
+        switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ge-port-member-list')
+
+
+def port_obj_for_index(switch_obj, port_index):
+    """Returns the port object matching port_index
+
+    :param switch_obj: Switch object
+    :type switch_obj: brcddb.classes.switch.SwitchObj
+    :param port_index: Port index
+    :type port_index: int
+    :return: List of GE ports in switch. Empty if no ports but None if not polled or switch_obj is None
+    :rtype: list, None
+    """
+    for port_obj in switch_obj.r_port_objects():
+        i = port_obj.r_index()
+        if isinstance(i, int) and i == port_index:
+            return port_obj
+    return None

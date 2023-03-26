@@ -89,16 +89,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.2.0     | 11 Feb 2023   | Updated comments only                                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.2.1     | 26 Mar 2023   | Fixed bug where logins in a d,i zone were reported as not in a zone.              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Feb 2023'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.2.0'
+__version__ = '3.2.1'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -127,6 +129,10 @@ special_login = {
     # Should never get 'I/O Analytics Port' because I check for AE-Port but rather than over think it...
     'I/O Analytics Port': al.ALERT_NUM.LOGIN_AMP,
 }
+
+
+class Found(Exception):
+    pass
 
 
 def set_bp_check(key, val):
@@ -411,16 +417,17 @@ def zone_analysis(fab_obj):
 
                 if gen_util.is_di(mem):
                     flag |= _DI_IN_ZONE  # It's a d,i member - typically FICON
-                    t = mem.split(',')
-
-                    # Is it in the fabric?
-                    found_flag = False
-                    for switch_obj in fab_obj.r_switch_objects():
-                        if isinstance(switch_obj.r_get('domain_id'), int) and switch_obj.r_get('domain_id') == t[0]:
-                            found_flag = True
-                            break
-                    if not found_flag:
-                        zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_FOUND, None, mem)
+                    temp_l = [int(i) for i in mem.split(',') if i.isnumeric()]
+                    if len(temp_l) == 2:
+                        # Is it in the fabric?
+                        try:
+                            switch_obj = switch_for_did(fab_obj, temp_l[0])
+                            if switch_obj is not None:
+                                if brcddb_switch.port_obj_for_index(switch_obj, temp_l[1]) is not None:
+                                    raise Found
+                            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_FOUND, None, mem)
+                        except Found:
+                            pass
 
                 elif gen_util.is_wwn(mem, full_check=False):
                     flag |= _WWN_IN_ZONE
@@ -506,9 +513,11 @@ def zone_analysis(fab_obj):
 
     for login_obj in fab_obj.r_login_objects():
         wwn = login_obj.r_obj_key()
+        port_obj = login_obj.r_port_obj()
 
         # Make sure that all logins are zoned.
-        if len(fab_obj.r_zones_for_wwn(wwn)) > 0:
+        if len(fab_obj.r_zones_for_wwn(wwn)) +\
+                len(fab_obj.r_zones_for_di(port_obj.r_switch_obj().r_did(), port_obj.r_index())) > 0:
             if wwn in fab_obj.r_base_logins():
                 login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_BASE_ZONED)
         elif wwn not in fab_obj.r_base_logins():

@@ -41,6 +41,8 @@ Public Methods & Data::
     +---------------------------+-----------------------------------------------------------------------------------+
     | best_project_name         | Returns the project object key                                                    |
     +---------------------------+-----------------------------------------------------------------------------------+
+    | fab_obj_for_fid           | Returns a list of fabric objects matching a FID.                                  |
+    +---------------------------+-----------------------------------------------------------------------------------+
 
 Version Control::
 
@@ -79,16 +81,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.3     | 11 Feb 2023   | Added best_project_name()                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.4     | 26 Mar 2023   | Added fab_obj_for_fid()                                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Feb 2023'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.3'
+__version__ = '3.1.4'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.file as brcdapi_file
@@ -298,3 +302,23 @@ def best_project_name(proj_obj):
     except AttributeError:
         pass
     return 'unknown'
+
+
+def fab_obj_for_fid(proj_obj, fid):
+    """Returns a list of fabric objects matching a FID.
+
+    :param proj_obj: Project object
+    :type proj_obj: brcddb.classes.project.ProjectObj
+    :param fid: Fabric ID
+    :type fid: int
+    :return: List of fabric objects matching the fid
+    :rtype: list
+    """
+    rl = list()
+    for fab_obj in proj_obj.r_fabric_objects():
+        for switch_obj in fab_obj.r_switch_objects():
+            local_fid = switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
+            if isinstance(local_fid, int) and local_fid == fid:
+                rl.append(fab_obj)
+                break
+    return rl
