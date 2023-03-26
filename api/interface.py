@@ -64,16 +64,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 01 Jan 2023   | Improve error messaging and recovery.                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 26 Mar 2023   | Fixed error in get_batch() when the requested URI is unknown.                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.fos_auth as fos_auth
@@ -665,7 +667,7 @@ def results_action(session, brcddb_obj, fos_obj, kpi):
             brcdapi_log.log(buf, echo=True)
 
 
-def get_batch(session, proj_obj, kpi_list, fid=None):
+def get_batch(session, proj_obj, uri_l, fid=None):
     """Processes a batch API requests and adds responses to the associated object. All chassis request are performed
     first, followed by processing of logical switch requests.
 
@@ -676,8 +678,8 @@ def get_batch(session, proj_obj, kpi_list, fid=None):
     :type session: dict
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.ProjectObj
-    :param kpi_list: List of KPIs to request from the switches and chassis
-    :type kpi_list: list, str
+    :param uri_l: List of URIs to request from the switches and chassis
+    :type uri_l: list, str
     :param fid: FID, or list of FIDs for logical switch level requests. If None, execute requests for all FIDs.
     :type fid: int, list, tuple, None
     :return: True if no errors encountered, otherwise False
@@ -688,12 +690,21 @@ def get_batch(session, proj_obj, kpi_list, fid=None):
     if chassis_obj is None:
         brcdapi_log.log(brcdapi_util.mask_ip_addr(session.get('ip_addr')) + ' Chassis not found.', echo=True)
         return False
-    kl = gen_util.convert_to_list(kpi_list)
+
+    # Sort out which KPIs are for the chassis and which are for a logical switch
+    chassis_uri_l, switch_uri_l = list(), list()
+    for uri in gen_util.convert_to_list(uri_l):
+        d = brcdapi_util.uri_d(session, uri)
+        if isinstance(d, dict):  # It's None if the URI isn't supported in this version of FOS
+            if d['fid']:
+                switch_uri_l.append(uri)
+            else:
+                chassis_uri_l.append(uri)
 
     # Get all the chassis data
-    for kpi in [kpi for kpi in kl if not brcdapi_util.uri_d(session, kpi)['fid']]:
-        obj = get_rest(session, kpi, chassis_obj)
-        results_action(session, chassis_obj, obj, kpi)
+    for uri in chassis_uri_l:
+        obj = get_rest(session, uri, chassis_obj)
+        results_action(session, chassis_obj, obj, uri)
 
     # Figure out which logical switches to poll switch level data from.
     if chassis_obj.r_is_vf_enabled() and fid is not None:
@@ -709,8 +720,8 @@ def get_batch(session, proj_obj, kpi_list, fid=None):
 
     # Now process all the switch (FID) level commands.
     for switch_obj in switch_list:
-        for kpi in [kpi for kpi in kl if brcdapi_util.uri_d(session, kpi)['fid']]:
-            obj = get_rest(session, kpi, switch_obj, brcddb_switch.switch_fid(switch_obj))
-            results_action(session, switch_obj, obj, kpi)
+        for uri in switch_uri_l:
+            obj = get_rest(session, uri, switch_obj, brcddb_switch.switch_fid(switch_obj))
+            results_action(session, switch_obj, obj, uri)
 
     return True
