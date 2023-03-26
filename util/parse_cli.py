@@ -64,16 +64,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 1.0.6     | 11 Feb 2023   | Fixed parsing of portstatsshow output                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 1.0.7     | 26 Mar 2023   | Changed port type for ports not logged in to U-Port rather than unknown           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Feb 2023'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '1.0.6'
+__version__ = '1.0.7'
 
 import re
 import time
@@ -113,9 +115,9 @@ _BFLS_FLS = 'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/'
 _switchshow_tbl = {
     'switchName': _BFS_FS + 'user-friendly-name',
     'switchType': _BFS_FS + 'model',
-    'switchDomain': _BF_FS + 'domain-id',
-    'switchId': _BF_FS + 'fcid-hex',
-    'switchWwn': _BF_FS + 'name',
+    'switchDomain': _BFS_FS + 'domain-id',
+    'switchId': _BFS_FS + 'fcid-hex',
+    'switchWwn': _BFS_FS + 'name',
     'Fabric Name': _BFS_FS + 'fabric-user-friendly-name',
 }
 _switch_0_1_boolean_off_on = {
@@ -440,6 +442,9 @@ def switchshow(obj, content, append_buf=''):
     brcddb_util.add_to_obj(switch_obj,
                            _BF_FS + 'switch-user-friendly-name',
                            brcddb_util.get_from_obj(switch_obj, _BFS_FS + 'user-friendly-name'))
+    brcddb_util.add_to_obj(switch_obj,
+                           _BF_FS + 'domain-id',
+                           brcddb_util.get_from_obj(switch_obj, _BFS_FS + 'domain-id'))
 
     # Get the logical switch attributes. Note that these are formated on a single line rather than in a list as the
     # other switch attributes are displayed.
@@ -503,7 +508,7 @@ def switchshow(obj, content, append_buf=''):
                     port_d.update(({'port-type': v}))
                     break
             if port_d.get('port-type') is None:
-                port_d.update({'port-type': brcddb_common.PORT_TYPE_UNKONWN})
+                port_d.update({'port-type': brcddb_common.PORT_TYPE_U})  # Typical of an offline port
             # switch_ports_fc.update({port_num: port_d})
             switch_port_list.append(port_num)
             port_obj = switch_obj.s_add_port(port_num)
