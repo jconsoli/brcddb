@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -42,16 +42,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 28 Apr 2022   | Added KeyError to except in c_login_type()                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 01 Jan 2023   | Added rs_key() and s_add_login                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 26 Mar 2023   | Added r_format()                                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.1.0'
 
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
@@ -218,6 +222,21 @@ class PortObj:
         :rtype: FabricObj, None
         """
         return self.r_switch_obj().r_fabric_key()
+
+    def s_add_login(self, wwn):
+        """Adds a login to the fabric for this port if it doesn't already exist
+
+        :param wwn: WWN of the login
+        :type wwn: str
+        :return: Login object
+        :rtype: LoginObj
+        """
+        fab_obj = self.r_fabric_obj()
+        login_obj = fab_obj.s_add_login(wwn)
+        wwn_l = util.get_or_add(self, 'fibrechannel/neighbor/wwn', list())
+        if wwn not in wwn_l:
+            wwn_l.append(wwn)
+        return login_obj
 
     def r_login_keys(self):
         """Returns all the login WWN associated with this port.
@@ -733,9 +752,19 @@ class PortObj:
         :param k: Key
         :type k: str, int
         :return: Value
-        :rtype: Same type as used when the key/value pair was added
+        :rtype: None, int, float, str, list, dict
         """
         return util.class_getvalue(self, k)
+
+    def rs_key(self, k, v):
+        """Return the value of a key. If the key doesn't exist, create it with value v
+
+        :param k: Key
+        :type k: str, int
+        :return: Value
+        :rtype: None, int, float, str, list, dict
+        """
+        return util.get_or_add(self, k, v)
 
     def r_keys(self):
         """Returns a list of keys added to this object.
@@ -744,3 +773,13 @@ class PortObj:
         :rtype: list
         """
         return util.class_getkeys(self)
+
+    def r_format(self, full=False):
+        """Returns a list of formatted text for the object. Intended for error reporting.
+
+        :param full: If True, expand (pprint) all data added with obj.s_new_key() pprint.
+        :type full: bool
+        :return: Value
+        :rtype: Same type as used when the key/value pair was added
+        """
+        return util.format_obj(self, full=full)

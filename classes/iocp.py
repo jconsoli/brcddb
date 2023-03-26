@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -36,15 +36,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 28 Apr 2022   | Added ability to search for a CHPID path that is a subset of CSS in r_path_obj()  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 01 Jan 2023   | Added rs_key()                                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 26 Mar 2023   | Added r_format().                                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.8'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
@@ -284,6 +288,16 @@ class IOCPObj:
         :rtype: Same type as used when the key/value pair was added
         """
         return util.class_getvalue(self, k)
+
+    def rs_key(self, k, v):
+        """Return the value of a key. If the key doesn't exist, create it with value v
+
+        :param k: Key
+        :type k: str, int
+        :return: Value
+        :rtype: None, int, float, str, list, dict
+        """
+        return util.get_or_add(self, k, v)
 
     def r_keys(self):
         """Returns a list of keys added to this object.
@@ -540,6 +554,16 @@ class ChpidObj:
         """
         return util.class_getvalue(self, k)
 
+    def rs_key(self, k, v):
+        """Return the value of a key. If the key doesn't exist, create it with value v
+
+        :param k: Key
+        :type k: str, int
+        :return: Value
+        :rtype: None, int, float, str, list, dict
+        """
+        return util.get_or_add(self, k, v)
+
     def r_keys(self):
         """Returns a list of keys added to this object.
 
@@ -547,3 +571,13 @@ class ChpidObj:
         :rtype: list
         """
         return util.class_getkeys(self)
+
+    def r_format(self, full=False):
+        """Returns a list of formatted text for the object. Intended for error reporting.
+
+        :param full: If True, expand (pprint) all data added with obj.s_new_key() pprint.
+        :type full: bool
+        :return: Value
+        :rtype: Same type as used when the key/value pair was added
+        """
+        return util.format_obj(self, full=full)

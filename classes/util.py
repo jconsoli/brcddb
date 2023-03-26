@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -40,22 +40,27 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 28 Apr 2022   | Moved convert_to_list() to gen_util.convert_to_list()                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 01 Jan 2023   | Added get_or_add()                                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 26 Mar 2023   | Added format_obj()                                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.1.0'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
+import pprint
 
+_MAX_PRINT_LINE = 78  # Maximum number of characters per formatted line. Used in format_obj()
 force_msg = 'To overwrite a key, set f=True in the call to s_new_key()\n'
-
 simple_class_type = ('AlertObj', 'AliasObj', 'ChassisObj', 'FabricObj', 'LoginObj', 'FdmiNodeObj', 'FdmiPortObj',
                      'PortObj', 'ProjectObj', 'SwitchObj', 'ZoneCfgObj', 'ZoneObj', 'IOCPObj', 'ChpidObj')
 
@@ -302,6 +307,7 @@ def special_key_scr(obj, k, v, v1):
     This the RSCN handling and is only valid on the chassis where the login occured. RSCN handling is not distributed in
     the fabric. The value in the name server is None and returned as an empty string, '', in the API on all chassis
     except the chassis where the login occured.
+
     :param obj: brcddb object. Should be a LoginObj. The object type is assumed to be correct.
     :type obj: LoginObj
     :param k: Key to be added. We should only get here if k == 'state-change-registration'
@@ -516,7 +522,7 @@ def s_new_key_for_class(obj, k, v, f=False):
         ml.append('Value type: ' + str(type(v)))
         if isinstance(v, (str, int, float)):
             ml.append('Value:      ' + str(v))
-        brcdapi_log.exception(ml, True)
+        brcdapi_log.exception(ml, echo=True)
         return False
 
 
@@ -568,7 +574,7 @@ def class_getvalue(obj, keys, flag=False):
                 return None  # The key was not found if we get here
         return v0
     else:
-        brcdapi_log.exception('Unknown object type: ' + str(type(obj)) + '. keys: ' + keys, True)
+        brcdapi_log.exception('Unknown object type: ' + str(type(obj)) + '. keys: ' + keys, echo=True)
 
     return None
 
@@ -579,11 +585,13 @@ def class_getkeys(obj):
     :return: List of keys
     :rtype: list
     """
-    a = list(obj.__dict__.keys())
-    for i, e in reversed(list(enumerate(a))):
-        if e in obj.r_reserved_keys():
-            a.pop(i)
-    return a
+    reserved_key_l = obj.r_reserved_keys()
+    return [key for key in list(obj.__dict__.keys()) if key not in reserved_key_l]
+    # a = list(obj.__dict__.keys())
+    # for i, e in reversed(list(enumerate(a))):
+    #     if e in obj.r_reserved_keys():
+    #         a.pop(i)
+    # return a
 
 
 def get_reserved(rd, k):
@@ -603,3 +611,135 @@ def get_reserved(rd, k):
         rl.append('_reserved_keys')
         return rl
     return rd.get(k)
+
+
+def get_or_add(obj, k, v):
+    """Gets a value for a key, k. The key may be in slash notation. If the key doesn't exist it is added with value. v
+
+    :param obj: Any brcddb.classes object
+    :type obj: ChassisObj, FabricObj, LoginObj, FdmiNodeObj, FdmiPortObj, PortObj, ProjectObj, SwitchObj, ZoneCfgObj \
+        ZoneObj, AliasObj
+    :param k: Key in slash notation
+    :type k: str
+    :param v: Value to assign to the key if the key doesn't exist.
+    :type v: None, str, bool, int, float, list, dict
+    :return: Value associated with k
+    :rtype: None, str, bool, int, float, list, dict
+    """
+    val = class_getvalue(obj, k)
+    if val is not None:
+        return val
+
+    # The key does not exist so add it
+    key_l = k.split('/')
+    last_key = key_l.pop()
+    if len(key_l) == 0:
+        s_new_key_for_class(obj, last_key, v)
+        return v
+    key = key_l.pop(0)
+    add_d = class_getvalue(obj, key)
+    if add_d is None:
+        add_d = dict()
+        s_new_key_for_class(obj, key, add_d)
+    elif not isinstance(add_d, dict):
+        brcdapi_log.exception('Expected dictionary in ' + k + ' at ' + key + '. Got ' + str(type(add_d)), echo=True)
+        return None
+    for key in key_l:
+        d = add_d.get(key)
+        if d is None:
+            d = dict()
+            add_d.update({key: d})
+        elif not isinstance(d, dict):
+            brcdapi_log.exception('Expected dictionary in ' + k + ' at ' + key + '. Got ' + str(type(d)), echo=True)
+            return None
+        add_d = d
+    add_d.update({last_key: v})
+    return v
+
+
+def _format_obj_none(obj):  # Used in format_obj()
+    return list()
+
+
+def _format_obj_all_else(item_l):  # Used in format_obj()
+    global _MAX_PRINT_LINE
+    r_buf, r_buf_l = '', list()
+    p_len = len(r_buf)
+    for buf in [str(b) for b in convert_to_list(item_l)]:
+        for sub_buf in buf.split('\n'):
+            if len(sub_buf) + p_len > _MAX_PRINT_LINE:
+                if len(r_buf) > 0:
+                    r_buf_l.append(r_buf)
+                r_buf = '  ' + str(sub_buf)
+            else:
+                r_buf += ', ' + str(sub_buf) if len(r_buf) > 0 else '  ' + str(sub_buf)
+            p_len = len(r_buf)
+    if len(r_buf) > 0:
+        r_buf_l.append(r_buf)
+    return r_buf_l
+
+
+def _format_obj_dict(obj):  # Used in format_obj()
+    return _format_obj_all_else([str(k) for k in obj.keys()])
+
+
+def _format_obj_brcd_obj(obj):  # Used in format_obj()
+    return _format_obj_all_else(obj.keys())
+
+
+def format_obj(obj, full=False):
+    """Intended for error reporting brcddb objects but will format anything into a human readable format.
+
+    :param obj: brcddb class
+    :type obj: complex
+    :param full: If True, expand (pprint) all data added with obj.s_new_key() pprint.
+    :type full: bool
+    :return: List of strings of formatted text
+    :rtype: list
+    """
+    rl = list()
+
+    # Try/Except because this is typically called when something went wrong. It could be in the Python script, FOS, or
+    # a library. The assumption is that this output will get printed somewhere so the intent is to make a best effort at
+    # formatting the object without causing the script to crash before this data is logged or displayed to the console.
+    try:
+        rl.append('Object Type: ' + str(type(obj)))
+        if get_simple_class_type(obj) is None:
+            rl.append(pprint.pformat(obj))
+        else:
+            # Initialize with everything that's not going to get formatted
+            lookup_d = dict(
+                _project_obj=_format_obj_none,
+                _reserved_keys=_format_obj_none,
+                _fdmi_node_objs=_format_obj_none,
+                _fdmi_port_objs=_format_obj_none,
+                _base_logins=_format_obj_none,
+                _port_map=_format_obj_none,
+                _maps_rules=_format_obj_none,
+                _maps_group_rules=_format_obj_none,
+                _maps_groups=_format_obj_none,
+                _msg_tbl=_format_obj_none,
+            )
+
+            # Assume everything else has a simple lookup
+            for key in obj.r_reserved_keys():
+                rl.append('Key: ' + str(key))
+                val = obj.r_get_reserved(key)
+                if full and key != '_project_obj':
+                    rl.append(pprint.pformat(val))
+                else:
+                    method = lookup_d[key] if key in lookup_d else _format_obj_dict if isinstance(val, dict) \
+                        else _format_obj_all_else
+                    rl.extend(method(val))
+
+            # The keys added with obj.s_new_key()
+            rl.append('Added Keys')
+            for key in obj.r_keys():
+                rl.append(str(key))
+                if full:
+                    rl.append(pprint.pformat(obj.r_get(key)))
+
+    except BaseException as e:
+        rl.append(str(e))
+
+    return rl

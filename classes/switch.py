@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -40,16 +40,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 25 Jul 2022   | Removed requirement for leading '0x' in r_port_obj_for_pid()                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 01 Jan 2023   | Added rs_key()                                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 26 Mar 2023   | Added r_is_ficon() and r_format()                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '25 Jul 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.1.0'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -235,6 +239,20 @@ class SwitchObj:
         """
         return bool(self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/base-switch-enabled'))
 
+    def r_is_default(self):
+        """Test to determine if switch is the default switch, 'fibrechannel-switch/default-switch-status'
+        :return: True: Switch is the default switch. False: Switch is not the default switch
+        :rtype: bool
+        """
+        return bool(self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/default-switch-status'))
+
+    def r_is_ficon(self):
+        """Test to determine if switch is the default switch, 'fibrechannel-switch/default-switch-status'
+        :return: True: Switch is the default switch. False: Switch is not the default switch
+        :rtype: bool
+        """
+        return bool(self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ficon-mode-enabled'))
+
     def r_is_enabled(self):
         """Determines if a switch is enabled
         :return: True if enabled, False if not enabled or unknown
@@ -263,13 +281,6 @@ class SwitchObj:
         :rtype: bool
         """
         return bool(self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ficon-mode-enabled'))
-
-    def r_is_default(self):
-        """Test to determine if switch is the default switch, 'fibrechannel-switch/default-switch-status'
-        :return: True: Switch is the default switch. False: Switch is not the default switch
-        :rtype: bool
-        """
-        return bool(self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/default-switch-status'))
 
     def r_did(self):
         """Returns the domain ID, in decimal
@@ -630,9 +641,29 @@ class SwitchObj:
         """
         return util.class_getvalue(self, k)
 
+    def rs_key(self, k, v):
+        """Return the value of a key. If the key doesn't exist, create it with value v
+
+        :param k: Key
+        :type k: str, int
+        :return: Value
+        :rtype: None, int, float, str, list, dict
+        """
+        return util.get_or_add(self, k, v)
+
     def r_keys(self):
         """Returns a list of keys added to this object.
         :return: List of keys
         :rtype: list
         """
         return util.class_getkeys(self)
+
+    def r_format(self, full=False):
+        """Returns a list of formatted text for the object. Intended for error reporting.
+
+        :param full: If True, expand (pprint) all data added with obj.s_new_key() pprint.
+        :type full: bool
+        :return: Value
+        :rtype: Same type as used when the key/value pair was added
+        """
+        return util.format_obj(self, full=full)

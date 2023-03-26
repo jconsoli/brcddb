@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -36,16 +36,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 31 Dec 2021   | Miscellaneous spelling mistakes.                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.5     | 26 Mar 2023   | Added r_format()                                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '31 Dec 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2023 Jack Consoli'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 
 import copy
 import brcddb.classes.util as util
@@ -215,3 +217,13 @@ class AlertObj:
         :rtype bool:
         """
         return self._msg_tbl.get(self.alert_num()).get('f') if 'f' in self._msg_tbl.get(self.alert_num()) else False
+
+    def r_format(self, full=False):
+        """Returns a list of formatted text for the object. Intended for error reporting.
+
+        :param full: If True, expand (pprint) all data added with obj.s_new_key() pprint.
+        :type full: bool
+        :return: Value
+        :rtype: Same type as used when the key/value pair was added
+        """
+        return util.format_obj(self, full=full)

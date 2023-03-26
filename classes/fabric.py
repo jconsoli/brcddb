@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -53,16 +53,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 04 Sep 2022   | Fixed bug in r_defined_eff_zonecfg_obj()                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 01 Jan 2023   | Added rs_key()                                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 26 Mar 2023   | Added s_del_switch() and r_format()                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '04 Sep 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.1'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -253,6 +257,18 @@ class FabricObj:
         switch_obj = self.r_project_obj().s_add_switch(wwn)  # I need the switch_obj to add the fab key
         switch_obj.s_fabric_key(self.r_obj_key())
         return switch_obj
+
+    def s_del_switch(self, wwn):
+        """Deletes a switch key from the fabric. It does not delete the switch object from the project.
+
+        :param wwn: WWN of logical switch
+        :type wwn: str
+        :rtype: None
+        """
+        self._switch_keys = list(filter(lambda item: item != wwn, self._switch_keys))
+        # if wwn in self._switch_keys:
+        #     self._switch_objs.remove(wwn)
+            # del self._switch_keys[wwn]
 
     def s_add_login(self, wwn):
         """Adds a login to the fabric if it doesn't already exist
@@ -647,17 +663,17 @@ class FabricObj:
         return self._zone_objs
 
     def s_add_alias(self, name, in_mem=None):
-        """Adds an alias to the fabric if it doesn't already exist.
-        Similarly, alias members will be added if they don't already exist
-        Typically, and best practice, there is one WWN member per alias. Multiples are allowed. I've seen it done on
-        occasion but don't recommend it. I've never seen it done, but d,i members are allowed
+        """Adds an alias to the fabric if it doesn't already exist. Similarly, alias members will be added if they don't
+        already exist. Typically, and best practice, there is one WWN member per alias. Multiple WWNs in an alias are
+        usually used for storage enclosures. Modern zoning practices are more likely to use peer zones for enclosures.
+        I've never seen it done, but d,i members are allowed
 
         :param name: Alias name
         :type name: str
         :param in_mem: Alias members
         :type in_mem: str, list, tuple, None
-        :return: Zone configuration object for the effective zone configuration
-        :rtype: brcddb.classes.zone.ZoneCfgObj
+        :return: Alias object
+        :rtype: brcddb.classes.zone.AliasObj
         """
         mem = util.convert_to_list(in_mem)
         if name in self._alias_objs:
@@ -1052,6 +1068,16 @@ class FabricObj:
         """
         return util.class_getvalue(self, k)
 
+    def rs_key(self, k, v):
+        """Return the value of a key. If the key doesn't exist, create it with value v
+
+        :param k: Key
+        :type k: str, int
+        :return: Value
+        :rtype: None, int, float, str, list, dict
+        """
+        return util.get_or_add(self, k, v)
+
     def r_keys(self):
         """Returns a list of keys added to this object.
 
@@ -1059,3 +1085,13 @@ class FabricObj:
         :rtype: list
         """
         return util.class_getkeys(self)
+
+    def r_format(self, full=False):
+        """Returns a list of formatted text for the object. Intended for error reporting.
+
+        :param full: If True, expand (pprint) all data added with obj.s_new_key() pprint.
+        :type full: bool
+        :return: Value
+        :rtype: Same type as used when the key/value pair was added
+        """
+        return util.format_obj(self, full=full)

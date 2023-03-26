@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -40,16 +40,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 28 Apr 2022   | Added r_login_obj()                                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 01 Jan 2023   | Added rs_key()                                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 26 Mar 2023   | Added s_del_switch() and r_format()                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '26 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.9'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -118,6 +122,7 @@ class ProjectObj:
                 _switch_objs=self.r_switch_objs(),
                 _chassis_objs=self.r_chassis_objs(),
                 _alerts=self.r_alert_objects(),
+                # _iocp_objs=self.r_iocp_objects()
             ),
             k
         )
@@ -384,13 +389,14 @@ class ProjectObj:
             self.s_add_switch(principal_wwn).s_fabric_key(principal_wwn)
         return fab_obj
 
-    def s_del_fabric(self, principal_wwn):
+    def s_del_fabric(self, wwn):
         """Delete a fabric from the project
 
-        :param principal_wwn: Fabric key (principal WWN) to be deleted
-        :type principal_wwn: str
+        :param wwn: Fabric key (principal WWN) to be deleted
+        :type wwn: str
         """
-        self._fabric_objs.pop(principal_wwn, None)
+        if wwn in self._fabric_objs:
+            self._fabric_objs.pop(principal_wwn, None)
 
     def r_fabric_obj(self, key):  # key is the fabric principal WWNs
         """Returns the fabric object for a certain fabric
@@ -534,6 +540,23 @@ class ProjectObj:
             self._switch_objs.update({wwn: switch_obj})
         return switch_obj
 
+    def s_del_switch(self, wwn):
+        """Deletes a switch from the project if it exists
+
+        :param wwn: WWN of logical switch
+        :type wwn: str
+        """
+        switch_obj = self.r_switch_obj(wwn)
+        if switch_obj is not None:
+            fab_obj = switch_obj.r_fabric_obj()
+            fab_obj.s_del_switch(wwn)
+            if len(fab_obj.r_switch_keys()) == 0:
+                self._fabric_objs.pop(wwn)
+            chassis_obj = switch_obj.r_chassis_obj()
+            if chassis_obj is not None:
+                chassis_obj.s_del_switch(wwn)
+            self._switch_objs.pop(wwn)
+
     def r_switch_obj(self, key):  # key is the switch WWN
         """Returns the switch object for a given switch WWN
         
@@ -583,6 +606,18 @@ class ProjectObj:
             chassis_obj = chassis_class.ChassisObj(wwn, self)
             self._chassis_objs.update({wwn: chassis_obj})
         return chassis_obj
+
+    def s_del_chassis(self, wwn):
+        """Deletes a chassis from the project if it exists
+
+        :param wwn: WWN or key of chassis
+        :type wwn: str
+        """
+        chassis_obj = self.r_chassis_obj(wwn)
+        if chassis_obj is not None:
+            for switch_key in chassis_obj.r_switch_keys():
+                self.s_del_switch(switch_key)
+            self._chassis_objs.pop(wwn)
 
     def r_chassis_obj(self, key):  # key is the chassis WWN
         """Returns the chassis object for a given chassis key
@@ -663,6 +698,16 @@ class ProjectObj:
         """
         return util.class_getvalue(self, k)
 
+    def rs_key(self, k, v):
+        """Return the value of a key. If the key doesn't exist, create it with value v
+
+        :param k: Key
+        :type k: str, int
+        :return: Value
+        :rtype: None, int, float, str, list, dict
+        """
+        return util.get_or_add(self, k, v)
+
     def r_keys(self):
         """Returns a list of keys added to this object.
 
@@ -720,3 +765,13 @@ class ProjectObj:
         :rtype: dict
         """
         return self._iocp_objs
+
+    def r_format(self, full=False):
+        """Returns a list of formatted text for the object. Intended for error reporting.
+
+        :param full: If True, expand (pprint) all data added with obj.s_new_key() pprint.
+        :type full: bool
+        :return: Value
+        :rtype: Same type as used when the key/value pair was added
+        """
+        return util.format_obj(self, full=full)
