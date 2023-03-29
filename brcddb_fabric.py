@@ -91,16 +91,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.2.1     | 26 Mar 2023   | Fixed bug where logins in a d,i zone were reported as not in a zone.              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.2.2     | 29 Mar 2023   | Fixed bug when a login was found but the switch associated with it wasn't polled  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '29 Mar 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.2.1'
+__version__ = '3.2.2'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -514,9 +516,11 @@ def zone_analysis(fab_obj):
     for login_obj in fab_obj.r_login_objects():
         wwn = login_obj.r_obj_key()
         port_obj = login_obj.r_port_obj()
+        if port_obj is None:
+            continue  # This happens when a login is found but data for the switch associated with it wasn't captured
 
         # Make sure that all logins are zoned.
-        if len(fab_obj.r_zones_for_wwn(wwn)) +\
+        if len(fab_obj.r_zones_for_wwn(wwn)) + \
                 len(fab_obj.r_zones_for_di(port_obj.r_switch_obj().r_did(), port_obj.r_index())) > 0:
             if wwn in fab_obj.r_base_logins():
                 login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_BASE_ZONED)
