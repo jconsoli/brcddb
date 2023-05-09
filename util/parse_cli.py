@@ -66,16 +66,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 1.0.7     | 26 Mar 2023   | Changed port type for ports not logged in to U-Port rather than unknown           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 1.0.8     | 09 May 2023   | Fixed cases in portbuffershow when port is offline, added "name" to port, and     |
+    |           |               | converted tabs in portstatsshow to spaces.                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '09 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '1.0.7'
+__version__ = '1.0.8'
 
 import re
 import time
@@ -494,6 +497,7 @@ def switchshow(obj, content, append_buf=''):
             except ValueError:
                 speed = 32000000000
             port_d = {
+                'name': port_num,
                 'index': int(cl[port_index['Index']]),
                 'fcid-hex': '0x' + cl[port_index['Address']],
                 'auto-negotiate': 1 if 'N' in cl[port_index['Speed']] else 0,
@@ -520,7 +524,7 @@ def switchshow(obj, content, append_buf=''):
 
 # Case statement methods in portbuffershow()
 def _pbs_user_port(port_obj, v):
-    brcddb_util.add_to_obj(port_obj, 'fibrechannel/index', int(v))
+    brcddb_util.add_to_obj(port_obj, 'fibrechannel/index', int(v) if v.isnumeric() else 0)
 
 def _pbs_port_type(port_obj, v):
     port_type = _pbs_port_types.get(v)
@@ -540,11 +544,15 @@ def _pbs_max_resv(port_obj, v):
 def _pbs_avg_buffer_usage(port_obj, v):
     tl = v.replace('-', '0').replace(' ', '').replace(')', '(').split('(')
     for i in range(0, len(_pbs_avg_buf_conv)):
-        brcddb_util.add_to_obj(port_obj, 'fibrechannel/' + _pbs_avg_buf_conv[i], int(tl[i]))
+        try:
+            val = int(tl[i])
+        except (IndexError, ValueError):
+            val = 0
+        brcddb_util.add_to_obj(port_obj, 'fibrechannel/' + _pbs_avg_buf_conv[i], val)
 
 
 def _pbs_buffer_usage(port_obj, v):
-    brcddb_util.add_to_obj(port_obj, 'fibrechannel/current-buffer-usage', int(v))
+    brcddb_util.add_to_obj(port_obj, 'fibrechannel/current-buffer-usage', int(v) if v.isnumeric() else 0)
 
 
 def _pbs_needed_buffers(port_obj, v):
@@ -585,10 +593,8 @@ def portbuffershow(obj, content):
     # Figure out where everything aligns. $ToDo - Parse Remaining Buffers
     buf_l = [content.pop(0) for i in range(0, 3)]
     key_l = list(port_buf_d.keys())
-    last_d = None
     active_d = port_buf_d[key_l.pop(0)]
-    state = 0
-    i = 0
+    last_d, state, i = None, 0, 0
     for char in buf_l[2]:
         if state == 0:
             if char == '-':
@@ -663,7 +669,7 @@ def portstatsshow(obj, content):
         buf = buf.replace('er_multi_credit_loss', 'er_multi_credit_loss ')
         buf = buf.replace('fec_corrected_rate', 'fec_corrected_rate ')
         buf = buf.replace('latency_dma_ts', 'latency_dma_ts ')
-        tl = gen_util.remove_duplicate_char(buf, ' ').split(' ')
+        tl = gen_util.remove_duplicate_char(buf.replace('\t',' '), ' ').split(' ')
         if len(tl) < 2:
             continue
 
@@ -674,7 +680,7 @@ def portstatsshow(obj, content):
                 raise Exception('Could not find port matching: ' + buf)
             port_stats_d = port_obj.r_get('fibrechannel-statistics')
             if port_stats_d is None:
-                port_stats_d = dict()
+                port_stats_d = dict(name=port_obj.r_obj_key())
                 port_obj.s_new_key('fibrechannel-statistics', port_stats_d)
 
         elif tl[0] in _portstatsshow_special:

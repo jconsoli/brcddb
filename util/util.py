@@ -81,15 +81,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.8     | 01 Jan 2023   | Added fos_to_dict()                                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.9     | 09 May 2023   | Fixed recursion error in date_to_epoch()                                          |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '09 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.8'
+__version__ = '3.1.9'
 
 import re
 import datetime
@@ -798,4 +800,4 @@ def int_list_to_range(num_list):
 
 
 def date_to_epoch(date_time, fmt=0, utc=False):
-    return date_to_epoch(date_time, fmt, utc)
+    return gen_util.date_to_epoch(date_time, fmt, utc)
