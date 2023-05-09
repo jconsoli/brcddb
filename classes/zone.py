@@ -45,16 +45,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 26 Mar 2023   | Added r_format(). Fixed missing removal of peer members in s_del_member           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 09 May 2023   | Added s_sort_members()                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '09 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -338,6 +340,10 @@ class ZoneCfgObj:
         :rtype: Same type as used when the key/value pair was added
         """
         return util.format_obj(self, full=full)
+
+    def s_sort_members(self):
+        """Sorts the membership list. This is useful for simple zone configuration comparisons"""
+        self._members.sort()
 
 
 class ZoneObj:
@@ -732,6 +738,11 @@ class ZoneObj:
         """
         return util.format_obj(self, full=full)
 
+    def s_sort_members(self):
+        """Sorts the membership list. This is useful for simple zone configuration comparisons"""
+        self._members.sort()
+        self._pmembers.sort()
+
 
 class AliasObj:
     """The AliasObj contains all information relevant to an alias including:
@@ -993,3 +1004,7 @@ class AliasObj:
         :rtype: Same type as used when the key/value pair was added
         """
         return util.format_obj(self, full=full)
+
+    def s_sort_members(self):
+        """Sorts the membership list. This is useful for simple zone configuration comparisons"""
+        self._members.sort()
