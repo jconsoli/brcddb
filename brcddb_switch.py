@@ -26,15 +26,17 @@ Public Methods::
     | best_switch_name      | Returns the user friendly switch name, optionally with the switch WWN in parenthesis. |
     |                       | If the swith is not named, ust the switch WWN is returned                             |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | switch_type           | Returns the switch type: Default, FICON, Base, FCP                                    |
+    | copy_switch_obj       | Makes a copy of a switch object                                                       |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | port_obj_for_index    | Returns the port object matching port_index                                           |
     +-----------------------+---------------------------------------------------------------------------------------+
     | switch_fid            | Returns the switch FID as an integer                                                  |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | switch_ports          | Returns the list of ports in the switch                                               |
-    +-----------------------+---------------------------------------------------------------------------------------+
     | switch_ge_ports       | Returns the list of GE ports in the switch                                            |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | port_obj_for_index    | Returns the port object matching port_index                                           |
+    | switch_ports          | Returns the list of ports in the switch                                               |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | switch_type           | Returns the switch type: Default, FICON, Base, FCP                                    |
     +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
@@ -63,16 +65,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 26 Mar 2023   | Added FID to best_switch_name()                                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 09 May 2023   | Added copy_switch_obj()                                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '09 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import time
 import brcdapi.gen_util as gen_util
@@ -229,3 +233,38 @@ def port_obj_for_index(switch_obj, port_index):
         if isinstance(i, int) and i == port_index:
             return port_obj
     return None
+
+
+def copy_switch_obj(switch_obj, switch_key=None, full_copy=False):
+    """Makes a copy of a switch object
+
+    :param switch_obj: The switch object to be copied
+    :type switch_obj: brcddb.classes.switch.SwitchObj
+    :param switch_key: Name for the copied switch. If None, the key is the same as for switch_obj with "_copy" appended
+    :type switch_key: str, None
+    :param full_copy: If True, copies all data added with s_new_key(). Otherwise, just the private members are copied
+    :type full_copy: bool
+    :return: Copy of switch object
+    :rtype: brcddb.classes.switch.SwitchObj
+    """
+    proj_obj = switch_obj.r_project_obj()
+    new_key = switch_obj.r_obj_key() + '_copy' if switch_key is None else switch_key
+    switch_obj_copy = proj_obj.s_add_switch(new_key)
+    switch_obj_copy.s_or_flags(switch_obj.r_flags())
+    switch_obj_copy.s_fabric_key(switch_obj.r_fabric_key())
+    switch_obj_copy.s_chassis_key(switch_obj.r_chassis_key())
+    for obj in switch_obj.r_port_objects():
+        port_obj_copy = switch_obj_copy.s_add_port(obj.r_obj_key())
+        if full_copy:
+            for key in obj.r_keys():
+                port_obj_copy.s_new_key(key, obj.r_get(key))
+    for obj in switch_obj.r_ge_port_objects():
+        port_obj_copy = switch_obj_copy.s_add_ge_port(obj.r_obj_key())
+        if full_copy:
+            for key in obj.r_keys():
+                port_obj_copy.s_new_key(key, obj.r_get(key))
+    if full_copy:
+        for key in switch_obj.r_keys():
+            switch_obj_copy.s_new_key(key, switch_obj.r_get(key))
+
+    return switch_obj_copy
