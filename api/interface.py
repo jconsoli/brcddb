@@ -25,7 +25,7 @@ Public Methods::
     +-----------------------+---------------------------------------------------------------------------------------+
     | login()               | Wrapper around login of a Rest API session using brcdapi.brcdapi_rest.login()         |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | get_rest()            | Wraps loging around a call to brcdapi.brcdapi_rest.get_request() and adds responses   |
+    | get_rest()            | Wraps logging around a call to brcdapi.brcdapi_rest.get_request() and adds responses  |
     |                       | to the associated object.                                                             |
     +-----------------------+---------------------------------------------------------------------------------------+
     | get_batch()           | Processes a batch API requests and adds responses to the associated object. All       |
@@ -66,16 +66,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 26 Mar 2023   | Fixed error in get_batch() when the requested URI is unknown.                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.fos_auth as fos_auth
@@ -108,7 +110,7 @@ def _process_errors(session, uri, obj, wobj, e=None):
     :type uri: str
     :param obj: FOS API object
     :type obj: dict
-    :param wobj: The brcddb class object we were working when the error occured
+    :param wobj: The brcddb class object we were working when the error occurred
     :type wobj: brcddb.classes.project.ProjectObj, brcddb.classes.chassis.ChassisObj, brcddb.classes.switch.SwitchObj,\
         None
     :param e: Exception code
@@ -218,7 +220,7 @@ def login(user_id, pw, ip_addr, https='none', proj_obj=None):
 
 
 def get_rest(session, uri, wobj=None, fid=None):
-    """Wraps loging around a call to brcdapi.brcdapi_rest.get_request() and adds responses to the associated object.
+    """Wraps logging around a call to brcdapi.brcdapi_rest.get_request() and adds responses to the associated object.
 
     :param session: Session object returned from brcdapi.fos_auth.login()
     :type session: dict
@@ -299,20 +301,23 @@ def _update_brcddb_obj_from_list(objx, obj, uri, skip_list=None):
 
     All parameters as in comments above except:
     :param skip_list: Skip list. List of elements to not add to objx
-    :type skip_list: None, list, tuple
+    :type skip_list: None, int, float, str, list, tuple
     """
     global _GEN_CASE_ERROR_MSG
 
-    sl = list() if skip_list is None else skip_list
+    skip_d = dict()
+    for k in gen_util.convert_to_list(skip_list):
+        skip_d.update({k: True})
 
     try:
         temp_l = brcdapi_util.split_uri(uri, run_op_out=True)
         key = '/'.join(temp_l)
         obj_key = temp_l.pop()
-        temp_obj = _mask_ip_addr(obj, keep_last=True)
+        _mask_ip_addr(obj, keep_last=True)
         working_obj = obj[obj_key] if obj_key in obj else obj
         for k, v in working_obj.items():
-            brcddb_util.add_to_obj(objx, key + '/' + k, v)
+            if not bool(skip_d.get(k)):
+                brcddb_util.add_to_obj(objx, key + '/' + k, v)
     except BaseException as e:
         e_buf = 'Exception: ' + str(e) if isinstance(e, (bytes, str)) else str(type(e))
         brcdapi_log.exception([_GEN_CASE_ERROR_MSG, e_buf], echo=True)
@@ -400,7 +405,7 @@ def _effective_zonecfg_case(objx, obj, uri):
         dobj = obj.get('effective-configuration')
         if not isinstance(dobj, dict):
             return
-        _update_brcddb_obj_from_list(fab_obj, dobj, uri, ['enabled-zone'])
+        _update_brcddb_obj_from_list(fab_obj, dobj, uri, 'enabled-zone')
         for zobj in gen_util.convert_to_list(dobj.get('enabled-zone')):
             if 'member-entry' in zobj:
                 zone_obj = fab_obj.s_add_eff_zone(zobj.get('zone-name'),
@@ -613,7 +618,7 @@ def _mask_ip_addr(obj, keep_last):
 
     :param obj: Dictionary to copy
     :type obj: dict, list, int, float, bool, None
-    :param keep_last: If True, keeps the last octect of the IP address.
+    :param keep_last: If True, keeps the last octet of the IP address.
     :type keep_last: bool
     :return: Copy of obj with all IP addresses masked off
     :rtype: dict, list, int, float, bool, None
@@ -637,7 +642,7 @@ def _mask_ip_addr(obj, keep_last):
                 rd.update({k: v})
         return rd
 
-    brcdapi_log.exception('Unkonwn object type: ' + str(type(obj)), echo=True)
+    brcdapi_log.exception('Unknown object type: ' + str(type(obj)), echo=True)
     return None
 
 
@@ -646,7 +651,7 @@ def results_action(session, brcddb_obj, fos_obj, kpi):
 
     :param session: Session object, or list of session objects, returned from brcdapi.fos_auth.login()
     :type session: dict
-    :param brcddb_obj: brcddb class librairy object
+    :param brcddb_obj: brcddb class library object
     :type brcddb_obj: brcddb.classes.*
     :param fos_obj: Object returned from the API
     :type fos_obj: dict

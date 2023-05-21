@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -58,24 +58,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 14 Oct 2022   | Updated zone configuration by alias, zone, and zonecfg to help isolate errors.    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 21 May 2023   | Removed unused imports and updated documentation                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '14 Oct 2022'
+__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import copy
-import re
 import brcdapi.log as brcdapi_log
 import brcdapi.zone as brcdapi_zone
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.fos_auth as fos_auth
-import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
 
