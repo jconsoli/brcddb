@@ -72,15 +72,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.6     | 26 Mar 2023   | Added missing 'ha' member in _target_zone_hdr for "Target"                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.7     | 27 May 2023   | Cleaned up zone by target and group zone pages.                                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '27 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.6'
+__version__ = '3.1.7'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -216,14 +218,22 @@ def _mem_desc_case(obj, mem, wwn, port_obj, obj_l=None):
 
 def _alias_case(obj, mem, wwn, port_obj, obj_l=None):
     try:
-        buf = obj.r_fabric_obj().r_alias_for_wwn(wwn)[0]
+        return obj.r_fabric_obj().r_alias_for_wwn(wwn)[0]
     except (AttributeError, IndexError):
-        buf = None
-    return '' if buf is None else buf
+        pass
+    return ''
 
 
 def _zone_list_case(obj, mem, wwn, port_obj, obj_l=None):
     return ', '.join(gen_util.convert_to_list(obj_l))
+
+
+def _group_case(obj, mem, wwn, port_obj, obj_l=None):
+    return '\u221A'
+
+
+def _group_desc_case(obj, mem, wwn, port_obj, obj_l=None):
+    return brcddb_login.login_best_node_desc(obj)
 
 
 """
@@ -239,7 +249,11 @@ _zone_hdr & _zone_group_hdr_d: Key is the column header. Value is a dict as foll
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | v     | bool      | True - display centered in column. Headers vertical, Otherwise, use default wrap alignment    |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| g     | bool      | True - add this cell. Used by zone groups only so that only the switch and port are filled in |
+| g     | bool      | The zone group sheet has information followed by what is zoned to it. When True, fill in the  |
+|       |           | cell content for the group port. Note that the group port is first followed by what is zonedq |
+|       |           | to it.                                                                                        |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| zg    | bool      | Same as 'g' except this is used for what is zoned to the group port.                          | 
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 """
 _zone_hdr = collections.OrderedDict({
@@ -258,13 +272,13 @@ _zone_hdr = collections.OrderedDict({
     'Description': dict(c=50, z=_null_case, m=_mem_desc_case)
 })
 _zone_group_hdr_d = collections.OrderedDict({  # Same format as _zone_hdr
-    # 'Comments': dict(c=30, z=_comment_case, m=_mem_comment_case),
-    'Switch': dict(c=30, z=_comment_case, m=_mem_switch_case, g=True),
-    'Port': dict(c=8, z=_comment_case, m=_mem_port_case, g=True),
-    'Zone': dict(c=30, z=_comment_case, m=_zone_list_case),
-    'WWN': dict(c=23, z=_zone_member_wwn_case, m=_mem_member_wwn_case, g=True),
-    'Alias': dict(c=30, z=_comment_case, m=_alias_case, g=True),
-    'Description': dict(c=50, z=_null_case, m=_mem_desc_case, g=True)
+    'Group': dict(c=9, z=_null_case, m=_group_case, g=True, v=True),
+    'Switch': dict(c=30, z=_null_case, m=_mem_switch_case, g=True, zg=True),
+    'Port': dict(c=8, z=_null_case, m=_mem_port_case, g=True, zg=True),
+    'WWN': dict(c=23, z=_null_case, m=_mem_member_wwn_case, g=True, zg=True),
+    'Alias': dict(c=34, z=_null_case, m=_alias_case, g=True, zg=True),
+    'Description': dict(c=40, z=_null_case, m=_group_desc_case, g=True, zg=True),
+    'Common Zone': dict(c=30, z=_null_case, m=_zone_list_case, zg=True),
 })
 
 def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
@@ -495,42 +509,59 @@ def _filter_alerts(a_obj_l):
     return rl
 
 
-def _tzone_comment_case(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
+def _null_target_case(wwn, obj, obj2, zone_l, zone_d):
+    """Returns an empty string
+
+    :param wwn: WWN of login in progress
+    :type wwn: str
+    :param obj:
+    :type obj: None, AliasObj, ZoneObj, ZoneCfgObj
+    :param obj2:
+    :type obj2: None, AliasObj, ZoneObj, ZoneCfgObj
+    :param zone_l: List of zones byt name
+    :type zone_l: list
+    :param zone_d: Dictionary returned from _get_zoned_to()
+    :type zone_d: dict
+    """
+    return ''
+
+
+def _tzone_comment_case(wwn, obj, obj2, zone_l, zone_d):
     return '\n'.join([a_obj.fmt_msg() for a_obj in _filter_alerts([obj, obj2])])
 
 
-def _tzone_name_case(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
-    return brcddb_login.best_login_name(obj.r_fabric_obj(), obj.r_obj_key(), True)
+def _tzone_name_case(wwn, obj, obj2, zone_l, zone_d):
+    return wwn if obj is None else brcddb_login.best_login_name(obj.r_fabric_obj(), obj.r_obj_key(), True)
 
 
-def _tzone_zone_case(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
+def _tzone_zone_case(wwn, obj, obj2, zone_l, zone_d):
     return ', '.join(zone_l)
 
 
-def _tzone_switch_case(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
-    return brcddb_switch.best_switch_name(obj.r_switch_obj())
+def _tzone_switch_case(wwn, obj, obj2, zone_l, zone_d):
+    return wwn if obj is None else brcddb_switch.best_switch_name(obj.r_switch_obj())
 
 
-def _tzone_port_case(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
+def _tzone_port_case(wwn, obj, obj2, zone_l, zone_d):
     return '' if obj2 is None else obj2.r_obj_key()
 
 
-def _tzone_speed_case(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
-    port_obj = obj.r_port_obj()
+def _tzone_speed_case(wwn, obj, obj2, zone_l, zone_d):
+    port_obj = None if obj is None else obj.r_port_obj()
     speed = None if port_obj is None else port_obj.r_get('fibrechannel/speed')
     return '' if speed is None else speed/1000000000
 
 
-def _tzone_desc_case(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
+def _tzone_desc_case(wwn, obj, obj2, zone_l, zone_d):
     return brcddb_login.login_best_node_desc(obj)
 
 
-def _tzone_t_count(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
-    return len(target_d)
+def _tzone_t_count(wwn, obj, obj2, zone_l, zone_d):
+    return len(zone_d['target'])
 
 
-def _tzone_s_count(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
-    return len(server_d)
+def _tzone_s_count(wwn, obj, obj2, zone_l, zone_d):
+    return len(zone_d['non_target'])
 
 
 # Key is the column header. Value is a dict as follows:
@@ -539,7 +570,7 @@ def _tzone_s_count(obj, obj2, zone_l, target_d=dict(), server_d=dict()):
 #   'a'     Case method to call when filling in the cell for the item associated with the sub-header
 _target_zone_hdr = collections.OrderedDict({
     'Comments': dict(c=30, ha=_tzone_comment_case, a=_tzone_comment_case),
-    'Target': dict(c=30, ha=_tzone_name_case, a=_tzone_name_case),
+    'Target': dict(c=30, ha=_tzone_name_case, a=_null_target_case),
     'Non-Target': dict(c=30, ha=_tzone_s_count, a=_tzone_name_case),
     'Zoned Target': dict(c=30, ha=_tzone_t_count, a=_tzone_name_case),
     'Common Zone': dict(c=30, ha=_tzone_zone_case, a=_tzone_zone_case),
@@ -551,7 +582,7 @@ _target_zone_hdr = collections.OrderedDict({
 
 _server_zone_hdr = collections.OrderedDict({
     'Comments': dict(c=30, ha=_tzone_comment_case, a=_tzone_comment_case),
-    'Initiator': dict(c=30, ha=_tzone_name_case, a=_tzone_name_case),
+    'Initiator': dict(c=30, ha=_tzone_name_case, a=_null_target_case),
     'Target': dict(c=30, ha=_tzone_t_count, a=_tzone_name_case),
     'Zoned Server': dict(c=30, ha=_tzone_s_count, a=_tzone_name_case),
     'Common Zone': dict(c=30, ha=_tzone_zone_case, a=_tzone_zone_case),
@@ -608,23 +639,30 @@ def _common_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title, hdr):
 def _get_zoned_to(fab_obj, wwn):
     """Get the targets and all else in the effective zone configuration zoned to a WWN.
 
+    Return dictionary:
+
+    +---------------+-------------------------------------------+
+    | Key           | Value                                     |
+    +===============+===========================================|
+    | target        | list of target WWNs zoned to this wwn     |
+    +---------------+-------------------------------------------+
+    | non_target    | list of non-target WWNs zoned to this wwn |
+    +---------------+-------------------------------------------+
+
     :param fab_obj: Fabric object
     :type fab_obj: brcddb.classes.fabric.FabricObj
     :param wwn: WWN to find what's zoned to it
     :type wwn: str, None
-    :return target_d: Dictionary from brcddb_zone.eff_zoned_to_wwn() with all but target FC4 types filtered out
-    :rtype target_d: dict
-    :return all_else_d: Dictionary from brcddb_zone.eff_zoned_to_wwn() with target FC4 types filtered out
-    :rtype all_else_d: dict
+    :return: Dictionary as defined in the method header
+    :rtype: dict
     """
+    rd = dict(target=brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, target=True), non_target=dict())
     if not gen_util.is_wwn(wwn):
-        return dict(), dict()
-    target_d = brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, target=True)
-    all_else_d = dict()
-    for k, d in brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True).items():
-        if k not in target_d:
-            all_else_d.update({k: d})
-    return target_d, all_else_d
+        return rd
+    for k, zone_l in brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True).items():
+        if k not in rd['target']:
+            rd['non_target'].update({k: zone_l})
+    return rd
 
 
 def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
@@ -660,8 +698,8 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                                   stype='regex-s')  # List of target objects in the fabric
     for t_login_obj in t_obj_l:
         wwn = t_login_obj.r_obj_key()
-        target_d, all_else_d = _get_zoned_to(fab_obj, wwn)
-        if len(all_else_d) + len(target_d) == 0:
+        zoned_to_d = _get_zoned_to(fab_obj, wwn)
+        if len(zoned_to_d['target']) + len(zoned_to_d['non_target']) == 0:
             continue  # This is a single member zone if we get here
 
         # The sub-header for the target
@@ -669,29 +707,33 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         for k, d in _target_zone_hdr.items():
             font = report_utils.font_type(_filter_alerts([t_login_obj, t_login_obj.r_port_obj()])) if k == 'Comments' \
                 else _bold_font
-            buf = d['ha'](t_login_obj, t_login_obj.r_port_obj(), list(), target_d, all_else_d)
+            buf = d['ha'](wwn, t_login_obj, t_login_obj.r_port_obj(), list(), zoned_to_d)
             excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
             col += 1
 
-        # Everything zoned to this target
-        for wwn, zone_l in all_else_d.items():
+        # Everything zoned to this target that is not a target (in most cases, these are servers)
+        for wwn, zone_l in zoned_to_d['non_target'].items():
             login_obj = fab_obj.r_login_obj(wwn)
+            port_obj = None if login_obj is None else login_obj.r_port_obj()
             row, col = row+1, 1
             for k in _target_zone_hdr:
-                font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) if k == 'Comments' \
+                font = report_utils.font_type(_filter_alerts([login_obj, port_obj])) if k == 'Comments' \
                     else _std_font
-                buf = _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                buf = '' if k == 'Zoned Target' else \
+                    _target_zone_hdr[k]['a'](wwn, login_obj, port_obj, zone_l, zoned_to_d)
                 excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
                 col += 1
 
         # Add any targets zoned to this target
-        for wwn, zone_l in target_d.items():
+        for wwn, zone_l in zoned_to_d['target'].items():
             login_obj = fab_obj.r_login_obj(wwn)
+            port_obj = None if login_obj is None else login_obj.r_port_obj()
             row, col = row+1, 1
             for k in _target_zone_hdr:
-                font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) if k == 'Comments' \
+                font = report_utils.font_type(_filter_alerts([login_obj, port_obj])) if k == 'Comments' \
                     else _std_font
-                buf = _target_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                buf = '' if k == 'Non-Target' else \
+                    _target_zone_hdr[k]['a'](wwn, login_obj, port_obj, zone_l, zoned_to_d)
                 excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
                 col += 1
 
@@ -716,8 +758,8 @@ def non_target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                                   stype='regex-s')  # List of initiator objects in the fabric
     for s_login_obj in s_obj_l:
         wwn = s_login_obj.r_obj_key()
-        server_d, all_else_d = _get_zoned_to(fab_obj, wwn)
-        if len(all_else_d) + len(server_d) == 0:
+        zoned_to_d = _get_zoned_to(fab_obj, wwn)
+        if len(zoned_to_d['target']) + len(zoned_to_d['non_target']) == 0:
             continue  # This is a single member zone if we get here
 
         # The server (initiator) sub-header
@@ -725,29 +767,33 @@ def non_target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         for k, d in _server_zone_hdr.items():
             font = report_utils.font_type(_filter_alerts([s_login_obj, s_login_obj.r_port_obj()])) if k == 'Comments' \
                 else _bold_font
-            buf = d['ha'](s_login_obj, s_login_obj.r_port_obj(), list())
+            buf = d['ha'](wwn, s_login_obj, s_login_obj.r_port_obj(), list(), zoned_to_d)
             excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
             col += 1
 
-        # Fill in everything zoned to this initiator
-        for wwn, zone_l in all_else_d.items():
+        # Fill in all targets zoned to this initiator
+        for wwn, zone_l in zoned_to_d['target'].items():
             login_obj = fab_obj.r_login_obj(wwn)
+            port_obj = None if login_obj is None else login_obj.r_port_obj()
             row, col = row+1, 1
             for k in _server_zone_hdr:
-                font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) if k == 'Comments' \
+                font = report_utils.font_type(_filter_alerts([login_obj, port_obj])) if k == 'Comments' \
                     else _std_font
-                buf = _server_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                buf = '' if k == 'Zoned Server' else \
+                    _server_zone_hdr[k]['a'](wwn, login_obj, port_obj, zone_l, zoned_to_d)
                 excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
                 col += 1
 
         # Add any initiators zoned to this initiator
-        for wwn, zone_l in server_d.items():
+        for wwn, zone_l in zoned_to_d['non_target'].items():
             login_obj = fab_obj.r_login_obj(wwn)
+            port_obj = None if login_obj is None else login_obj.r_port_obj()
             row, col = row+1, 1
             for k in _server_zone_hdr:
-                font = report_utils.font_type(_filter_alerts([login_obj, login_obj.r_port_obj()])) if k == 'Comments' \
+                font = report_utils.font_type(_filter_alerts([login_obj, port_obj])) if k == 'Comments' \
                     else _std_font
-                buf = _server_zone_hdr[k]['a'](login_obj, login_obj.r_port_obj(), zone_l)
+                buf = '' if k == 'Target' else \
+                    _server_zone_hdr[k]['a'](wwn, login_obj, port_obj, zone_l, zoned_to_d)
                 excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin)
                 col += 1
 
@@ -755,7 +801,7 @@ def non_target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
 
 def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
-    """Creates a non-target zone detail worksheet for the Excel report.
+    """Creates a zone group detail worksheet for the Excel report.
 
     See comments with target_zone_page() for additional notes and input parameter definitions.
     """
@@ -778,36 +824,61 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         sheet.column_dimensions[xl.get_column_letter(col)].width = d['c']
         excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=_align_wrap, border=_border_thin)
         col += 1
-    row, col = row+1, 1
 
     # Add each group
     zone_group_d = proj_obj.r_get('report_app/group_d')
     if not isinstance(zone_group_d, dict):
         return
-    for group_name, port_obj_l in zone_group_d.items():
-        row, col = row+1, 1
+    for group_name, group_d in zone_group_d.items():
+        row, col = row+2, 1
+        # Using zone_d to ensure logins are only reported once. It's primed
+        # with the WWNs that define the group so that they are not displayed multiple times.
+        # zone_d = group_d['group_wwn_d'].copy()
+        zone_d = dict()
+
+        # The group name
         excel_util.cell_update(sheet, row, col, group_name, fill=_lightblue_fill, font=_bold_font, border=_border_thin)
         sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(_zone_group_hdr_d))
-        for port_obj in port_obj_l:
-            row, col, login_obj_l = row+1, 1, port_obj.r_login_objects()
-            login_obj = None if len(login_obj_l) == 0 else login_obj_l[0]
-            wwn = None if login_obj is None else login_obj.r_obj_key()
-            for d in _zone_group_hdr_d.values():
-                align = _align_wrap_c if bool(d.get('v')) else _align_wrap
-                if bool(d.get('g')):
-                    excel_util.cell_update(sheet, row, col, d['m'](login_obj, None, wwn, port_obj),
-                                           font=_bold_font, border=_border_thin)
-                else:
-                    excel_util.cell_update(sheet, row, col, None, font=_bold_font, border=_border_thin)
-                col += 1
 
-            # Now all the ports zoned to it.
-            for zoned_to_d in _get_zoned_to(port_obj.r_fabric_obj(), wwn):
-                for zwwn, zone_l in zoned_to_d.items():
+        # Each port in the group
+        port_obj_l = brcddb_util.sort_ports(group_d['port_obj_l'])
+        for port_obj in port_obj_l:
+
+            # Information about the logins for this port.
+            row, col, login_obj_l = row+1, 1, port_obj.r_login_objects()
+            if len(login_obj_l) == 0:
+                continue  # The port_obj can't be in port_obj_l if nothing was logged in but rather than over think it
+            for login_obj in login_obj_l:
+                wwn = login_obj.r_obj_key()
+                zone_d.update({wwn: True})
+                for d in _zone_group_hdr_d.values():
+                    excel_util.cell_update(sheet,
+                                           row,
+                                           col,
+                                           d['m'](login_obj, None, wwn, port_obj) if bool(d.get('g')) else '',
+                                           font=_bold_font,
+                                           border=_border_thin,
+                                           align=_align_wrap_c if bool(d.get('v')) else _align_wrap)
+                    col += 1
+
+        # Now all the logins zoned to this port.
+        for port_obj in port_obj_l:
+            for login_obj in port_obj.r_login_objects():
+                fab_obj = port_obj.r_fabric_obj()
+                for wwn, zl in brcddb_zone.eff_zoned_to_wwn(fab_obj, login_obj.r_obj_key(), all_types=True).items():
+                    if bool(zone_d.get(wwn)):
+                        continue
+                    zone_d.update({wwn: True})
+                    lz_obj = fab_obj.r_login_obj(wwn)
                     row, col = row+1, 1
-                    for zkey, zoned_to_d in _zone_group_hdr_d.items():
-                        excel_util.cell_update(sheet, row, col, zoned_to_d['m'](port_obj, None, zwwn, port_obj, zone_l),
-                                               align=_align_wrap_r, font=_italic_font, border=_border_thin)
+                    for d in _zone_group_hdr_d.values():
+                        excel_util.cell_update(sheet,
+                                               row,
+                                               col,
+                                               d['m'](lz_obj, None, wwn, port_obj, zl) if bool(d.get('zg')) else '',
+                                               font=_std_font,
+                                               border=_border_thin,
+                                               align=_align_wrap_c if bool(d.get('v')) else _align_wrap)
                         col += 1
 
         row += 1
