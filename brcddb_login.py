@@ -61,18 +61,20 @@ Version Control::
     | 3.0.6     | 01 Jan 2023   | Added login_feature()                                                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 11 Feb 2023   | Added object checking to login_type() and login_features(). Fixed name in         |
-    |           |               | login_best_port_desc()
+    |           |               | login_best_port_desc()                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 27 May 2023   | Replaced old name server URI for new in ns_node_name()                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Feb 2023'
+__date__ = '27 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import brcddb.util.util as brcddb_util
 
@@ -105,7 +107,7 @@ def ns_node_name(login_obj):
     :rtype: str, None
     """
     try:
-        return login_obj.r_get('brocade-name-server/brocade-name-server/node-symbolic-name')
+        return login_obj.r_get('brocade-name-server/fibrechannel-name-server/node-symbolic-name')
     except AttributeError:
         return None
 

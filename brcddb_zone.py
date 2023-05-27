@@ -61,16 +61,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 11 Feb 2023   | Fixed filtering of targets in eff_zoned_to_wwn()                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 27 May 2023   | Fixed case in eff_zoned_to_wwn() when a WWN is in the effective zone but not      |
+    |           |               | logged in.                                                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Feb 2023'
+__date__ = '27 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.brcddb_common as brcddb_common
 
@@ -201,6 +204,10 @@ def zone_type(zone_obj, num_flag=False):
 def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=False):
     """Finds all WWNs in the effective zone that are zoned to wwn.
 
+    WARNING: if all_types == True, the FC4 type in the login data is not checked and therefore, all WWNs will be
+    returned. When filtering on "target" or "initiator", there must be something logged in and the login data from the
+    name server must have been retrieved in order to check the login type.
+
     :param fab_obj: Fabric object
     :type fab_obj: brcddb.classes.fabric.FabricObj
     :param wwn: WWN to look for
@@ -211,32 +218,35 @@ def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=Fals
     :type initiator: bool
     :param all_types: If True, include all ports, online or offline.
     :type all_types: bool
-    :return: Dictionary - Key: WWN of device zoned to wwn (passed in parameter). Value is the list of zone names
+    :return: Dictionary - Key: WWN of device zoned to wwn. Value is the list of zone names common to both WWNs.
     :rtype: dict
     """
-    rd = dict()
+    rd, zones_for_wwn_d = dict(), dict()
+    for zone in fab_obj.r_eff_zones_for_wwn(wwn):  # Used to find common zones with members
+        zones_for_wwn_d.update({zone: True})
+
     for zone_obj in fab_obj.r_eff_zone_objects_for_wwn(wwn):
-        pmem_l = zone_obj.c_pmembers()
-        pmem_obj_l = [fab_obj.r_login_obj(t_wwn) for t_wwn in pmem_l if fab_obj.r_login_obj(t_wwn) is not None]
-        mem_l = zone_obj.c_members()
-        mem_obj_l = [fab_obj.r_login_obj(t_wwn) for t_wwn in mem_l if fab_obj.r_login_obj(t_wwn) is not None]
-        check_obj_l = mem_obj_l if not zone_obj.r_is_peer() else mem_obj_l if wwn in pmem_l else pmem_obj_l
-        for login_obj in check_obj_l:
-            if wwn == login_obj.r_obj_key():
+        mem_l = list()  # Just to keep the warnings down in PyCharm
+        if zone_obj.r_type() == brcddb_common.ZONE_STANDARD_ZONE:
+            mem_l = zone_obj.r_members()
+        else:
+            mem_l = zone_obj.r_members() if wwn in zone_obj.r_pmembers() else zone_obj.r_pmembers()
+        for mem in mem_l:
+            if mem == wwn or mem in rd:
                 continue
-            add_wwn = None
+            if all_types:
+                rd.update({mem: [m for m in fab_obj.r_eff_zones_for_wwn(mem) if bool(zones_for_wwn_d.get(m))]})
+                continue
+            login_obj = fab_obj.r_login_obj(mem)
+            if login_obj is None:
+                continue
             fc4 = login_obj.r_get('brocade-name-server/fibrechannel-name-server/fc4-features')
-            if fc4 is None or all_types:
-                add_wwn = login_obj.r_obj_key()
-            elif target and 'target' in fc4.lower():
-                add_wwn = login_obj.r_obj_key()
+            if fc4 is None:
+                continue
+            if target and 'target' in fc4.lower():
+                rd.update({mem: [m for m in fab_obj.r_eff_zones_for_wwn(mem) if bool(zones_for_wwn_d.get(m))]})
             elif initiator and 'initiator' in fc4.lower():
-                add_wwn = login_obj.r_obj_key()
-            if add_wwn is not None:
-                zone_l = rd.get(add_wwn)
-                if zone_l is None:
-                    zone_l = list()
-                    rd.update({add_wwn: zone_l})
-                zone_l.append(zone_obj.r_obj_key())
+                # Used "elif" because if both target & initiator was specified, it will already be in rd
+                rd.update({mem: [m for m in fab_obj.r_eff_zones_for_wwn(mem) if bool(zones_for_wwn_d.get(m))]})
 
     return rd

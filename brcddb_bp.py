@@ -71,18 +71,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.1     | 21 Jan 2023   | Fixed missing SFP threshold violations in report.                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 21 May 2023   | Fixed unresolved variable reference                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 27 May 2023   | Added best practice checking for the error log, _chassis_err_log()                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '21 Jan 2023'
+__date__ = '27 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.3'
 
-import brcddb.util.util
 import collections
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -94,13 +97,10 @@ import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_login as brcddb_login
 import brcddb.app_data.alert_tables as al
 import brcddb.util.maps as brcddb_maps
-import brcddb.classes.util as brcddb_class_util
 import brcddb.brcddb_project as brcddb_project
 import brcddb.brcddb_fabric as brcddb_fabric
 
-_high_temp_error = 1000
-_high_temp_warn = 1000
-MAX_ZONE_PARTICIPATION = 30  # Maximum number of devices that can be zoned to a login. See brcddb_fabric.zone_analysis()
+_high_temp_error, _high_temp_warn = 1000, 1000
 _sfp_rules, _sfp_file = None, None
 _alert_tbl_d = dict()
 
@@ -308,7 +308,7 @@ def _isl_bw(rule, switch_obj_l, t_obj):
                     pass  # We get here if all switches in the project were not polled
             if len(gen_util.remove_duplicates(speeds)) > 1:
                 switch_obj.s_add_alert(_alert_tbl_d,
-                                       al.ALERT_NUM.SWITCH_ISL_B,
+                                       al.ALERT_NUM.SWITCH_ISL_BW,
                                        key='trunk',
                                        p0=brcddb_switch.best_switch_name(switch_obj),
                                        p1=brcddb_switch.best_switch_name(proj_obj.r_switch_obj(k)))
@@ -353,10 +353,10 @@ def _isl_redundant(rule, switch_obj_l, t_obj):
                 continue
             if len(list(switch_pair.keys())) == 1:
                 switch_obj.s_add_alert(_alert_tbl_d,
-                                al.ALERT_NUM.SWITCH_ISL_REDUNDANT,
-                                k='trunk',
-                                p0=brcddb_switch.best_switch_name(switch_obj),
-                                p1=brcddb_switch.best_switch_name(proj_obj.r_switch_obj(k)))
+                                       al.ALERT_NUM.SWITCH_ISL_REDUNDANT,
+                                       k='trunk',
+                                       p0=brcddb_switch.best_switch_name(switch_obj),
+                                       p1=brcddb_switch.best_switch_name(proj_obj.r_switch_obj(k)))
 
 
 def _fc16_48_haa_p8(rule, chassis_obj_l, t_obj):
@@ -375,7 +375,7 @@ def _fc16_48_haa_p8(rule, chassis_obj_l, t_obj):
                   dict(k='fibrechannel/name', v='[' + ','.join(temp_l) + ']/(8 | 32)', t='regex-m')]
             ml = brcddb_search.match_test(chassis_obj.r_port_objects(), lt, 'and')
             for port_obj in ml:
-                port_obj.s_add_alert(_alert_tbl_d, al.ALERT_NUM.PORT_SFP_HAA_F16_32_P)
+                port_obj.s_add_alert(_alert_tbl_d, al.ALERT_NUM.PORT_SFP_HAA_F16_32_P8)
 
 
 def _chassis_fru_check(rule, chassis_obj_l, t_obj):
@@ -421,10 +421,49 @@ def _chassis_fru_check(rule, chassis_obj_l, t_obj):
                 v1 = d.get('temperature')
                 if isinstance(v1, (int, float)):
                     if v1 >= _high_temp_warn:
-                        a = al.ALERT_NUM.CHASSIS_TEMP_ERROR if v1 >= _high_temp_error else al.ALERT_NUM.CHASSIS_TEMP_WARN
+                        a = al.ALERT_NUM.CHASSIS_TEMP_ERROR if v1 >= _high_temp_error else \
+                            al.ALERT_NUM.CHASSIS_TEMP_WARN
                         p0 = '' if d.get('slot-number') is None else 'Slot: ' + str(d.get('slot-number')) + ' '
                         p0 += '' if d.get('id') is None else 'ID: ' + str(d.get('id'))
                         chassis_obj.s_add_alert(_alert_tbl_d, a, p0=p0)
+
+
+def _chassis_err_log(rule, chassis_obj_l, t_obj):
+    """Check the error log for alerts. See _isl_num_links() for parameters"""
+    global _alert_tbl_d
+
+    sev_type_d = dict()  # The severity levels to look for
+    try:
+        buf, remainder_buf = gen_util.paren_content(rule[rule.index('('):], p_remove=True)
+        def_l = [b.strip().lower() for b in buf.split(',')]
+        look_back_sec = int(def_l.pop(0))
+        for sev_level in def_l:
+            alert_num = al.ALERT_NUM.ERROR_LOG_ERROR if 'error' in sev_level or 'critical' in sev_level else \
+                al.ALERT_NUM.ERROR_LOG_WARN if 'warn' in sev_level else al.ALERT_NUM.ERROR_LOG_INFO
+            sev_type_d.update({sev_level: alert_num})
+    except (ValueError, TypeError, IndexError):
+        brcdapi_log.log('Best practice rule ' + rule + ' is invalid in the best practice workbook.', echo=True)
+        return
+
+    for chassis_obj in chassis_obj_l:
+        check_time = int(gen_util.date_to_epoch(chassis_obj.r_project_obj().r_date(), fmt=1)) - look_back_sec
+        for error_d in reversed(chassis_obj.r_get('brocade-logging/error-log')):
+            # I've never seen the error log ordered any other way than by oldest first. Spinning through it in
+            # reverse allows me to bail out as soon as I'm past alerts we're not looking for.
+            if int(gen_util.date_to_epoch(error_d['time-stamp'], fmt=8)) < check_time:
+                break
+            try:  # There are other formats for non-port specific errors. Some day I may get to them
+                al_num = sev_type_d.get(error_d['severity-level'])
+                if isinstance(al_num, int):
+                    event_info_l = error_d['event-info'].split(' ')
+                    # Just capturing port messages in the error log but this is set up for other errors.
+                    obj = chassis_obj.r_port_obj(event_info_l[1]) if event_info_l[0] == 'PORT' else None
+                    if obj is not None:
+                        obj.s_add_alert(_alert_tbl_d, al_num, p0=error_d['message-id'], p1=error_d['message-text'])
+            except (KeyError, ValueError, IndexError):
+                pass
+
+    return
 
 
 def _check_sfps(rule, port_obj_l, t_obj):
@@ -434,8 +473,8 @@ def _check_sfps(rule, port_obj_l, t_obj):
     if _sfp_rules is None:
         return
 
-    # Perform all the checks for the SFPs on the switch.
-    enabled_ports = brcddb_search.match_test(port_obj_l, brcddb_search.enabled_ports)  # SFP data is not valid for disabled ports
+    # Perform all the checks for the SFPs on the switch. SFP data is not valid for disabled ports
+    enabled_ports = brcddb_search.match_test(port_obj_l, brcddb_search.enabled_ports)
     for rule in _sfp_rules:
         group = 'Unknown' if rule.get('Group') is None else rule.get('Group')
         try:
@@ -503,15 +542,6 @@ def _alias_initiator_lower(rule, login_obj_l, t_obj):
                     alias_obj.s_add_alert(_alert_tbl_d, al.ALERT_NUM.ALIAS_INITIATOR_UPPER)
 
 
-def _fdmi_enabled(rule, login_obj_l, t_obj):
-    """Check to see if FDMI should be enabled on the attached device.. See _isl_num_links() for parameters"""
-    global _alert_tbl_d
-
-    for login_obj in brcddb_search.match_test(login_obj_l, brcddb_search.initiator):
-        if login_obj.r_fabric_obj().r_fdmi_port_obj(wwn) is None:
-            login_obj.s_add_alert(_alert_tbl_d, al.ALERT_NUM.LOGIN_FDMI_NOT_ENABLED)
-
-
 def _set_zone_check_property(rule, obj_l, t_obj):
     """Sets the specific zone check properties in brcddb_fabric. See _isl_num_links() for parameters"""
     brcddb_fabric.set_bp_check(rule, True)
@@ -547,6 +577,7 @@ def _set_high_temp_warn(rule, obj_list, test_list):
         _high_temp_warn = int(rule.split('(')[1].split(')')[0])
     except IndexError:
         brcdapi_log.log('Rule ' + str(rule) + ' is not valid.', echo=True)
+
 
 def _max_zone_participation(rule, obj_l, t_obj):
     """Sets the maximum zone participation value in brcddb_fabric. See _isl_num_links() for parameters"""
@@ -654,7 +685,7 @@ def _read_bp_workbook(bp_file):
         if len(ml) > 0:
             ml.append('Skipping best practices')
             brcdapi_log.log(ml, echo=True)
-            return bl
+            return bp_l
 
         # Load the return list with the rule keys
         ml, row = list(), 2
@@ -709,6 +740,7 @@ _bp_tbl_d = {
     # Chassis
     'chassis_fru_check': dict(a=_chassis_fru_check, d='ChassisObj'),
     'fc16_32_haa_sfp_p8': dict(a=_fc16_48_haa_p8, d='ChassisObj'),
+    'err_log': dict(a=_chassis_err_log, d='ChassisObj'),
 
     # Fabric
 
@@ -761,10 +793,6 @@ _bp_tbl_d = {
         l=(dict(k='fibrechannel-statistics/bb-credit-zero', t='>', v=0),
            brcddb_search.f_ports),
         logic='and')
-    ),
-    al.ALERT_NUM.PORT_C3_DISCARD: dict(a=_check_best_practice, d='PortObj', t=dict(
-        p0='fibrechannel-statistics/class-3-discards',
-        l=dict(k='fibrechannel-statistics/class-3-discards', t='>', v=0))
     ),
     al.ALERT_NUM.PORT_C3_DISCARD: dict(a=_check_best_practice, d='PortObj', t=dict(
         p0='fibrechannel-statistics/class-3-discards',
@@ -869,6 +897,7 @@ def best_practice(bp_file, sfp_file, a_tbl, proj_obj):
         try:
             rule_d['a'](rule, obj_d[rule_d['d']], rule_d.get('t'))
         except KeyError:
-            brcdapi_log.exception('Programming error. Improperly formated rule, ' + rule + ', in _bp_tbl_d.', echo=True)
+            brcdapi_log.exception('Programming error. Improperly formatted rule, ' + rule + ', in _bp_tbl_d.',
+                                  echo=True)
 
     brcddb_maps.maps_dashboard_alerts(proj_obj)
