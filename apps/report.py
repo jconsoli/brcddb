@@ -66,16 +66,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.6     | 11 Feb 2023   | Added _add_zone_by_group()                                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.7     | 27 May 2023   | Fixed wrong table of context link for the project dashboard.                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Feb 2023'
+__date__ = '27 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.6'
+__version__ = '3.1.7'
 
 import collections
 import copy
@@ -540,10 +542,10 @@ def _add_project_tc(proj_obj, wb, sheet_index):
         else dict(t='No Duplicate WWNs Found')
 
     contents_l = [
+        dict(t='Zone Groups', cl=[dict(t=control_d['zg']['tc'], l=hyper_d['zg'])]),
         dict(t='Best Practice Violations', cl=[dict(t=control_d['bp']['tc'], l=hyper_d['bp'])]),
         dict(t='Duplicate WWNs', cl=[dup_d]),
-        dict(t=control_d['db']['tc'], cl=[dict(t=control_d['db']['tc'], l=hyper_d['bp'])]),
-        dict(t='Zone Groups', cl=[dict(t=control_d['zg']['tc'], l=hyper_d['zg'])]),
+        dict(t=control_d['db']['tc'], cl=[dict(t=control_d['db']['tc'], l=hyper_d['db'])]),
         dict(t='Chassis',
              cl=[dict(t=brcddb_chassis.best_chassis_name(obj), l=obj.r_get('report_app/hyperlink/chassis')) \
                  for obj in proj_obj.r_chassis_objects()]),
@@ -553,7 +555,6 @@ def _add_project_tc(proj_obj, wb, sheet_index):
     for fab_obj in proj_obj.r_fabric_objects():
         control_d = fab_obj.r_get('report_app/control')
         hyper_d = fab_obj.r_get('report_app/hyperlink')
-        # temp_l = ('fab', 'db', 'sw', 'pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'ali', 'log')
         temp_l = ('fab', 'db', 'sw', 'pl', 'za', 'zt', 'znt', 'ali', 'log')
         contents_l.append(dict(t=brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True),
                                cl=[dict(t=control_d[key]['tc'], l=hyper_d[key]) for key in temp_l]))
@@ -645,51 +646,41 @@ action methods.
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 """
 _tc = dict(p='table_of_contents', t='Table of Contents', u=False, s=False, sf=True, a=_add_project_tc)
-_proj_control_d=dict(tc=_tc,
-                     db=dict(p='proj_dashboard', tc='Project Dashboard', t='Project Dashboard', a=_dashboard),
-                     bp=dict(p='Best_Practice', tc='Best Practice Violations', t='Best Practice Violations',
-                             a=_add_project_bp),
-                     zg=dict(p='Zone_Groups', tc='Zone Groups', t='Zone Groups', a=_add_zone_by_group),
-                     dup=dict(p='dup_wwns', tc='Duplicate WWNs', t='Duplicate WWNs', a=_add_project_dup)
-                     )
-# _zone_group_control_d=dict(tc=_tc,
-#                         zone_group=dict(tc='Zone Group 100', t='Zone Group 200', u=True, s=True, a=_add_zone_by_group),
-#                         )
-_fab_control_d=dict(tc=_tc,
-                    fab=dict(p='fab_', tc='Fabric Summary', t='Fabric Summary: ', u=True, s=True, sf=True,
-                             a=_add_fabric_sumary),
-                    db=dict(p='db_', tc='Fabric Dashboard', t='Fabric Dashboard: ', u=True, s=True, sf=True,
-                            a=_dashboard),
-                    sw=dict(p='sw_', tc='Switch Details', t='Switch Detail For Fabric: ', u=True, s=True, sf=True,
-                            a=_add_switch_detail),
-                    pc=dict(p='pc_', tc='Port Configurations', t='Port Configurations For Fabric: ', u=True, s=True,
-                            a=_add_port_config),
-                    pl=dict(p='pl_', tc='Port Page Links', t='Port Links For Fabric: ', u=True, s=True, sf=True,
-                            a=_add_port_links),
-                    ps=dict(p='ps_', tc='Port Statistics', t='Port Statistics For Fabric: ', u=True, s=True,
-                            a=_add_port_stats),
-                    pz=dict(p='pz_', tc='Ports by Zone and Login', t='Ports by Zone and Login For Fabric: ', u=True,
-                            s=True, a=_add_port_login),
-                    pr=dict(p='pr_', tc='Port RNID Data', t='Port RNID Data For Fabric: ', u=True, s=True,
-                            a=_add_port_rnid),
-                    sfp=dict(p='sfp_', tc='SFP Report', t='SFP Report For Fabric: ', u=True, s=True,
-                             a=_add_port_sfp),
-                    za=dict(p='za_', tc='Zone Analysis', t='Zone Analysis For Fabric: ', u=True, s=True,
-                            a=_add_zone_analysis),
-                    zt=dict(p='zt_', tc='Zone by Target', t='Zone by Target For Fabric: ', u=True, s=True,
-                            a=_add_zone_by_target),
-                    znt=dict(p='znt_', tc='Zone by Non-Targets', t='Zone by Non-Targets For Fabric: ', u=True, s=True,
-                             a=_add_zone_by_non_target),
-                    ali=dict(p='ali_', tc='Alias Detail', t='Alias Detail For Fabric: ', u=True, s=True,
-                             a=_add_alias_detail),
-                    log=dict(p='log_', tc='Logins', t='Logins For Fabric: ', u=True, s=True, a=_add_login_detail)
-                    )
-_chassis_control_d=dict(tc=_tc,
-                        chassis=dict(tc='Chassis', t='Chassis Detail For: ', u=True, s=True, a=_add_chassis),
-                        )
-_iocp_control_d=dict(tc=_tc,
-                     iocp=dict(p='iocp_', tc='IOCP', t='IOCP Detail For: ', s=True, a=_add_iocp),
-                     )
+_proj_control_d=dict(
+    tc=_tc,
+    db=dict(p='proj_dashboard', tc='Project Dashboard', t='Project Dashboard', a=_dashboard),
+    bp=dict(p='Best_Practice', tc='Best Practice Violations', t='Best Practice Violations', a=_add_project_bp),
+    dup=dict(p='dup_wwns', tc='Duplicate WWNs', t='Duplicate WWNs', a=_add_project_dup),
+    zg=dict(p='Zone_Groups', tc='Zone Groups',t='Zone Groups', a=_add_zone_by_group),
+)
+_fab_control_d=dict(
+    tc=_tc,
+    fab=dict(p='fab_', tc='Fabric Summary', t='Fabric Summary: ', u=True, s=True, sf=True, a=_add_fabric_sumary),
+    db=dict(p='db_', tc='Fabric Dashboard', t='Fabric Dashboard: ', u=True, s=True, sf=True, a=_dashboard),
+    sw=dict(p='sw_', tc='Switch Detail', t='Switch Detail For Fabric: ', u=True, s=True, sf=True, a=_add_switch_detail),
+    pc=dict(p='pc_', tc='Port Configurations', t='Port Configurations For Fabric: ', u=True, s=True,
+            a=_add_port_config),
+    pl=dict(p='pl_', tc='Port Page Links', t='Port Links For Fabric: ', u=True, s=True, sf=True, a=_add_port_links),
+    ps=dict(p='ps_', tc='Port Statistics', t='Port Statistics For Fabric: ', u=True, s=True, a=_add_port_stats),
+    pz=dict(p='pz_', tc='Ports by Zone and Login', t='Ports by Zone and Login For Fabric: ', u=True, s=True,
+            a=_add_port_login),
+    pr=dict(p='pr_', tc='Port RNID Data', t='Port RNID Data For Fabric: ', u=True, s=True, a=_add_port_rnid),
+    sfp=dict(p='sfp_', tc='SFP Report', t='SFP Report For Fabric: ', u=True, s=True, a=_add_port_sfp),
+    za=dict(p='za_', tc='Zone Analysis', t='Zone Analysis For Fabric: ', u=True, s=True, a=_add_zone_analysis),
+    zt=dict(p='zt_', tc='Zone by Target', t='Zone by Target For Fabric: ', u=True, s=True,  a=_add_zone_by_target),
+    znt=dict(p='znt_', tc='Zone by Non-Targets', t='Zone by Non-Targets For Fabric: ', u=True, s=True,
+             a=_add_zone_by_non_target),
+    ali=dict(p='ali_', tc='Alias Detail', t='Alias Detail For Fabric: ', u=True, s=True, a=_add_alias_detail),
+    log=dict(p='log_', tc='Logins', t='Logins For Fabric: ', u=True, s=True, a=_add_login_detail)
+)
+_chassis_control_d=dict(
+    tc=_tc,
+    chassis=dict(tc='Chassis', t='Chassis Detail For: ', u=True, s=True, a=_add_chassis),
+)
+_iocp_control_d=dict(
+    tc=_tc,
+    iocp=dict(p='iocp_', tc='IOCP', t='IOCP Detail For: ', s=True, a=_add_iocp),
+)
 
 
 def _add_sheet_names(proj_obj):
@@ -703,7 +694,6 @@ def _add_sheet_names(proj_obj):
     # Chassis, Fabric, Switch, and IOCP object control
     add_l = (
         dict(obj_l=[proj_obj], control_d=_proj_control_d, name_m=''),
-        # dict(obj_l=[proj_obj], control_d=_zone_group_control_d, name_m='Zone Groups 1234'),
         dict(obj_l=proj_obj.r_chassis_objects(), control_d=_chassis_control_d, name_m=brcddb_chassis.best_chassis_name),
         dict(obj_l=proj_obj.r_fabric_objects(), control_d=_fab_control_d, name_m=brcddb_fabric.best_fab_name),
         dict(obj_l=proj_obj.r_iocp_objects(), control_d=_iocp_control_d, name_m=_iocp_name),
@@ -772,6 +762,8 @@ def report(proj_obj, outf, group_d=dict()):
     :param group_d: Zone groups. Key: Group name. Value: list of port objects
     :type group_d: dict
     """
+    global _fab_control_d
+
     # Set up the workbook and give all the major objects (Project, Chassis, Fabric, and Switch) sheet names
     sheet_index, wb = 0, excel_util.new_report()
     _add_sheet_names(proj_obj)
@@ -821,8 +813,7 @@ def report(proj_obj, outf, group_d=dict()):
              rs=True),
         dict(obj_l=[proj_obj],
              add_name=(),
-             order=('dup', 'zg', 'bp', 'db', 'tc'),
-             # order=('dup', 'bp', 'db', 'tc'),
+             order=('zg', 'dup', 'bp', 'db', 'tc'),
              feedback='Processing: ',
              control=_proj_control_d,
              obj_name = _project_name,
