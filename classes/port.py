@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-:mod:`brcdd.classes.port` - Defines the port object, PortObj.
+:mod:`brcddb.classes.port` - Defines the port object, PortObj.
 
 Version Control::
 
@@ -46,17 +46,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 26 Mar 2023   | Added r_format()                                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.2'
 
+import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -594,8 +599,8 @@ class PortObj:
         :rtype: bool
         """
         try:
-            return True if brcddb_common.port_conversion_tbl['fibrechannel/operational-status']\
-                               [self.r_get('fibrechannel/operational-status')] == 'Online' else False
+            conv_d = brcddb_common.port_conversion_tbl[brcdapi_util.fc_op_status]
+            return True if conv_d[self.r_get(brcdapi_util.fc_op_status)] == 'Online' else False
         except (ValueError, IndexError):
             return False
 
@@ -624,7 +629,7 @@ class PortObj:
         :return: FC address in 0xab1200 format. None if unavailable
         :rtype: str, None
         """
-        return self.r_get('fibrechannel/fcid-hex')
+        return self.r_get(brcdapi_util.fc_fcid_hex)
 
     def r_index(self):
         """Returns the port index for the port
@@ -632,7 +637,7 @@ class PortObj:
         :return: Port index. None if unavailable
         :rtype: int, None
         """
-        return self.r_get('fibrechannel/index')
+        return self.r_get(brcdapi_util.fc_index)
 
     def c_login_type(self):
         """Converts the login type to a human readable port type
@@ -641,7 +646,7 @@ class PortObj:
         :rtype: str
         """
         try:
-            return brcddb_common.port_conversion_tbl['fibrechannel/port-type'][self.r_get('fibrechannel/port-type')]
+            return brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][self.r_get(brcdapi_util.fc_port_type)]
         except (IndexError, ValueError, KeyError):
             return 'Unknown'
 
@@ -651,7 +656,7 @@ class PortObj:
         :return: Time in days
         :rtype: int
         """
-        v = self.r_get('media-rdp/power-on-time')
+        v = self.r_get(brcdapi_util.sfp_power_on)
         return 0 if v is None else int(v/24 + 0.5)
 
     def c_media_distance(self):
@@ -660,7 +665,7 @@ class PortObj:
         :return: Media distance
         :rtype: str
         """
-        return ', '.join(gen_util.convert_to_list(self.r_get('media-rdp/media-distance/distance')))
+        return ', '.join(gen_util.convert_to_list(self.r_get(brcdapi_util.sfp_distance)))
 
     def c_media_speed_capability(self):
         """Converts the media (SFP) speed capabilities to a CSV string
@@ -668,15 +673,15 @@ class PortObj:
         :return: Media speeds
         :rtype: str
         """
-        return ', '.join(gen_util.convert_to_list(self.r_get('media-rdp/media-speed-capability/speed')))
+        return ', '.join(gen_util.convert_to_list(self.r_get(brcdapi_util.sfp_speed)))
 
     def c_login_speed(self):
         """Converts the login speed to a user friendly string (as is reported in the FOS command 'switchshow')
 
-        :return: Login spped
+        :return: Login speed
         :rtype: str
         """
-        speed = self.r_get('fibrechannel/speed')
+        speed = self.r_get(brcdapi_util.fc_speed)
         if isinstance(speed, (int, float)):
             return str(int(speed/1000000000)) + 'N' if self.r_is_auto_neg() else str(int(speed/1000000000)) + 'G'
         else:
@@ -693,8 +698,8 @@ class PortObj:
     def r_chassis_obj(self):
         """Returns the chassis object this port belongs to
 
-        :return: Login speed
-        :rtype: str
+        :return: Chassis object
+        :rtype: ChassisObj
         """
         return self.r_project_obj().r_chassis_obj(self.r_chassis_key())
 
@@ -761,8 +766,10 @@ class PortObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 

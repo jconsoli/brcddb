@@ -57,23 +57,27 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.1     | 26 Mar 2023   | Added s_del_switch() and r_format()                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.3'
 
+import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
 import brcddb.classes.zone as zone_class
 import brcddb.classes.login as login_class
-import brcdapi.log as brcdapi_log
 
 # Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
 # on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
@@ -266,9 +270,6 @@ class FabricObj:
         :rtype: None
         """
         self._switch_keys = list(filter(lambda item: item != wwn, self._switch_keys))
-        # if wwn in self._switch_keys:
-        #     self._switch_objs.remove(wwn)
-            # del self._switch_keys[wwn]
 
     def s_add_login(self, wwn):
         """Adds a login to the fabric if it doesn't already exist
@@ -409,7 +410,7 @@ class FabricObj:
         :return: Zone configuration name for the defined effective zone configuration. None if no effective zone cfg
         :rtype: str, None
         """
-        return self.r_get('brocade-zone/effective-configuration/cfg-name')
+        return self.r_get(brcdapi_util.bz_eff_cfg)
 
     def r_defined_eff_zonecfg_obj(self):
         """Returns the defined zone configuration object for the effective zone.
@@ -496,11 +497,11 @@ class FabricObj:
         if wwn is None:
             return list()
         # Below fills l with the zones defined with wwn
-        l = [obj.r_obj_key() for obj in self.r_zone_objects() if wwn in obj.r_members() or wwn in obj.r_pmembers()]
+        zone_l = [obj.r_obj_key() for obj in self.r_zone_objects() if wwn in obj.r_members() or wwn in obj.r_pmembers()]
         # Below gets all the zones where wwn is in an alias
         for alias in self.r_alias_for_wwn(wwn):
-            l.extend(self.r_zones_for_alias(alias))
-        return l
+            zone_l.extend(self.r_zones_for_alias(alias))
+        return zone_l
 
     def r_zones_for_di(self, did, p_index):
         """Returns all the d,i zones, by name, for a domain, index pair. Typically only used for FICON
@@ -976,7 +977,9 @@ class FabricObj:
         if len(tl) != 2:
             return None
         for switch_obj in self.r_switch_objects():
-            did = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
+            did = switch_obj.r_get(brcdapi_util.bfs_did)
+            if did is None:
+                did = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
             if isinstance(did, int) and did == tl[0]:
                 return switch_obj.r_port_object_for_index(tl[1])
         return None
@@ -1044,7 +1047,7 @@ class FabricObj:
     def r_port_map(self):
         """Returns map (dictionary) of logins to port objects
 
-        :return: Dictionary of logins to port object. key: login WWN, value: PortObj where the login occured
+        :return: Dictionary of logins to port object. key: login WWN, value: PortObj where the login occurred
         :rtype: dict
         """
         return self._port_map
@@ -1053,7 +1056,7 @@ class FabricObj:
         """Returns the port object where a wwn logged in.
         **Must call brcddb.util.util.login_to_port_map() before using this method**
 
-        :return: PortObj where the login occured. None if not found
+        :return: PortObj where the login occurred. None if not found
         :rtype: brcddb.classes.port.PortObj
         """
         return self._port_map[wwn] if wwn in self._port_map else None
@@ -1073,8 +1076,10 @@ class FabricObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 

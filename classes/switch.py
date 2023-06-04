@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-:mod:`brcdd.classes.switch` - Defines the switch object, SwitchObj.
+:mod:`brcddb.classes.switch` - Defines the switch object, SwitchObj.
 Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
@@ -44,17 +44,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 26 Mar 2023   | Added r_is_ficon() and r_format()                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 21 May 2023   | Updated comments only.                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.2'
 
+import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
@@ -67,11 +72,11 @@ import brcddb.classes.port as port_class
 
 
 class SwitchObj:
-    """The SwitchObj contains all information relevant to a switch including:
-        * 'logical-switch/fibrechannel-logical-switch'
-        * 'switch/fibrechannel-switch'
+    """The SwitchObj contains all information relevant to a switch
+
     Args:
         * name (str): WWN of the switch. Stored in _obj_key and key in ProjectObj
+
     Attributes:
         * _obj_key (str): WWN of the switch.
         * _flags (int): Flags for each class are defined in brcddb.brcddb_common
@@ -237,35 +242,35 @@ class SwitchObj:
         :return: True: Switch is the fabric principal switch. False: Switch is not the fabric principal switch
         :rtype: bool
         """
-        return bool(self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/base-switch-enabled'))
+        return bool(self.r_get(brcdapi_util.bfls_base_sw_en))
 
     def r_is_default(self):
         """Test to determine if switch is the default switch, 'fibrechannel-switch/default-switch-status'
         :return: True: Switch is the default switch. False: Switch is not the default switch
         :rtype: bool
         """
-        return bool(self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/default-switch-status'))
+        return bool(self.r_get(brcdapi_util.bfls_def_sw_status))
 
     def r_is_ficon(self):
-        """Test to determine if switch is the default switch, 'fibrechannel-switch/default-switch-status'
+        """Test to determine if switch is defined as FICON
         :return: True: Switch is the default switch. False: Switch is not the default switch
         :rtype: bool
         """
-        return bool(self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ficon-mode-enabled'))
+        return bool(self.r_get(brcdapi_util.bfls_ficon_mode_en))
 
     def r_is_enabled(self):
         """Determines if a switch is enabled
         :return: True if enabled, False if not enabled or unknown
         :rtype: bool
         """
-        return bool(self.r_get('brocade-fibrechannel-switch/fibrechannel-switch/is-enabled-state'))
+        return bool(self.r_get(brcdapi_util.bfs_enabled_state))
 
     def r_is_principal(self):
         """Test to determine is switch is the principal switch in the fabric
         :return: True: Switch is the fabric principal switch. False: Switch is not the fabric principal switch
         :rtype: bool
         """
-        p = self.r_get('brocade-fibrechannel-switch/fibrechannel-switch/principal')
+        p = self.r_get(brcdapi_util.bfs_principal)
         return bool(self.r_get('brocade-fabric/fabric-switch/principal') if p is None else p)
 
     def r_is_xisl(self):
@@ -273,21 +278,21 @@ class SwitchObj:
         :return: True: Switch is the fabric principal switch. False: Switch is not the fabric principal switch
         :rtype: bool
         """
-        return self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/logical-isl-enabled')
+        return self.r_get(brcdapi_util.bfls_isl_enabled)
 
     def r_is_hif(self):
         """Test to determine if High Integrity Fabric (HIF) is enabled
         :return: True: Switch is configured for FICON. False: Switch is not configured for FICON
         :rtype: bool
         """
-        return bool(self.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ficon-mode-enabled'))
+        return bool(self.r_get(brcdapi_util.bfls_ficon_mode_en))
 
     def r_did(self):
         """Returns the domain ID, in decimal
         :return: Domain ID. None if unavailable
         :rtype: int, None
         """
-        did = self.r_get('brocade-fibrechannel-switch/fibrechannel-switch/domain-id')
+        did = self.r_get(brcdapi_util.bfs_did)
         return self.r_get('brocade-fabric/fabric-switch/domain-id') if did is None else did
 
     def s_fabric_key(self, wwn):
@@ -488,7 +493,7 @@ class SwitchObj:
         pid = in_pid.replace('0x', '')
         if isinstance(pid, str):
             for port_obj in self.r_port_objects():
-                port_pid = port_obj.r_get('fibrechannel/fcid-hex')
+                port_pid = port_obj.r_get(brcdapi_util.fc_fcid_hex)
                 if isinstance(port_pid, str) and port_pid.replace('0x', '') == pid:
                     return port_obj
         return None
@@ -509,13 +514,13 @@ class SwitchObj:
             group = td.get('group')
             if group not in g:
                 g.update({group: list()})
-            l = g.get(group)
+            group_l = g.get(group)
             li = [self.r_port_object_for_index(td.get('source-port')),
                   proj_obj.r_switch_obj(ds_wwn).r_port_object_for_index(td.get('destination-port'))]
-            if len(l) == 0 or not td.get('master'):
-                l.append(li)
+            if len(group_l) == 0 or not td.get('master'):
+                group_l.append(li)
             else:
-                l.insert(0, li)
+                group_l.insert(0, li)
         return ret
 
     def r_active_maps_policy(self):
@@ -615,7 +620,7 @@ class SwitchObj:
         :rtype: int
         """
         try:
-            return int(float(self.r_get('brocade-fibrechannel-switch/fibrechannel-switch/model')))
+            return int(float(self.r_get(brcdapi_util.bfs_model)))
         except TypeError:
             return 0
 
@@ -646,8 +651,10 @@ class SwitchObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 

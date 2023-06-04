@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-:mod:`brcdd.classes.zone` - Defines the zone classes ZoneCfgObj, ZoneObj, and AliasObj
+:mod:`brcddb.classes.zone` - Defines the zone classes ZoneCfgObj, ZoneObj, and AliasObj
 
 Version Control::
 
@@ -47,17 +47,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.1     | 09 May 2023   | Added s_sort_members()                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '09 May 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.3'
 
+import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
@@ -206,7 +211,7 @@ class ZoneCfgObj:
         name = self.r_obj_key()
         if name == '_effective_zone_cfg':
             return True
-        eff_name = self.r_fabric_obj().r_get('brocade-zone/effective-configuration/cfg-name')
+        eff_name = self.r_fabric_obj().r_get(brcdapi_util.bz_eff_cfg)
         return False if eff_name is None else True if eff_name == name else False
 
     def s_add_member(self, members):
@@ -982,8 +987,10 @@ class AliasObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 

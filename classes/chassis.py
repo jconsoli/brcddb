@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-:mod:`brcdd.classes.chassis` - Defines the chassis object, ChassisObj.
+:mod:`brcddb.classes.chassis` - Defines the chassis object, ChassisObj.
 
 Version Control::
 
@@ -43,17 +43,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 26 Mar 2023   | Added s_del_switch() and r_format()                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.1.0'
 
+import brcdapi.util as brcdapi_util
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
 
@@ -64,12 +69,7 @@ import brcddb.classes.util as util
 
 
 class ChassisObj:
-    """The ChassisObj contains all information relevant to the chassis including:
-    * 'brocade-chassis/chassis'
-    * 'brocade-chassis/ha-status'
-    * 'brocade-fru/blade'
-    * 'brocade-fru/fan'
-    * 'brocade-fru/power-supply'
+    """The ChassisObj contains all information relevant to the chassis
 
     Args:
         name (str): WWN of the chassis. Stored in _obj_key and key in ProjectObj.
@@ -203,7 +203,7 @@ class ChassisObj:
         :return: True if VF is enabled. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-chassis/chassis/vf-enabled')
+        v = self.r_get(brcdapi_util.bp_vf_enabled)
         return False if v is None else v
 
     def r_is_vf_supported(self):
@@ -212,7 +212,7 @@ class ChassisObj:
         :return: True if VF is enabled. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-chassis/chassis/vf-supported')
+        v = self.r_get(brcdapi_util.bc_vf)
         return False if v is None else v
 
     def r_is_ha_enabled(self):
@@ -221,7 +221,7 @@ class ChassisObj:
         :return: True if HA is enabled. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-chassis/chassis/ha-enabled')
+        v = self.r_get(brcdapi_util.bc_ha_enabled)
         return False if v is None else v
 
     def r_is_heartbeat_up(self):
@@ -230,7 +230,7 @@ class ChassisObj:
         :return: True if the HA heart beat is up. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-chassis/chassis/heartbeat-up')
+        v = self.r_get(brcdapi_util.bc_heartbeat)
         return False if v is None else v
 
     def r_is_ha_sync(self):
@@ -239,7 +239,7 @@ class ChassisObj:
         :return: True if in HA sync. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-chassis/chassis/ha-synchronized')
+        v = self.r_get(brcdapi_util.bc_ha_sync)
         return False if v is None else v
 
     def r_is_extension_enabled(self, slot=0):
@@ -249,7 +249,7 @@ class ChassisObj:
         :return: True if extension is enabled. Otherwise False
         :rtype: bool
         """
-        blades = self.r_get('brocade-fru/blade')
+        blades = self.r_get(brcdapi_util.fru_blade)
         for blade in blades:
             s = blade.get('slot-number')
             if s is not None and s == slot:
@@ -356,7 +356,7 @@ class ChassisObj:
                 switch_obj.r_fabric_obj() is not None]
 
     def r_login_keys(self):
-        """Returns all the login WWNs associated with this chassi. Includes E-Ports
+        """Returns all the login WWNs associated with this chassis. Includes E-Ports
 
         :return: List of WWNs logged into this port
         :rtype: list
@@ -435,12 +435,12 @@ class ChassisObj:
         return fid
 
     def r_slot(self, s):
-        """Returns the FRU information for a specific blade 'brocade-fru/blade')
+        """Returns the FRU information for a specific blade
 
         :return: The blade dictionary for a specific blade as returned from the API
         :rtype: dict
         """
-        for b in util.convert_to_list(self.r_get('brocade-fru/blade')):
+        for b in util.convert_to_list(self.r_get(brcdapi_util.fru_blade)):
             if isinstance(b.get('slot_number'), int) and b.get('slot_number') == s:
                 return b
         return None
@@ -496,7 +496,7 @@ class ChassisObj:
         :rtype: list
         """
         tl = [None, None, None, None, None, None, None, None, None, None, None, None, None]
-        for blade in [b for b in util.convert_to_list(self.r_get('brocade-fru/blade')) if
+        for blade in [b for b in util.convert_to_list(self.r_get(brcdapi_util.fru_blade)) if
                       isinstance(b, int) and b < len(tl)]:
             tl[blade.get('slot-number')] = blade
         return tl
@@ -536,8 +536,10 @@ class ChassisObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 

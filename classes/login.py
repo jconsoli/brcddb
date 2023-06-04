@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-:mod:`brcdd.classes.login` - Defines the login objects LoginObj, FdmiNodeObj, and FdmiPortObj.
+:mod:`brcddb.classes.login` - Defines the login objects LoginObj, FdmiNodeObj, and FdmiPortObj.
 
 Version Control::
 
@@ -40,17 +40,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 26 Mar 2023   | Added r_format()                                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.9'
 
+import brcdapi.util as brcdapi_util
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util
 
@@ -243,21 +248,21 @@ class LoginObj:
         return self._flags
 
     def r_is_share_area(self):
-        """Tests the flags against the shared area flag bit ('brocade-name-server/share-area')
+        """Tests the flags against the shared area flag
 
         :return: True shared == 'yes'. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-name-server/share-area')
+        v = self.r_get(brcdapi_util.bns_share_area)
         return False if v is None else True if v == 'yes' else False
 
     def r_is_frame_redirection(self):
-        """Tests the flags against the frame redirection flag bit ('brocade-name-server/frame-redirection')
+        """Tests the flags against the frame redirection flag bit
 
         :return: True frame-redirection == 'yes'. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-name-server/frame-redirection')
+        v = self.r_get(brcdapi_util.bns_redirection)
         return False if v is None else True if v == 'yes' else False
 
     def r_is_partial(self):
@@ -279,30 +284,30 @@ class LoginObj:
         return False if v is None else True if v == 'yes' else False
 
     def r_is_cascaded_ag(self):
-        """Tests the flags against the cascaded access gateway flag bit, 'brocade-name-server/frame-redirection'
+        """Tests the flags against the cascaded access gateway flag bit
 
         :return: True if cascaded through an access gateway. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-name-server/frame-redirection')
+        v = self.r_get(brcdapi_util.bns_cascade_ag)
         return False if v is None else True if v == 'yes' else False
 
     def r_is_connected_through_ag(self):
-        """Tests the flags against the connected through AG flag bit, 'brocade-name-server/cascaded-ag'
+        """Tests the flags against the connected through AG flag bit
 
         :return: True if connected through access gateway. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-name-server/cascaded-ag')
+        v = self.r_get(brcdapi_util.bns_connect_ag)
         return False if v is None else True if v == 'yes' else False
 
     def r_is_device_behind_ag(self):
-        """Tests the flags against the device behind AG flag bit, 'brocade-name-server/real-device-behind-ag'
+        """Tests the flags against the device behind AG flag bit
 
         :return: True if this login is for a device behind an access gateway. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-name-server/real-device-behind-ag')
+        v = self.r_get(brcdapi_util.bns_dev_behind_ag)
         return False if v is None else True if v == 'yes' else False
 
     def r_is_fcoe_device(self):
@@ -311,16 +316,16 @@ class LoginObj:
         :return: True if the LSAN flag bit is set. Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-name-server/fcoe-device')
+        v = self.r_get(brcdapi_util.bns_fcoe_dev)
         return False if v is None else True if v == 'yes' else False
 
     def r_is_sddq(self):
-        """Tests the flags against the SDDQ flag bit, 'brocade-name-server/slow-drain-device-quarantine'
+        """Tests the flags against the SDDQ flag bit
 
         :return: True if this login is in the slow drain device quarantine (SDDQ). Otherwise False
         :rtype: bool
         """
-        v = self.r_get('brocade-name-server/slow-drain-device-quarantine')
+        v = self.r_get(brcdapi_util.bns_sddq)
         return False if v is None else True if v == 'yes' else False
 
     def s_new_key(self, k, v, f=False):
@@ -352,8 +357,10 @@ class LoginObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 
@@ -580,8 +587,10 @@ class FdmiNodeObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 
@@ -798,8 +807,10 @@ class FdmiPortObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 
