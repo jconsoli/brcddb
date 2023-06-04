@@ -70,17 +70,20 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 11 Feb 2023   | Added port_objects_for_name()                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Feb 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
+import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -104,7 +107,7 @@ def port_best_desc(port_obj):
     """
     if port_obj is None:
         return 'Unknown'
-    wwn_list = gen_util.convert_to_list(port_obj.r_get('fibrechannel/neighbor/wwn'))
+    wwn_list = gen_util.convert_to_list(port_obj.r_get(brcdapi_util.fc_neighbor_wwn))
     if len(wwn_list) == 0:
         return ''
 
@@ -137,7 +140,7 @@ def best_port_name(port_obj, port_num=False):
     :return: Port name
     :rtype: str
     """
-    buf = port_obj.r_get('fibrechannel/user-friendly-name')
+    buf = port_obj.r_get(brcdapi_util.fc_user_name)
     if buf is None:
         return port_obj.r_obj_key()
     if port_num:
@@ -155,11 +158,11 @@ def port_type(port_obj, num_flag=False):
     :return: Port type
     :rtype: str
     """
-    port_type_s = port_obj.r_get('fibrechannel/port-type')
+    port_type_s = port_obj.r_get(brcdapi_util.fc_port_type)
     if port_type_s is None:
         return ''
     try:
-        buf = brcddb_common.port_conversion_tbl['fibrechannel/port-type'][port_type_s]
+        buf = brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][port_type_s]
     except KeyError:
         buf = 'unknown'
     return buf + '(' + str(port_type_s) + ')' if num_flag else buf
@@ -177,7 +180,7 @@ def port_obj_for_index(obj, index):
     :rtype: brcddb.classes.port.PortObj, None
     """
     for port_obj in obj.r_port_objects():
-        port_index = port_obj.r_get('fibrechannel/index')
+        port_index = port_obj.r_get(brcdapi_util.fc_index)
         if port_index is not None and port_index == index:
             return port_obj
 
@@ -198,7 +201,7 @@ def port_obj_for_wwn(obj, wwn):
     if not gen_util.is_wwn(wwn):
         return None
     for port_obj in obj.r_port_objects():
-        for port_wwn in gen_util.convert_to_list(port_obj.r_get('fibrechannel/neighbor/wwn')):
+        for port_wwn in gen_util.convert_to_list(port_obj.r_get(brcdapi_util.fc_neighbor_wwn)):
             if port_wwn is not None and port_wwn == wwn:
                 return port_obj
 
@@ -283,7 +286,7 @@ def port_objects_for_name(obj, name, search='exact'):
     """
     return brcddb_search.match_test(
         obj.r_port_objects(),
-        dict(k='fibrechannel/user-friendly-name', t=search, v=name, i=False)
+        dict(k=brcdapi_util.fc_user_name, t=search, v=name, i=False)
     )
 
 

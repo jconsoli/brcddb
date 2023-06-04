@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -33,7 +33,7 @@ Version Control::
     | 3.0.3     | 01 Nov 2020   | Removed deprecated conversions. Added 9.0 status values to port operational-status|
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 14 Nov 2020   | Removed 'fibrechannel/speed' and 'fibrechannel/max-speed' from                    |
-    |           |               | port_conversion_tbl in favor of calculating speed so as to accomodate all speeds  |
+    |           |               | port_conversion_tbl in favor of calculating speed so as to accommodate all speeds |
     |           |               | in code.                                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 13 Feb 2021   | Fixed PORT_TYPE_L                                                                 |
@@ -44,16 +44,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 25 Jul 2022   | Added new port types with 9.1                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 04 Jun 2023   | Added missing fibrechannel-name-server in node-symbolic-name                      |
+    |           |               | Fixed incorrect regex in hba_8G_d and hba_4G_d.                                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '25 Jul 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Released'
-__version__ = '3.0.8'
+__status__ = 'Development'
+__version__ = '3.1.0'
+
+import brcdapi.util as brcdapi_util
 
 #################################################################################
 #                                   Project                                     #
@@ -61,7 +67,7 @@ __version__ = '3.0.8'
 # obj._flags - read and set with obj.flags(), obj.and_flags(), and obj.or_flags
 # Individual flags read with (returns True of False)
 #   obj.is_build_xref_called()
-# If the order of any of the warings or errors below change or a new warn/error flag is added, _exit_code() for class
+# If the order of any of the warnings or errors below change or a new warn/error flag is added, _exit_code() for class
 #  ProjectObj in brcddb_classes.py must be modified
 project_warn = 0b1                            # Encountered a recoverable programming error
 project_api_warn = project_warn << 1          # Encountered a recoverable error in the API response
@@ -164,39 +170,39 @@ zone_conversion_tbl = {
 #################################################################################
 login_conversion_tbl = {
     # Flags
-    'brocade-name-server/share-area': {
+    brcdapi_util.bns_share_area: {
         'no': False,
         'yes': True,
     },
-    'brocade-name-server/frame-redirection': {
+    brcdapi_util.bns_redirection: {
         'no': False,
         'yes': True,
     },
-    'brocade-name-server/partial': {
+    brcdapi_util.bns_partial: {
         'no': False,
         'yes': True,
     },
-    'brocade-name-server/lsan': {
+    brcdapi_util.bns_lsan: {
         'no': False,
         'yes': True,
     },
-    'brocade-name-server/cascaded-ag': {
+    brcdapi_util.bns_cascade_ag: {
         'no': False,
         'yes': True,
     },
-    'brocade-name-server/connected-through-ag': {
+    brcdapi_util.bns_connect_ag: {
         'no': False,
         'yes': True,
     },
-    'brocade-name-server/real-device-behind-ag': {
+    brcdapi_util.bns_dev_behind_ag: {
         'no': False,
         'yes': True,
     },
-    'brocade-name-server/fcoe-device': {
+    brcdapi_util.bns_fcoe_dev: {
         'no': False,
         'yes': True,
     },
-    'brocade-name-server/slow-drain-device-quarantine': {
+    brcdapi_util.bns_sddq: {
         'no': False,
         'yes': True,
     },
@@ -223,39 +229,39 @@ switch_flag_polled = 0b1  # Fibre channel switch was polled.
 switch_flag_next_avail = switch_flag_polled << 1
 
 switch_conversion_tbl = {
-    'brocade-fibrechannel-configuration/f-port-login-settings/enforce-login': {
+    brcdapi_util.bfc_fport_enforce_login: {
         0: '0 - First login takes precedence',
         1: '1 - Second login takes precedence',
         2: '2 - First FLOGI takes precedence, second FDISC (NPIV) takes precedence',
     },
-    'brocade-fibrechannel-switch/fibrechannel-switch/ag-mode': {
+    brcdapi_util.bfs_ag_mode: {
         0: 'Not supported',
         1: 'Supported, not enabled',
         3: 'Enabled',
     },
-    'brocade-fibrechannel-switch/fibrechannel-switch/operational-status': {
+    brcdapi_util.bfs_op_status: {
         0: 'Undefined',
         2: 'Enabled',
         3: 'Disabled',
         7: 'In test',
     },
-    'brocade-fibrechannel-switch/fibrechannel-switch/principal': {
+    brcdapi_util.bfs_principal: {
         0: 'No',
         1: 'Yes',
     },
-    'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/base-switch-enabled': {
+    brcdapi_util.bfls_base_sw_en: {
         0: 'No',
         1: 'Yes',
     },
-    'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/default-switch-status': {
+    brcdapi_util.bfls_def_sw_status: {
         0: 'No',
         1: 'Yes',
     },
-    'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/logical-isl-enabled': {
+    brcdapi_util.bfls_isl_enabled: {
         0: 'No',
         1: 'Yes',
     },
-    'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ficon-mode-enabled': {
+    brcdapi_util.bfls_ficon_mode_en: {
         0: 'No',
         1: 'Yes',
     },
@@ -359,29 +365,29 @@ port_conversion_tbl = {
         15000:  15000,
         16000:  16000,
     },
-    'fibrechannel/los-tov-mode-enabled': {
+    brcdapi_util.fc_los_tov: {
         0:  'Disabled',
         1:  'Enabled Fixed',
         2:  'Enabled Auto',
     },
     # Old flag types
-    'fibrechannel/auto-negotiate': {
+    brcdapi_util.fc_auto_neg: {
         0: False,
         1: True,
     },
-    'fibrechannel/compression-active': {
+    brcdapi_util.fc_comp_act: {
         0: False,
         1: True,
     },
-    'fibrechannel/compression-configured': {
+    brcdapi_util.fc_comp_en: {
         0: False,
         1: True,
     },
-    'fibrechannel/credit-recovery-active': {
+    brcdapi_util.fc_credit_recov_act: {
         0: False,
         1: True,
     },
-    'fibrechannel/credit-recovery-enabled': {
+    brcdapi_util.fc_credit_recov_en: {
         0: False,
         1: True,
     },
@@ -389,11 +395,11 @@ port_conversion_tbl = {
         0: False,
         1: True,
     },
-    'fibrechannel/d-port-enable': {
+    brcdapi_util.fc_d_port_en: {
         0: False,
         1: True,
     },
-    'fibrechannel/e-port-disable': {
+    brcdapi_util.fc_e_port_dis: {
         0: False,
         1: True,
     },
@@ -425,7 +431,7 @@ port_conversion_tbl = {
         0: False,
         1: True,
     },
-    'fibrechannel/is-enabled-state': {
+    brcdapi_util.fc_enabled: {
         0: False,
         1: True,
     },
@@ -445,7 +451,7 @@ port_conversion_tbl = {
         0: False,
         1: True,
     },
-    'fibrechannel/npiv-enabled': {
+    brcdapi_util.fc_npiv_en: {
         0: False,
         1: True,
     },
@@ -567,11 +573,11 @@ maps_bool_flags = {
 # from the remote SFP
 hba_2G_d = dict(
     l=(
-        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='Emulex', i=True),
         dict(
             l=(
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LP10000', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LP9002', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LP10000', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LP9002', i=True),
             ),
             logic='or',
         )
@@ -580,12 +586,14 @@ hba_2G_d = dict(
 )
 hba_4G_d = dict(
     l=(
-        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='Emulex', i=True),
         dict(
             l=(
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe110[00|02|5]', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='A800[3|2]A', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPem1100[0|2]', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPe11000', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPe11002', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPe1105', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='A800[3|2]A', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPem1100[0|2]', i=True),
             ),
             logic='or',
         )
@@ -594,15 +602,16 @@ hba_4G_d = dict(
 )
 hba_8G_d = dict(
     l=(
-        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='Emulex', i=True),
         dict(
             l=(
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe1200[0|2]', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='SN1200E[0|2]P', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='a[j763|h403]', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe1205', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='554FLB', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='NC553i', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPe1200[0|2]', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='SN1200E[0|2]P', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='aj763', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='ah403', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPe1205', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='554FLB', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='NC553i', i=True),
             ),
             logic='or',
         )
@@ -611,13 +620,13 @@ hba_8G_d = dict(
 )
 hba_16G_d = dict(
     l=(
-        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='Emulex', i=True),
         dict(
             l=(
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe160', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe3100', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='7101684', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='SN1200E', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPe160', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPe3100', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='7101684', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='SN1200E', i=True),
             ),
             logic='or',
         )
@@ -626,11 +635,11 @@ hba_16G_d = dict(
 )
 hba_32G_d = dict(
     l=(
-        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='Emulex', i=True),
         dict(
             l=(
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe3200[0|2]', i=True),
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe3500[0|2]', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPe3200[0|2]', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPe3500[0|2]', i=True),
             ),
             logic='or',
         )
@@ -639,10 +648,10 @@ hba_32G_d = dict(
 )
 hba_64G_d = dict(
     l=(
-        dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='Emulex', i=True),
+        dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='Emulex', i=True),
         dict(
             l=(
-                dict(k='brocade-name-server/node-symbolic-name', t='regex-s', v='LPe3600[0|2]', i=True),
+                dict(k=brcdapi_util.bns_node_symbol, t='regex-s', v='LPe3600[0|2]', i=True),
             ),
             logic='or',
         )

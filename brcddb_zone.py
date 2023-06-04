@@ -64,17 +64,20 @@ Version Control::
     | 3.0.7     | 27 May 2023   | Fixed case in eff_zoned_to_wwn() when a WWN is in the effective zone but not      |
     |           |               | logged in.                                                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 04 Jun 2023   | Fixed check for truncated frames and address errors                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '27 May 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
+import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
 
 
@@ -90,8 +93,7 @@ def alias_compare(base_alias_obj, comp_alias_obj):
     :return del_members: Members is base_alias_obj that do not exist in comp_alias_obj
     :rtype del_members: list
     """
-    bl = base_alias_obj.r_members()
-    cl = comp_alias_obj.r_members()
+    bl, cl = base_alias_obj.r_members(), comp_alias_obj.r_members()
     return [mem for mem in cl if mem not in bl], [mem for mem in bl if mem not in cl]
 
 
@@ -127,10 +129,8 @@ def zone_compare(base_zone_obj, comp_zone_obj):
     :return del_pmembers: Principal members is base_zone_obj that do not exist in comp_zone_obj
     :rtype del_pmembers: list
     """
-    bl = base_zone_obj.r_members()
-    cl = comp_zone_obj.r_members()
-    pbl = base_zone_obj.r_pmembers()
-    pcl = comp_zone_obj.r_pmembers()
+    bl, cl = base_zone_obj.r_members(), comp_zone_obj.r_members()
+    pbl, pcl = base_zone_obj.r_pmembers(), comp_zone_obj.r_pmembers()
     return True if base_zone_obj.r_type() != comp_zone_obj.r_type() else False, \
            [mem for mem in cl if mem not in bl],\
            [mem for mem in bl if mem not in cl], \
@@ -164,8 +164,7 @@ def cfg_compare(base_cfg_obj, comp_cfg_obj):
     :return del_members: Members is base_cfg_obj that do not exist in comp_cfg_obj
     :rtype del_members: list
     """
-    bl = base_cfg_obj.r_members()
-    cl = comp_cfg_obj.r_members()
+    bl, cl = base_cfg_obj.r_members(), comp_cfg_obj.r_members()
     return [mem for mem in cl if mem not in bl], [mem for mem in bl if mem not in cl]
 
 
@@ -240,7 +239,7 @@ def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=Fals
             login_obj = fab_obj.r_login_obj(mem)
             if login_obj is None:
                 continue
-            fc4 = login_obj.r_get('brocade-name-server/fibrechannel-name-server/fc4-features')
+            fc4 = login_obj.r_get(brcdapi_util.bns_fc4_features)
             if fc4 is None:
                 continue
             if target and 'target' in fc4.lower():

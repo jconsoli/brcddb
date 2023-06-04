@@ -83,20 +83,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.4     | 26 Mar 2023   | Added fab_obj_for_fid()                                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.5     | 04 Jun 2023   | Fixed reference for remote SFP speed                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.4'
+__version__ = '3.1.5'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.file as brcdapi_file
 import brcdapi.gen_util as gen_util
+import brcdapi.util as brcdapi_util
 import brcddb.classes.project as project_class
 import brcddb.util.copy as brcddb_copy
 import brcddb.util.util as brcddb_util
@@ -210,7 +212,7 @@ def add_custom_search_terms(proj_obj):
             port_obj.s_new_key('_search', search)
 
         # Get the maximum and minimum speeds supported by the switch SFP
-        l = port_obj.r_get('media-rdp/media-speed-capability/speed')
+        l = port_obj.r_get(brcdapi_util.sfp_speed)
         if isinstance(l, (list, tuple)):
             max_sfp = max(l)
             if 'sfp_max_speed' not in search:
@@ -219,7 +221,7 @@ def add_custom_search_terms(proj_obj):
                 search.update(sfp_min_speed=min(l))
 
         # Get the maximum and minimum speeds supported by the remote (attached device) SFP
-        l = port_obj.r_get('media-rdp/remote-media-speed-capability/speed')
+        l = port_obj.r_get(brcdapi_util.sfp_remote_speed)
         if l is None:  # No speed from remote SFP so try to figure it out based on the HBA type
             for d in brcddb_common.hba_remote_speed:
                 if len(brcddb_search.match_test(port_obj.r_login_objects(), d['f'])) > 0:
@@ -258,12 +260,7 @@ def fab_obj_for_user_name(proj_obj, name, match_type='exact'):
     """
     sl = brcddb_search.match_test(
         proj_obj.r_switch_objects(),
-        dict(
-            k='brocade-fibrechannel-switch/fibrechannel-switch/fabric-user-friendly-name',
-            v=name,
-            t=match_type,
-            i=False
-        )
+        dict( k='brcdapi_util.bfs_fab_user_name', v=name, t=match_type,  i=False)
     )
     return gen_util.remove_duplicates([switch_obj.r_fabric_obj() for switch_obj in sl])
 
@@ -280,11 +277,7 @@ def switch_obj_for_user_name(proj_obj, name, match_type='exact'):
     return gen_util.remove_duplicates(
         brcddb_search.match_test(
             proj_obj.r_switch_objects(),
-            dict(
-                k='brocade-fibrechannel-switch/fibrechannel-switch/user-friendly-name',
-                v=name,
-                t=match_type,
-                i=False)
+            dict( k=brcdapi_util.bfs_sw_user_name, v=name, t=match_type, i=False)
         )
     )
 
@@ -317,7 +310,7 @@ def fab_obj_for_fid(proj_obj, fid):
     rl = list()
     for fab_obj in proj_obj.r_fabric_objects():
         for switch_obj in fab_obj.r_switch_objects():
-            local_fid = switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
+            local_fid = switch_obj.r_get(brcdapi_util.bfls_fid)
             if isinstance(local_fid, int) and local_fid == fid:
                 rl.append(fab_obj)
                 break

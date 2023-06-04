@@ -33,7 +33,7 @@ Public Methods & Data::
     +-----------------------+---------------------------------------------------------------------------------------+
     | check_ficon_zoning    | Check to make sure all control units in the channel path share a zone with the channel|
     +-----------------------+---------------------------------------------------------------------------------------+
-    | zone_by_target        | inds all servers in the effective zone that are zoned to each target, does a speed    |
+    | zone_by_target        | Finds all servers in the effective zone that are zoned to each target, does a speed   |
     |                       | check, and adds _zoned_servers to each target login object. _zoned_servers is a       |
     |                       | dictionary. Key = server WWN, value = list of zones that server and target are in.    |
     +-----------------------+---------------------------------------------------------------------------------------+
@@ -93,18 +93,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.2.2     | 29 Mar 2023   | Fixed bug when a login was found but the switch associated with it wasn't polled  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.2.3     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.2.4     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '29 Mar 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.2.2'
+__version__ = '3.2.4'
 
 import brcdapi.log as brcdapi_log
+import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.brcddb_switch as brcddb_switch
@@ -114,8 +119,6 @@ import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_port as brcddb_port
 import brcddb.util.iocp as brcddb_iocp
 import brcddb.brcddb_zone as brcddb_zone
-
-_FC4_FEATURES = 'brocade-name-server/fibrechannel-name-server/fc4-features'
 
 _check_d = dict(peer_property=False,
                 zone_mismatch=False,
@@ -170,7 +173,7 @@ def best_fab_name(fab_obj, wwn=False, fid=False):
         return 'Unknown'
     rbuf = fab_obj.r_obj_key()
     for switch_obj in fab_obj.r_switch_objects():  # The fabric information is stored with the switch
-        buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/fabric-user-friendly-name')
+        buf = switch_obj.r_get(brcdapi_util.bfs_fab_user_name)
         if buf is not None and len(buf) > 0:
             rbuf = buf + ' (' + rbuf + ')' if wwn else buf
             break
@@ -192,7 +195,7 @@ def switch_for_did(fab_obj, did):
     if fab_obj is None:
         return None
     for switch_obj in fab_obj.r_switch_objects():  # The fabric information is stored with the switch
-        switch_did = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/domain-id')
+        switch_did = switch_obj.r_get(brcdapi_util.bfs_did)
         if isinstance(switch_did, int) and switch_did == did:
             return switch_obj
 
@@ -280,7 +283,7 @@ def check_ficon_zoning(fabric_obj):
                         break
 
                 if not_found:
-                    all_access = fabric_obj.r_get('brocade-zone/effective-configuration/default-zone-access')
+                    all_access = fabric_obj.r_get(brcdapi_util.bz_eff_default_zone)
                     if all_access is None or all_access == brcddb_common.DEF_ZONE_NOACCESS:
                         port_obj.s_add_alert(al.AlertTable.alertTbl,
                                              al.ALERT_NUM.ZONE_LINK_ADDR,
@@ -299,10 +302,10 @@ def zone_by_target(fab_obj):
     :param fab_obj: brcddb fabric object
     :type fab_obj: FabricObj class
     """
-    global _speed_to_gen, _FC4_FEATURES, _check_d
+    global _speed_to_gen, _check_d
 
     # Get a list of all the target (storage) logins
-    t_obj_l = brcddb_search.match(fab_obj.r_login_objects(), _FC4_FEATURES, 'Target',
+    t_obj_l = brcddb_search.match(fab_obj.r_login_objects(), brcdapi_util.bns_fc4_features, 'Target',
                                   ignore_case=True, stype='regex-s')  # List of target objects in the fabric
 
     for t_login_obj in t_obj_l:
@@ -475,7 +478,7 @@ def zone_analysis(fab_obj):
                 for wwn in mem_l:
                     login_obj = fab_obj.r_login_obj(wwn)
                     if login_obj is not None:
-                        fc4_features = str(login_obj.r_get(_FC4_FEATURES)).lower()
+                        fc4_features = str(login_obj.r_get(brcdapi_util.bns_fc4_features)).lower()
                         if 'target' not in fc4_features and 'initiator' in fc4_features:
                             elist.append(wwn)
                             break
@@ -483,7 +486,7 @@ def zone_analysis(fab_obj):
             for wwn in nmem_list:
                 login_obj = fab_obj.r_login_obj(wwn)
                 if login_obj is not None:
-                    fc4_features = str(login_obj.r_get(_FC4_FEATURES)).lower()
+                    fc4_features = str(login_obj.r_get(brcdapi_util.bns_fc4_features)).lower()
                     if 'target' not in fc4_features and 'initiator' in fc4_features:
                         elist.append(wwn)
         if len(elist) > 1 and _check_d['multi_initiator']:
@@ -551,7 +554,7 @@ def fab_obj_for_name(proj_obj, fab_name):
     """
     for fab_obj in proj_obj.r_fabric_objects():
         for switch_obj in fab_obj.r_switch_objects():  # The fabric name is returned with
-            buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/fabric-user-friendly-name')
+            buf = switch_obj.r_get(brcdapi_util.bfs_fab_user_name)
             if buf is not None and buf == fab_name:
                 return fab_obj
 
@@ -568,7 +571,7 @@ def fab_fids(fab_obj):
     """
     rl = list()
     for switch_obj in fab_obj.r_switch_objects():
-        fid = switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
+        fid = switch_obj.r_get(brcdapi_util.bfls_fid)
         if fid is not None and fid not in rl:
             rl.append(fid)
 

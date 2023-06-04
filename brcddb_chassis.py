@@ -65,21 +65,27 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 28 Apr 2022   | Updated EOS date for 6520                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 11 Feb 2023   | Added blde-id 232 (FC64-64) and switchtypes 182 (G730), 183 (G620), and 184 (G630)|
+    | 3.0.8     | 11 Feb 2023   | Added blade-id 232 (FC64-64) and switch types 182 (G730), 183 (G620), and 184     |
+    |           |               | (G630)                                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 21 May 2023   | Updated documentation.                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Feb 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.1.0'
 
 import time
 import brcdapi.log as brcdapi_log
+import brcdapi.util as brcdapi_util
 
 _MIN_SYMB_LEN = 10
 
@@ -470,7 +476,7 @@ def best_chassis_name(chassis_obj, wwn=False):
     """
     if chassis_obj is None:
         return 'Unknown'
-    buf = chassis_obj.r_get('brocade-chassis/chassis/chassis-user-friendly-name')
+    buf = chassis_obj.r_get(brcdapi_util.bc_user_name)
     return chassis_obj.r_obj_key() if buf is None else buf + ' (' + chassis_obj.r_obj_key() + ')' if wwn else buf
 
 

@@ -75,20 +75,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.3     | 27 May 2023   | Added best practice checking for the error log, _chassis_err_log()                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.4     | 04 Jun 2023   | Fixed check for truncated frames and address errors                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '27 May 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.3'
+__version__ = '3.1.4'
 
 import collections
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
+import brcdapi.util as brcdapi_util
 import brcdapi.excel_util as excel_util
 import brcddb.report.utils as report_utils
 import brcddb.util.util as brcddb_util
@@ -104,42 +106,42 @@ _high_temp_error, _high_temp_warn = 1000, 1000
 _sfp_rules, _sfp_file = None, None
 _alert_tbl_d = dict()
 
-is_no_light = dict(k='fibrechannel/physical-state', t='exact', v='no_light')
-is_asn = dict(k='fibrechannel/auto-negotiate', t='bool', v=True)
-_port_bit_errors = ('fibrechannel-statistics/in-crc-errors',
-                    'fibrechannel-statistics/crc-errors',
-                    'fibrechannel-statistics/fec-uncorrected')
-_port_framing_errors = ('fibrechannel-statistics/invalid-ordered-sets',
-                        'fibrechannel-statistics/frames-too-long',
-                        'fibrechannel-statistics/truncated-frame'
-                        'fibrechannel-statistics/address-errors',
-                        'fibrechannel-statistics/delimiter-errors',
-                        'fibrechannel-statistics/encoding-disparity-errors',
-                        'fibrechannel-statistics/bad-eofs-received',
-                        'fibrechannel-statistics/encoding-errors-outside-frame',
-                        'fibrechannel-statistics/invalid-transmission-words',
-                        'fibrechannel-statistics/primitive-sequence-protocol-error')
-_port_logical_errors = ('fibrechannel-statistics/in-link-resets',
-                        'fibrechannel-statistics/out-link-resets',
-                        'fibrechannel-statistics/in-offline-sequences',
-                        'fibrechannel-statistics/out-offline-sequences',
-                        'fibrechannel-statistics/too-many-rdys',
-                        'fibrechannel-statistics/multicast-timeouts',
-                        'fibrechannel-statistics/in-lcs',
-                        'fibrechannel-statistics/input-buffer-full',
-                        'fibrechannel-statistics/f-busy-frames',
-                        'fibrechannel-statistics/p-busy-frames',
-                        'fibrechannel-statistics/f-rjt-frames',
-                        'fibrechannel-statistics/p-rjt-frames',
-                        'fibrechannel-statistics/link-failures',
-                        'fibrechannel-statistics/loss-of-signal',
-                        'fibrechannel-statistics/loss-of-sync',
-                        'fibrechannel-statistics/ink-level-interrupts',
-                        'fibrechannel-statistics/frames-processing-required',
-                        'fibrechannel-statistics/frames-timed-out',
-                        'fibrechannel-statistics/frames-transmitter-unavailable-errors',
-                        'fibrechannel-statistics/non-operational-sequences-in',
-                        'fibrechannel-statistics/non-operational-sequences-out')
+is_no_light = dict(k=brcdapi_util.fc_state, t='exact', v='no_light')
+is_asn = dict(k=brcdapi_util.fc_auto_neg, t='bool', v=True)
+_port_bit_errors = (brcdapi_util.stats_in_crc,
+                    brcdapi_util.stats_crc,
+                    brcdapi_util.stats_fec_un)
+_port_framing_errors = (brcdapi_util.stats_ios,
+                        brcdapi_util.stats_long,
+                        brcdapi_util.stats_tunc,
+                        brcdapi_util.stats_addr,
+                        brcdapi_util.stats_delimiter,
+                        brcdapi_util.stats_enc_disp,
+                        brcdapi_util.stats_bad_eof,
+                        brcdapi_util.stats_enc,
+                        brcdapi_util.stats_itw,
+                        brcdapi_util.stats_seq)
+_port_logical_errors = (brcdapi_util.stats_in_reset,
+                        brcdapi_util.stats_out_reset,
+                        brcdapi_util.stats_off_seq,
+                        brcdapi_util.stats_out_off_seq,
+                        brcdapi_util.stats_rdy,
+                        brcdapi_util.stats_multicast_to,
+                        brcdapi_util.stats_in_lcs,
+                        brcdapi_util.stats_buf_full,
+                        brcdapi_util.stats_f_busy,
+                        brcdapi_util.stats_p_busy,
+                        brcdapi_util.stats_f_rjt,
+                        brcdapi_util.stats_p_rjt,
+                        brcdapi_util.stats_link_fail,
+                        brcdapi_util.stats_loss_sig,
+                        brcdapi_util.stats_loss_sync,
+                        brcdapi_util.stats_lli,
+                        brcdapi_util.stats_fpr,
+                        brcdapi_util.stats_to,
+                        brcdapi_util.stats_trans,
+                        brcdapi_util.stats_nos_in,
+                        brcdapi_util.stats_nos_out)
 
 """The _rule_template table determines how to check SFPs against the MAPS rules.
 Key - KPI of the parameter to test
@@ -175,50 +177,34 @@ _rule_template = {
 # It's an ordered dictionary because once we find something to alert on, the remaining rules are skipped. This is to
 # prevent a warning alert if an alarm was already found.
 _remote_current_rules = collections.OrderedDict()
-_remote_current_rules['media-rdp/remote-media-tx-bias-alert/high-alarm'] =\
-    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_CUR_A)
-_remote_current_rules['media-rdp/remote-media-tx-bias-alert/high-warning'] =\
-    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_CUR_W)
-_remote_current_rules['media-rdp/remote-media-tx-bias-alert/low-alarm'] =\
-    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_CUR_A)
-_remote_current_rules['media-rdp/remote-media-tx-bias-alert/low-warning'] =\
-    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_CUR_W)
+_remote_current_rules[brcdapi_util.sfp_cur_high_alarm] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_CUR_A)
+_remote_current_rules[brcdapi_util.sfp_cur_high_warn] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_CUR_W)
+_remote_current_rules[brcdapi_util.sfp_cur_low_alarm] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_CUR_A)
+_remote_current_rules[brcdapi_util.sfp_cur_low_warn] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_CUR_W)
 _remote_voltage_rules = collections.OrderedDict()
-_remote_voltage_rules['media-rdp/remote-media-voltage-alert/high-alarm'] =\
-    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_VLT_A)
-_remote_voltage_rules['media-rdp/remote-media-voltage-alert/high-warning'] =\
-    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_VLT_W)
-_remote_voltage_rules['media-rdp/remote-media-voltage-alert/low-alarm'] =\
-    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_VLT_A)
-_remote_voltage_rules['media-rdp/remote-media-voltage-alert/low-warning'] =\
-    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_VLT_W)
+_remote_voltage_rules[brcdapi_util.sfp_volt_high_alarm] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_VLT_A)
+_remote_voltage_rules[brcdapi_util.sfp_volt_high_warn] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_VLT_W)
+_remote_voltage_rules[brcdapi_util.sfp_volt_low_alarm] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_VLT_A)
+_remote_voltage_rules[brcdapi_util.sfp_volt_low_warn] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_VLT_W)
 _remote_temp_rules = collections.OrderedDict()
-_remote_temp_rules['media-rdp/remote-media-temperature-alert/high-alarm'] =\
-    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TEMP_A)
-_remote_temp_rules['media-rdp/remote-media-temperature-alert/high-warning'] =\
-    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TEMP_W)
-_remote_temp_rules['media-rdp/remote-media-temperature-alert/low-alarm'] =\
-    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TEMP_A)
-_remote_temp_rules['media-rdp/remote-media-temperature-alert/low-warning'] =\
-    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TEMP_W)
+_remote_temp_rules[brcdapi_util.sfp_temp_high_alarm] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TEMP_A)
+_remote_temp_rules[brcdapi_util.sfp_temp_high_warn] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TEMP_W)
+_remote_temp_rules[brcdapi_util.sfp_temp_low_alarm] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TEMP_A)
+_remote_temp_rules[brcdapi_util.sfp_temp_low_warn] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TEMP_W)
 _remote_tpx_rules = collections.OrderedDict()
-_remote_tpx_rules['media-rdp/remote-media-tx-power-alert/high-alarm'] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TXP_A)
-_remote_tpx_rules['media-rdp/remote-media-tx-power-alert/high-warning'] =\
-    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TXP_W)
-_remote_tpx_rules['media-rdp/remote-media-tx-power-alert/low-alarm'] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TXP_A)
-_remote_tpx_rules['media-rdp/remote-media-tx-power-alert/low-warning'] =\
-    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TXP_W)
+_remote_tpx_rules[brcdapi_util.sfp_txp_high_alarm] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TXP_A)
+_remote_tpx_rules[brcdapi_util.sfp_txp_high_warn] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_TXP_W)
+_remote_tpx_rules[brcdapi_util.sfp_txp_low_alarm] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TXP_A)
+_remote_tpx_rules[brcdapi_util.sfp_txp_low_warn] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_TXP_W)
 _remote_rpx_rules = collections.OrderedDict()
-_remote_rpx_rules['media-rdp/remote-media-rx-power-alert/high-alarm'] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_RXP_A)
-_remote_rpx_rules['media-rdp/remote-media-rx-power-alert/high-warning'] =\
-    dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_RXP_W)
-_remote_rpx_rules['media-rdp/remote-media-rx-power-alert/low-alarm'] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_RXP_A)
-_remote_rpx_rules['media-rdp/remote-media-rx-power-alert/low-warning'] =\
-    dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_RXP_W)
+_remote_rpx_rules[brcdapi_util.sfp_rxp_high_alarm] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_RXP_A)
+_remote_rpx_rules[brcdapi_util.sfp_rxp_high_warn] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_RXP_W)
+_remote_rpx_rules[brcdapi_util.sfp_rxp_low_alarm] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_RXP_A)
+_remote_rpx_rules[brcdapi_util.sfp_rxp_low_warn] = dict(t='<=', a=al.ALERT_NUM.REMOTE_PORT_L_RXP_W)
 _remote_rule_template = {
     # There is either a defect or bad documentation with 'media-rdp/remote-media-current' and
-    # 'media-rdp/remote-media-temperature'. Skipping those checks until those leaves are better understood.
-    # 'media-rdp/remote-media-current': _remote_current_rules,
+    # 'media-rdp/remote-media-temperature',  Skipping these checks until these leaves are better understood.
+    # 'media-rdp/remote-media-current': _remote_current_rules,  Something is wrong here
     'media-rdp/remote-media-voltage': _remote_voltage_rules,
     'media-rdp/remote-media-tx-power': _remote_tpx_rules,
     'media-rdp/remote-media-rx-power': _remote_rpx_rules,
@@ -365,14 +351,14 @@ def _fc16_48_haa_p8(rule, chassis_obj_l, t_obj):
     global _alert_tbl_d
 
     for chassis_obj in chassis_obj_l:
-        temp_l = gen_util.convert_to_list(chassis_obj.r_get('brocade-fru/blade'))
+        temp_l = gen_util.convert_to_list(chassis_obj.r_get(brcdapi_util.fru_blade))
         fru_list = brcddb_search.match(temp_l, 'part-number', '60-1001945-*', False, 'wild')
         temp_l = [str(fru.get('slot-number')) for fru in fru_list]
 
         # Get a list of ports we just figured out above that have an SFP matching S/N HAA*
         if len(temp_l) > 0:
-            lt = [dict(k='media-rdp/serial-number', v='HAA*', t='wild'),
-                  dict(k='fibrechannel/name', v='[' + ','.join(temp_l) + ']/(8 | 32)', t='regex-m')]
+            lt = [dict(k=brcdapi_util.sfp_sn, v='HAA*', t='wild'),
+                  dict(k=brcdapi_util.fc_name, v='[' + ','.join(temp_l) + ']/(8 | 32)', t='regex-m')]
             ml = brcddb_search.match_test(chassis_obj.r_port_objects(), lt, 'and')
             for port_obj in ml:
                 port_obj.s_add_alert(_alert_tbl_d, al.ALERT_NUM.PORT_SFP_HAA_F16_32_P8)
@@ -384,7 +370,7 @@ def _chassis_fru_check(rule, chassis_obj_l, t_obj):
 
     for chassis_obj in chassis_obj_l:
         # Blades
-        for d in gen_util.convert_to_list(chassis_obj.r_get('brocade-fru/blade')):
+        for d in gen_util.convert_to_list(chassis_obj.r_get(brcdapi_util.fru_blade)):
             v = str(d.get('blade-state'))
             if 'ault' in v:  # Sometimes it's 'fault' and sometimes it's 'Fault'.
                 chassis_obj.s_add_alert(_alert_tbl_d,
@@ -393,7 +379,7 @@ def _chassis_fru_check(rule, chassis_obj_l, t_obj):
                                         p1=v)
 
         # Fans
-        for d in gen_util.convert_to_list(chassis_obj.r_get('brocade-fru/fan')):
+        for d in gen_util.convert_to_list(chassis_obj.r_get(brcdapi_util.fru_fan)):
             v = str(d.get('operational-state'))
             if v.upper() != 'OK':
                 chassis_obj.s_add_alert(_alert_tbl_d,
@@ -402,7 +388,7 @@ def _chassis_fru_check(rule, chassis_obj_l, t_obj):
                                         p1=v)
 
         # Power Supply
-        for d in gen_util.convert_to_list(chassis_obj.r_get('brocade-fru/power-supply')):
+        for d in gen_util.convert_to_list(chassis_obj.r_get(brcdapi_util.fru_ps)):
             v = str(d.get('operational-state'))
             if v.upper() != 'OK':
                 chassis_obj.s_add_alert(_alert_tbl_d,
@@ -411,7 +397,7 @@ def _chassis_fru_check(rule, chassis_obj_l, t_obj):
                                         p1=v)
 
         # Temp Sensor
-        for d in gen_util.convert_to_list(chassis_obj.r_get('brocade-fru/sensor')):
+        for d in gen_util.convert_to_list(chassis_obj.r_get(brcdapi_util.fru_sensor)):
             v = str(d.get('state'))
             if v.upper() != 'ABSENT':
                 if v.upper() != 'OK':
@@ -481,7 +467,7 @@ def _check_sfps(rule, port_obj_l, t_obj):
             pn_l = rule.get('Mfg. P/N')
             if pn_l is not None and pn_l != '':
                 for pn in [p.strip() for p in pn_l.split(',')]:
-                    plist = brcddb_search.match_test(enabled_ports, dict(k='media-rdp/part-number', t='exact', v=pn))
+                    plist = brcddb_search.match_test(enabled_ports, dict(k=brcdapi_util.sfp_pn, t='exact', v=pn))
                     if len(plist) > 0:
                         online_plist = brcddb_search.match_test(plist, brcddb_search.port_online)
                         for k0, obj_0 in _rule_template.items():
@@ -506,7 +492,7 @@ def _check_remote_sfps(rule, port_obj_l, t_obj):
     global _remote_rule_template, _alert_tbl_d
 
     for port_obj in brcddb_search.match_test(port_obj_l, brcddb_search.port_online):
-        v = port_obj.r_get('media-rdp/remote-media-voltage-alert/high-alarm')
+        v = port_obj.r_get(brcdapi_util.sfp_volt_high_alarm)
         if v is None or v == 0:
             continue  # Sometimes threshold data is all 0 when it's not valid. Just checking the voltage makes it easy
 
@@ -625,7 +611,7 @@ def _min_firmware(rule, obj_l, t_obj):
         brcdapi_log.log('Rule ' + str(rule) + ' is not valid.', echo=True)
         return
     for switch_obj in obj_l:
-        fos_d = brcddb_util.fos_to_dict(switch_obj.r_get('brocade-fabric/fabric-switch/firmware-version'),
+        fos_d = brcddb_util.fos_to_dict(switch_obj.r_get(brcdapi_util.bf_fw_version),
                                         valid_check=False)
         if fos_d['major'] == 0:
             continue
@@ -755,18 +741,16 @@ _bp_tbl_d = {
 
     # Switch
     al.ALERT_NUM.SWITCH_FIRMWARE_8_2: dict(a=_check_best_practice, d='SwitchObj', t=dict(
-        p0='brocade-fabric/fabric-switch/firmware-version',
-        l=(dict(k='brocade-fabric/fabric-switch/firmware-version', v='v8.2.1[c-z]', t='regex-s'),
-           dict(k='brocade-fabric/fabric-switch/firmware-version', v='v8.2.[2-9]', t='regex-s'),
-           dict(k='brocade-fabric/fabric-switch/firmware-version', v='v9.[0-9]', t='regex-s')),
+        p0=brcdapi_util.bf_fw_version,
+        l=(dict(k=brcdapi_util.bf_fw_version, v='v8.2.1[c-z]', t='regex-s'),
+           dict(k=brcdapi_util.bf_fw_version, v='v8.2.[2-9]', t='regex-s'),
+           dict(k=brcdapi_util.bf_fw_version, v='v9.[0-9]', t='regex-s')),
         logic='nor')
                                            ),
     al.ALERT_NUM.SWITCH_IDID: dict(a=_check_best_practice, d='SwitchObj', t=dict(
-        l=dict(k='brocade-fibrechannel-configuration/fabric/insistent-domain-id-enabled', v=False, t='bool'))
-                                   ),
+        l=dict(k=brcdapi_util.bfc_idid, v=False, t='bool'))),
     al.ALERT_NUM.HANDLE_DUP_WWN: dict(a=_check_best_practice, d='SwitchObj', t=dict(
-        l=dict(k='brocade-fibrechannel-configuration/f-port-login-settings/enforce-login', v=2, t='!='))
-                                      ),
+        l=dict(k=brcdapi_util.bfc_fport_enforce_login, v=2, t='!='))),
     'isl_num_links': dict(a=_isl_num_links, d='SwitchObj'),
     'isl_bw': dict(a=_isl_bw, d='SwitchObj'),
     'isl_fru': dict(a=_isl_fru, d='SwitchObj'),
@@ -789,22 +773,22 @@ _bp_tbl_d = {
         logic='and')
     ),
     al.ALERT_NUM.PORT_F_ZERO_CREDIT: dict(a=_check_best_practice, d='PortObj', t=dict(
-        p0='fibrechannel-statistics/bb-credit-zero',
-        l=(dict(k='fibrechannel-statistics/bb-credit-zero', t='>', v=0),
+        p0=brcdapi_util.stats_bb_credit,
+        l=(dict(k=brcdapi_util.stats_bb_credit, t='>', v=0),
            brcddb_search.f_ports),
         logic='and')
     ),
     al.ALERT_NUM.PORT_C3_DISCARD: dict(a=_check_best_practice, d='PortObj', t=dict(
-        p0='fibrechannel-statistics/class-3-discards',
-        l=dict(k='fibrechannel-statistics/class-3-discards', t='>', v=0))
+        p0=brcdapi_util.stats_c3,
+        l=dict(k=brcdapi_util.stats_c3, t='>', v=0))
     ),
     al.ALERT_NUM.PORT_TXC3_DISCARD: dict(a=_check_best_practice, d='PortObj', t=dict(
-        p0='fibrechannel-statistics/class3-out-discards',
-        l=dict(k='fibrechannel-statistics/class3-out-discards', t='>', v=0))
+        p0=brcdapi_util.stats_c3_out,
+        l=dict(k=brcdapi_util.stats_c3_out, t='>', v=0))
     ),
     al.ALERT_NUM.PORT_RXC3_DISCARD: dict(a=_check_best_practice, d='PortObj', t=dict(
-        p0='fibrechannel-statistics/class3-in-discards',
-        l=dict(k='fibrechannel-statistics/class3-in-discards', t='>', v=0))
+        p0=brcdapi_util.stats_c3_in,
+        l=dict(k=brcdapi_util.stats_c3_in, t='>', v=0))
     ),
     al.ALERT_NUM.PORT_BIT_ERRORS: dict(a=_check_best_practice, d='PortObj', t=dict(
         p0=_port_bit_errors,
@@ -824,41 +808,41 @@ _bp_tbl_d = {
     al.ALERT_NUM.PORT_ENABLED_NO_LIGHT: dict(a=_check_best_practice, d='PortObj', t=dict(l=(is_no_light,))),
     al.ALERT_NUM.PORT_TSB_2019_276: dict(a=_check_best_practice, d='PortObj', t=dict(
         l=(
-            dict(k='media-rdp/part-number', v='57-0000088*', t='wild'),  # A 16G SWL optic
-            dict(k='media-rdp/serial-number', v='HAF618*', t='wild'),
+            dict(k=brcdapi_util.sfp_pn, v='57-0000088*', t='wild'),  # A 16G SWL optic
+            dict(k=brcdapi_util.sfp_sn, v='HAF618*', t='wild'),
         ),
         logic='and')
     ),
     al.ALERT_NUM.PORT_FAULT: dict(a=_check_best_practice, d='PortObj', t=dict(
-        p0='fibrechannel/physical-state',
+        p0=brcdapi_util.fc_state,
         l=(
-            dict(k='fibrechannel/physical-state', t='exact', v='faulty'),
-            dict(k='fibrechannel/physical-state', t='wild', v='*_flt'),
-            dict(k='fibrechannel/physical-state', t='regex-s', v='mod_(inv|val)'),
-            dict(k='fibrechannel/physical-state', t='exact', v='no_sigdet'),
+            dict(k=brcdapi_util.fc_state, t='exact', v='faulty'),
+            dict(k=brcdapi_util.fc_state, t='wild', v='*_flt'),
+            dict(k=brcdapi_util.fc_state, t='regex-s', v='mod_(inv|val)'),
+            dict(k=brcdapi_util.fc_state, t='exact', v='no_sigdet'),
         ),
         logic='or')
     ),
     al.ALERT_NUM.PORT_SEGMENTED: dict(a=_check_best_practice, d='PortObj', t=dict(
-        l=(dict(k='media-rdp/physical-state', t='exact', v='segmented'),),
+        l=(dict(k=brcdapi_util.sfp_state, t='exact', v='segmented'),),
         logic='and')
     ),
     al.ALERT_NUM.PORT_QSFP_BRKOUT_ASN: dict(a=_check_best_practice, d='PortObj', t=dict(
         l=(brcddb_search.enabled_ports,
            is_asn,
-           dict(k='media-rdp/part-number', v='57-1000351-01', t='exact')),
+           dict(k=brcdapi_util.sfp_pn, v='57-1000351-01', t='exact')),
         logic='and')
     ),
     al.ALERT_NUM.PORT_SFP_HAA_F16_32_P8: dict(a=_check_best_practice, d='PortObj', t=dict(
-        l=(dict(k='brocade-fru/blade/part-number', v='60-1001945-*', t='wild'),  # Pre-2016 FC16-48
-           dict(k='fibrechannel/name', v='?/8', t='wild'),  # Port 8
-           dict(k='media-rdp/serial-number', v='HAA*', t='wild')),
+        l=(dict(k=brcdapi_util.fru_blade_pn, v='60-1001945-*', t='wild'),  # Pre-2016 FC16-48
+           dict(k=brcdapi_util.fc_name, v='?/8', t='wild'),  # Port 8
+           dict(k=brcdapi_util.sfp_sn, v='HAA*', t='wild')),
         logic='and')
     ),
 
     # Login
     'fdmi_enabled': dict(a=_check_best_practice, d='LoginObj', t=dict(
-        l=(dict(k='brocade-name-server/fc4-features', t='exact', v='FCP-Initiator'),))
+        l=(dict(k=brcdapi_util.bns_fc4_features, t='exact', v='FCP-Initiator'),))
     ),
     'alias_initiator_lower': dict(a=_alias_initiator_lower, d='LoginObj'),
 }

@@ -67,18 +67,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 09 May 2023   | Added copy_switch_obj()                                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '09 May 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import time
+import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
 import brcddb.util.copy as brcddb_copy
 
@@ -143,18 +146,20 @@ def best_switch_name(switch_obj, wwn=False, did=False, fid=False):
     wwn_f = wwn
     if switch_obj is None:
         return 'Unknown'
-    buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/user-friendly-name')
+    buf = switch_obj.r_get(brcdapi_util.bfs_sw_user_name)
     if buf is None:
-        buf = switch_obj.r_get('brocade-fabric/fabric-switch/switch-user-friendly-name')
+        buf = switch_obj.r_get(brcdapi_util.bf_sw_user_name)
     if buf is None:
         buf = ''
         wwn_f = True
     if fid:
-        fid_num = switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
+        fid_num = switch_obj.r_get(brcdapi_util.bfls_fid)
         if fid_num is not None:
             buf += ' FID: ' + str(fid_num)
     if did:
-        did_num = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
+        did_num = switch_obj.r_get(brcdapi_util.bfs_did)
+        if did_num is None:
+            did_num = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
         if did_num is not None:
             buf += ' DID: ' + str(did_num)
     if wwn_f:
@@ -173,11 +178,11 @@ def switch_type(switch_obj):
     """
     if switch_obj is None:
         return None
-    if switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/default-switch-status'):
+    if switch_obj.r_get(brcdapi_util.bfls_def_sw_status):
         return 'Default'
-    if switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ficon-mode-enabled'):
+    if switch_obj.r_get(brcdapi_util.bfls_ficon_mode_en):
         return 'FICON'
-    if switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/base-switch-enabled'):
+    if switch_obj.r_get(brcdapi_util.bfls_base_sw_en):
         return 'Base'
     return 'FCP'
 
@@ -190,8 +195,7 @@ def switch_fid(switch_obj):
     :return: Switch FID. Returns None if non-VF, logical switch data not yet captured, or  or switch_obj is None
     :rtype: int, None
     """
-    return None if switch_obj is None else\
-        switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
+    return None if switch_obj is None else switch_obj.r_get(brcdapi_util.bfls_fid)
 
 
 def switch_ports(switch_obj):
@@ -203,7 +207,7 @@ def switch_ports(switch_obj):
     :rtype: list, None
     """
     return None if switch_obj is None else\
-        switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/port-member-list')
+        switch_obj.r_get(brcdapi_util.bfls_mem_list)
 
 
 def switch_ge_ports(switch_obj):
@@ -215,7 +219,7 @@ def switch_ge_ports(switch_obj):
     :rtype: list, None
     """
     return None if switch_obj is None else\
-        switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/ge-port-member-list')
+        switch_obj.r_get(brcdapi_util.bfls_ge_mem_list)
 
 
 def port_obj_for_index(switch_obj, port_index):

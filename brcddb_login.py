@@ -65,18 +65,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 27 May 2023   | Replaced old name server URI for new in ns_node_name()                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '27 May 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
-import brcddb.util.util as brcddb_util
+import brcdapi.util as brcdapi_util
+import brcdapi.gen_util as gen_util
 
 _MIN_SYMB_LEN = 10
 
@@ -107,7 +110,7 @@ def ns_node_name(login_obj):
     :rtype: str, None
     """
     try:
-        return login_obj.r_get('brocade-name-server/fibrechannel-name-server/node-symbolic-name')
+        return login_obj.r_get(brcdapi_util.bns_node_symbol)
     except AttributeError:
         return None
 
@@ -199,7 +202,7 @@ def best_login_name(fab_obj, name, flag=False):
     :return: desc
     :rtype: str
     """
-    alias_l = brcddb_util.convert_to_list(fab_obj.r_alias_for_wwn(name))
+    alias_l = gen_util.convert_to_list(fab_obj.r_alias_for_wwn(name))
     return name if len(alias_l) == 0 else alias_l[0] + ' (' + name + ')' if flag else alias_l[0]
 
 
@@ -227,7 +230,7 @@ def login_features(login_obj):
     :rtype: str
     """
     try:
-        fc4_feature = login_obj.r_get('brocade-name-server/fibrechannel-name-server/fc4-features')
+        fc4_feature = login_obj.r_get(brcdapi_util.bns_fc4_features)
         return '' if fc4_feature is None else fc4_feature
     except AttributeError:
         return ''
