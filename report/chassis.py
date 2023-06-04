@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -45,20 +45,27 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 28 Apr 2022   | Added report links                                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 22 Jun 2022   | Added switch links in logical switch summary.                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 21 May 2023   | Documentation updates.                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 04 Jun 2023   | Used URI references in brcdapi.util                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2021'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.9'
 
 import collections
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
+import brcdapi.util as brcdapi_util
 import brcdapi.excel_fonts as excel_fonts
 import brcdapi.excel_util as excel_util
 import brcddb.brcddb_chassis as brcddb_chassis
@@ -80,18 +87,18 @@ _align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
 _align_wrap_c = excel_fonts.align_type('wrap_center')
 _border_thin = excel_fonts.border_type('thin')
 
-hdr = collections.OrderedDict()
+_hdr = collections.OrderedDict()
 # Key is the column header and value is the width
-hdr['Comment'] = 30
-hdr['Parameter'] = 22
-hdr['Setting'] = 22
-hdr['col_only_3'] = 20
-hdr['col_only_4'] = 10
-hdr['col_only_5'] = 10
-hdr['col_only_6'] = 10
-hdr['col_only_7'] = 10
-hdr['col_only_8'] = 10
-hdr['col_only_9'] = 10
+_hdr['Comment'] = 30
+_hdr['Parameter'] = 22
+_hdr['Setting'] = 22
+_hdr['col_only_3'] = 20
+_hdr['col_only_4'] = 10
+_hdr['col_only_5'] = 10
+_hdr['col_only_6'] = 10
+_hdr['col_only_7'] = 10
+_hdr['col_only_8'] = 10
+_hdr['col_only_9'] = 10
 
 _fru = dict()
 _fru_hdr = {
@@ -101,11 +108,13 @@ _fru_hdr = {
 }
 
 _switch_hdr = collections.OrderedDict()
-# Key is the column header and value is key used in the reference to the brcddb.report.switch_key_case table
-_switch_hdr['Name'] = '_SWITCH_NAME'
-_switch_hdr['WWN'] = '_SWITCH_WWN'
-_switch_hdr['Fabric ID'] = 'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id'
-_switch_hdr['Domain ID'] = 'brocade-fabric/fabric-switch/domain-id'
+# Key is the column header and value is a dictionary as follows:
+# k: key used in the reference to the brcddb.report.switch_key_case table
+# l: Link. If true, adds the switch link
+_switch_hdr['Name'] = dict(k='_SWITCH_NAME', l=True)
+_switch_hdr['WWN'] = dict(k='_SWITCH_WWN', l=True)
+_switch_hdr['Fabric ID'] = dict(k=brcdapi_util.bfls_fid, l=False)
+_switch_hdr['Domain ID'] = dict(k=brcdapi_util.bfs_did, l=False)
 
 
 def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
@@ -125,7 +134,7 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
     :type chassis_obj: brcddb.classes.chassis.ChassisObj
     :rtype: None
     """
-    global _row, _sheet, hdr, _bold_font, _border_thin, _hdr2_font, _hdr1_font, _link_font
+    global _row, _sheet, _hdr, _bold_font, _border_thin, _hdr2_font, _hdr1_font, _link_font
 
     # Create the worksheet, set up the column widths, and add the report link
     _sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
@@ -137,16 +146,16 @@ def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
     if isinstance(tc, str):
         excel_util.cell_update(_sheet, _row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(hdr))
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
     excel_util.cell_update(_sheet, _row, col, sheet_title, font=_hdr1_font)
     _sheet.freeze_panes = _sheet['A2']
 
     # Add the headers and set the column widths
     _row, col = _row + 2, 1
-    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(hdr))
+    _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=len(_hdr))
     excel_util.cell_update(_sheet, _row, col, brcddb_chassis.best_chassis_name(chassis_obj), font=_hdr2_font)
     _row += 1
-    for k, v in hdr.items():
+    for k, v in _hdr.items():
         _sheet.column_dimensions[xl.get_column_letter(col)].width = v
         if 'col_only' not in k:
             excel_util.cell_update(_sheet, _row, col, k, font=_bold_font, border=_border_thin)
@@ -166,7 +175,7 @@ def _maps_dashboard(chassis_obj):
     _row, col = _row+2, 1
     _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=col + merge_len)
     excel_util.cell_update(_sheet, _row, col, 'MAPS Dashboard Alerts', font=_bold_font, align=_align_wrap,
-                             border=_border_thin)
+                           border=_border_thin)
 
     i = 0
     for alert_obj in chassis_obj.r_alert_objects():
@@ -204,15 +213,15 @@ chassis_fru_key_case = {
 }
 
 _bladed_chassis_only = (
-    'brocade-chassis/ha-status/ha-enabled',
-    'brocade-chassis/ha-status/heartbeat-up',
-    'brocade-chassis/ha-status/ha-synchronized',
-    'brocade-chassis/ha-status/active-cp',
-    'brocade-chassis/ha-status/active-slot',
-    'brocade-chassis/ha-status/recovery-type',
-    'brocade-chassis/ha-status/standby-cp',
-    'brocade-chassis/ha-status/standby-health',
-    'brocade-chassis/ha-status/standby-slot',
+    brcdapi_util.bc_ha,
+    brcdapi_util.bc_heartbeat,
+    brcdapi_util.bc_sync,
+    brcdapi_util.bc_active_cp,
+    brcdapi_util.bc_active_slot,
+    brcdapi_util.bc_ha_recovery,
+    brcdapi_util.bc_ha_standby_cp,
+    brcdapi_util.bc_ha_standby_health,
+    brcdapi_util.bc_ha_standby_slot,
 )
 
 
@@ -273,7 +282,7 @@ def _chassis_frus(display):
             excel_util.cell_update(_sheet, _row, col, disp[k], font=_std_font, align=_align_wrap, border=_border_thin)
         # Add the values
         for d in gen_util.sort_obj_num(_fru[fk], _fru_hdr[fk]['s'], r=False):
-            _row,col = _row+1, 2
+            _row, col = _row+1, 2
             for k in disp:
                 buf = chassis_fru_key_case[k](d[k]) if k in chassis_fru_key_case and k in d else d[k] if k in d else ''
                 excel_util.cell_update(_sheet, _row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
@@ -287,13 +296,13 @@ def _chassis_frus(display):
 
 
 def _logical_switches(chassis_obj):
-    """Creates a chassis detail worksheet for the Excel report.
+    """Add the logical switch summary.
 
     :param chassis_obj: Chassis object
     :type chassis_obj: brcddb.classes.chassis.ChassisObj
     :rtype: None
     """
-    global _row, _sheet, _switch_hdr, _bold_font, _std_font, _align_wrap
+    global _row, _sheet, _switch_hdr, _bold_font, _std_font, _align_wrap, _link_font
 
     _row, col = _row+2, 1
     _sheet.merge_cells(start_row=_row, start_column=col, end_row=_row, end_column=col + 4)
@@ -301,18 +310,19 @@ def _logical_switches(chassis_obj):
     _row += 1
 
     # The column headers
-    for k in _switch_hdr:
+    for k in _switch_hdr.keys():
         excel_util.cell_update(_sheet, _row, col, k, font=_bold_font)
         col += 1
 
     # The values
     for switch_obj in chassis_obj.r_switch_objects():
         _row, col = _row + 1, 1
-        for k in _switch_hdr:
-            k0 = _switch_hdr[k]
-            buf = report_switch.switch_key_case[k0](switch_obj, k0) if k0 in report_switch.switch_key_case \
-                else switch_obj.r_get(k0)  # It can only be the domain ID
-            excel_util.cell_update(_sheet, _row, col, buf, font=_std_font, align=_align_wrap)
+        for k, d in _switch_hdr.items():
+            buf = report_switch.switch_key_case[d['k']](switch_obj, d['k']) if d['k'] in report_switch.switch_key_case \
+                else switch_obj.r_get(d['k'])  # It can only be the domain ID
+            link = switch_obj.r_get('report_app/hyperlink/sw') if d['l'] else None
+            font = _std_font if link is None else _link_font
+            excel_util.cell_update(_sheet, _row, col, buf, font=font, align=_align_wrap, link=link)
             col += 1
 
 

@@ -74,19 +74,24 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.7     | 27 May 2023   | Cleaned up zone by target and group zone pages.                                   |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.8     | 29 May 2023   | Fixed wrong switch and port for login in zone group page.                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.9     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '27 May 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.7'
+__version__ = '3.1.9'
 
 import collections
 import openpyxl.utils.cell as xl
 import brcdapi.gen_util as gen_util
+import brcdapi.util as brcdapi_util
 import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_switch as brcddb_switch
@@ -236,6 +241,15 @@ def _group_desc_case(obj, mem, wwn, port_obj, obj_l=None):
     return brcddb_login.login_best_node_desc(obj)
 
 
+def _login_port_case(obj, mem, wwn, port_obj, obj_l=None):
+    l_port_obj = None if obj is None else obj.r_port_obj()
+    return '' if l_port_obj is None else l_port_obj.r_obj_key()
+
+
+def _login_switch_case(obj, mem, wwn, port_obj, obj_l=None):
+    return '' if obj is None else brcddb_switch.best_switch_name(obj.r_switch_obj())
+
+
 """
 _zone_hdr & _zone_group_hdr_d: Key is the column header. Value is a dict as follows:
 +-------+-----------+-----------------------------------------------------------------------------------------------+
@@ -273,8 +287,8 @@ _zone_hdr = collections.OrderedDict({
 })
 _zone_group_hdr_d = collections.OrderedDict({  # Same format as _zone_hdr
     'Group': dict(c=9, z=_null_case, m=_group_case, g=True, v=True),
-    'Switch': dict(c=30, z=_null_case, m=_mem_switch_case, g=True, zg=True),
-    'Port': dict(c=8, z=_null_case, m=_mem_port_case, g=True, zg=True),
+    'Switch': dict(c=30, z=_null_case, m=_login_switch_case, g=True, zg=True),
+    'Port': dict(c=8, z=_null_case, m=_login_port_case, g=True, zg=True),
     'WWN': dict(c=23, z=_null_case, m=_mem_member_wwn_case, g=True, zg=True),
     'Alias': dict(c=34, z=_null_case, m=_alias_case, g=True, zg=True),
     'Description': dict(c=40, z=_null_case, m=_group_desc_case, g=True, zg=True),
@@ -692,7 +706,7 @@ def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
     # Determine all the targets and what is zoned to each target
     t_obj_l = brcddb_search.match(fab_obj.r_login_objects(),  # List of login objects that are targets
-                                  'brocade-name-server/fibrechannel-name-server/fc4-features',
+                                  brcdapi_util.bns_fc4_features,
                                   'Target',
                                   ignore_case=True,
                                   stype='regex-s')  # List of target objects in the fabric
@@ -752,7 +766,7 @@ def non_target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
     # Fill out all the zone information for each server
     s_obj_l = brcddb_search.match(fab_obj.r_login_objects(),
-                                  'brocade-name-server/fibrechannel-name-server/fc4-features',
+                                  brcdapi_util.bns_fc4_features,
                                   'Initiator',
                                   ignore_case=True,
                                   stype='regex-s')  # List of initiator objects in the fabric
@@ -831,23 +845,19 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         return
     for group_name, group_d in zone_group_d.items():
         row, col = row+2, 1
-        # Using zone_d to ensure logins are only reported once. It's primed
-        # with the WWNs that define the group so that they are not displayed multiple times.
-        # zone_d = group_d['group_wwn_d'].copy()
-        zone_d = dict()
+        zone_d = dict()  # Using zone_d to ensure logins are only reported once.
 
         # The group name
         excel_util.cell_update(sheet, row, col, group_name, fill=_lightblue_fill, font=_bold_font, border=_border_thin)
         sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(_zone_group_hdr_d))
 
-        # Each port in the group
-        port_obj_l = brcddb_util.sort_ports(group_d['port_obj_l'])
-        for port_obj in port_obj_l:
-
+        # Each port in the zone group
+        group_obj_l = brcddb_util.sort_ports(group_d['port_obj_l'])  # List of port objects in the zone group
+        for port_obj in group_obj_l:
             # Information about the logins for this port.
             row, col, login_obj_l = row+1, 1, port_obj.r_login_objects()
             if len(login_obj_l) == 0:
-                continue  # The port_obj can't be in port_obj_l if nothing was logged in but rather than over think it
+                continue  # The port_obj can't be in group_obj_l if nothing was logged in but rather than over think it
             for login_obj in login_obj_l:
                 wwn = login_obj.r_obj_key()
                 zone_d.update({wwn: True})
@@ -861,10 +871,10 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                                            align=_align_wrap_c if bool(d.get('v')) else _align_wrap)
                     col += 1
 
-        # Now all the logins zoned to this port.
-        for port_obj in port_obj_l:
+        # Now all the logins zoned to this zone group.
+        for port_obj in group_obj_l:
+            fab_obj = port_obj.r_fabric_obj()
             for login_obj in port_obj.r_login_objects():
-                fab_obj = port_obj.r_fabric_obj()
                 for wwn, zl in brcddb_zone.eff_zoned_to_wwn(fab_obj, login_obj.r_obj_key(), all_types=True).items():
                     if bool(zone_d.get(wwn)):
                         continue
@@ -872,10 +882,11 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                     lz_obj = fab_obj.r_login_obj(wwn)
                     row, col = row+1, 1
                     for d in _zone_group_hdr_d.values():
+                        buf = d['m'](lz_obj, None, wwn, port_obj, zl) if bool(d.get('zg')) else ''
                         excel_util.cell_update(sheet,
                                                row,
                                                col,
-                                               d['m'](lz_obj, None, wwn, port_obj, zl) if bool(d.get('zg')) else '',
+                                               buf,
                                                font=_std_font,
                                                border=_border_thin,
                                                align=_align_wrap_c if bool(d.get('v')) else _align_wrap)

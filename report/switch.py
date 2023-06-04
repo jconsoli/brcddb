@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -50,19 +50,22 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 14 Oct 2022   | Added zone and port statistics summary                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '14 Oct 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import collections
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
+import brcdapi.util as brcdapi_util
 import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_common as brcddb_common
@@ -115,7 +118,7 @@ def _s_switch_wwn_case(switch_obj, k=None):
 
 
 def _s_switch_did_case(switch_obj, k):
-    did = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
+    did = switch_obj.r_get(brcdapi_util.bfs_did)
     return '0x00' if did is None else '0x' + f'{did:X}' + ' (' + str(did) + ')'
 
 
@@ -168,11 +171,11 @@ switch_key_case = {
     '_SWITCH_WWN': _s_switch_wwn_case,
     '_SWITCH_ACTIVE_MAPS_POLICY_NAME': _s_maps_active_policy_name,
     # Root level API
-    'brocade-fabric/fabric-switch/domain-id': _s_switch_did_case,
+    brcdapi_util.bfs_did: _s_switch_did_case,
     'brocade-fibrechannel-switch/fibrechannel-switch/ip-static-gateway-list/ip-static-gateway': _s_switch_list_case,
-    'brocade-fibrechannel-switch/fibrechannel-switch/model': _s_switch_model_case,
-    'brocade-fibrechannel-configuration/switch-configuration/area-mode': _s_switch_area_mode_case,
-    'brocade-fibrechannel-switch/fibrechannel-switch/up-time': _s_switch_up_time_case,
+    brcdapi_util.bfs_model: _s_switch_model_case,
+    brcdapi_util.bfc_area_mode: _s_switch_area_mode_case,
+    brcdapi_util.bfc_up_time: _s_switch_up_time_case,
     # f-port-login-settings
     # 'zone-configuration': ?, This is a dict, but I don't know what the members are yet
 }

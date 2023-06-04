@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -55,18 +55,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 24 Oct 2022   | Improved error messaging                                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '24 Oct 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.2'
 
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
+import brcdapi.util as brcdapi_util
 import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
@@ -92,9 +97,12 @@ _login_flags = dict(yes='\u221A', no='', unknown='?')
 #
 ###################################################################
 
-# Common flag method
+
 def _login_flag(login_obj, k):
-    val = login_obj.r_get('brocade-name-server/fibrechannel-name-server/' + k)
+    """Common flag method"""
+    global _login_flags
+
+    val = login_obj.r_get(k)
     if val is not None:
         try:
             return _login_flags[val]
@@ -103,7 +111,7 @@ def _login_flag(login_obj, k):
                                   echo=True)
     return ''
 
-# Custom
+
 def _l_switch_name_case(login_obj):
     return brcddb_switch.best_switch_name(login_obj.r_switch_obj(), False)
 
@@ -140,7 +148,7 @@ def _l_zones_eff_case(login_obj):
 def _l_fdmi_node_case(login_obj, k):
     # Remember, it's the base WWN we want for the node (hba), not the login WWN
     try:
-        wwn = login_obj.r_port_obj().r_get('fibrechannel/neighbor/wwn')[0]
+        wwn = login_obj.r_port_obj().r_get(brcdapi_util.fc_neighbor_wwn)[0]
         buf = login_obj.r_fabric_obj().r_fdmi_node_obj(wwn).r_get(k)
         return '' if buf is None else buf
     except AttributeError:  # This happens when there is no FDMI information
@@ -166,39 +174,39 @@ def _l_comment_case(login_obj):
 
 
 def _l_share_area_case(login_obj):
-    return _login_flag(login_obj, 'share-area')
+    return _login_flag(login_obj, brcdapi_util.bns_share_area)
 
 
 def _l_frame_redirection_case(login_obj):
-    return _login_flag(login_obj, 'frame-redirection')
+    return _login_flag(login_obj, brcdapi_util.bns_redirection)
 
 
 def _l_partial_case(login_obj):
-    return _login_flag(login_obj, 'partial')
+    return _login_flag(login_obj, brcdapi_util.bns_partial)
 
 
 def _l_lsan_case(login_obj):
-    return _login_flag(login_obj, 'lsan')
+    return _login_flag(login_obj, brcdapi_util.bns_lsan)
 
 
 def _l_cascaded_ag_case(login_obj):
-    return _login_flag(login_obj, 'cascaded-ag')
+    return _login_flag(login_obj, brcdapi_util.bns_cascade_ag)
 
 
 def _l_connected_through_ag_case(login_obj):
-    return _login_flag(login_obj, 'connected-through-ag')
+    return _login_flag(login_obj, brcdapi_util.bns_connect_ag)
 
 
 def _l_real_device_behind_ag_case(login_obj):
-    return _login_flag(login_obj, 'real-device-behind-ag')
+    return _login_flag(login_obj, brcdapi_util.bns_dev_behind_ag)
 
 
 def _l_fcoe_device_case(login_obj):
-    return _login_flag(login_obj, 'fcoe-device')
+    return _login_flag(login_obj, brcdapi_util.bns_fcoe_dev)
 
 
 def _l_slow_drain_device_quarantine_case(login_obj):
-    return _login_flag(login_obj, 'slow-drain-device-quarantine')
+    return _login_flag(login_obj, brcdapi_util.bns_sddq)
 
 
 _login_case = {
@@ -215,15 +223,15 @@ _login_case = {
     '_ZONES_DEF': _l_zones_def_case,
     '_ZONES_EFF': _l_zones_eff_case,
     # 'brocade-name-server/fibrechannel-name-server/port-name': _l_port_name_case,
-    'brocade-name-server/fibrechannel-name-server/share-area': _l_share_area_case,
-    'brocade-name-server/fibrechannel-name-server/frame-redirection': _l_frame_redirection_case,
-    'brocade-name-server/fibrechannel-name-server/partial': _l_partial_case,
-    'brocade-name-server/fibrechannel-name-server/lsan': _l_lsan_case,
-    'brocade-name-server/fibrechannel-name-server/cascaded-ag': _l_cascaded_ag_case,
-    'brocade-name-server/fibrechannel-name-server/connected-through-ag': _l_connected_through_ag_case,
-    'brocade-name-server/fibrechannel-name-server/real-device-behind-ag': _l_real_device_behind_ag_case,
-    'brocade-name-server/fibrechannel-name-server/fcoe-device': _l_fcoe_device_case,
-    'brocade-name-server/fibrechannel-name-server/slow-drain-device-quarantine': _l_slow_drain_device_quarantine_case,
+    brcdapi_util.bns_share_area: _l_share_area_case,
+    brcdapi_util.bns_redirection: _l_frame_redirection_case,
+    brcdapi_util.bns_partial: _l_partial_case,
+    brcdapi_util.bns_lsan: _l_lsan_case,
+    brcdapi_util.bns_cascade_ag: _l_cascaded_ag_case,
+    brcdapi_util.bns_connect_ag: _l_connected_through_ag_case,
+    brcdapi_util.bns_dev_behind_ag: _l_real_device_behind_ag_case,
+    brcdapi_util.bns_fcoe_dev: _l_fcoe_device_case,
+    brcdapi_util.bns_sddq: _l_slow_drain_device_quarantine_case,
 }
 
 _fdmi_case = dict(
@@ -255,7 +263,7 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
     :rtype: None
     """
     global _login_case, _fdmi_case, _align_wrap_vc, _align_wrap_c, _align_wrap, _border_thin, _bold_font, _std_font
-    global _link_font, _hdr1_font, _login_flag_case
+    global _link_font, _hdr1_font
 
     # Validate the user input
     err_msg = list()
@@ -303,10 +311,7 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
     else:
         wl = l_list
 
-    # Sorting the logins by port so that NPIV logins are together
-    temp_l = [login_obj.r_port_obj() for login_obj in wl if login_obj is not None]
-    port_obj_l = list()
-    login_l = list()
+    port_obj_l, login_l = list(), list()
     for login_obj in [obj for obj in wl if obj is not None]:
         # The name server is on a per switch basis so port_obj can be None if some switches weren't polled
         port_obj = login_obj.r_port_obj()

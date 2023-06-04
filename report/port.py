@@ -58,20 +58,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.1     | 01 Jan 2023   | Fixed bug in remote speed reporting.                                              |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 21 May 2023   | Updated comments                                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.3'
 
 import datetime
 import collections
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
+import brcdapi.util as brcdapi_util
 import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_common as brcddb_common
@@ -165,7 +170,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
             row += 1
         for port_obj in port_list:
             col = 1
-            temp_l = [port_obj.r_get('fibrechannel-statistics/' + statistic),
+            temp_l = [port_obj.r_get(brcdapi_util.stats_uri + '/' + statistic),
                       brcddb_fabric.best_fab_name(port_obj.r_switch_obj().r_fabric_obj()),
                       brcddb_switch.best_switch_name(port_obj.r_switch_obj())]
             for buf in temp_l:
@@ -240,16 +245,8 @@ def _p_port_maps_group_case(port_obj, k, wwn):
 
 
 def _p_time_generated_case(port_obj, k, wwn):
-    x = port_obj.r_get('fibrechannel-statistics/time-generated')
+    x = port_obj.r_get(brcdapi_util.stats_time)
     return None if x is None else datetime.datetime.fromtimestamp(x).strftime('%d %b %Y, %H:%M:%S')
-
-
-def _p_los_tov_mode_case(port_obj, k, wwn):
-    los = port_obj.r_get('fibrechannel/los-tov-mode-enabled')
-    if los is None:
-        return ''
-    v = brcddb_common.port_conversion_tbl['fibrechannel/los-tov-mode-enabled'][los]
-    return 'Unknown: ' + str(los) if v is None else v
 
 
 def _p_alias_case(port_obj, k, wwn):
@@ -271,7 +268,7 @@ def _p_login_addr_case(port_obj, k, wwn):
     if wwn is None:
         return ''
     try:
-        return port_obj.r_fabric_obj().r_login_obj(wwn).r_get('brocade-name-server/port-id')
+        return port_obj.r_fabric_obj().r_login_obj(wwn).r_get(brcdapi_util.bns_port_id)
     except AttributeError:
         brcdapi_log.exception('No login address for ' + wwn + '. Switch ' + port_obj.r_switch_obj().r_obj_key() +
                               ', port ' + port_obj.r_obj_key(), echo=True)
@@ -294,21 +291,21 @@ def _zones_eff_case(port_obj, k, wwn):
 
 def _p_name_server_node_case(port_obj, k, wwn):
     try:
-        return port_obj.r_fabric_obj().r_login_obj(wwn).r_get('brocade-name-server/node-symbolic-name')
+        return port_obj.r_fabric_obj().r_login_obj(wwn).r_get(brcdapi_util.bns_node_symbol)
     except AttributeError:
         return None
 
 
 def _p_name_server_port_case(port_obj, k, wwn):
     try:
-        return port_obj.r_fabric_obj().r_login_obj(wwn).r_get('brocade-name-server/port-symbolic-name')
+        return port_obj.r_fabric_obj().r_login_obj(wwn).r_get(brcdapi_util.bns_port_symbol)
     except AttributeError:
         return None
 
 
 def _p_fdmi_node_case(port_obj, k, wwn):
     try:
-        buf = port_obj.r_fabric_obj().r_fdmi_node_obj(wwn).r_get('brocade-fdmi/node-symbolic-name')
+        buf = port_obj.r_fabric_obj().r_fdmi_node_obj(wwn).r_get(brcdapi_util.fdmi_node_sym)
     except AttributeError:
         buf = ''
     return '' if buf is None else buf
@@ -316,7 +313,7 @@ def _p_fdmi_node_case(port_obj, k, wwn):
 
 def _p_fdmi_port_case(port_obj, k, wwn):
     try:
-        buf = port_obj.r_fabric_obj().r_fdmi_port_obj(wwn).r_get('brocade-fdmi/port-symbolic-name')
+        buf = port_obj.r_fabric_obj().r_fdmi_port_obj(wwn).r_get(brcdapi_util.fdmi_port_sym)
     except AttributeError:
         buf = ''
     return '' if buf is None else buf
@@ -324,47 +321,47 @@ def _p_fdmi_port_case(port_obj, k, wwn):
 
 def _p_media_uptime_case(port_obj, k, wwn):
     try:
-        return int(port_obj.r_get('media-rdp/power-on-time')/24 + .5)
+        return int(port_obj.r_get(brcdapi_util.sfp_power_on)/24 + .5)
     except (TypeError, ValueError):
         return None
 
 
 def _p_media_distance_case(port_obj, k, wwn):
     try:
-        return ', '.join(brcddb_util.get_key_val(port_obj, 'media-rdp/media-distance/distance'))
+        return ', '.join(port_obj.r_get(brcdapi_util.sfp_distance))
     except TypeError:
         return None
 
 
 def _p_media_speed_case(port_obj, k, wwn):
     try:
-        return ', '.join([str(i) for i in port_obj.r_get('media-rdp/media-speed-capability/speed')])
+        return ', '.join([str(i) for i in port_obj.r_get(brcdapi_util.sfp_speed)])
     except TypeError:
         return None
 
 
 def _p_media_rspeed_case(port_obj, k, wwn):
     try:
-        return ', '.join([str(i) for i in port_obj.r_get('media-rdp/remote-media-speed-capability/speed')])
+        return ', '.join([str(i) for i in port_obj.r_get(brcdapi_util.sfp_remote_speed)])
     except TypeError:
         return None
 
 
 def _p_operational_status_case(port_obj, k, wwn):
-    os = port_obj.r_get('fibrechannel/operational-status')
+    os = port_obj.r_get(brcdapi_util.fc_op_status)
     if os is not None:
         try:
-            return brcddb_common.port_conversion_tbl['fibrechannel/operational-status'][os]
+            return brcddb_common.port_conversion_tbl[brcdapi_util.fc_op_status][os]
         except KeyError:
             pass
-    return brcddb_common.port_conversion_tbl['fibrechannel/operational-status'][0]
+    return brcddb_common.port_conversion_tbl[brcdapi_util.fc_op_status][0]
 
 
 def _p_port_type_case(port_obj, k, wwn):
     try:
-        return brcddb_common.port_conversion_tbl['fibrechannel/port-type'][port_obj.r_get('fibrechannel/port-type')]
+        return brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][port_obj.r_get(brcdapi_util.fc_port_type)]
     except KeyError:
-        return brcddb_common.port_conversion_tbl['fibrechannel/port-type'][brcddb_common.PORT_TYPE_UNKNOWN]
+        return brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][brcddb_common.PORT_TYPE_UNKNOWN]
 
 
 def _p_port_speed_case(port_obj, k, wwn):
@@ -384,11 +381,11 @@ _port_case = {
     'media-rdp/media-distance': _p_media_distance_case,
     'media-rdp/media-speed-capability': _p_media_speed_case,
     'media-rdp/remote-media-speed-capability': _p_media_rspeed_case,
-    'fibrechannel/operational-status': _p_operational_status_case,
-    'fibrechannel/port-type': _p_port_type_case,
+    brcdapi_util.fc_op_status: _p_operational_status_case,
+    brcdapi_util.fc_port_type: _p_port_type_case,
     'fibrechannel/speed': _p_port_speed_case,
-    'fibrechannel-statistics/time-generated': _p_time_generated_case,
-    'media-rdp/power-on-time': _p_media_uptime_case,
+    brcdapi_util.stats_time: _p_time_generated_case,
+    brcdapi_util.sfp_power_on: _p_media_uptime_case,
     '_ALIAS': _p_alias_case,
     '_PORT_COMMENTS': _p_comment_case,
     '_LOGIN_WWN': _p_login_wwn_case,
@@ -399,7 +396,6 @@ _port_case = {
     '_NAME_SERVER_PORT': _p_name_server_port_case,
     '_FDMI_NODE': _p_fdmi_node_case,
     '_FDMI_PORT': _p_fdmi_port_case,
-    'los-tov-mode-enabled': _p_los_tov_mode_case,
 }
 _port_link_case = {
     '_CONFIG_LINK': _p_port_config_link_case,
@@ -427,7 +423,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
     :param p_list: List of port objects (PortObj) to display
     :type p_list: list, tuple
     :param in_display: List of parameters to display. If None, default is brcddb.app_data.report_tables.port_config_tbl
-    :type in_display: list, tuple
+    :type in_display: None, list, tuple
     :param in_port_display_tbl: Display control table. If None, default is brcddb.report.report_tables.port_display_tbl
     :type in_port_display_tbl: dict, None
     :param login_flag: When True, include NPIV logins below the base port.
@@ -533,6 +529,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
                 font = _std_font
                 buf = '' if port_obj.r_get(k) is None else str(port_obj.r_get(k))
             excel_util.cell_update(sheet, row, col, buf, font=font, align=alignment, border=_border_thin, link=link)
+
             col += 1
         row += 1
 

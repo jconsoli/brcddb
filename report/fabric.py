@@ -45,28 +45,33 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 02 Sep 2022   | Removed extra rows on fabric summary sheet.                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 04 Sep 2022   | Fixed mis-labled version number.                                                  |
+    | 3.0.7     | 04 Sep 2022   | Fixed mis-labeled version number.                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 14 Oct 2022   | Added zone and port statistics summary                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 01 Jan 2023   | Added additional zone statistics                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 21 May 2023   | Removed unused import statements                                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.1'
 
 import collections
 import openpyxl.utils.cell as xl
-import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
+import brcdapi.util as brcdapi_util
 import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
+import brcddb.brcddb_common as brcddb_common
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.app_data.alert_tables as al
 import brcddb.classes.util as brcddb_class_util
@@ -178,25 +183,25 @@ def _fabric_summary(sheet, row, fabric_obj):
 
         # Switch WWN
         excel_util.cell_update(sheet, row, col, switch_obj.r_obj_key(), font=_std_font, align=_align_wrap,
-                                 border=_border_thin)
+                               border=_border_thin)
         col += 1
 
         # Switch DID
-        buf = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
+        buf = switch_obj.r_get(brcdapi_util.bfs_did)
         if buf is None:
-            buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/domain-id')
+            buf = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
         excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
         col += 1
 
         # Switch FID
         excel_util.cell_update(sheet, row, col, brcddb_switch.switch_fid(switch_obj), font=_std_font,
-                                 align=_align_wrap, border=_border_thin)
+                               align=_align_wrap, border=_border_thin)
         col += 1
 
         # Firmware version
-        buf = switch_obj.r_get('brocade-fabric/fabric-switch/firmware-version')
+        buf = switch_obj.r_get(brcdapi_util.bfs_fw_version)
         if buf is None:
-            buf = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/firmware-version')
+            buf = switch_obj.r_get(brcdapi_util.bf_fw_versionn)
         excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
         row += 1
 
@@ -319,7 +324,7 @@ def _zone_configuration(sheet, row, fabric_obj):
     col = 1
     sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr)+1)
     excel_util.cell_update(sheet, row, col, 'Defined Configurations', font=_bold_font, align=_align_wrap,
-                             border=_border_thin)
+                           border=_border_thin)
     for obj in fabric_obj.r_zonecfg_objects():
         buf = obj.r_obj_key()
         if buf == '_effective_zone_cfg':
@@ -362,7 +367,7 @@ def _zone_configuration(sheet, row, fabric_obj):
                 row, col = row+1, 1
                 sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+1)
                 excel_util.cell_update(sheet, row, col, _zone_key_conv[k] if k in _zone_key_conv else k,
-                                         font=_std_font, align=_align_wrap)
+                                       font=_std_font, align=_align_wrap)
                 col += 2
                 sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
                 v = ec_obj.get(k)
@@ -379,7 +384,7 @@ def _zone_configuration(sheet, row, fabric_obj):
             sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=col+1)
             excel_util.cell_update(sheet, row, col, 'No effective configuration', font=_std_font, align=_align_wrap)
 
-        # Total alias, zone, and zone configurtion summary
+        # Total alias, zone, and zone configuration summary
         zone_l = [dict(d='Total Aliases', v=len(fabric_obj.r_alias_keys())),
                   dict(d='Total Zones', v=len(fabric_obj.r_zone_keys())),
                   dict(d='Total Zone Configurations', v=len(fabric_obj.r_zonecfg_keys()))]

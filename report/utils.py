@@ -87,18 +87,21 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.6     | 26 Mar 2023   | Added user friendy error message for invalid file path in parse_sfp_file()        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.7     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.6'
+__version__ = '3.1.7'
 
 import openpyxl as xl
+import brcdapi.util as brcdapi_util
 import openpyxl.utils.cell as xl_util
 import fnmatch
 import brcdapi.log as brcdapi_log
@@ -724,28 +727,26 @@ should be interpreted. The key is the value in the cell in the "Area" column. Th
     | c     | Pointer to value conversion action.                                                                   |
     +-------+-------------------------------------------------------------------------------------------------------+
 """
-_fc_switch = 'running/brocade-fibrechannel-switch/'
-_fc_config = 'running/brocade-fibrechannel-configuration/'
 _switch_d = {  # See above for definitions. This table is used in _parse_switch_sheet()
     'Fabric ID (FID)': dict(k='switch_info/fid', d=None, c=_conv_req_int),
-    'Fabric Name': dict(k=_fc_switch+'fibrechannel-switch/fabric-user-friendly-name', d=None, c=_conv_add),
-    'Switch Name': dict(k=_fc_switch+'fibrechannel-switch/user-friendly-name', d=None, c=_conv_add),
-    'Domain ID (DID)': dict(k=_fc_switch+'fibrechannel-switch/domain-id', d=None, c=_conv_hex),
-    'Insistent DID': dict(k=_fc_config+'fabric/insistent-domain-id-enabled', d=True, c=_conv_yn_bool),
-    'Fabric Principal Enable': dict(k=_fc_config+'fabric/principal-selection-enabled', d=False, c=_conv_yn_bool),
-    'Fabric Principal Priority': dict(k=_fc_config+'fabric/principal-priority', d=None, c=_conv_add),
-    'Allow XISL': dict(k=_fc_config+'switch-configuration/xisl-enabled', d=False, c=_conv_yn_bool),
+    'Fabric Name': dict(k='running/' + brcdapi_util.bfs_fab_user_name, d=None, c=_conv_add),
+    'Switch Name': dict(k='running/' + brcdapi_util.bfs_sw_user_name, d=None, c=_conv_add),
+    'Domain ID (DID)': dict(k='running/' + brcdapi_util.bfs_did, d=None, c=_conv_hex),
+    'Insistent DID': dict(k='running/' + brcdapi_util.bfc_idid, d=True, c=_conv_yn_bool),
+    'Fabric Principal Enable': dict(k='running/' + brcdapi_util.bfc_principal_en, d=False, c=_conv_yn_bool),
+    'Fabric Principal Priority': dict(k='running/' + brcdapi_util.bfc_principal_pri, d=None, c=_conv_add),
+    'Allow XISL': dict(k='running/' + brcdapi_util.bfc_xisl_en, d=False, c=_conv_yn_bool),
     'Enable Switch': dict(k='switch_info/enable_switch', d=False, c=_conv_yn_bool),
     'Enable Ports': dict(k='switch_info/enable_ports', d=False, c=_conv_yn_bool),
-    'Login Banner': dict(k=_fc_switch+'fibrechannel-switch/banner', d=None, c=_conv_add),
+    'Login Banner': dict(k='running/' + brcdapi_util.bfs_banner, d=None, c=_conv_add),
     'Switch Type': dict(k='switch_info/switch_type', d=None, c=_conv_add),
-    'Duplicate WWN': dict(k=_fc_config+'f-port-login-settings/enforce-login', d=0, c=_conv_req_int),
+    'Duplicate WWN': dict(k='running/' + brcdapi_util.bfc_fport_enforce_login, d=0, c=_conv_req_int),
     'Bind': dict(k='switch_info/bind', d=False, c=_conv_yn_bool),
-    'Routing Policy': dict(k=_fc_switch+'fibrechannel-switch/advanced-performance-tuning-policy', d=None,
-                           c=_conv_routing_policy),
-    'Port Name': dict(k=_fc_config+'port-configuration/portname-mode', d=None, c=_conv_port_name),
-    'Port Name Format': dict(k=_fc_config+'port-configuration/dynamic-portname-format', d='S.T.I.A', c=_conv_add),
-    'Enable CUP': dict(k='running/brocade-ficon/cup/fmsmode-enabled', d=False, c=_conv_cup),
+    'Routing Policy': dict(k='running/' + brcdapi_util.bfs_adv_tunning, d=None, c=_conv_routing_policy),
+    'Port Name': dict(k='running/' + brcdapi_util.bfc_portname_mode, d=None, c=_conv_port_name),
+    'Port Name Format': dict(k='running/' + brcdapi_util.bfc_portname_format, d='S.T.I.A', c=_conv_add),
+    'Enable CUP': dict(k='running/' + brcdapi_util.ficon_cup_en, d=False, c=_conv_cup),
+    'Enable HTTPS Timeout': dict(k='switch_info/TBD', d=True, c=_conv_yn_bool),
 }
 
 
@@ -818,7 +819,7 @@ def _parse_switch_sheet(sheet_d):
 
     # If it's a ficon switch, in order delivery and DLS needs to be set
     if rd['switch_info']['switch_type'] == 'ficon':
-        gen_util.add_to_obj(rd, _fc_switch+'dynamic-load-sharing', 'two-hop-lossless-dls')
+        gen_util.add_to_obj(rd, 'running/' + brcdapi_util.bfs_dls, 'two-hop-lossless-dls')
 
     return error_l, rd
 
