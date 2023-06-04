@@ -69,16 +69,18 @@ Version Control::
     | 1.0.8     | 09 May 2023   | Fixed cases in portbuffershow when port is offline, added "name" to port, and     |
     |           |               | converted tabs in portstatsshow to spaces.                                        |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 1.0.9     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '09 May 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '1.0.8'
+__version__ = '1.0.9'
 
 import re
 import time
@@ -112,30 +114,27 @@ def _conv_to_lower(buf):
     return buf.lower() if isinstance(buf, str) else buf
 
 
-_BFS_FS = 'brocade-fibrechannel-switch/fibrechannel-switch/'
-_BF_FS = 'brocade-fabric/fabric-switch/'
-_BFLS_FLS = 'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/'
 _switchshow_tbl = {
-    'switchName': _BFS_FS + 'user-friendly-name',
-    'switchType': _BFS_FS + 'model',
-    'switchDomain': _BFS_FS + 'domain-id',
-    'switchId': _BFS_FS + 'fcid-hex',
-    'switchWwn': _BFS_FS + 'name',
-    'Fabric Name': _BFS_FS + 'fabric-user-friendly-name',
+    'switchName': brcdapi_util.bfs_sw_user_name,
+    'switchType': brcdapi_util.bfs_model,
+    'switchDomain': brcdapi_util.bfs_did,
+    'switchId': brcdapi_util.bfs_fcid_hex,
+    'switchWwn': brcdapi_util.bfs_name,
+    'Fabric Name': brcdapi_util.bfs_fab_user_name,
 }
 _switch_0_1_boolean_off_on = {
-    # 'Base Switch': _BFLS_FLS + 'base-switch-enabled',
-    # 'Default Switch': _BFLS_FLS + 'default-switch-status',
-    # 'Ficon Switch': _BFLS_FLS + 'ficon-mode-enabled',
+    # 'Base Switch': brcdapi_util.bfls_base_sw_en,
+    # 'Default Switch': brcdapi_util.bfls_def_sw_status,
+    # 'Ficon Switch': brcdapi_util.bfls_ficon_mode_en,
 }
 _switch_0_1_boolean_yes_no = {
-    'HIF Mode': _BFLS_FLS + 'ficon-mode-enabled',
-    'Base Switch': _BFLS_FLS + 'base-switch-enabled',
-    'Default Switch': _BFLS_FLS + 'default-switch-status',
-    'Ficon Switch': _BFLS_FLS + 'ficon-mode-enabled',
+    'HIF Mode': brcdapi_util.bfls_ficon_mode_en,
+    'Base Switch': brcdapi_util.bfls_base_sw_en,
+    'Default Switch': brcdapi_util.bfls_def_sw_status,
+    'Ficon Switch': brcdapi_util.bfls_ficon_mode_en,
 }
 _switch_attributes_T_F = {
-    'Allow XISL Use': 'brocade-fibrechannel-configuration/switch-configuration/xisl-enabled',
+    'Allow XISL Use': brcdapi_util.bfc_xisl_en,
 }
 _physical_port_state = {
     'No_Light': 'no_light',
@@ -236,21 +235,21 @@ _portstats_to_api = {
 # SFP (media-rdp) used in sfpshow()
 _sfp_to_api_1 = {
     'Connector': dict(p=2, id='media-rdp/connector', type='str'),
-    'Current': dict(p=1, id='media-rdp/current', type='float'),
+    'Current': dict(p=1, id=brcdapi_util.sfp_current, type='float'),
     'Date Code': dict(p=2, id='media-rdp/date-code', type='str'),
     'Encoding': dict(p=2, id='media-rdp/encoding', type='str'),
     'Identifier': dict(p=2, id='media-rdp/identifier', type='str'),
-    'Vendor PN': dict(p=2, id='media-rdp/part-number', type='str'),
-    'Pwr On Time:': dict(p=5, id='media-rdp/power-on-time', type='int'),
-    'RX Power': dict(p=4, id='media-rdp/rx-power', type='float'),
-    'Serial No': dict(p=2, id='media-rdp/serial-number', type='str'),
-    'Temperature': dict(p=1, id='media-rdp/temperature', type='int'),
-    'TX Power': dict(p=4, id='media-rdp/tx-power', type='float'),
-    'Vendor Name': dict(p=2, id='media-rdp/vendor-name', type='str'),
-    'Vendor OUI': dict(p=2, id='media-rdp/vendor-oui', type='str'),
+    'Vendor PN': dict(p=2, id=brcdapi_util.sfp_pn, type='str'),
+    'Pwr On Time:': dict(p=5, id=brcdapi_util.sfp_power_on, type='int'),
+    'RX Power': dict(p=4, id=brcdapi_util.sfp_rx_pwr, type='float'),
+    'Serial No': dict(p=2, id=brcdapi_util.sfp_sn, type='str'),
+    'Temperature': dict(p=1, id=brcdapi_util.sfp_temp, type='int'),
+    'TX Power': dict(p=4, id=brcdapi_util.sfp_tx_pwr, type='float'),
+    'Vendor Name': dict(p=2, id=brcdapi_util.sfp_vendor, type='str'),
+    'Vendor OUI': dict(p=2, id=brcdapi_util.sfp_oui, type='str'),
     'Vendor Rev': dict(p=2, id='media-rdp/vendor-revision', type='str'),
-    'Voltage': dict(p=1, id='media-rdp/voltage', type='float'),
-    'Wavelength': dict(p=1, id='media-rdp/wavelength', type='int'),
+    'Voltage': dict(p=1, id=brcdapi_util.sfp_volt, type='float'),
+    'Wavelength': dict(p=1, id=brcdapi_util.sfp_wave, type='int'),
 }
 # Used in _pbs_port_type() to interpret the Port Type in portbuffershow output
 _pbs_port_types = dict(
@@ -266,30 +265,30 @@ _pbs_avg_buf_conv = (
 
 # Build a reverse port type lookup table
 _physical_pbs_port_type = dict()
-for _key, _v in brcddb_common.port_conversion_tbl['fibrechannel/port-type'].items():
+for _key, _v in brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type].items():
     if _key != brcddb_common.PORT_TYPE_UNKONWN:
         _physical_pbs_port_type.update({_v: _key})
 
 # Used in _slotshow_d576(), _chassishow_wwn, _chassishow_blade(), _chassishow_ps() & _chassishow_ps
 _unit_conv_tbl = {
-    'AP_BLADE': dict(key='brocade-fru/blade', unit='slot-number', status='blade-state', ok_status='enabled', b=True),
-    'CP_BLADE': dict(key='brocade-fru/blade', unit='slot-number', status='blade-state', ok_status='enabled', b=True),
-    'CP BLADE Slot': dict(key='brocade-fru/blade', unit='slot-number', status='blade-state', ok_status='enabled',
+    'AP_BLADE': dict(key=brcdapi_util.fru_blade, unit='slot-number', status='blade-state', ok_status='enabled', b=True),
+    'CP_BLADE': dict(key=brcdapi_util.fru_blade, unit='slot-number', status='blade-state', ok_status='enabled', b=True),
+    'CP BLADE Slot': dict(key=brcdapi_util.fru_blade, unit='slot-number', status='blade-state', ok_status='enabled',
                           b=True),
-    'SW_BLADE': dict(key='brocade-fru/blade', unit='slot-number', status='blade-state', ok_status='enabled', b=True),
-    'SW BLADE Slot': dict(key='brocade-fru/blade', unit='slot-number', status='blade-state', ok_status='enabled',
+    'SW_BLADE': dict(key=brcdapi_util.fru_blade, unit='slot-number', status='blade-state', ok_status='enabled', b=True),
+    'SW BLADE Slot': dict(key=brcdapi_util.fru_blade, unit='slot-number', status='blade-state', ok_status='enabled',
                           b=True),
-    'CORE_BLADE': dict(key='brocade-fru/blade', unit='slot-number', status='blade-state', ok_status='enabled', b=True),
-    'CORE BLADE Slot': dict(key='brocade-fru/blade', unit='slot-number', status='blade-state', ok_status='enabled',
+    'CORE_BLADE': dict(key=brcdapi_util.fru_blade, unit='slot-number', status='blade-state', ok_status='enabled',
+                       b=True),
+    'CORE BLADE Slot': dict(key=brcdapi_util.fru_blade, unit='slot-number', status='blade-state', ok_status='enabled',
                             b=True),
-    'PWR_SUPP': dict(key='brocade-fru/power-supply', unit='unit-number', status='operational-state', ok_status='ok',
-                     b=False),
-    'POWER SUPPLY Unit': dict(key='brocade-fru/power-supply', unit='unit-number', status='operational-state',
+    'PWR_SUPP': dict(key=brcdapi_util.fru_ps, unit='unit-number', status='operational-state', ok_status='ok', b=False),
+    'POWER SUPPLY Unit': dict(key=brcdapi_util.fru_ps, unit='unit-number', status='operational-state',
                               ok_status='ok', b=False),
-    'BLOWER': dict(key='brocade-fru/fan', unit='unit-number', status='operational-state', ok_status='ok', b=False),
-    'FAN Unit': dict(key='brocade-fru/fan', unit='unit-number', status='operational-state', ok_status='ok', b=False),
-    'WWN_CARD': dict(key='brocade-fru/wwn', unit='unit-number', status='operational-state', ok_status='ok', b=False),
-    'WWN Unit': dict(key='brocade-fru/wwn', unit='unit-number', status='operational-state', ok_status='ok', b=False),
+    'BLOWER': dict(key=brcdapi_util.fru_fan, unit='unit-number', status='operational-state', ok_status='ok', b=False),
+    'FAN Unit': dict(key=brcdapi_util.fru_fan, unit='unit-number', status='operational-state', ok_status='ok', b=False),
+    'WWN_CARD': dict(key=brcdapi_util.fru_wwn, unit='unit-number', status='operational-state', ok_status='ok', b=False),
+    'WWN Unit': dict(key=brcdapi_util.fru_wwn, unit='unit-number', status='operational-state', ok_status='ok', b=False),
     'UNKNOWN': dict(key=None, unit=None, status=None, ok_status=None, b=False),
 }
 """ _slotshow_d576_tbl
@@ -298,10 +297,10 @@ api     i:      position in in command line after conditioning with xxx and spli
         c:      If present, the conversion between the command output and the value for the API
         int:    If True, convert to an integer. The default is False
 """
-_slotshow_fru_id = {'brocade-fru/blade': 'blade-id',
-                    'brocade-fru/power-supply': 'unit-number',
-                    'brocade-fru/fan': 'unit-number',
-                    'brocade-fru/wwn': 'unit-number'}
+_slotshow_fru_id = {brcdapi_util.fru_blade: 'blade-id',
+                    brcdapi_util.fru_ps: 'unit-number',
+                    brcdapi_util.fru_fan: 'unit-number',
+                    brcdapi_util.fru_wwn: 'unit-number'}
 _slotshow_state = dict(ON='enabled',
                        ENABLED='enabled',
                        OFF='disabled',
@@ -310,62 +309,62 @@ _slotshow_state = dict(ON='enabled',
                        FLTY='faulty')
 _slotshow_ps = {'unit-number': dict(i=0, int=True), 'operational-state': dict(i=2, c=dict(ON='ok', FLTY='faulty'))}
 _slotshow_d576_tbl = dict(
-    AP_BLADE=dict(key='brocade-fru/blade',
+    AP_BLADE=dict(key=brcdapi_util.fru_blade,
                   api={'blade-id': dict(i=2, int=True),
                        'slot-number': dict(i=0, int=True),
                        'blade-state': dict(i=3, c=_slotshow_state),
                        'blade-type': dict(i=1, c=dict(AP_BLADE='ap blade'))},),
-    CP_BLADE=dict(key='brocade-fru/blade',
+    CP_BLADE=dict(key=brcdapi_util.fru_blade,
                   api={'blade-id': dict(i=2, int=True),
                        'slot-number': dict(i=0, int=True),
                        'blade-state': dict(i=3, c=_slotshow_state),
                        'blade-type': dict(i=1, c=dict(CP_BLADE='cp blade'))},),
-    SW_BLADE=dict(key='brocade-fru/blade',
+    SW_BLADE=dict(key=brcdapi_util.fru_blade,
                   api={'blade-id': dict(i=2, int=True),
                        'slot-number': dict(i=0, int=True),
                        'blade-state': dict(i=3, c=_slotshow_state),
                        'blade-type': dict(i=1, c=dict(SW_BLADE='sw blade'))},),
-    CORE_BLADE=dict(key='brocade-fru/blade',
+    CORE_BLADE=dict(key=brcdapi_util.fru_blade,
                     api={'blade-id': dict(i=2, int=True),
                          'slot-number': dict(i=0, int=True),
                          'blade-state': dict(i=3, c=_slotshow_state),
                          'blade-type': dict(i=1, c=dict(CORE_BLADE='core blade'))},),
-    UNKNOWN=dict(key='brocade-fru/blade',
+    UNKNOWN=dict(key=brcdapi_util.fru_blade,
                  api={'slot-number': dict(i=0, int=True),
                       'blade-state': dict(i=2, c=_slotshow_state),
                       'blade-type': dict(i=1, c=dict(UNKNOWN='unknown'))},),
-    PWR_SUPP=dict(key='brocade-fru/power-supply', api=_slotshow_ps),
-    BLOWER=dict(key='brocade-fru/fan', api=_slotshow_ps),
-    WWN_CARD=dict(key='brocade-fru/wwn', api={'unit-number': dict(i=0)})
+    PWR_SUPP=dict(key=brcdapi_util.fru_ps, api=_slotshow_ps),
+    BLOWER=dict(key=brcdapi_util.fru_fan, api=_slotshow_ps),
+    WWN_CARD=dict(key=brcdapi_util.fru_wwn, api={'unit-number': dict(i=0)})
 )
 _slotshow_m_tbl = dict(
-    AP_BLADE=dict(key='brocade-fru/blade',
+    AP_BLADE=dict(key=brcdapi_util.fru_blade,
                   api={'blade-id': dict(i=2, int=True),
                        'slot-number': dict(i=0, int=True),
                        'blade-state': dict(i=4, c=_slotshow_state),
                        'blade-type': dict(i=1, c=dict(AP_BLADE='ap blade'))},),
-    CP_BLADE=dict(key='brocade-fru/blade',
+    CP_BLADE=dict(key=brcdapi_util.fru_blade,
                   api={'blade-id': dict(i=2, int=True),
                        'slot-number': dict(i=0, int=True),
                        'blade-state': dict(i=4, c=_slotshow_state),
                        'blade-type': dict(i=1, c=dict(CP_BLADE='cp blade'))},),
-    SW_BLADE=dict(key='brocade-fru/blade',
+    SW_BLADE=dict(key=brcdapi_util.fru_blade,
                   api={'blade-id': dict(i=2, int=True),
                        'slot-number': dict(i=0, int=True),
                        'blade-state': dict(i=4, c=_slotshow_state),
                        'blade-type': dict(i=1, c=dict(SW_BLADE='sw blade'))},),
-    CORE_BLADE=dict(key='brocade-fru/blade',
+    CORE_BLADE=dict(key=brcdapi_util.fru_blade,
                     api={'blade-id': dict(i=2, int=True),
                          'slot-number': dict(i=0, int=True),
                          'blade-state': dict(i=4, c=_slotshow_state),
                          'blade-type': dict(i=1, c=dict(CORE_BLADE='core blade'))},),
-    UNKNOWN=dict(key='brocade-fru/blade',
+    UNKNOWN=dict(key=brcdapi_util.fru_blade,
                  api={'slot-number': dict(i=0, int=True),
                       'blade-state': dict(i=2, c=_slotshow_state),
                       'blade-type': dict(i=1, c=dict(UNKNOWN='unknown'))},),
-    PWR_SUPP=dict(key='brocade-fru/power-supply', api=_slotshow_ps),
-    BLOWER=dict(key='brocade-fru/fan', api=_slotshow_ps),
-    WWN_CARD=dict(key='brocade-fru/wwn', api={'unit-number': dict(i=0)})
+    PWR_SUPP=dict(key=brcdapi_util.fru_ps, api=_slotshow_ps),
+    BLOWER=dict(key=brcdapi_util.fru_fan, api=_slotshow_ps),
+    WWN_CARD=dict(key=brcdapi_util.fru_wwn, api={'unit-number': dict(i=0)})
 )
 
 
@@ -427,14 +426,14 @@ def switchshow(obj, content, append_buf=''):
         if k in _switchshow_tbl:
             brcddb_util.add_to_obj(switch_obj, _switchshow_tbl[k], v)
         elif k == 'switchRole':
-            brcddb_util.add_to_obj(switch_obj, _BFS_FS + 'principal', 1 if 'Principal' in v else 0)
+            brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfs_principal, 1 if 'Principal' in v else 0)
         elif k == 'switchState':
             if v == 'Online':
-                brcddb_util.add_to_obj(switch_obj, _BFS_FS + 'operational-status', 2)
-                brcddb_util.add_to_obj(switch_obj, _BFS_FS + 'is-enabled-state', True)
+                brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfs_op_status, 2)
+                brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfs_enabled_state, True)
             else:
-                brcddb_util.add_to_obj(switch_obj, _BFS_FS + 'operational-status', 3)
-                brcddb_util.add_to_obj(switch_obj, _BFS_FS + 'is-enabled-state', False)
+                brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfs_op_status, 3)
+                brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfs_enabled_state, False)
         elif k in _switch_attributes_T_F.keys():
             brcddb_util.add_to_obj(switch_obj, _switch_attributes_T_F[k], False if 'OFF' in v.upper() else True)
         elif k in _switch_0_1_boolean_off_on.keys():
@@ -442,12 +441,8 @@ def switchshow(obj, content, append_buf=''):
         elif k in _switch_0_1_boolean_yes_no.keys():
             brcddb_util.add_to_obj(switch_obj, _switch_0_1_boolean_yes_no[k], 0 if 'NO' in v.upper() else 1)
         i += 1
-    brcddb_util.add_to_obj(switch_obj,
-                           _BF_FS + 'switch-user-friendly-name',
-                           brcddb_util.get_from_obj(switch_obj, _BFS_FS + 'user-friendly-name'))
-    brcddb_util.add_to_obj(switch_obj,
-                           _BF_FS + 'domain-id',
-                           brcddb_util.get_from_obj(switch_obj, _BFS_FS + 'domain-id'))
+    brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfs_sw_user_name, switch_obj.r_get(brcdapi_util.bfs_sw_user_name))
+    brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfs_did, switch_obj.r_get(brcdapi_util.bfs_did))
 
     # Get the logical switch attributes. Note that these are formated on a single line rather than in a list as the
     # other switch attributes are displayed.
@@ -455,9 +450,7 @@ def switchshow(obj, content, append_buf=''):
         for t_buf in buf[len('LS Attributes:'):].replace('[', '').replace(']', '').replace('\t', '').strip().split(','):
             cl = [c.strip() for c in t_buf.split(':')]
             if len(cl) == 1 and 'Address Mode' in cl[0]:
-                brcddb_util.add_to_obj(switch_obj,
-                                       'brocade-fibrechannel-configuration/switch-configuration/area-mode',
-                                       int(cl[0].split(' ')[2]))
+                brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfc_area_mode, int(cl[0].split(' ')[2]))
             elif len(cl) == 2 and cl[0] in _switch_0_1_boolean_off_on.keys():
                 brcddb_util.add_to_obj(switch_obj,
                                        _switch_0_1_boolean_off_on[cl[0]],
@@ -480,7 +473,7 @@ def switchshow(obj, content, append_buf=''):
 
     # Now get the port information
     switch_port_list = list()
-    brcddb_util.add_to_obj(switch_obj, _BFLS_FLS+'port-member-list/port-member', switch_port_list)
+    brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfc_area_mode, switch_port_list)
     i += 2  # Skip the line just below it that has ================ in it
     while len(content) > i:
         buf = content[i].replace('\t', ' ').strip()
@@ -524,12 +517,12 @@ def switchshow(obj, content, append_buf=''):
 
 # Case statement methods in portbuffershow()
 def _pbs_user_port(port_obj, v):
-    brcddb_util.add_to_obj(port_obj, 'fibrechannel/index', int(v) if v.isnumeric() else 0)
+    brcddb_util.add_to_obj(port_obj, brcdapi_util.fc_index, int(v) if v.isnumeric() else 0)
 
 def _pbs_port_type(port_obj, v):
     port_type = _pbs_port_types.get(v)
     brcddb_util.add_to_obj(port_obj,
-                           'fibrechannel/port-type',
+                           brcdapi_util.fc_port_type,
                            brcddb_common.PORT_TYPE_UNKONWN if port_type is None else port_type)
 
 
@@ -678,10 +671,10 @@ def portstatsshow(obj, content):
             if port_obj is None:
                 brcdapi_log.exception('Could not find port matching: ' + buf, echo=False)  # Just so it gets in the log
                 raise Exception('Could not find port matching: ' + buf)
-            port_stats_d = port_obj.r_get('fibrechannel-statistics')
+            port_stats_d = port_obj.r_get(brcdapi_util.stats_uri)
             if port_stats_d is None:
                 port_stats_d = dict(name=port_obj.r_obj_key())
-                port_obj.s_new_key('fibrechannel-statistics', port_stats_d)
+                port_obj.s_new_key(brcdapi_util.stats_uri, port_stats_d)
 
         elif tl[0] in _portstatsshow_special:
             _portstatsshow_special[tl[0]](port_obj)
@@ -719,10 +712,10 @@ def portstats64show(obj, content):
         if port_obj is None:
             brcdapi_log.exception('Could not find port matching: ' + buf, echo=False)  # Just so it gets in the log
             raise Exception('Could not find port matching: ' + buf)
-        port_stats_d = port_obj.r_get('fibrechannel-statistics')
+        port_stats_d = port_obj.r_get(brcdapi_util.stats_uri)
         if port_stats_d is None:
             port_stats_d = dict()
-            port_obj.s_new_key('fibrechannel-statistics', port_stats_d)
+            port_obj.s_new_key(brcdapi_util.stats_uri, port_stats_d)
 
         # Parse the port statistics
         i += 1
@@ -795,17 +788,17 @@ def _chassishow_unit(chassis_obj, content, cl, i, key):
 
 
 _chassisshow_actions = {
-    'Chassis Family': dict(m=_chassishow_add, n='brocade-chassis/chassis/product-name'),
-    'Chassis Backplane Revision': dict(m=_chassishow_add, n='brocade-chassis/chassis/vendor-revision-number'),
-    'Chassis Factory Serial Num': dict(m=_chassishow_add, n='brocade-chassis/chassis/serial-number'),
-    'Time Alive': dict(m=_chassishow_add_int, n='brocade-chassis/chassis/time-alive'),
-    'Time Awake': dict(m=_chassishow_add_int, n='brocade-chassis/chassis/time-awake'),
-    'WWN Unit': dict(m=_chassishow_unit, n='brocade-fru/wwn'),
-    'SW BLADE Slot': dict(m=_chassishow_unit, n='brocade-fru/blade'),
-    'CP BLADE Slot': dict(m=_chassishow_unit, n='brocade-fru/blade'),
-    'CORE BLADE Slot': dict(m=_chassishow_unit, n='brocade-fru/blade'),
-    'POWER SUPPLY Unit': dict(m=_chassishow_unit, n='brocade-fru/power-supply'),
-    'FAN Unit': dict(m=_chassishow_unit, n='brocade-fru/fan'),
+    'Chassis Family': dict(m=_chassishow_add, n=brcdapi_util.bc_product_name),
+    'Chassis Backplane Revision': dict(m=_chassishow_add, n=brcdapi_util.bc_vendor_rev_num),
+    'Chassis Factory Serial Num': dict(m=_chassishow_add, n=brcdapi_util.bc_serial_num),
+    'Time Alive': dict(m=_chassishow_add_int, n=brcdapi_util.bc_time_alive),
+    'Time Awake': dict(m=_chassishow_add_int, n=brcdapi_util.bc_time_awake),
+    'WWN Unit': dict(m=_chassishow_unit, n=brcdapi_util.fru_wwn),
+    'SW BLADE Slot': dict(m=_chassishow_unit, n=brcdapi_util.fru_blade),
+    'CP BLADE Slot': dict(m=_chassishow_unit, n=brcdapi_util.fru_blade),
+    'CORE BLADE Slot': dict(m=_chassishow_unit, n=brcdapi_util.fru_blade),
+    'POWER SUPPLY Unit': dict(m=_chassishow_unit, n=brcdapi_util.fru_ps),
+    'FAN Unit': dict(m=_chassishow_unit, n=brcdapi_util.fru_fan),
 }
 
 
@@ -930,23 +923,20 @@ is as follow:
 +-----------+---------------+---------------------------------------------------------------------------------------+
 """
 _nsshow_to_api = {
-    'SCR': dict(uri='brocade-name-server/fibrechannel-name-server/state-change-registration'),
-    'PortSymb': dict(uri='brocade-name-server/fibrechannel-name-server/port-symbolic-name'),
-    'NodeSymb': dict(uri='brocade-name-server/fibrechannel-name-server/node-symbolic-name'),
-    'Fabric Port Name': dict(uri='brocade-name-server/fibrechannel-name-server/fabric-port-name', conv=_conv_to_lower),
-    'Permanent Port Name': dict(uri='brocade-name-server/fibrechannel-name-server/permanent-port-name',
+    'SCR': dict(uri=brcdapi_util.bns_scr),
+    'PortSymb': dict(uri=brcdapi_util.bns_port_symbol),
+    'NodeSymb': dict(uri=brcdapi_util.bns_node_symbol),
+    'Fabric Port Name': dict(uri=brcdapi_util.bns_fab_port_name, conv=_conv_to_lower),
+    'Permanent Port Name': dict(uri=brcdapi_util.bns_perm_port_name,
                                 conv=_conv_to_lower),
-    'Port Index': dict(uri='brocade-name-server/fibrechannel-name-server/port-index', conv=_conv_to_int),
-    'Partial': dict(uri='brocade-name-server/fibrechannel-name-server/partial', conv=_conv_to_lower),
-    'LSAN': dict(uri='brocade-name-server/fibrechannel-name-server/lsan', conv=_conv_to_lower),
-    'Slow Drain Device': dict(uri='brocade-name-server/fibrechannel-name-server/slow-drain-device-quarantine',
-                              conv=_conv_to_lower),
-    'Device link speed': dict(uri='brocade-name-server/fibrechannel-name-server/link-speed'),
-    'Connected through AG': dict(uri='brocade-name-server/fibrechannel-name-server/connected-through-ag',
-                                 conv=_conv_to_lower),
-    'Real device behind AG': dict(uri='brocade-name-server/fibrechannel-name-server/real-device-behind-ag',
-                                  conv=_conv_to_lower),
-    'FCoE': dict(uri='brocade-name-server/fibrechannel-name-server/fcoe-device', conv=_conv_to_lower),
+    'Port Index': dict(uri=brcdapi_util.bns_port_index, conv=_conv_to_int),
+    'Partial': dict(uri=brcdapi_util.bns_partial, conv=_conv_to_lower),
+    'LSAN': dict(uri=brcdapi_util.bns_lsan, conv=_conv_to_lower),
+    'Slow Drain Device': dict(uri=brcdapi_util.bns_sddq, conv=_conv_to_lower),
+    'Device link speed': dict(uri=brcdapi_util.bns_link_speed),
+    'Connected through AG': dict(uri=brcdapi_util.bns_connect_ag,  conv=_conv_to_lower),
+    'Real device behind AG': dict(uri=brcdapi_util.bns_dev_behind_ag, conv=_conv_to_lower),
+    'FCoE': dict(uri=brcdapi_util.bns_fcoe_dev, conv=_conv_to_lower),
 }
 
 
@@ -980,15 +970,15 @@ def nsshow(obj, content):
             if buf[0:3] in (' N ', ' U ', ' NL'):  # Is there a new login?
                 cl = [b.lower() for b in buf[3:].replace(' ', '').split(';')]
                 login_obj = fab_obj.s_add_login(cl[2].lower())
-                brcddb_util.add_to_obj(login_obj, 'brocade-name-server/fibrechannel-name-server/port-id', '0x' + cl[0])
-                brcddb_util.add_to_obj(login_obj, 'brocade-name-server/fibrechannel-name-server/node-name', cl[3])
-                brcddb_util.add_to_obj(login_obj, 'brocade-name-server/fibrechannel-name-server/port-name', cl[2])
+                brcddb_util.add_to_obj(login_obj, brcdapi_util.bns_port_id, '0x' + cl[0])
+                brcddb_util.add_to_obj(login_obj, brcdapi_util.bns_node_name, cl[3])
+                brcddb_util.add_to_obj(login_obj, brcdapi_util.bns_port_name, cl[2])
                 port_obj = fab_obj.r_port_obj_for_pid(cl[0])
                 if port_obj is not None:
-                    nl = port_obj.r_get('fibrechannel/neighbor/wwn')
+                    nl = port_obj.r_get(brcdapi_util.fc_neighbor_wwn)
                     if nl is None:
                         nl = list()
-                        brcddb_util.add_to_obj(port_obj, 'fibrechannel/neighbor/wwn', nl)
+                        brcddb_util.add_to_obj(port_obj, brcdapi_util.fc_neighbor_wwn, nl)
                     nl.append(cl[2])
 
             else:
@@ -1096,12 +1086,12 @@ def sfpshow(obj, content):
                     vl = [int(gen_util.non_decimal.sub('', c)) for c in cl[2].split(',')]
                 except ValueError:
                     vl = list()  # Typical of older SFP
-                brcddb_util.add_to_obj(port_obj, 'media-speed-capability/speed', vl)
+                brcddb_util.add_to_obj(port_obj, brcdapi_util.sfp_speed, vl)
                 # 'Long_dist' is the most common for LWL optics but there are others such as Smart Optics. I have no
                 # idea what they look like in supportshow output and getting it exactly right wasn't important for
                 # anything I was working on at the time I wrote this so just 'long' was good enough.
                 vl = ['short'] if 'Short_dist' in buf else ['long']
-                brcddb_util.add_to_obj(port_obj, 'media-distance/distance', vl)
+                brcddb_util.add_to_obj(port_obj, brcdapi_util.sfp_distance, vl)
 
             else:
                 # Process normal parameters
@@ -1179,7 +1169,7 @@ def _cfgshow_eff_zone_act(fab_obj, name, mem_l):
 
 
 def _cfgshow_eff_cfg_act(fab_obj, name, mem_l):
-    brcddb_util.add_to_obj(fab_obj.s_add_eff_zonecfg(mem_l), 'brocade-zone/effective-configuration/cfg-name', name)
+    brcddb_util.add_to_obj(fab_obj.s_add_eff_zonecfg(mem_l), brcdapi_util.bz_eff_cfg, name)
 
 
 """A state machine is used to parse the cfgshow output. The state machine is designed to accomplish two objectives:
@@ -1517,13 +1507,13 @@ def defzone(obj, content):
     :rtype ri: int
     """
     ri, fabric_obj = 0, obj.r_fabric_obj()
-    all_access = fabric_obj.r_get('brocade-zone/effective-configuration/default-zone-access')
+    all_access = fabric_obj.r_get(brcdapi_util.bz_eff_default_zone)
     for buf in content:
         ri += 1
         if 'committed' in buf:
             if all_access is None:
                 access = brcddb_common.DEF_ZONE_ALLACCESS if 'All Access' in buf else brcddb_common.DEF_ZONE_NOACCESS
-                brcddb_util.add_to_obj(fabric_obj, 'brocade-zone/effective-configuration/default-zone-access', access)
+                brcddb_util.add_to_obj(fabric_obj, brcdapi_util.bz_eff_default_zone, access)
             break
         elif 'zone --show' in buf and 'defzone' not in buf:
             brcdapi_log.exception(['Could not find in "committed" in:'] + content[0:7], echo=True)
