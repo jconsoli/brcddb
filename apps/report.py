@@ -68,22 +68,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.7     | 27 May 2023   | Fixed wrong table of context link for the project dashboard.                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.8     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '27 May 2023'
+__date__ = '04 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.7'
+__version__ = '3.1.8'
 
 import collections
 import copy
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
+import brcdapi.util as brcdapi_util
 import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
 import brcddb.util.util as brcddb_util
@@ -193,24 +196,25 @@ _unique_index = 0  # The openpyxl librarys appends a number if necessary to make
 # created. _unique_index therefore is used to ensure all worksheet names are unique before they are created.
 _dup_login_tbl = (
     '_LOGIN_COMMENTS',
-    'brocade-name-server/fibrechannel-name-server/port-name',
+    brcdapi_util.bns_port_name,
     '_ALIAS',
     '_FABRIC_NAME',
     '_SWITCH_NAME',
     '_PORT_NUMBER',
-    'brocade-name-server/fibrechannel-name-server/port-id',
+    brcdapi_util.bns_port_id,
     '_ZONES_DEF',
-    'brocade-name-server/fibrechannel-name-server/fc4-features',
-    'brocade-name-server/fibrechannel-name-server/link-speed',
-    'brocade-name-server/fibrechannel-name-server/name-server-device-type',
-    'brocade-name-server/fibrechannel-name-server/node-name',
-    'brocade-name-server/fibrechannel-name-server/node-symbolic-name',
-    'brocade-name-server/fibrechannel-name-server/port-symbolic-name',
+    brcdapi_util.bns_fc4_features,
+    brcdapi_util.bns_link_speed,
+    brcdapi_util.bns_ns_dev_type,
+    brcdapi_util.bns_node_name,
+    brcdapi_util.bns_node_symbol,
+    brcdapi_util.bns_port_symbol,
 )
 _port_links_tbl = (
     '_PORT_COMMENTS',
     '_SWITCH_NAME',
     '_PORT_NUMBER',
+    '_ALIAS',
     '_BEST_DESC',
     '_CONFIG_LINK',
     '_STATS_LINK',
