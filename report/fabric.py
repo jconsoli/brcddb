@@ -201,7 +201,7 @@ def _fabric_summary(sheet, row, fabric_obj):
         # Firmware version
         buf = switch_obj.r_get(brcdapi_util.bfs_fw_version)
         if buf is None:
-            buf = switch_obj.r_get(brcdapi_util.bf_fw_versionn)
+            buf = switch_obj.r_get(brcdapi_util.bf_fw_version)
         excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
         row += 1
 
