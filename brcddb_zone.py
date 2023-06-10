@@ -221,6 +221,7 @@ def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=Fals
     :rtype: dict
     """
     rd, zones_for_wwn_d = dict(), dict()
+
     for zone in fab_obj.r_eff_zones_for_wwn(wwn):  # Used to find common zones with members
         zones_for_wwn_d.update({zone: True})
 
