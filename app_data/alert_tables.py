@@ -61,18 +61,25 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.2     | 01 Jan 2023   | Added GENERAL_BASE alerts and ALIAS_INITIATOR_UPPER                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.4     | 27 May 2023   | Added ERROR_LOG alerts                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.5     | 10 Jun 2023   | Removed "Check the port statistics page for details" from port errors.            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '01 Jan 2023'
+__date__ = '10 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.2'
+__version__ = '3.1.5'
 
 import brcddb.classes.alert as al
+
 
 class ALERT_NUM:
     # MAPS alerts
@@ -231,6 +238,9 @@ class ALERT_NUM:
     FREE_TEXT_INFO = GENERAL_BASE + 1
     FREE_TEXT_WARN = FREE_TEXT_INFO + 1
     FREE_TEXT_ERROR = FREE_TEXT_WARN + 1
+    ERROR_LOG_INFO = FREE_TEXT_ERROR + 1
+    ERROR_LOG_WARN = ERROR_LOG_INFO + 1
+    ERROR_LOG_ERROR = ERROR_LOG_WARN + 1
 
 
 _power_above_threshold = ' above threshold. Threshold: $p1 uW. Actual: $p0 uW.'
@@ -285,15 +295,15 @@ class AlertTable:
         ALERT_NUM.PORT_C3_DISCARD: dict(m='$p0 C3 discards on this port', s=al.ALERT_SEV.ERROR,
                                         k='fibrechannel-statistics/class-3-discards'),
         ALERT_NUM.PORT_TXC3_DISCARD: dict(m='$p0 TxC3 discards on this port', s=al.ALERT_SEV.ERROR,
-                                        k='fibrechannel-statistics/class-3-discards'),
+                                          k='fibrechannel-statistics/class-3-discards'),
         ALERT_NUM.PORT_RXC3_DISCARD: dict(m='$p0 RxC3 discards on this port', s=al.ALERT_SEV.ERROR,
                                           k='fibrechannel-statistics/class-3-discards'),
-        ALERT_NUM.PORT_LOGICAL_ERRORS: dict(m='$p0 Logical errors. Check the port statistics page for details',
+        ALERT_NUM.PORT_LOGICAL_ERRORS: dict(m='$p0 Logical errors.',
                                             s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
-        ALERT_NUM.PORT_BIT_ERRORS: dict(m='$p0 Bit errors. Check the port statistics page for details',
-                                            s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
-        ALERT_NUM.PORT_FRAME_ERRORS: dict(m='$p0 Framing errors. Check the port statistics page for details',
+        ALERT_NUM.PORT_BIT_ERRORS: dict(m='$p0 Bit errors.',
                                         s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
+        ALERT_NUM.PORT_FRAME_ERRORS: dict(m='$p0 Framing errors.',
+                                          s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
         ALERT_NUM.PORT_F_ZERO_CREDIT: dict(m='F-Port with $p0 zero credits', s=al.ALERT_SEV.WARN,
                                            k='fibrechannel-statistics/bb-credit-zero'),
         ALERT_NUM.PORT_TSB_2019_274_WARN: dict(m='Potential bad SFP per TSB 2019-274', s=al.ALERT_SEV.WARN),
@@ -403,7 +413,7 @@ class AlertTable:
         ALERT_NUM.ZONE_KEPT: dict(m='Kept. $p0', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.ZONE_REMOVED: dict(m='Removed. $p0', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.ZONE_UNDEFINED_ALIAS: dict(m='Alias $p0 used in zone $p1 does not exist.', s=al.ALERT_SEV.ERROR),
-        ALERT_NUM.ALIAS_INITIATOR_UPPER: dict(m='Alias for initiator contains upercase characters.',
+        ALERT_NUM.ALIAS_INITIATOR_UPPER: dict(m='Alias for initiator contains uppercase characters.',
                                               s=al.ALERT_SEV.WARN),
 
         # Chassis
@@ -424,6 +434,9 @@ class AlertTable:
         ALERT_NUM.FREE_TEXT_INFO: dict(m='$p1', s=al.ALERT_SEV.GENERAL, f=True),
         ALERT_NUM.FREE_TEXT_WARN: dict(m='$p1', s=al.ALERT_SEV.WARN, f=True),
         ALERT_NUM.FREE_TEXT_ERROR: dict(m='$p1', s=al.ALERT_SEV.ERROR, f=True),
+        ALERT_NUM.ERROR_LOG_INFO: dict(m='$p0: $p1', s=al.ALERT_SEV.GENERAL),
+        ALERT_NUM.ERROR_LOG_WARN: dict(m='$p0: $p1', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.ERROR_LOG_ERROR: dict(m='$p0: $p1', s=al.ALERT_SEV.ERROR),
     }
     zone_alert_nums = {  # Application specific zone alerts intentionally left out of this list
         # ZONE
@@ -432,6 +445,7 @@ class AlertTable:
         'login_max_zone_participation': ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION,
     }
     maps_alerts = (ALERT_NUM.MAPS_DASH_INFO, ALERT_NUM.MAPS_DASH_WARN, ALERT_NUM.MAPS_DASH_ERROR)
+
 
 lookup_d = dict(
     # MAPS
