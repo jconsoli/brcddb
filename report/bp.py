@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -43,17 +43,19 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 31 Dec 2021   | Use explicit exception clauses                                                    |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 28 Apr 2022   | Addded report link                                                                |
+    | 3.0.6     | 28 Apr 2022   | Added report link                                                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 21 May 2023   | Added missing alignment in report.                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
@@ -67,7 +69,7 @@ import brcddb.classes.alert as al
 import brcddb.classes.util as class_util
 import brcddb.brcddb_port as brcddb_port
 
-_obj_type_link=dict(
+_obj_type_link = dict(
     AliasObj='report_app/hyperlink/ali',
     ChassisObj='report_app/hyperlink/chassis',
     FabricObj='report_app/hyperlink/fab',
@@ -102,7 +104,7 @@ def _add_alerts(obj, alert_type, sev, area_1, area_2):
                            sev=al_obj.fmt_sev(),
                            area_1=area_1,
                            area_2=area_2,
-                           link = obj.r_get(_obj_type_link[class_type]) if class_type in _obj_type_link else None,
+                           link=obj.r_get(_obj_type_link[class_type]) if class_type in _obj_type_link else None,
                            desc=al_obj.fmt_msg()))
     return rl
 
@@ -216,7 +218,7 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
             buf = display_tbl[k]['d'] if 'd' in display_tbl[k] else k
         else:  # This happens when a new key is introduced before the display tables have been updated
             buf, alignment = k, _align_wrap
-        excel_util.cell_update(sheet, row, col, buf, font=_bold_font, border=_border_thin)
+        excel_util.cell_update(sheet, row, col, buf, font=_bold_font, border=_border_thin, align=alignment)
         col += 1
 
     # Get a list of fabric objects and initialize alert_list
@@ -279,10 +281,10 @@ def bp_page(wb, tc, sheet_name, sheet_i, sheet_title, obj, display, display_tbl)
             row += 1
             sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(display))
             excel_util.cell_update(sheet, row, col, d.get('desc'), font=_hdr2_font,
-                                     fill=excel_fonts.fill_type('lightblue'))
+                                   fill=excel_fonts.fill_type('lightblue'))
         else:
             for k in display:
                 buf, link = bp_case[k](d)
                 excel_util.cell_update(sheet, row, col, buf, font=_std_font if link is None else _link_font,
-                                         align=_align_wrap, border=_border_thin, link=link)
+                                       align=_align_wrap, border=_border_thin, link=link)
                 col += 1
