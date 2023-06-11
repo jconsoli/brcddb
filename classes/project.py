@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-:mod:`brcdd.classes.project` - Defines the project object, ProjectObj.
+:mod:`brcddb.classes.project` - Defines the project object, ProjectObj.
 
 Version Control::
 
@@ -44,16 +44,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.9     | 26 Mar 2023   | Added s_del_switch() and r_format()                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 21 May 2023   | Fixed unresolved reference in s_del_fabric()                                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
@@ -396,7 +398,7 @@ class ProjectObj:
         :type wwn: str
         """
         if wwn in self._fabric_objs:
-            self._fabric_objs.pop(principal_wwn, None)
+            self._fabric_objs.pop(wwn, None)
 
     def r_fabric_obj(self, key):  # key is the fabric principal WWNs
         """Returns the fabric object for a certain fabric
@@ -703,8 +705,10 @@ class ProjectObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 

@@ -44,16 +44,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 26 Mar 2023   | Added format_obj()                                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -304,9 +306,9 @@ def _class_reserved(obj, k):
 def special_key_scr(obj, k, v, v1):
     """Case for 'state-change-registration'
 
-    This the RSCN handling and is only valid on the chassis where the login occured. RSCN handling is not distributed in
-    the fabric. The value in the name server is None and returned as an empty string, '', in the API on all chassis
-    except the chassis where the login occured.
+    This the RSCN handling and is only valid on the chassis where the login occurred. RSCN handling is not distributed
+    in the fabric. The value in the name server is None and returned as an empty string, '', in the API on all chassis
+    except the chassis where the login occurred.
 
     :param obj: brcddb object. Should be a LoginObj. The object type is assumed to be correct.
     :type obj: LoginObj
@@ -454,8 +456,8 @@ def s_new_key_for_class(obj, k, v, f=False):
     """Creates a new key/value pair in a brcddb object.
 
     The value associated with the key can be of any type; however, there are some rules:
-        1)  brcdd.util.util.brcddb_to_plain_copy() will raise an exception and abort the program if an added key, not in
-            _reserved_keys, has a circular reference. All brcddb objects contain circular references and therefore
+        1)  brcddb.util.util.brcddb_to_plain_copy() will raise an exception and abort the program if an added key, not
+            in _reserved_keys, has a circular reference. All brcddb objects contain circular references and therefore
             should not be added using the new_key() method.
         2)  You cannot add a reserved word as a key
         3)  You cannot add a key that has the same name as a method.
@@ -548,7 +550,7 @@ def class_getvalue(obj, keys, flag=False):
         return None
     kl = keys.split('/')
     if flag:
-        # The next key is going to be for the port which is in slot/port notation. The split above will seperate the
+        # The next key is going to be for the port which is in slot/port notation. The split above will separate the
         # 2 keys so the code below puts the port key back together.
         if len(kl) > 1:
             kl[0] = kl.pop(0) + '/' + kl[0]
@@ -683,15 +685,11 @@ def _format_obj_dict(obj):  # Used in format_obj()
     return _format_obj_all_else([str(k) for k in obj.keys()])
 
 
-def _format_obj_brcd_obj(obj):  # Used in format_obj()
-    return _format_obj_all_else(obj.keys())
-
-
 def format_obj(obj, full=False):
     """Intended for error reporting brcddb objects but will format anything into a human readable format.
 
-    :param obj: brcddb class
-    :type obj: complex
+    :param obj: brcddb class object
+    :type obj: AlertObj, AliasObj, LoginObj, PortObj, SwitchObj, ZoneObj, ZoneCfgObj, FabricObj
     :param full: If True, expand (pprint) all data added with obj.s_new_key() pprint.
     :type full: bool
     :return: List of strings of formatted text

@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-:mod:`brcdd.classes.iocp` - Defines the IOCP class IOCPObj
+:mod:`brcddb.classes.iocp` - Defines the IOCP class IOCPObj
 
 Version Control::
 
@@ -31,8 +31,8 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.4     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 31 Dec 2021   | Fixed r_path_list() to return paths, not contol units. Fixed r_path_objects() and |
-    |           |               | r_cu_objects().                                                                   |
+    | 3.0.5     | 31 Dec 2021   | Fixed r_path_list() to return paths, not control units. Fixed r_path_objects()    |
+    |           |               | and r_cu_objects().                                                               |
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 28 Apr 2022   | Added ability to search for a CHPID path that is a subset of CSS in r_path_obj()  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
@@ -40,21 +40,23 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.8     | 26 Mar 2023   | Added r_format().                                                                 |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.9     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '26 Mar 2023'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '3.0.9'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
 
 # Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
-# on Python garbage collection to clean it up. If delete becomes common, I'll have to revist this but for now, I took
+# on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
 # the easy way out. It may be a good thing that Python threw an exception because I didn't really think through what
 # objects that might be sharing a resource with other objects.
 
@@ -294,8 +296,10 @@ class IOCPObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 
@@ -559,8 +563,10 @@ class ChpidObj:
 
         :param k: Key
         :type k: str, int
+        :param v: Value to be added if not already present.
+        :type v: None, bool, float, str, int, list, dict
         :return: Value
-        :rtype: None, int, float, str, list, dict
+        :rtype: None, bool, float, str, int, list, dict
         """
         return util.get_or_add(self, k, v)
 
