@@ -83,15 +83,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.9     | 09 May 2023   | Fixed recursion error in date_to_epoch()                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.2.0     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '09 May 2023'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.9'
+__version__ = '3.2.0'
 
 import re
 import datetime
@@ -497,7 +499,7 @@ def add_to_obj(obj, k, v):
     """Adds a key value pair to obj using '/' notation in the key. If the key already exists, it is overwritten.
 
     :param obj: Dictionary or brcddb.class object the key value pair is to be added to
-    :type obj: dict
+    :type obj: dict, ProjectObj, FabricObj, SwitchObj, AliasObj, ChassisObj, PortObj, AliasObj, ZoneObj, ZoneCfgObj
     :param k: The key
     :type k: str
     :param v: Value associated with the key.

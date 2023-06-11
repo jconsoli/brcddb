@@ -78,15 +78,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.1     | 11 Feb 2023   | Added user feedback for long projects and better handling of lists                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.2     | 21 May 2023   | Removed unused code.                                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Feb 2023'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '3.1.2'
 
 import copy
 import re
@@ -339,75 +341,6 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
 
     return c
 
-    # Are the entries all the same type?
-    first_type = b_obj[0]
-    for i in range(0, len_b_obj):
-        if type(b_obj[i]) != type(c_obj[i]) or type(b_obj[i]) != first_type:
-            _update_r_obj(r_obj, {'b': str(b_obj), 'c': str(c_obj), 'r': _CHANGED})
-            return 1
-
-
-    if not isinstance(c_obj, type(b_obj)):
-        _update_r_obj(r_obj, {'b': str(type(b_obj)), 'c': str(type(c_obj)), 'r': _MISMATCH})
-        return 1
-
-    # Setup the return values
-    change_list, c = list(), 0
-
-    # If members are all str, it's typically a list of WWNs or zones. We don't care if they are not in the same order.
-    # This was shoe horned in long after this module was written. I didn't want to mess with what was already working.
-    all_str_flag = True
-    obj_list = [b_obj, c_obj]
-    compare_obj = obj_list[1]
-    for i in range(0, len(obj_list)):
-        for buf in obj_list[i]:
-            if isinstance(buf, str):
-                if buf not in compare_obj:
-                    if i == 0:
-                        change_list.append({'b': buf, 'c': '', 'r': _REMOVED})
-                    else:
-                        change_list.append({'b': '', 'c': buf, 'r': _NEW})
-                    c += 1
-            else:
-                all_str_flag, c, change_list = False, 0, list()
-                break
-        compare_obj = obj_list[i]
-
-    if not all_str_flag:
-        len_c_obj, len_b_obj = len(c_obj), len(b_obj)
-        for i in range(0, len_b_obj):
-            new_r_obj = dict()
-            if i < len_c_obj:
-                x = _compare(new_r_obj, ref, b_obj[i], c_obj[i], control_tbl)
-            else:
-                if isinstance(b_obj[i], (str, int, float)):
-                    buf = b_obj[i]
-                elif isinstance(b_obj[i], dict):
-                    buf = b_obj.get('name') if 'name' in c_obj else ref
-                else:
-                    buf = ref
-                new_r_obj = {'b': buf, 'c': '', 'r': _REMOVED}
-                x = 1
-            change_list.append(new_r_obj)
-            if x > 0:
-                c += x
-
-        # Anything new?
-        if len_c_obj > len_b_obj:
-            for i in range(len_b_obj, len_c_obj):
-                if isinstance(c_obj[i], (str, int, float)):
-                    buf = c_obj[i]
-                elif isinstance(c_obj[i], dict):
-                    buf = c_obj.get('name') if 'name' in c_obj else ref
-                else:
-                    buf = ref
-                change_list.append({'b': '', 'c': str(buf), 'r': _NEW})
-                c += 1
-
-    if c > 0:
-        _update_r_obj(r_obj, change_list.copy())
-    return c
-
 
 def _unknown_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     """Compare list objects. See _str_compare() for parameter definitions"""
@@ -485,10 +418,6 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
     b_type, c_type = _simple_type(b_obj), _simple_type(c_obj)
     if b_type in _compare_feedback_d:
         brcdapi_log.log('Comparing ' + b_type + ': ' + _compare_feedback_d[b_type](b_obj), echo=True)
-
-    # Debug
-    # if b_type in ('SwitchObj',):
-    #     return 0
 
     # Make sure we have a valid reference.
     if not isinstance(ref, str):

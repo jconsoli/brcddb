@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -84,15 +84,17 @@ Version Control::
     | 3.0.9     | 28 Apr 2022   | Added machine type 3931 (z16) and fixed control unit matching when CSS for the    |
     |           |               | CNTLUNIT macro is a sub-set of the CSS for the CHPID.                             |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.0     | 21 May 2023   | Updated documentation                                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '3.1.0'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -388,8 +390,8 @@ def css_chpid_to_tag(chpid):
     while 'CSS(' in working_buf:
         t_buf, working_buf = gen_util.paren_content(working_buf[working_buf.find('CSS(') + len('CSS'):], True)
         css_list = [int(c) for c in t_buf.split(',')]
-        l = working_buf[0: working_buf.find(')')].split(',') if ')' in working_buf else working_buf.split(',')
-        for c in [c.upper() for c in l if len(c) > 1]:
+        temp_l = working_buf[0: working_buf.find(')')].split(',') if ')' in working_buf else working_buf.split(',')
+        for c in [c.upper() for c in temp_l if len(c) > 1]:
             cl = d.get(c)
             if cl is None:
                 cl = list()
@@ -443,7 +445,7 @@ def tag_to_ind_tag_list(tag):
     :param tag: CHPID RNID tag
     :type tag: str
     :return: List of tags. Example: tag == 'C0' is returned as a list of '80', '40'
-    :rtype: slist
+    :rtype: list
     """
     return [css_to_tag([css]) for css in tag_to_css_list(tag)]
 
@@ -562,7 +564,7 @@ def _parse_cntlunit(cntlunit):
     }
 
     :param cntlunit: CNTLUNIT macro
-    :type cntlunit: str
+    :type cntlunit: list
     :return: List of dict as defined above
     :rtype: dict
     """
@@ -582,7 +584,7 @@ def _parse_cntlunit(cntlunit):
             I have to do is look up the CHPIDs by the tag (which contains all CSS defined for the CHPID). If I didn't
             take this short cut, determining which CHPIDs had a path to which physical port would have been a more
             complex coding algorithm. The only benefit of a more complex approach would be that in the rare instance
-            when link addresses where not sharred across all CSS the CHPID spans would be the accuracy of the CSS in
+            when link addresses where not shared across all CSS the CHPID spans would be the accuracy of the CSS in
             a report that no one uses for anything other than physical connectivity anyway.
 
             BTW - Mainframe people typically look at tags, CHPIDs, and link address all in upper case. Python keys are
@@ -673,7 +675,7 @@ def parse_iocp(proj_obj, iocp):
                 iocp_obj.r_path_obj(tag, exact_match=False).s_add_path(link_addr, k, v['unit'])
             except AttributeError:
                 # Every once in a while, someone gives me an IOCP that doesn't compile
-                brcdapi_log.log('tag in CNTLUNIT macro, ' + tag + ', for link address ' + link_addr + \
+                brcdapi_log.log('tag in CNTLUNIT macro, ' + tag + ', for link address ' + link_addr +
                                 ' does not match any defined CHPIDs in ' + iocp, True)
 
     return

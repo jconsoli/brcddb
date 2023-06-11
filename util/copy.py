@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-:mod:`brcddb.util.copy` - Contains brcd copy methods
+:mod:`brcddb.util.copy` - Contains brcddb class object copy methods
 
 Public Methods & Data::
 
@@ -50,15 +50,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 28 Apr 2022   | Updated documentation.                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 21 May 2023   | Updated documentation.                                                            |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
@@ -216,7 +218,7 @@ def brcddb_to_plain_copy(objx, obj, flag_obj=None, skip_list=None):
                     for k1 in v.keys():
                         v1 = v.get(k1)
                         # This wasn't very well thought out. I should have put everything in object_copy() in here
-                        # rather than break it out seperate.
+                        # rather than break it out separate.
                         if 'brcddb.classes' in str(type(v1)):
                             d1 = dict()
                             d.update({v1.r_obj_key(): d1})
