@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -84,7 +84,7 @@ be the case with modules called from an Ansible Playbook, you need to be cogniza
     | force     |           | bool  | True - ignore warnings and overwrite existing objects. Default: True          |
     +-----------+-----------+-------+-------------------------------------------------------------------------------+
     | test      |           | bool  | True - ignores cfg-save. Only reads the zone database for validation          |
-    |           |           |       | purposes. No zone changes are sent to the switch. Useful for validatin        |
+    |           |           |       | purposes. No zone changes are sent to the switch. Useful for validating       |
     |           |           |       | changes before applying them. Default: False                                  |
     +-----------+-----------+-------+-------------------------------------------------------------------------------+
     | changes   | list      |       | List of dictionaries as noted below. Unless file is specified, the baseline   |
@@ -143,7 +143,7 @@ be the case with modules called from an Ansible Playbook, you need to be cogniza
     |           |           |       | There will always be a status if the request failed but status is not always  |
     |           |           |       | returned for success. If io is False, the status is made up.                  |
     +-----------+-----------+-------+-------------------------------------------------------------------------------+
-    |           | reason    | str   | Reason, if provided, returned from FOS. If io is False, thereason is made up. |
+    |           | reason    | str   | Reason, if provided, returned from FOS. If io is False, the reason is made up.|
     +-----------+-----------+-------+-------------------------------------------------------------------------------+
     |           | err_msg   | list  | List of detailed error messages returned from FOS. If io is False, the        |
     |           |           |       | detailed messages are made up. Not always present with errors.                |
@@ -180,15 +180,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.5     | 24 Oct 2022   | Improved error messaging and add Control-C to exit                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.6     | 21 May 2023   | Returned artificial error object for incomplete zone modifications                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021 Jack Consoli'
-__date__ = '24 Oct 2022'
+__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '21 May 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.5'
+__version__ = '3.0.6'
 
 import sys
 import datetime
@@ -208,9 +210,9 @@ _DEBUG_FICON = True
 
 # Global arguments that get overwritten
 _t_flag = False  # True - Test mode only - no changes actually sent to the switch
-_f_flag = False  # True - overide existing zone database
+_f_flag = False  # True - over ride existing zone database
 _b_flag = False  # True - perform bulk zoning
-_fab_obj = None
+_fab_obj = None  # TODO- Make this a passed parameter
 _checksum = None
 _skip_pend_flag = False
 _pending = list()    # List of pending zoning actions in the FOS zone transaction buffer
@@ -521,7 +523,7 @@ def refresh_zoning(session, fid, fabric_obj):
 #
 ###################################################################
 def _alias_add(session, cmd, fid):
-    """Add members to an existing alias. If force is set and the alais doesn't exist, it will be created
+    """Add members to an existing alias. If force is set and the alias doesn't exist, it will be created
 
     :param session: Session object, or list of session objects, returned from brcdapi.fos_auth.login()
     :type session: dict
@@ -577,7 +579,7 @@ def _alias_add(session, cmd, fid):
 
 
 def _alias_create(session, cmd, fid):
-    """Create an alias. If force is set and the alais exists, it will be overwritten
+    """Create an alias. If force is set and the alias exists, it will be overwritten
 
     See _alias_add() for a description of input and return values"""
     global _f_flag, _fab_obj, _t_flag, _b_flag
@@ -630,7 +632,7 @@ def _alias_create(session, cmd, fid):
 
 
 def _alias_delete(session, cmd, fid):
-    """Delete an alias. If force is set and the alais doesn't exist, no action is taken and good status is returned
+    """Delete an alias. If force is set and the alias doesn't exist, no action is taken and good status is returned
 
     See _alias_add() for a description of input and return values"""
     global _f_flag, _fab_obj, _t_flag, _b_flag
@@ -667,7 +669,7 @@ def _alias_delete(session, cmd, fid):
 
 
 def _alias_remove(session, cmd, fid):
-    """Remove alias members. If force is set and the alais doesn't exist, no action is taken and good status is returned
+    """Remove alias members. If force is set and the alias doesn't exist, no action is taken and good status is returned
 
     See _alias_add() for a description of input and return values."""
     global _f_flag, _t_flag, _fab_obj, _b_flag
@@ -755,7 +757,7 @@ def _cfg_add(session, cmd, fid):
         if _f_flag:
             return _good_force_nop_return
         else:
-            reason = 'No member(s) to add to ' + zonecfg + '. Members removed because they arleady were members, if '\
+            reason = 'No member(s) to add to ' + zonecfg + '. Members removed because they already were members, if '\
                                                            'any, are in the err_msg detail'
             return dict(status=brcdapi_util.HTTP_REQUEST_CONFLICT,
                         reason=reason,
@@ -868,7 +870,7 @@ def _cfg_enable(session, cmd, fid):
     if _t_flag or _b_flag:
         # WARNING: The effective zone database in the fabric object, _fab_obj, is now out of date. There is no software
         # utility to simulate the zoning response and since we are in test mode, we can't just refresh the zoning
-        # database from the switch. Writting a software utility to update it wouldn't be hard but as a practical matter,
+        # database from the switch. Writing a software utility to update it wouldn't be hard but as a practical matter,
         # I don't know of anyone who makes zoning changes, enables a zone configuration, and then continues to make
         # zoning changes all in the same activity so I didn't bother. This is only a problem in test mode.
         return _good_test_return
@@ -877,7 +879,7 @@ def _cfg_enable(session, cmd, fid):
         msg_l = refresh_zoning(session, fid, _fab_obj)
         if len(msg_l) > 0:
             return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
-                        reason='API error occured while refreshing the zone DB',
+                        reason='API error occurred while refreshing the zone DB',
                         err_msg=msg_l,
                         io=False,
                         changed=False,
@@ -949,7 +951,7 @@ def _cfg_remove(session, cmd, fid):
 
 def _cfg_save(session, cmd, fid):
     """Causes the zone database to be pushed to the fabric. The force flag is only relevant in test mode. In test mode,
-    if force is not set and there are pending transansactions, an error is returned. Otherwise, the action is always
+    if force is not set and there are pending transactions, an error is returned. Otherwise, the action is always
     sent to the switch
 
     See _alias_add() for a description of input and return values"""
@@ -1116,7 +1118,7 @@ def _zone_create(session, cmd, fid):
     # sure there were no duplicates as defined. Zone are usually defined with aliases. Below resolves the aliases into
     # WWNs and checks for duplicates in the resolved list of members.
     # often is with aliases. If two different aliases have the same member, a duplicate member error is returned from
-    # FOS but you have no idea which one. The above check would be covered in this check but by doing two seperate
+    # FOS but you have no idea which one. The above check would be covered in this check but by doing two separate
     # checks, the error message(s) can articulate the error.
     err_msg = list()
     resolved = [list(), list()]  # Members in d,i or WWN - 0: members in p0, 1: members in p1
@@ -1138,10 +1140,10 @@ def _zone_create(session, cmd, fid):
         for mem in resolved[i]:
             x = 0 if i == 1 else 1
             if mem in found[i]:
-                err_msg.append('Duplicate member ' + mem + ' in ' + desc[i] + '. Ailas(es): ' +
+                err_msg.append('Duplicate member ' + mem + ' in ' + desc[i] + '. Alias(es): ' +
                                ', '.join(_fab_obj.r_alias_for_wwn(mem)))
             if mem in found[x]:
-                err_msg.append('Duplicate member ' + mem + ' in ' + desc[i] + '. Ailas(es): ' +
+                err_msg.append('Duplicate member ' + mem + ' in ' + desc[i] + '. Alias(es): ' +
                                ', '.join(_fab_obj.r_alias_for_wwn(mem)))
 
     err_msg = list()
@@ -1282,88 +1284,66 @@ def _zonecfg_copy_int(session, obj, fid):
     return brcdapi_zone.create_zonecfg(session, fid, obj.r_obj_key(), obj.r_members())
 
 
-def _alias_replace_int(session, old, fid):
-    """Used by _zone_object_rename() to replace an alias in all zones with a new alias name
+def _alias_replace_int(session, old_obj, fid, new_obj):
+    """Replace an alias in all zones with a new alias name.
 
     :param session: Session object returned from brcdapi.fos_auth.login()
     :type session: dict
-    :param old: Name of alias to be replaced
-    :type old: str
+    :param old_obj: Zone object to be replaced
+    :type old_obj: brcddb.classes.AliasObj
     :param fid: Fabric ID
     :type fid: int
-    :return new: Name of new replacement alias
-    :rtype new: str
-    """
+    :param new_obj: New zone object
+    :type new_obj: AliasObj, ZoneObj, ZoneCfgObj
+    :return obj: Dictionary as defined in 'commands' in the response
+    :rtype obj: dict
+"""
     global _fab_obj
 
-    zone_l = _fab_obj.r_zones_for_alias(old)
-    if len(zone_l) > 0:  # Don't forget, the alias may not be used in any zones.
-        for zone in zone_l:
-            zone_obj = _fab_obj.r_zone_obj(zone)
-            if old in zone_obj.r_members():
-                del_members = [old]
-                del_pmembers = list()
-                add_members = [new]
-                add_pmembers = list()
-            else:   # If it's not a member so it must be a pmember
-                del_members = list()
-                del_pmembers = [old]
-                add_members = list()
-                add_pmembers = [new]
-            obj = brcdapi_zone.modify_zone(session, fid, zone, add_members, del_members, add_pmembers, del_pmembers)
-            if fos_auth.is_error(obj):
-                return obj
-        obj = brcdapi_zone.del_aliases(session, fid, [dict(name=old)])
-        if not fos_auth.is_error(obj):
-            _fab_obj.s_del_alias(old)
-        return obj
-    else:  # The alias isn't used if we get here
-        return dict()  # I only check for bad status. No status is not "good", but it's not "bad" so this is good enough
+    return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST, 'Replace aliases not yet implemented', list())
+
+    """
+    r_obj = brcdapi_util.GOOD_STATUS_OBJ
+    old_alias, new_alias = old_obj.r_obj_key(), new_obj.r_obj_key()
+    zone_update_d = dict()  # Use zone_update_d to keep track of which zones need to be modified
+
+    # This could have been a little more efficient but for as often as it's used, this is good enough
+    for zone in _fab_obj.r_zones_for_alias(old_alias):
+        zone_obj = _fab_obj.r_zone_object(zone)
+        zone_update_d.update({zone: dict(del_member=old_alias if old_alias in zone_obj.r_members() else None,
+                                         del_pmember=old_alias if old_alias in zone_obj.r_pmembers() else None,
+                                         add_member=new_alias if old_alias in zone_obj.r_members() else None,
+                                         add_pmember=new_alias if old_alias in zone_obj.r_pmembers() else None)})
+    # Modify the zones
+    for zone, d in zone_update_d.items():
+        r_obj = brcdapi_zone.modify_zone(session,
+                                         fid,
+                                         zone,
+                                         d['add_member'],
+                                         d['del_member'],
+                                         d['add_pmember'],
+                                         d['del_pmember'])
+        if fos_auth.is_error(r_obj):
+            return r_obj  # Just bail out if there is an error
+
+    # Delete the old alias and add the new one
+    r_obj = brcdapi_zone.del_aliases(session, fid, old_alias)
+    # TODO - Add alias with brcdapi_zone.create_aliases
+
+    return r_obj
+    """
 
 
 def _zone_replace_int(session, old, new):
-    """Used by _zone_object_rename() to replace a zone in all zone configurations with a new zone name
-
-    :param session: Session object returned from brcdapi.fos_auth.login()
-    :type session: dict
-    :param old: Name of zone to be replaced with new and deleted
-    :type old: str
-    :return new: Name of replacement zone
-    :rtype new: str
-    """
+    """Replace a zone in all zone configurations with a new zone name. See _alias_copy_int() for parameters"""
     global _fab_obj
 
-    # Find every zone configuration where the old zone is used and replace with the new zone
-    zonecfg_l = _fab_obj.r_zonecfgs_for_zone(old)
-    if len(zonecfg_l) > 0:  # Don't forget, the zone may not be used in any zone configurations.
-        for zonecfg in zonecfg_l:
-            obj = brcdapi_zone.zonecfg_remove(session, fid, zonecfg, [old])  # Remove old zone from the configuration
-            if fos_auth.is_error(obj):
-                return obj
-            obj = brcdapi_zone.zonecfg_add(session, fid, zonecfg, [new])  # Add new zone to the configuration
-            if fos_auth.is_error(obj):
-                return obj
-        obj = brcdapi_zone.del_zones(session, fid, [old])  # Delete the old zone
-        if fos_auth.is_error(obj):
-            return obj
-        _fab_obj.s_del_zone(old)  # Delete the zone from the database
-
-    return dict()  # I only check for bad status. No status is not "good", but it's not "bad" so this is good enough
+    return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST, 'Replace zone not yet implemented', list())
 
 
 def _zonecfg_replace_int(session, old, fid):
-    """Used by _zone_object_rename() to delete a zone configuration
-
-    :param session: Session object returned from brcdapi.fos_auth.login()
-    :type session: dict
-    :param old: Name of zone configuration to delete
-    :type old: str
-    :param fid: Fabric ID
-    :type fid: int
-    :return: brcdapi_rest status object
-    :rtype: dict
-    """
-    return brcdapi_zone.del_zonecfg(session, fid, old)
+    """Delete a zone configuration. See _alias_copy_int() for parameters"""
+    return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST, 'Replace Zone config not yet implemented', list())
 
 
 _zone_copy_action = dict(
