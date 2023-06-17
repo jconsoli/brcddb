@@ -52,15 +52,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.6     | 21 May 2023   | Updated documentation.                                                            |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.7     | 17 Jun 2023   | Copied flags for zone objects                                                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022 Jack Consoli'
-__date__ = '21 May 2023'
+__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
+__date__ = '17 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 
 import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
@@ -334,7 +336,10 @@ def _brcddb_login_keys_key(obj, objx):  # port
 def _brcddb_eff_zone_objs_key(obj, objx):  # fabric
     for k in obj.keys():
         zone_obj = obj.get(k)
-        objx.s_add_eff_zone(k, zone_obj.get('_type'), zone_obj.get('_members'), zone_obj.get('_pmembers'))
+        new_obj = objx.s_add_eff_zone(k, zone_obj.get('_type'), zone_obj.get('_members'), zone_obj.get('_pmembers'))
+        flags = zone_obj.get('_flags')
+        if isinstance(flags, int):
+            new_obj.s_or_flags(flags)
 
 
 def _brcddb_eff_zonecfg_key(obj, objx):  # fabric
@@ -354,7 +359,10 @@ def _brcddb_zonecfg_objs_key(obj, objx):  # fabric
 def _brcddb_zone_objs_key(obj, objx):  # fabric
     for k in obj.keys():
         zone_obj = obj.get(k)
-        objx.s_add_zone(k, zone_obj.get('_type'), zone_obj.get('_members'), zone_obj.get('_pmembers'))
+        new_obj = objx.s_add_zone(k, zone_obj.get('_type'), zone_obj.get('_members'), zone_obj.get('_pmembers'))
+        flags = zone_obj.get('_flags')
+        if isinstance(flags, int):
+            new_obj.s_or_flags(flags)
 
 
 def _brcddb_switch_key(obj, objx):  # port
@@ -389,7 +397,7 @@ def _brcddb_fdmi_port_objs_key(obj, objx):  # FabricObj
         plain_copy_to_brcddb(obj.get(k), objx.s_add_fdmi_port(k))
 
 
-r_key_table = dict(
+_r_key_table = dict(
     _alerts=_brcddb_null,
     _reserved_keys=_brcddb_null,
     _project_obj=_brcddb_null,
@@ -444,13 +452,15 @@ def plain_copy_to_brcddb(obj, objx):
     :type objx: brcddb class object
     :rtype: None
     """
+    global _r_key_table
+
     if objx is None:
         return
     if isinstance(obj, dict):
         for k in obj.keys():
             v = obj.get(k)
-            if k in r_key_table:
-                r_key_table[k](v, objx)
+            if k in _r_key_table:
+                _r_key_table[k](v, objx)
             elif isinstance(v, (str, int, float, list)) or v is None:
                 if hasattr(objx, 's_new_key') and callable(getattr(objx, 's_new_key')):
                     objx.s_new_key(k, v)
@@ -487,8 +497,8 @@ def plain_copy_to_brcddb(obj, objx):
         else:
             for v in obj:
                 if isinstance(v, (str, int, float)):
-                    if v in r_key_table:
-                        r_key_table[v](obj, objx)
+                    if v in _r_key_table:
+                        _r_key_table[v](obj, objx)
                     else:
                         objx.append(v)
                 elif isinstance(v, dict):
