@@ -61,16 +61,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.3     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.4     | 17 Jun 2023   | Set zone_flag_effective in s_add_eff_zone() for defined zone.                     |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '04 Jun 2023'
+__date__ = '17 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.3'
+__version__ = '3.1.4'
 
 import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
@@ -330,18 +332,17 @@ class FabricObj:
         """
         return self._login_objs
 
-    def s_add_zonecfg(self, name, in_mem=None):
+    def s_add_zonecfg(self, name, mem=None):
         """Adds a zone configuration to the fabric if it doesn't already exist
 
         Similarly, zone members will be added if they don't already exist
         :param name: Name of the zone configuration
         :type name: str
-        :param in_mem: List of zone members, by name, in this zone configuration
-        :type in_mem: str, list, tuple
+        :param mem: List of zone members, by name, in this zone configuration
+        :type mem: str, list, tuple
         :return: Zone configuration object
         :rtype: zone_class.brcddb.classes.zone.ZoneCfgObj
         """
-        mem = list() if in_mem is None else in_mem
         zonecfg_obj = self._zonecfg_objs.get(name)
         if zonecfg_obj is None:
             zonecfg_obj = zone_class.ZoneCfgObj(name, self.r_project_obj(), self.r_obj_key())
@@ -449,22 +450,20 @@ class FabricObj:
         """
         return self.r_zonecfg_obj('_effective_zone_cfg')
 
-    def s_add_zone(self, name, zone_type, in_mem=None, in_pmem=None):
+    def s_add_zone(self, name, zone_type, mem=None, pmem=None):
         """Adds a zone to the fabric if it doesn't already exist. Otherwise, just adds members may change zone type
 
         :param name: Zone name
         :type name: str
         :param zone_type: Zone type
         :type zone_type: int
-        :param in_mem: Zone members
-        :type in_mem: list, str, None
-        :param in_pmem: Principal zone members (relevant to peer zones only)
-        :type in_pmem: list, str, None
+        :param mem: Zone members
+        :type mem: list, str, None
+        :param pmem: Principal zone members (relevant to peer zones only)
+        :type pmem: list, str, None
         :return: Zone configuration object for the effective zone configuration
         :rtype: brcddb.classes.zone.ZoneCfgObj
         """
-        mem = list() if in_mem is None else in_mem
-        pmem = list() if in_pmem is None else in_pmem
         zone_obj = self.r_zone_obj(name)
         if zone_obj is None:
             zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
@@ -523,7 +522,7 @@ class FabricObj:
             return l
         return list()
 
-    def s_add_eff_zone(self, name, zone_type, in_mem=None, in_pmem=None):
+    def s_add_eff_zone(self, name, zone_type, mem=None, pmem=None):
         """Adds a zone to the effective configuration if it doesn't already exist.
         Similarly, zone members will be added if they don't already exist
         **To Do** I think there is a bug in here. The effective zone should only change when the zone configuration is
@@ -533,26 +532,25 @@ class FabricObj:
         :type name: str
         :param zone_type: Zone type
         :type zone_type: int
-        :param in_mem Zone members (this should be WWN)
-        :type in_mem: str, list, tuple, None
-        :param in_pmem: Principal zone members (this should be WWN). Only relavant to peer zones
-        :type in_pmem: str, list, tuple, None
+        :param mem Zone members (this should be WWN)
+        :type mem: str, list, tuple, None
+        :param pmem: Principal zone members (this should be WWN). Only relavant to peer zones
+        :type pmem: str, list, tuple, None
         :return: Zone object for this zone
         :rtype: brcddb.classes.zone.ZoneObj
         """
-        mem = util.convert_to_list(in_mem)
-        pmem = util.convert_to_list(in_pmem)
         zone_obj = self.r_eff_zone_obj(name)
         if zone_obj is None:
             zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
             self._eff_zone_objs.update({name: zone_obj})
-        zone_obj.s_or_flags(brcddb_common.zone_flag_effective)
+        zone_obj.s_or_flags(brcddb_common.zone_flag_effective)  # I don't think I need to do this here
+        d_zone_obj = self.r_zone_obj(name)
+        if d_zone_obj is not None:
+            d_zone_obj.s_or_flags(brcddb_common.zone_flag_effective)
         if zone_type is not None:
             zone_obj.s_type(zone_type)  # This is redundant when creating a zone for the first time
-        for member in mem:
-            zone_obj.s_add_member(member)
-        for member in pmem:
-            zone_obj.s_add_pmember(member)
+        zone_obj.s_add_member(mem)
+        zone_obj.s_add_member(pmem)
         self.s_add_eff_zonecfg(name)
         return zone_obj
 
