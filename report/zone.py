@@ -80,15 +80,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.2.0     | 10 Jun 2023   | Added ungrouped ports to group zone page                                          |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.2.1     | 24 Jun 2023   | Fixed zone group logged into data and added number of logins column to zone_group |                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '10 Jun 2023'
+__date__ = '24 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.2.0'
+__version__ = '3.2.1'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -243,7 +245,7 @@ def _group_case(obj, mem, wwn, port_obj, obj_l=None):
 
 
 def _group_comment_case(obj, mem, wwn, port_obj, obj_l=None):
-    l_port_obj = obj.r_port_obj()
+    l_port_obj = None if obj is None else obj.r_port_obj()
     return '' if l_port_obj is None else report_utils.combined_alerts(l_port_obj, wwn)
 
 
@@ -254,6 +256,11 @@ def _group_desc_case(obj, mem, wwn, port_obj, obj_l=None):
 def _login_port_case(obj, mem, wwn, port_obj, obj_l=None):
     l_port_obj = None if obj is None else obj.r_port_obj()
     return '' if l_port_obj is None else l_port_obj.r_obj_key()
+
+
+def _zoned_to_port_case(obj, mem, wwn, port_obj, obj_l=None):
+    fab_obj = None if port_obj is None else port_obj.r_fabric_obj()
+    return 0 if fab_obj is None else len(brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True))
 
 
 def _login_speed_case(obj, mem, wwn, port_obj, obj_l=None):
@@ -278,9 +285,7 @@ _zone_hdr & _zone_group_hdr_d: Key is the column header. Value is a dict as foll
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | v     | bool      | True - display centered in column. Headers vertical, Otherwise, use default wrap alignment    |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| g     | bool      | The zone group sheet has information followed by what is zoned to it. When True, fill in the  |
-|       |           | cell content for the group port. Note that the group port is first followed by what is zonedq |
-|       |           | to it.                                                                                        |
+| g     | bool      | When True, fill in the cell for the group port.                                               |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | zg    | bool      | Same as 'g' except this is used for what is zoned to the group port.                          | 
 +-------+-----------+-----------------------------------------------------------------------------------------------+
@@ -305,6 +310,7 @@ _zone_group_hdr_d = collections.OrderedDict({  # Same format as _zone_hdr
     'Comments': dict(c=30, z=_null_case, m=_group_comment_case, g=True, zg=True),
     'Switch': dict(c=30, z=_null_case, m=_login_switch_case, g=True, zg=True),
     'Port': dict(c=8, z=_null_case, m=_login_port_case, g=True, zg=True),
+    'Zoned To': dict(c=8, z=_null_case, m=_zoned_to_port_case, g=True, zg=False),
     'Speed Gbps': dict(c=8, z=_null_case, m=_login_speed_case, g=True, zg=True),
     'WWN': dict(c=23, z=_null_case, m=_mem_member_wwn_case, g=True, zg=True),
     'Alias': dict(c=34, z=_null_case, m=_alias_case, g=True, zg=True),
@@ -886,12 +892,11 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
         # A common use for groups is to define storage enclosures. It's also common to put all the storage in the same
         # zone. This means the same WWNs can appear in multiple places. zone_d is used to ensure each group member is
-        # displayed once. a dictionary of all the group WWNsigure out which logins are part of the group
+        # displayed once.
         zone_d = dict()
         for port_obj in group_obj_l:
             for login_obj in port_obj.r_login_objects():
-                wwn = login_obj.r_obj_key()
-                zone_d.update({wwn: True})
+                zone_d.update({login_obj.r_obj_key(): True})
 
         # Each port in the zone group
         for port_obj in group_obj_l:
@@ -917,23 +922,21 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             # The logins zoned to this port
             if bool(last_group_d.get(group_name)):
                 continue
-            for login_obj in port_obj.r_login_objects():
-                for wwn, zl in brcddb_zone.eff_zoned_to_wwn(fab_obj, login_obj.r_obj_key(), all_types=True).items():
-                    if bool(zone_d.get(wwn)):
-                        continue
-                    lz_obj = fab_obj.r_login_obj(wwn)
-                    if lz_obj is None:
-                        continue  # The coresponding device may not be logged in
-                    row, col = row+1, 1
-                    for d in _zone_group_hdr_d.values():
-                        buf = d['m'](lz_obj, None, wwn, port_obj, zl) if bool(d.get('zg')) else ''
-                        excel_util.cell_update(sheet,
-                                               row,
-                                               col,
-                                               buf,
-                                               font=_std_font,
-                                               border=_border_thin,
-                                               align=_align_wrap_c if bool(d.get('v')) else _align_wrap)
-                        col += 1
+            for lwwn, zl in brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True).items():
+                lz_obj = fab_obj.r_login_obj(lwwn)
+                if lz_obj is None:
+                    continue  # The coresponding device may not be logged in
+
+                row, col = row+1, 1
+                for d in _zone_group_hdr_d.values():
+                    buf = d['m'](lz_obj, None, lwwn, port_obj, zl) if bool(d.get('zg')) else ''
+                    excel_util.cell_update(sheet,
+                                           row,
+                                           col,
+                                           buf,
+                                           font=_std_font,
+                                           border=_border_thin,
+                                           align=_align_wrap_c if bool(d.get('v')) else _align_wrap)
+                    col += 1
 
         row += 1
