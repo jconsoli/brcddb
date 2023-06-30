@@ -72,16 +72,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.0     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.1     | 30 Jun 2023   | Added G710 and 7850                                                               |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '04 Jun 2023'
+__date__ = '30 Jun 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '3.1.1'
 
 import time
 import brcdapi.log as brcdapi_log
@@ -419,15 +421,21 @@ chassis_type_d = {
     181: dict(brcd='G720', ibm='SAN64B-7', hpe='SN6700B', dell='DS-7720', hv='HD-720',
               pure='G720', netapp='Unknown', ibm_t='8960-R64/P64', spd=64, cfg=cfg_fixed,
               gen=7, z=True, eos=None),
-    182: dict(brcd='G730', ibm='SAN128B-7', hpe='SN6700B', dell='DS-7730', hv='HD-730',
-              pure='G730', netapp='Unknown', ibm_t='8960-R64/P64', spd=64, cfg=cfg_fixed,
-              gen=7, z=True, eos=None),
     183: dict(brcd='G620', ibm='SAN64B-6', hpe='SN6600B', dell='DS-6620', hv='HD-620',
               pure='G620', netapp='Unknown', ibm_t='8960-F64/N64', spd=32, cfg=cfg_fixed,
               gen=6, z=True, eos=None),
     184: dict(brcd='G630', ibm='SAN64B-6', hpe='SN6650B', dell='DS-6630', hv='HD-630',
               pure='G630', netapp='Unknown', ibm_t='8960-F64/N64', spd=32, cfg=cfg_fixed,
-              gen=6, z=True, eos=None),
+              gen=6, z=False, eos=None),
+    189: dict(brcd='G730', ibm='SAN128B-7', hpe='SN6700B', dell='DS-7730', hv='HD-730',
+              pure='G730', netapp='Unknown', ibm_t='8960-R64/P64', spd=64, cfg=cfg_fixed,
+              gen=7, z=False, eos=None),
+    190: dict(brcd='7850', ibm='Unknown', hpe='Unknown', dell='Unknown', hv='Unknown',
+              pure='Unknown', netapp='Unknown', ibm_t='Unknown', spd=64, cfg=cfg_fixed,
+              gen=7, z=True, eos=None),
+    191: dict(brcd='G710', ibm='Unknown', hpe='Unknown', dell='Unknown', hv='Unknown',
+              pure='Unknown', netapp='Unknown', ibm_t='Unknown', spd=64, cfg=cfg_fixed,
+              gen=7, z=False, eos=None),
     1000: dict(brcd='VDX8770-4', ibm='Unknown', hpe='VDX8770-4', dell='VDX8770-4', hv='VDX8770-4',
                pure='Unknown', netapp='Unknown', ibm_t='Unknown', spd=0, cfg=cfg_fixed,
                gen=0, z=True, eos=1399694399.0),
