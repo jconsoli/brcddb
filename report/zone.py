@@ -82,15 +82,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.2.1     | 24 Jun 2023   | Fixed zone group logged into data and added number of logins column to zone_group |                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.2.2     | 06 July 2023  | Fixed row continuation in zone groups                                             |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '24 Jun 2023'
+__date__ = '06 Jul 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.2.1'
+__version__ = '3.2.2'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -901,14 +903,14 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         # Each port in the zone group
         for port_obj in group_obj_l:
             # Information about the logins for this port.
-            row, col, fab_obj = row+1, 1, port_obj.r_fabric_obj()
+            fab_obj = port_obj.r_fabric_obj()
             if fab_obj is None:
                 # I can't think of a way for fab_obj to be None here so this is just in case I'm overlooking something
                 continue
 
             # The logins for this port - typically just one
             for login_obj in port_obj.r_login_objects():
-                wwn = login_obj.r_obj_key()
+                row, col, wwn = row+1, 1, login_obj.r_obj_key()
                 for d in _zone_group_hdr_d.values():
                     excel_util.cell_update(sheet,
                                            row,
