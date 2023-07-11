@@ -93,16 +93,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.6     | 04 Jun 2023   | Added _ALIAS to all port tables.                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.7     | 11 Jul 2023   | Added chip instance and index to port_config_tbl                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '04 Jun 2023'
+__date__ = '11 Jul 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.6'
+__version__ = '3.1.7'
 
 import brcdapi.util as brcdapi_util
 
@@ -437,7 +439,7 @@ class Port:
         'fibrechannel/reserved-buffers': dict(v=True, c=8, d='Reserved Buffers'),
         'fibrechannel/authentication-protocol': dict(c=15, d='Authentication Protocol'),
         brcdapi_util.fc_chip_buf_avail: dict(v=True, c=8, d='Chip Buffers Available'),
-        brcdapi_util.fc_chip_instance: dict(v=True, c=8, d='Chip Instance'),
+        brcdapi_util.fc_chip_instance: dict(v=True, c=5, d='Chip Instance'),
         'fibrechannel/clean-address-enabled': dict(v=True, c=8, d='Clean Address Enabled'),
         brcdapi_util.fc_encrypt: dict(v=True, c=8, d='Encryption Enabled'),
         brcdapi_util.fc_index: dict(v=True, c=8, d='Port Index'),
@@ -615,6 +617,7 @@ class Port:
         '_PORT_COMMENTS',
         '_SWITCH_NAME',
         '_PORT_NUMBER',
+        brcdapi_util.fc_index,
         brcdapi_util.fc_user_name,
         '_ALIAS',
         brcdapi_util.fc_fcid_hex,
@@ -623,6 +626,7 @@ class Port:
         brcdapi_util.fc_enabled,
         brcdapi_util.fc_op_status,
         brcdapi_util.fc_state,
+        brcdapi_util.fc_chip_instance,
         '_BEST_DESC',
         '_MAPS_GROUP',
         brcdapi_util.fc_eport_credit,
