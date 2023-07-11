@@ -89,16 +89,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.7     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.8     | 11 Jul 2023   | Added support for ge ports.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '04 Jun 2023'
+__date__ = '11 Jul 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.7'
+__version__ = '3.1.8'
 
 import openpyxl as xl
 import brcdapi.util as brcdapi_util
@@ -914,7 +916,7 @@ def _parse_slot_sheet(sheet_d, port_name_d):
             if r_key in col_d_l[i]:
                 i += 1  # A repeat means we're starting the second column of ports
                 if i > len(col_d_l):
-                    error_l.append('Invalid column header, "' + buf + '", on sheet ' + sheet_d['name'])
+                    error_l.append('Invalid column header, "' + buf + '", on sheet ' + sheet_d['sheet'])
                     break
             col_d_l[i].update({r_key: col})
         except KeyError:
@@ -942,11 +944,11 @@ def _parse_slot_sheet(sheet_d, port_name_d):
                         except ValueError:
                             error_l.append('Value for ' + k + ', ' + str(v) + ', is not a valid hex number.')
                     if d['i']:
-                        try:
-                            v = int(v)
-                        except ValueError:
-                            error_l.append('Value for ' + k + ', ' + str(v) + ', is not a number in ' +
-                                           sheet_d['switch_info']['sheet_name'])
+                        if v != 'None':
+                            try:
+                                v = int(v)
+                            except ValueError:
+                                error_l.append('Value for ' + k + ', ' + str(v) + ', is not valid in '+sheet_d['sheet'])
                     if d['pn']:
                         try:
                             port_name = port_name_d[pd['fid']]
@@ -966,7 +968,7 @@ def _parse_slot_sheet(sheet_d, port_name_d):
                     if isinstance(v, str):
                         while len(v) < d['p']:
                             v = '0' + v
-                    v = slot + v if d['slot'] else v
+                    v = None if isinstance(v, str) and v == 'None' else slot + v if d['slot'] else v
                     pd.update({r_key: v})
             rd.update({pd['port']: pd})
 
@@ -1033,11 +1035,7 @@ def parse_switch_file(file):
 
     # Load the workbook
     skip_l = ('About', 'Summary', 'Sheet', 'Instructions', 'CLI_Bind', 'lists', 'VC')
-    try:
-        sheet_l = excel_util.read_workbook(file, dm=3, skip_sheets=skip_l)
-    except FileNotFoundError:
-        error_l.append('Workbook ' + str(file) + ' not found')
-        return error_l, chassis_d, list()
+    sheet_l = excel_util.read_workbook(file, dm=3, skip_sheets=skip_l)
 
     # Parse the "Chassis", "Sheet_x", and "Slot x" worksheets
     for sheet_d in sheet_l:
@@ -1073,11 +1071,14 @@ def parse_switch_file(file):
     for k, d in port_d.items():
         switch_d = rd.get(d['fid'])
         if isinstance(switch_d, dict):
-            if switch_d['switch_info']['switch_type'] == 'ficon' and int(d['port_addr'], 16) > 253:
-                ml = ['Skipping ' + 'FID: ' + str(d['fid']) + ', Port: ' + d['port'] + ' Address: ' + d['port_addr'],
-                      'Addresses greater than 0xFD are not supported in a ficon switch.']
-                brcdapi_log.log(ml, echo=True)
-                continue
+            try:
+                if switch_d['switch_info']['switch_type'] == 'ficon' and int(d['port_addr'], 16) > 253:
+                    ml = ['Skipping FID: ' + str(d['fid']) + ', Port: ' + d['port'] + ' Address: ' + d['port_addr'],
+                          'Addresses greater than 0xFD are not supported in a ficon switch.']
+                    brcdapi_log.log(ml, echo=True)
+                    continue
+            except TypeError:
+                pass  # It's a GE port
             switch_d['port_d'].update({k: d})
 
     return error_l, chassis_d, [switch_d for switch_d in rd.values()]
