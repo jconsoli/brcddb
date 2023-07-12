@@ -48,16 +48,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.1.2     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.1.3     | 12 Jul 2023   | Added VE ports                                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '04 Jun 2023'
+__date__ = '12 Jul 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.2'
+__version__ = '3.1.3'
 
 import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
@@ -67,8 +69,7 @@ import brcddb.classes.port as port_class
 
 # Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
 # on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
-# the easy way out. It may be a good thing that Python threw an exception because I didn't really think through what
-# objects that might be sharing a resource with other objects.
+# the easy way out.
 
 
 class SwitchObj:
@@ -98,6 +99,7 @@ class SwitchObj:
         self._fabric_key = None
         self._port_objs = dict()
         self._ge_port_objs = dict()
+        self._ve_port_objs = dict()
         self._alerts = list()
         self._project_obj = project_obj
         self._maps_rules = dict()
@@ -120,6 +122,7 @@ class SwitchObj:
                 _project_obj=self.r_project_obj(),
                 _port_objs=self.r_port_objs(),
                 _ge_port_objs=self.r_ge_port_objs(),
+                _ve_port_objs=self.r_ve_port_objs(),
                 _fabric_key=self.r_fabric_key(),
                 _chassis_key=self.r_chassis_key(),
                 _maps_rules=self.r_maps_rules(),
@@ -409,6 +412,49 @@ class SwitchObj:
         :type k: str
         """
         return self._ge_port_objs[k] if k in self._ge_port_objs else None
+
+    def s_add_ve_port(self, port):
+        """Add a VE port to the switch
+        :param port: Port in s/p notation
+        :type port: str
+        :return: Port object
+        :rtype: PortObj
+        """
+        port_obj = self.r_ve_port_obj(port)
+        if port_obj is None:
+            port_obj = port_class.PortObj(port, self.r_project_obj(), self._obj_key)
+            self._ve_port_objs.update({port: port_obj})
+        return port_obj
+
+    def r_ve_port_keys(self):
+        """Returns a list of all GE ports in this switch
+        :return: List of ports in s/p format
+        :rtype: list
+        """
+        return list(self._ve_port_objs.keys())
+
+    def r_ve_port_objects(self):
+        """Returns a list of port objects for all ports in this switch
+        :return: List of PortObj
+        :rtype: list
+        """
+        # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
+        # https://bugs.python.org/issue32467 For those not at 3.7 yet so always process dict_values as a list
+        return list(self._ve_port_objs.values())
+
+    def r_ve_port_objs(self):
+        """Returns the dictionary of port objects. Typically only used by the brcddb libraries
+        :return: Dictionary of port objects
+        :rtype: dict
+        """
+        return self._ve_port_objs
+
+    def r_ve_port_obj(self, k):
+        """Returns the port object for a port
+        :param k: Port name in s/p notation
+        :type k: str
+        """
+        return self._ve_port_objs[k] if k in self._ve_port_objs else None
 
     def r_login_keys(self):
         """Returns all the login WWNs associated with this switch. Includes E-Ports
