@@ -23,9 +23,9 @@ Public Methods & Data::
     | object_copy           | Performs the iterative (deep) copy of plain dict to brcddb object. Used by            |
     |                       | brcddb_to_plain_copy()                                                                |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | brcddb_to_plain_copy  | Copies a brcddb dict class to a plain python dict.                                    |
+    | brcddb_to_plain_copy  | Copies a brcddb class object to a plain python dict.                                  |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | plain_copy_to_brcddb  | Copies a plain object created with brcddb_to_plain_copy back to a brcddb object.      |
+    | plain_copy_to_brcddb  | Copies a dict created with brcddb_to_plain_copy back to a brcddb object.              |
     |                       | Typically used after read_dump to convert a plain dict back to a project object - see |
     |                       | brcddb_project.py                                                                     |
     +-----------------------+---------------------------------------------------------------------------------------+
@@ -54,15 +54,17 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 3.0.7     | 17 Jun 2023   | Copied flags for zone objects                                                     |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 3.0.8     | 12 Jul 2023   | Added VE ports.                                                                   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '17 Jun 2023'
+__date__ = '12 Jul 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 
 import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
@@ -313,6 +315,11 @@ def _brcddb_ge_port_objs_key(obj, objx):  # switch
         plain_copy_to_brcddb(obj.get(k), objx.s_add_ge_port(k))
 
 
+def _brcddb_ve_port_objs_key(obj, objx):  # switch
+    for k in obj.keys():
+        plain_copy_to_brcddb(obj.get(k), objx.s_add_ve_port(k))
+
+
 def _brcddb_fabric_key(obj, objx):  # Many
     if hasattr(objx, 's_fabric_key') and callable(getattr(objx, 's_new_key')):
         objx.s_fabric_key(obj)
@@ -411,6 +418,7 @@ _r_key_table = dict(
     _chassis_objs=_brcddb_chassis_objs_key,
     _port_objs=_brcddb_port_objs_key,
     _ge_port_objs=_brcddb_ge_port_objs_key,
+    _ve_port_objs=_brcddb_ve_port_objs_key,
     _fabric_key=_brcddb_fabric_key,
     _login_objs=_brcddb_login_objs_key,
     _fabric_objs=_brcddb_fabric_objs_key,

@@ -71,16 +71,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 1.0.9     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 1.1.0     | 12 Jul 2023   | Added parsing of VE and ge ports in switchshow()                                  |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '04 Jun 2023'
+__date__ = '12 Jul 2023'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack.consoli@broadcom.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '1.0.9'
+__version__ = '1.1.0'
 
 import re
 import time
@@ -460,7 +462,7 @@ def switchshow(obj, content, append_buf=''):
         i += 1
 
     # Figure out where the indices are for the port parameters. Note that they are different for bladed vs. fixed port
-    # switches
+    # switches and ge ports do not have an index
     port_index = dict()
     while len(content) > i:
         buf = content[i]
@@ -478,12 +480,23 @@ def switchshow(obj, content, append_buf=''):
     while len(content) > i:
         buf = content[i].replace('\t', ' ').strip()
         cl = gen_util.remove_duplicate_char(buf, ' ').split(' ')
-        if len(cl) < 7:
+        if len(cl) < 6:
             break
-        if cl[port_index['Proto']] == 'FC':
+        if 'ge' in cl[0]:
+            cl.insert(1, None)  # It's a fixed port switch. ge ports do not have an FC address
+            cl.insert(0, None)  # ge ports do not have an index
+        elif 'ge' in cl[1]:
+            cl.insert(2, None)  # It's a director. ge ports do not have an FC address
+            cl.insert(0, None)  # ge ports do not have an index or an FC address
+        else:
+            cl[port_index['Index']] = int(cl[port_index['Index']])
+            cl[port_index['Address']] = '0x' + cl[port_index['Address']]
+
+        proto = cl[port_index['Proto']]
+        if proto == 'FC' or proto == 'VE' or proto == 'FCIP':
             port_desc = ' '.join(cl[port_index['Proto']:])
             port_num = '0' if port_index.get('Slot') is None else cl[port_index.get('Slot')]
-            port_num += '/' + cl[port_index.get('Port')]
+            port_num += '/' + cl[port_index['Port']]
             physical_state = _physical_port_state.get(cl[port_index['State']])
             try:
                 speed = int(gen_util.non_decimal.sub('', cl[port_index['Speed']])) * 1000000000
@@ -491,8 +504,8 @@ def switchshow(obj, content, append_buf=''):
                 speed = 32000000000
             port_d = {
                 'name': port_num,
-                'index': int(cl[port_index['Index']]),
-                'fcid-hex': '0x' + cl[port_index['Address']],
+                'index': cl[port_index['Index']],
+                'fcid-hex': cl[port_index['Address']],
                 'auto-negotiate': 1 if 'N' in cl[port_index['Speed']] else 0,
                 'speed': speed,
                 'operational-status': 2 if 'Online' in cl[port_index['State']] else 3,
@@ -506,9 +519,13 @@ def switchshow(obj, content, append_buf=''):
                     break
             if port_d.get('port-type') is None:
                 port_d.update({'port-type': brcddb_common.PORT_TYPE_U})  # Typical of an offline port
-            # switch_ports_fc.update({port_num: port_d})
             switch_port_list.append(port_num)
-            port_obj = switch_obj.s_add_port(port_num)
+            port_obj = switch_obj.s_add_port(port_num) if proto == 'FC' \
+                else switch_obj.s_add_ve_port(port_num) if proto == 'VE' \
+                else switch_obj.s_add_ge_port(port_num) if proto == 'FCIP' \
+                else None
+            if port_obj is None:
+                brcdapi_log.exception('Unexpected error in: ' + buf, echo=True)
             port_obj.s_new_key('fibrechannel', port_d)
         i += 1
 
