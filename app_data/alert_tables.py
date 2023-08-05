@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -27,56 +27,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
-    | 2.x.x     |               |                                                                                   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 02 Aug 2020   | Fixed overlapping zone and chassis alerts & added ZONE_UNDEFINED_ALIAS            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 22 Aug 2020   | Added ZONE_WWN_ALIAS. Set sev level of ZONE_ALIAS_USE to WARN.                    |
-    |           |               | Cleaned up language in LOGIN_NOT_ZONED alert.                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 02 Sep 2020   | Changed unused zones, unused alias, logins no zoned, and enabled ports with no    |
-    |           |               | logins from WARN to GENERAL                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 29 Sep 2020   | Changed LOGIN_FDMI_NOT_ENABLED to GENERAL                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 01 Nov 2020   | Added ZONE_PEER_PROPERTY                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 13 Feb 2021   | Added member to ALERT_NUM.ZONE_DUP_ALIAS text message.                            |
-    |           |               | Added number of devices zoned to ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION           |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 17 Jul 2021   | Added ZONE_LINK_ADDR and ZONE_LINK_NO_ADDR                                        |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 14 Aug 2021   | Added current firmware level to SWITCH_FIRMWARE_8_2                               |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | 31 Dec 2021   | Added IOCP alerts.                                                                |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.0     | 22 Jun 2022   | Added link address to ZONE_LINK_NO_ADDR error message. Added PORT_TXC3_DISCARD,   |
-    |           |               | PORT_RXC3_DISCARD, PORT_LOGICAL_ERRORS, PORT_BIT_ERRORS, and PORT_FRAME_ERRORS.   |
-    |           |               | Added switch and port, via $p0, to ZONE_DIFF_FABRIC.                              |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.1     | 25 Jul 2022   | Improved error message LOGIN_DUP_LOGIN                                            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.2     | 01 Jan 2023   | Added GENERAL_BASE alerts and ALIAS_INITIATOR_UPPER                               |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.3     | 21 May 2023   | Updated documentation                                                             |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.4     | 27 May 2023   | Added ERROR_LOG alerts                                                            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.5     | 10 Jun 2023   | Removed "Check the port statistics page for details" from port errors.            |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '10 Jun 2023'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.5'
+__version__ = '4.0.0'
 
 import brcddb.classes.alert as al
 
