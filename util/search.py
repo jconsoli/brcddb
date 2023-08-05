@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -37,35 +37,22 @@ Public Methods & Data::
     +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
+
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1-4   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 17 Jul 2021   | Fixed match_test() to accept a dict instead of list. Fixed ignore_case in match().|
-    |           |               | Added common search terms.                                                        |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 14 Aug 2021   | Added common search terms.                                                        |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 28 Apr 2022   | Updated documentation                                                             |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 22 Jun 2022   | Removed duplicates in logical OR test.                                            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | 04 Sep 2022   | Fixed duplicated match finds in match() when there are multiple key matches       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.0     | 14 Oct 2022   | Added common port searches                                                        |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
+
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '14 Oct 2022'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '4.0.0'
 
 import re
 import fnmatch

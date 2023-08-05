@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -20,25 +20,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1-6   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 14 May 2021   | Added permissions to read_full_directory()                                        |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 31 Dec 2021   | Added full_file_name()                                                            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | 28 Apr 2022   | Moved to brcdapi                                                                  |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
+
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022 Jack Consoli'
-__date__ = '28 Apr 2022'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '4.0.0'
 
 import json
 import os

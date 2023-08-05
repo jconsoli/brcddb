@@ -1,4 +1,4 @@
-# Copyright 2021, 2022, 2023 Broadcom.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -49,40 +49,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 1.0.0     | 14 Nov 2021   | Initial launch                                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 1.0.1     | 31 Dec 2021   | chassisshow(): "Chassis Factory Serial Num:" not always in SS so use "WWN  Unit:" |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 1.0.2     | 28 Apr 2022   | Updated documentation                                                             |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 1.0.3     | 25 Jul 2022   | Fixed missing neighbor WWN for port_obj in nsshow()                               |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 1.0.4     | 14 Oct 2022   | Added slotshow_m, fixed case and type errors in nsshow()                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 1.0.5     | 01 Jan 2023   | Changed _cfgshow_zone_gen() to cfgshow_zone_gen(), making it public. This was     |
-    |           |               | to support an internal utility that parses SAN Health reports.                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 1.0.6     | 11 Feb 2023   | Fixed parsing of portstatsshow output                                             |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 1.0.7     | 26 Mar 2023   | Changed port type for ports not logged in to U-Port rather than unknown           |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 1.0.8     | 09 May 2023   | Fixed cases in portbuffershow when port is offline, added "name" to port, and     |
-    |           |               | converted tabs in portstatsshow to spaces.                                        |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 1.0.9     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 1.1.0     | 12 Jul 2023   | Added parsing of VE and ge ports in switchshow()                                  |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '12 Jul 2023'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '1.1.0'
+__version__ = '4.0.0'
 
 import re
 import time
