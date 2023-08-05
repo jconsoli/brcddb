@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -28,31 +28,18 @@ VVersion Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 3.0.0     | 02 Aug 2020   | Initial Launch - 3.x to be consistent with older class objects                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 22 Aug 2020   | Fixed link address reporting.                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 02 Sep 2020   | Fixed missing paths in IOCP report                                                |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 17 Jul 2021   | Added 'Comment' column. Used libraries in brcddb_port.                            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 14 Nov 2021   | No functional changes. Added defaults for display tables and sheet indices.       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 31 Dec 2021   | Changes to accommodate changes to brcddb.classes.iocp.IOCPObj.                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 28 Apr 2022   | Updated documentation.                                                            |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
+
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021 Jack Consoli'
-__date__ = '28 Apr 2022'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.8'
+__version__ = '4.0.0'
 
 import openpyxl.utils.cell as xl
 import brcdapi.gen_util as gen_util

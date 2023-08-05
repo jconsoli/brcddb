@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -63,44 +63,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1-8   | 17 Apr 2021   | Miscellaneous bug fixes.                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | 14 May 2021   | Added parse_parameters(), replaced wb.get_sheet_by_name() with wb[sheet_name]     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.0     | 14 Nov 2021   | No functional changes. Defaulted sheet index to 0                                 |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.1     | 31 Dec 2021   | Fixed error message when file not found in parse_switch_file()                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.2     | 28 Apr 2022   | Moved generic Excel utilities to brcdapi.excel_util                               |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.3     | 22 Jun 2022   | Added _parse_chassis_sheet(), additional parameters from the switch configuration |
-    |           |               | workbook, fixed font reference in title_page().                                   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.4     | 01 Jan 2023   | Added the port index, routing poilcy, and CUP enable. Modified                    |
-    |           |               | parse_switch_file() to return an error list rather than print the errors to the   |
-    |           |               | log.                                                                              |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.5     | 11 Feb 2023   | Added ability to handle 'open -n' and 'ficon -n' for port names. Added check for  |
-    |           |               | FICON ports with addresses > 0xFD                                                 |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.6     | 26 Mar 2023   | Added user friendy error message for invalid file path in parse_sfp_file()        |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.7     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.8     | 11 Jul 2023   | Added support for ge ports.                                                       |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '11 Jul 2023'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.8'
+__version__ = '4.0.0'
 
 import openpyxl as xl
 import brcdapi.util as brcdapi_util

@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -28,39 +28,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
-    | 2.x.x     |               |                                                                                   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 01 Nov 2020   | Removed deprecated KPIs                                                           |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 13 Feb 2021   | Removed the shebang line                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 17 Jul 2021   | Get switch type from brcddb_chassis instead of brcddb_switch                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 14 Nov 2021   | No functional changes. Added defaults for display tables and sheet indicies.      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 31 Dec 2021   | Corrected descriptions for "param in_display" and "type in_display" in            |
-    |           |               | switch_page() header. No functional changes.                                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 28 Apr 2022   | Added references for report_app, allowed single switch in switch_page()           |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 14 Oct 2022   | Added zone and port statistics summary                                            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
+
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '04 Jun 2023'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 Aug 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '4.0.0'
 
 import collections
 import openpyxl.utils.cell as xl
