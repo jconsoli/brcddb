@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -63,38 +63,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch - 3.x to be consistent with other library version convention       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 22 Aug 2020   | Fixed missing link addresses and added UNIT.                                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 02 Sep 2020   | Handled condition whan CHPID is not immediately followed by PATH                  |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 13 Feb 2021   | Removed the shebang line                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 17 Jul 2021   |  Added full_cpc_sn(). Added device 9074. Added tag_to_text()                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 14 Nov 2021   | Added dev_type_desc() and fixed mis-capture of the unit type.                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 31 Dec 2021   | Added tag_to_ind_tag_list(). Miscellaneous bug fixes.                             |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | 28 Apr 2022   | Added machine type 3931 (z16) and fixed control unit matching when CSS for the    |
-    |           |               | CNTLUNIT macro is a sub-set of the CSS for the CHPID.                             |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.0     | 21 May 2023   | Updated documentation                                                             |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
+
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '21 May 2023'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.0'
+__version__ = '4.0.0'
 
 import collections
 import brcdapi.log as brcdapi_log
