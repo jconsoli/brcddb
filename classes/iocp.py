@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -21,36 +21,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 3.0.0     | 02 Aug 2020   | Initial                                                                           |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 22 Aug 2020   | Fixed r_cu_objects(), was returning a list of dict instead of dict.               |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes                                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 13 Feb 2021   | Removed method version().                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 14 Nov 2021   | Use common util.get_reserved() in r_get_reserved()                                |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 31 Dec 2021   | Fixed r_path_list() to return paths, not control units. Fixed r_path_objects()    |
-    |           |               | and r_cu_objects().                                                               |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 28 Apr 2022   | Added ability to search for a CHPID path that is a subset of CSS in r_path_obj()  |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 01 Jan 2023   | Added rs_key()                                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 26 Mar 2023   | Added r_format().                                                                 |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | 21 May 2023   | Updated documentation                                                             |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
+
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '21 May 2023'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.9'
+__version__ = '4.0.0'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as util 
