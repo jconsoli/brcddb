@@ -1,5 +1,8 @@
 # brcddb
 
+Consoli Solutions, LLC
+jack_consoli@yahoo.com
+
 **Updates 11 Feb 2023**
 
 * Added checks for FICON ports with addresses > 0xFD
