@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,40 +48,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch - 3.x for consistancy with other library version conventions       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 22 Aug 2020   | Added port_obj_for_index()                                                        |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 22 Jan 2021   | Added port_obj_for_wwn()                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 26 Jan 2021   | Miscellaneous cleanup. No functional changes.                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 13 Feb 2021   | Removed the shebang line                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 17 Jul 2021   | Added port_obj_for_chpid() and port_obj_for_addr()                                |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 31 Dec 2021   | Improved comments only. No functional changes.                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 28 Apr 2022   | Updated documentation                                                             |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 25 Jul 2022   | Added check for unknown port types in port_type()                                 |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | 01 Jan 2023   | Added port_objects_for_addr()                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.0     | 11 Feb 2023   | Added port_objects_for_name()                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.1     | 04 Jun 2023   | Use URI references in brcdapi.util                                                |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '04 Jun 2023'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.1.1'
+__version__ = '4.0.0'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util

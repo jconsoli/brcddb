@@ -1,4 +1,4 @@
-# Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -21,43 +21,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 1.x.x     | 03 Jul 2019   | Experimental                                                                      |
-    | 2.x.x     |               |                                                                                   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.0     | 19 Jul 2020   | Initial Launch                                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 02 Aug 2020   | PEP8 Clean up                                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 02 Sep 2020   | Added 0 auto-negotiate no-sync to fibrechannel/speed to port_conversion_tbl       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 01 Nov 2020   | Removed deprecated conversions. Added 9.0 status values to port operational-status|
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 14 Nov 2020   | Removed 'fibrechannel/speed' and 'fibrechannel/max-speed' from                    |
-    |           |               | port_conversion_tbl in favor of calculating speed so as to accommodate all speeds |
-    |           |               | in code.                                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 13 Feb 2021   | Fixed PORT_TYPE_L                                                                 |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 17 Jul 2021   | Removed zone_flag_wwn and zone_flag_di                                            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 31 Dec 2021   | Added ability to determine remote SFP speed by HBA when remote speed unavailable  |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.8     | 25 Jul 2022   | Added new port types with 9.1                                                     |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.9     | 21 May 2023   | Updated documentation                                                             |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.1.0     | 04 Jun 2023   | Added missing fibrechannel-name-server in node-symbolic-name                      |
-    |           |               | Fixed incorrect regex in hba_8G_d and hba_4G_d.                                   |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
+
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2019, 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '04 Jun 2023'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Development'
-__version__ = '3.1.0'
+__status__ = 'Released'
+__version__ = '4.0.0'
 
 import brcdapi.util as brcdapi_util
 
