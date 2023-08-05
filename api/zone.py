@@ -1,4 +1,4 @@
-# Copyright 2020, 2021, 2022, 2023 Jack Consoli.  All rights reserved.
+# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
 #
 # NOT BROADCOM SUPPORTED
 #
@@ -44,31 +44,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
     +===========+===============+===================================================================================+
-    | 3.0.0     | 01 Nov 2020   | Initial Launch                                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.1     | 13 Feb 2021   | Removed the shebang line                                                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.2     | 14 Aug 2021   | Added enable_zonecfg()                                                            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.3     | 31 Dec 2021   | Deprecated pyfos_auth.                                                            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.4     | 28 Apr 2022   | Updated comments only.                                                            |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.5     | 25 Jul 2022   | Fixed missing effective zone config in defined config in build_zonecfg_content()  |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.6     | 14 Oct 2022   | Updated zone configuration by alias, zone, and zonecfg to help isolate errors.    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 3.0.7     | 21 May 2023   | Removed unused imports and updated documentation                                  |
+    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
+
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2020, 2021, 2022, 2023 Jack Consoli'
-__date__ = '21 May 2023'
+__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
+__date__ = '04 August 2023'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack.consoli@broadcom.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '3.0.7'
+__version__ = '4.0.0'
 
 import copy
 import brcdapi.log as brcdapi_log
