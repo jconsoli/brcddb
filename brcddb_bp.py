@@ -1,23 +1,22 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.bp
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb_bp` - Best Practices checking
 
 **Description**
 
-    This modules is comprised primarily of tables that define how best practice checks are to be performed. There are
+    This module is primarily contains tables that define how best practice checks are to be performed. There are
     two methods for checking best practices:
 
     * Complex checks which require
@@ -27,7 +26,7 @@
 
 **WARNING**
 
-    This module module imports other modules from the same directory. To avoid circular imports, this module should
+    This module imports other modules from the same directory. To avoid circular imports, this module should
     only be imported by applications uses the brcdb libraries not no any of the library modules within brcddb.
 
 Public Methods & Data::
@@ -45,16 +44,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Fixed speed search terms.                                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -183,10 +184,10 @@ _remote_rule_template = {
 def _amp_in_switch_pair(switch_pair):
     """Determines if either switch in a switch pair from FabricObj.r_isl_map() is an AMP
 
-    There is no guarantee that each switch was polled so you can't rely on knowing the switch type. In fact, AMP
+    There is no guarantee that each switch was polled, so you can't rely on knowing the switch type. In fact, AMP
     probably isn't ever polled. brcddb_fabric.zone_analysis() adds an alert to logins if the login is to an AMP
     unit. So we spin through all the logins associated with the ports to determine if any of them are an AMP.
-    :param switch_pair: Dictionary of switches and trunks as returned from brcddb.clases.switch.c_trunk_map()
+    :param switch_pair: Dictionary of switches and trunks as returned from brcddb.classes.switch.c_trunk_map()
     :type switch_pair: dict
     :return: True if any of the ports are connected to an AMP
     :rtype: bool
@@ -450,7 +451,7 @@ def _check_sfps(rule, port_obj_l, t_obj):
                 brcdapi_log.log('Missing P/N in ' + _sfp_file + ', Group: ' + str(group), echo=True)
 
         except BaseException as e:
-            e_buf = 'Exception: ' + str(e) if isinstance(e, (bytes, str)) else str(type(e))
+            e_buf = str(type(e)) + ': ' + str(e)
             ml = ['Invalid SFP rules file ' + _sfp_file, 'Group: ' + str(group), e_buf]
             brcdapi_log.exception(ml, echo=True)
             return
@@ -612,17 +613,11 @@ def _read_bp_workbook(bp_file):
         return bp_l
 
     # Read the workbook with best practice rules
-    e_buf = None
-    try:
-        sheet_l = excel_util.read_workbook(bp_file, dm=3, sheets='active')
-        if len(sheet_l) == 0:
-            e_buf = '"active" sheet not found in ' + bp_file + '.'
-    except FileNotFoundError:
-        e_buf = 'File ' + bp_file + ' not found. Skipping best practice checks.'
-    except FileExistsError:
-        e_buf = 'A folder in in the path "' + bp_file + '" does not exist. Skipping best practice checks.'
-    if e_buf is not None:
-        brcdapi_log.log(['', e_buf, ''], echo=True)
+    error_l, sheet_l = excel_util.read_workbook(bp_file, dm=3, sheets='active')
+    if len(sheet_l) == 0 and len(error_l) == 0:
+        error_l.append('"active" sheet not found in ' + bp_file + '.')
+    if len(error_l) > 0:
+        brcdapi_log.log(error_l, echo=True)
         return bp_l
 
     for sheet_d in sheet_l:  # sheet_l can only have one sheet in it
@@ -730,15 +725,15 @@ _bp_tbl_d = {
     'sfp_health_check': dict(a=_check_sfps, d='PortObj'),
     'remote_sfp_health_check': dict(a=_check_remote_sfps, d='PortObj'),
     al.ALERT_NUM.LOGIN_SPEED_NOT_MAX_W: dict(a=_check_best_practice, d='PortObj', t=dict(
-        p0='_search/speed',
-        p1='_search/max_login_speed',
-        l=(dict(k='_search/speed', t='<', v='_search/max_login_speed'),),
+        p0='cs_search/speed',
+        p1='cs_search/max_login_speed',
+        l=(dict(k='cs_search/speed', t='<', v='cs_search/max_login_speed'),),
         logic='and')
     ),
     al.ALERT_NUM.SWITCH_LIMITED_SPEED: dict(a=_check_best_practice, d='PortObj', t=dict(
-        p0='_search/remote_sfp_max_speed',
-        p1='_search/sfp_max_speed',
-        l=(dict(k='_search/sfp_max_speed', t='<', v='_search/remote_sfp_max_speed'),),
+        p0='cs_search/remote_sfp_max_speed',
+        p1='cs_search/sfp_max_speed',
+        l=(dict(k='cs_search/sfp_max_speed', t='<', v='cs_search/remote_sfp_max_speed'),),
         logic='and')
     ),
     al.ALERT_NUM.PORT_F_ZERO_CREDIT: dict(a=_check_best_practice, d='PortObj', t=dict(
@@ -831,7 +826,7 @@ def best_practice(bp_file, sfp_file, a_tbl, proj_obj):
     """
     global _alert_tbl_d, _bp_tbl_d, _sfp_file, _sfp_rules
 
-    _alert_tbl_d = a_tbl  # I could have handled this better but I'm not fixing working code.
+    _alert_tbl_d = a_tbl  # I could have handled this better, but I'm not fixing working code.
     if sfp_file is not None:
         _sfp_file = sfp_file
         _sfp_rules = report_utils.parse_sfp_file(sfp_file)

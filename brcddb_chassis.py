@@ -1,17 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb_chassis` - Methods and tables to support the class ChassisObj.
 
 Public Methods::
@@ -48,16 +48,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Added FC64-48 to blade_id_name                                                    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import time
 import brcdapi.log as brcdapi_log
@@ -65,7 +67,7 @@ import brcdapi.util as brcdapi_util
 
 _MIN_SYMB_LEN = 10
 
-blade_id_name = {
+blade_id_name = {  # ToDo - Add G720 and G730
     1: 'CP1',
     2: 'FC_16',
     4: 'FC2-16',
@@ -106,6 +108,7 @@ blade_id_name = {
     204: 'FC32-64',
     214: 'CR64-4',
     215: 'CR64-8',
+    216: 'FC64-48',
     218: 'FC32-X7-48',
     220: 'CPX7',
     232: 'FC64-64',
@@ -496,7 +499,7 @@ def eos_epoch(obj):
 
 
 def eos(obj):
-    """Returns the End of Support (EOS) date in human readable format
+    """Returns the End of Support (EOS) date in human-readable format
 
     :param obj: Chassis or switch object
     :type obj: brcddb.class.chassis.ChassisObj, brcddb.class.switch.SwitchObj

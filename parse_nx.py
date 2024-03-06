@@ -1,17 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`parse_nx` - Parses output from NX OS (Cisco CLI output).
 
 **Description**
@@ -54,16 +54,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import re
 import time
@@ -149,6 +151,7 @@ _show_interface_brief_map = [
     'logical_type',  # 9
 ]
 
+
 def show_interface_brief(content_l):
     """Parses "show interface brief" output into the equivalent of json.loads("show interface brief | json | no-more")
 
@@ -205,7 +208,7 @@ def _show_zoneset_zoneset_name(rd, zoneset_d, zone_d, control_d, buf):
     r_zoneset_d = dict(zoneset_name=buf_l[2],
                        zoneset_vsan_id=int(buf_l[4]),
                        zoneset_alias=dict(),
-                       zoneset_wip = None,
+                       zoneset_wip=None,
                        TABLE_zone=dict(ROW_zone=list()))
     rd['TABLE_zoneset']['ROW_zoneset'].append(r_zoneset_d)
     return r_zoneset_d, None
@@ -238,13 +241,13 @@ def _fcalias_zone_member(rd, zoneset_d, zone_d, control_d, buf):
     buf_l = gen_util.remove_duplicate_space(buf).split()
     try:
         if int(buf_l[4]) != zoneset_d['zoneset_vsan_id']:
-            ebuf = 'vsan id in ' + buf + ' does not match vsan for zoneset ' + zoneset_d['zoneset_name']
+            e_buf = 'vsan id in ' + buf + ' does not match vsan for zoneset ' + zoneset_d['zoneset_name']
             brcdapi_log.exception(e_buf, echo=True)
-            return  zoneset_d, zone_d
+            return zoneset_d, zone_d
     except TypeError:
-        e_buf = 'Expected vsan integer in ' + buf + '. Received ' + str(buf_l[4]) + '.  in '+ zoneset_d['zoneset_name']
+        e_buf = 'Expected vsan integer in ' + buf + '. Received ' + str(buf_l[4]) + '.  in ' + zoneset_d['zoneset_name']
         brcdapi_log.exception(e_buf, echo=True)
-        return  zoneset_d, zone_d
+        return zoneset_d, zone_d
     except IndexError:
         pass
     zone_d['TABLE_zone_member']['ROW_zone_member'].append(dict(dev_alias=buf_l[2]))
@@ -299,7 +302,8 @@ def show_zoneset(content_l):
         try:
             zoneset_d, zone_d = _show_zoneset_parse_d[active_key](rd, zoneset_d, zone_d, control_d, buf)
         except BaseException as e:
-            brcdapi_log.exception(['', 'Error processing: ' + buf, 'Exception is: ' + str(e), ''], True)
+            ml = ['', 'Error processing: ' + buf, 'Exception is: ' + str(type(e)) + ': ' + str(e), '']
+            brcdapi_log.exception(ml, True)
 
     return rd
 
@@ -413,7 +417,7 @@ _show_fcdomain_parse_d = {
     'The local switch is': dict(a=_show_fcdomain_role),
     'Local switch run time information':
         dict(a=_show_fcdomain_run_time_info,
-             sub_d={'State': dict(k='State',i=0),
+             sub_d={'State': dict(k='State', i=0),
                     'Local switch WWN': dict(k='local_switch_wwn', i=0),
                     'Running fabric name': dict(k='running_fabric_name', i=0),
                     'Running priority': dict(k='running_priority', i=1),

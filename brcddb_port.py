@@ -1,17 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb_chassis` - Methods and tables to support the class ChassisObj.
 
 Public Methods::
@@ -22,7 +22,7 @@ Public Methods::
     | port_best_desc        | Finds the first descriptor for what's attached to the port. See module header for     |
     |                       | details.                                                                              |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | best_port_name        | Returns the user defined port name, if available. Otherwise the port number           |
+    | best_port_name        | Returns the user defined port name, if available. Otherwise, the port number          |
     +-----------------------+---------------------------------------------------------------------------------------+
     | port_type             | Returns the port type (F-Port, E-Port, etc.) in plain text                            |
     +-----------------------+---------------------------------------------------------------------------------------+
@@ -50,16 +50,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -109,7 +111,7 @@ def port_best_desc(port_obj):
 
 
 def best_port_name(port_obj, port_num=False):
-    """Returns the user defined port name, if available. Otherwise the port number
+    """Returns the user defined port name, if available. Otherwise, the port number
 
     :param port_obj: Port Object
     :type port_obj: brcddb_classes.port.PortObj
@@ -221,7 +223,7 @@ def port_objects_for_addr(obj, addr, search='exact'):
     :param obj: Object with port objects, obj.r_port_objects()
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
                 brcddb.classes.chassis.ChassisObj
-    :param addr: Hex FC address. Not case sensitive. Must begin with '0x'. Remaining characters depend on search type.
+    :param addr: Hex FC address. Not case-sensitive. Must begin with '0x'. Remaining characters depend on search type.
     :type addr: str
     :param search: Search type. Must be one of the search types accpted by brcddb_search.match_test()
     :type search: str
@@ -255,7 +257,7 @@ def port_objects_for_name(obj, name, search='exact'):
     :param obj: Object with port objects, obj.r_port_objects()
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
                 brcddb.classes.chassis.ChassisObj
-    :param name: Port name + search characters (if applicable). Case sensitive.
+    :param name: Port name + search characters (if applicable). Case-sensitive.
     :type name: str
     :param search: Search type. Must be one of the search types accpted by brcddb_search.match_test()
     :type search: str
@@ -266,5 +268,3 @@ def port_objects_for_name(obj, name, search='exact'):
         obj.r_port_objects(),
         dict(k=brcdapi_util.fc_user_name, t=search, v=name, i=False)
     )
-
-

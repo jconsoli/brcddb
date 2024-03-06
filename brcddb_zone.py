@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.brcddb_zone` - Zone utilities.
 
 Public Methods::
@@ -46,16 +45,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
@@ -112,10 +113,10 @@ def zone_compare(base_zone_obj, comp_zone_obj):
     bl, cl = base_zone_obj.r_members(), comp_zone_obj.r_members()
     pbl, pcl = base_zone_obj.r_pmembers(), comp_zone_obj.r_pmembers()
     return True if base_zone_obj.r_type() != comp_zone_obj.r_type() else False, \
-           [mem for mem in cl if mem not in bl],\
-           [mem for mem in bl if mem not in cl], \
-           [mem for mem in pcl if mem not in pbl],\
-           [mem for mem in pbl if mem not in pcl]
+        [mem for mem in cl if mem not in bl], \
+        [mem for mem in bl if mem not in cl], \
+        [mem for mem in pcl if mem not in pbl], \
+        [mem for mem in pbl if mem not in pcl]
             
 
 def is_zone_match(base_zone_obj, comp_zone_obj):
@@ -206,7 +207,6 @@ def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=Fals
         zones_for_wwn_d.update({zone: True})
 
     for zone_obj in fab_obj.r_eff_zone_objects_for_wwn(wwn):
-        mem_l = list()  # Just to keep the warnings down in PyCharm
         if zone_obj.r_type() == brcddb_common.ZONE_STANDARD_ZONE:
             mem_l = zone_obj.r_members()
         else:

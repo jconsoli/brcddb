@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb_fabric` - Fabric level utilities. Primarily:
 
 Public Methods & Data::
@@ -59,16 +58,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
@@ -93,7 +94,7 @@ _check_d = dict(peer_property=False,
 _speed_to_gen = {'1G': 0, '2G': 2, '4G': 3, '8G': 4, '16G': 5, '32G': 6, '64G': 7, '128G': 8}
 special_login = {
     'SIM Port': al.ALERT_NUM.LOGIN_SIM,
-    # Should never get 'I/O Analytics Port' because I check for AE-Port but rather than over think it...
+    # Should never get 'I/O Analytics Port' because I check for AE-Port but rather than overthink it...
     'I/O Analytics Port': al.ALERT_NUM.LOGIN_AMP,
 }
 
@@ -108,7 +109,7 @@ def set_bp_check(key, val):
     :param key: Key in _check_d to be set
     :type key: str
     :param val: State: True or False, or an integer for zone checks
-    :type val: bool
+    :type val: bool, int
     """
     global _check_d
 
@@ -119,7 +120,7 @@ def set_bp_check(key, val):
 
 
 def best_fab_name(fab_obj, wwn=False, fid=False):
-    """Returns the user friendly fabric name, optionally with the WWN of just the WWN if a user friendly name wasn't
+    """Returns the user-friendly fabric name, optionally with the WWN of just the WWN if a user-friendly name wasn't
     defined.
 
     :param fab_obj: Fabric object
@@ -275,7 +276,7 @@ def zone_by_target(fab_obj):
         # Get the target port object and speed
         t_wwn = t_login_obj.r_obj_key()
         t_port_obj = t_login_obj.r_port_obj()
-        x = None if t_port_obj is None else t_port_obj.r_get('_search/speed')
+        x = None if t_port_obj is None else t_port_obj.r_get('cs_search/speed')
         t_speed = x if isinstance(x, (int, float)) else 0
 
         # Get a list of all the server login objects zoned to this target
@@ -287,7 +288,7 @@ def zone_by_target(fab_obj):
         s_speed_l = list()
         for s_login_obj in gen_util.remove_none([fab_obj.r_login_obj(wwn) for wwn in s_wwn_d]):
             s_port_obj = s_login_obj.r_port_obj()
-            x = None if s_port_obj is None else s_port_obj.r_get('_search/speed')
+            x = None if s_port_obj is None else s_port_obj.r_get('cs_search/speed')
             if isinstance(x, (int, float)):
                 s_speed_l.append(dict(obj=s_login_obj, s=x))
 
@@ -345,7 +346,7 @@ def zone_analysis(fab_obj):
 
     # Zone analysis
     for zone_obj in fab_obj.r_zone_objects():
-        pmem_list = list()  # pmem_list and nmem_list was an after thought to save time resolving them again in the
+        pmem_list = list()  # pmem_list and nmem_list was an afterthought to save time resolving them again in the
         nmem_list = list()  # effective zone to defined zone comparison. These are the aliases converted to WWN
         flag &= ~(_IN_DEFINED_ZONECFG | _WWN_IN_ZONE | _ALIAS_IN_ZONE | _DI_IN_ZONE | _WWN_MEM)
 
@@ -505,11 +506,11 @@ def zone_analysis(fab_obj):
 
 
 def fab_obj_for_name(proj_obj, fab_name):
-    """Finds the first fabric matching the user friendly fabric name
+    """Finds the first fabric matching the user-friendly fabric name
 
     :param proj_obj: brcddb project object
     :type proj_obj: brcddb.classes.project.ProjObj
-    :param fab_name: Fabric user friendly name
+    :param fab_name: Fabric user-friendly name
     :type fab_name: str
     :return: brcddb fabric object. None if not found
     :rtype: brcddb.classes.fabric.FabricObj, None
@@ -642,9 +643,9 @@ def zone_merge_group(wwn_d, fab_obj, wwn):
     :type fab_obj: brcddb.classes.fabric.FabricObj
     :param wwn: WWN of the device you want to move
     :type wwn: str, None
-    :return wwn_l: List of WWNs need to be grouped together
+    :return wwn_l: WWNs need to be grouped together
     :rtype wwn_l: list
-    :return missing_l: List of WWNs not found
+    :return missing_l: WWNs not found
     :rtype missing_l: list
     """
     missing_l = list()

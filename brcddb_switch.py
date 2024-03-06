@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.brcddb_switch` - Methods and tables to support the class SwitchObj.
 
 Public Methods::
@@ -24,7 +23,7 @@ Public Methods::
     |                       | each port object                                                                      |
     +-----------------------+---------------------------------------------------------------------------------------+
     | best_switch_name      | Returns the user friendly switch name, optionally with the switch WWN in parenthesis. |
-    |                       | If the swith is not named, ust the switch WWN is returned                             |
+    |                       | If the switch is not named, ust the switch WWN is returned                            |
     +-----------------------+---------------------------------------------------------------------------------------+
     | copy_switch_obj       | Makes a copy of a switch object                                                       |
     +-----------------------+---------------------------------------------------------------------------------------+
@@ -46,16 +45,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import time
 import brcdapi.util as brcdapi_util
@@ -69,7 +70,7 @@ area_mode = {
 }
 
 
-def add_rest_port_data(switch_obj, pobj, flag_obj=None, in_skip_list=list()):
+def add_rest_port_data(switch_obj, pobj, flag_obj=None, in_skip_list=None):
     """Adds port statistics from rest request 'brocade-interface/fibrechannel-statistics' to each port object
 
     :param switch_obj: Switch object
@@ -80,7 +81,6 @@ def add_rest_port_data(switch_obj, pobj, flag_obj=None, in_skip_list=list()):
     :type flag_obj: None
     :param in_skip_list: Keys to skip
     :type in_skip_list: (list, tuple)
-    :return: None
     :rtype: None
     """
     skip_list = in_skip_list if isinstance(in_skip_list, (list, tuple)) else list()
@@ -106,7 +106,7 @@ def add_rest_port_data(switch_obj, pobj, flag_obj=None, in_skip_list=list()):
 
 
 def best_switch_name(switch_obj, wwn=False, did=False, fid=False):
-    """Returns the user friendly switch name, optionally with the switch WWN in parenthesis. If the swith is not named,
+    """Returns the user-friendly switch name, optionally with the switch WWN in parentheses. If the switch is not named,
        just the switch WWN is returned
 
     :param switch_obj: Switch object
