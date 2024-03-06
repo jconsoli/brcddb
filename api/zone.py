@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.api.zone` - Converts the zoning information in a fabric object (brcddb.classes.fabric.FabricObj) to JSON \
 and sends it to a switch.
 
@@ -46,16 +45,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import copy
 import brcdapi.log as brcdapi_log
@@ -82,13 +83,13 @@ def build_alias_content(fab_obj):
     wd = content['defined-configuration']
 
     # Add the aliases
-    l = list()
+    alias_l = list()
     for obj in fab_obj.r_alias_objects():
         members = obj.r_members()
         if len(members) > 0:
-            l.append({'alias-name': obj.r_obj_key(), 'member-entry': {'alias-entry-name': members}})
-    if len(l) > 0:
-        wd.update(alias=l)
+            alias_l.append({'alias-name': obj.r_obj_key(), 'member-entry': {'alias-entry-name': members}})
+    if len(alias_l) > 0:
+        wd.update(alias=alias_l)
 
     return None if len(wd.keys()) == 0 else content
 
@@ -105,7 +106,7 @@ def build_zone_content(fab_obj):
     wd = content['defined-configuration']
 
     # Add the zones
-    l = list()
+    zone_l = list()
     for obj in fab_obj.r_zone_objects():
         if obj.r_get('zone-type') is not brcddb_common.ZONE_TARGET_PEER:
             d = {'zone-name': obj.r_obj_key(), 'zone-type': obj.r_type(), 'member-entry': dict()}
@@ -116,8 +117,8 @@ def build_zone_content(fab_obj):
             members = obj.r_pmembers()
             if len(members) > 0:
                 me.update({'principal-entry-name': members})
-            l.append(d)
-        wd.update(zone=l)
+            zone_l.append(d)
+        wd.update(zone=zone_l)
 
     return None if len(wd.keys()) == 0 else content
 
@@ -127,21 +128,21 @@ def build_zonecfg_content(fab_obj):
 
     :param fab_obj: Fabric object
     :type fab_obj: FabricObj
-    :return: Dict of requests
+    :return: Dictionary of requests
     :rtype: dict
     """
     content = {'defined-configuration': dict()}
     wd = content['defined-configuration']
 
     # Add the zone configurations
-    l = list()
+    zonecfg_l = list()
     for obj in fab_obj.r_zonecfg_objects():
         if obj.r_obj_key() != '_effective_zone_cfg':
             members = obj.r_members()
             if len(members) > 0:
-                l.append({'cfg-name': obj.r_obj_key(), 'member-zone': {'zone-name': members}})
-    if len(l) > 0:
-        wd.update(cfg=l)
+                zonecfg_l.append({'cfg-name': obj.r_obj_key(), 'member-zone': {'zone-name': members}})
+    if len(zonecfg_l) > 0:
+        wd.update(cfg=zonecfg_l)
 
     return None if len(wd.keys()) == 0 else content
 
@@ -157,15 +158,10 @@ def build_all_zone_content(fab_obj):
     content = {'defined-configuration': dict()}
     wd = content['defined-configuration']
 
-    temp_content = build_alias_content(fab_obj)
-    if temp_content is not None:
-        wd.update(alias=temp_content.get('defined-configuration').get('alias'))
-    temp_content = build_zone_content(fab_obj)
-    if temp_content is not None:
-        wd.update(zone=temp_content.get('defined-configuration').get('zone'))
-    temp_content = build_zonecfg_content(fab_obj)
-    if temp_content is not None:
-        wd.update(cfg=temp_content.get('defined-configuration').get('cfg'))
+    for key, method in dict(alias=build_alias_content, zone=build_zone_content, cfg=build_zonecfg_content).items():
+        temp_content = method(fab_obj)
+        if temp_content is not None:
+            wd.update({key: temp_content.get('defined-configuration').get(key)})
 
     return content
 
@@ -174,7 +170,7 @@ def replace_zoning(session, fab_obj, fid):
     """Replaces the zoning database in a fabric by clearing it and then PATCHing it with a new zoning database
 
      Relevant resource: 'zoning/defined-configuration'
-     An error is returned if there is no zone database in in the fab_obj. Use clear_zoning() to clear out zoning.
+     An error is returned if there is no zone database in the fab_obj. Use clear_zoning() to clear out zoning.
 
     :param session: Login session object from brcdapi.brcdapi_rest.login()
     :type session: dict
@@ -227,7 +223,7 @@ def replace_zoning_save(session, fab_obj, fid):
     """Replaces the zoning database in a fabric by clearing it and then PATCHing it with a new zoning database
 
      Relevant resource: 'zoning/defined-configuration'
-     An error is returned if there is no zone database in in the fab_obj. Use clear_zoning() to clear out zoning.
+     An error is returned if there is no zone database in the fab_obj. Use clear_zoning() to clear out zoning.
 
     :param session: Login session object from brcdapi.brcdapi_rest.login()
     :type session: dict
@@ -266,13 +262,11 @@ def replace_zoning_save(session, fab_obj, fid):
     return obj
 
 
-def enable_zonecfg(session, fab_obj, fid, eff_cfg):
+def enable_zonecfg(session, fid, eff_cfg):
     """Activates a zone configuration (make a zone configuration effective)
 
     :param session: Login session object from brcdapi.brcdapi_rest.login()
     :type session: dict
-    :param fab_obj: Not used. Left in here for methods that used it prior to deprecating this parameter.
-    :type fab_obj: brcddb.classes.fabric.FabricObj, None
     :param fid: Fabric ID.
     :type fid: int
     :param eff_cfg: Name of the zone configuration to enable.

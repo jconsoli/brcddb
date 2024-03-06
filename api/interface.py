@@ -1,19 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.api.interface` - Single interface to brcdapi. Intended for all applications include brcddb apps
 
 Public Methods::
@@ -21,20 +19,25 @@ Public Methods::
     +-----------------------+---------------------------------------------------------------------------------------+
     | Method                | Description                                                                           |
     +=======================+=======================================================================================+
-    | get_chassis()         | Gets the  chassis object and objects for all logical switches in the chassis.         |
+    | get_chassis           | Gets the  chassis object and objects for all logical switches in the chassis.         |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | login()               | Wrapper around login of a Rest API session using brcdapi.brcdapi_rest.login()         |
+    | login                 | Wrapper around login of a Rest API session using brcdapi.brcdapi_rest.login()         |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | get_rest()            | Wraps logging around a call to brcdapi.brcdapi_rest.get_request() and adds responses  |
+    | logout                | Wrapper around logout of a Rest API session using brcdapi.brcdapi_rest.logout()       |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | get_rest              | Wraps logging around a call to brcdapi.brcdapi_rest.get_request() and adds responses  |
     |                       | to the associated object.                                                             |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | get_batch()           | Processes a batch API requests and adds responses to the associated object. All       |
+    | get_batch             | Processes a batch API requests and adds responses to the associated object. All       |
     |                       | chassis request are performed first, followed by processing of logical switch         |
     |                       | requests.                                                                             |
     +-----------------------+---------------------------------------------------------------------------------------+
     | results_action        | Updates the brcddb database for an API request response. Typically only called by     |
     |                       | get_rest() and get_batch() so making this public was a future consideration.          |
     +-----------------------+---------------------------------------------------------------------------------------+
+
+$ToDo in get_batch() - All raw output for CLI goes to the switch object which is fine for now but could chassis level
+commands
 
 Version Control::
 
@@ -43,36 +46,46 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Added no_mask option to get_batch(). Added CLI command handling. Added logout()   |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
+import http.client
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.fos_auth as fos_auth
 import brcdapi.util as brcdapi_util
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
+import brcdapi.fos_cli as fos_cli
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.app_data.alert_tables as al
 import brcddb.classes.util as brcddb_class_util
 import brcddb.util.util as brcddb_util
+import brcddb.util.parse_cli as parse_cli
 
 _GEN_CASE_ERROR_MSG = '. A request for was made for something that needs to be added to an object that does not exist'
 
-_ip_list = (  # List of keys that are IP addresses. Used to determine if all but the last byte should be masked
+_default_ip_list = (  # List of keys that are IP addresses. Used to determine if all but the last byte should be masked
     'ip-address',
     'ip-address-list',
     'ip-static-gateway-list',
     'ip-gateway-list',
     'dns-servers',
+)
+_ip_list = _default_ip_list
+_parse_cli_ref = dict(  # Used in get_batch() for CLI commands
+    portcfgshow=parse_cli.portcfgshow,
+    portbuffershow=parse_cli.portbuffershow,
 )
 
 
@@ -161,7 +174,7 @@ def get_chassis(session, proj_obj):
             _process_errors(session, uri, obj, chassis_obj)
             results_action(session, chassis_obj, obj, uri)
     except BaseException as e:
-        _process_errors(session, uri, session, proj_obj, str(e) if isinstance(e, (bytes, str)) else str(type(e)))
+        _process_errors(session, uri, session, proj_obj, str(type(e)) + ': ' + str(e))
 
     return chassis_obj
 
@@ -194,6 +207,33 @@ def login(user_id, pw, ip_addr, https='none', proj_obj=None):
     return session
 
 
+def logout(session):
+    """Wrapper around logout of a Rest API session using brcdapi.brcdapi_rest.logout()
+
+    :param session: Session object returned from brcdapi.fos_auth.login()
+    :type session: dict, None
+    :return: Logout confirmation message or, if any, error messages
+    :rtype: list
+    """
+    rl = list()
+
+    # Logout of the SSH session, if one exists
+    fos_cli.logout(session)
+
+    # Logout of the API session
+    try:
+        obj = brcdapi_rest.logout(session)
+        if fos_auth.is_error(obj):
+            rl.extend(['Logout failed. Error is:', fos_auth.formatted_error_msg(obj)])
+        else:
+            rl.append('API logout succeeded')
+    except (http.client.CannotSendRequest, http.client.ResponseNotReady):
+        rl.extend(['Could not logout. You may need to terminate this session via the CLI',
+                   'mgmtapp --showsessions, mgmtapp --terminate'])
+
+    return rl
+
+
 def get_rest(session, uri, wobj=None, fid=None):
     """Wraps logging around a call to brcdapi.brcdapi_rest.get_request() and adds responses to the associated object.
 
@@ -208,7 +248,7 @@ def get_rest(session, uri, wobj=None, fid=None):
     :return: obj
     :rtype: dict
     """
-    brcdapi_log.log('GET: ' + uri + brcdapi_rest.vfid_to_str(fid), echo=True)
+    brcdapi_log.log('GET: ' + uri + brcdapi_util.vfid_to_str(fid), echo=True)
     obj = brcdapi_rest.get_request(session, uri, fid)
     _process_errors(session, uri, obj, wobj)
     return obj
@@ -256,7 +296,7 @@ _port_case_case = {
 #    :type obj: dict
 #    :param uri: URI, less the prefix
 #    :type uri: str
-# All of the case methods add to brcddb.classes objects
+# All the case methods add to brcddb.classes objects
 
 
 def _convert_ip_addr(obj):
@@ -294,7 +334,7 @@ def _update_brcddb_obj_from_list(objx, obj, uri, skip_list=None):
             if not bool(skip_d.get(k)):
                 brcddb_util.add_to_obj(objx, key + '/' + k, v)
     except BaseException as e:
-        e_buf = 'Exception: ' + str(e) if isinstance(e, (bytes, str)) else str(type(e))
+        e_buf = str(type(e)) + ': ' + str(e)
         brcdapi_log.exception([_GEN_CASE_ERROR_MSG, e_buf], echo=True)
         objx.r_project_obj().s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_PROGRAM_ERROR, None,
                                          _GEN_CASE_ERROR_MSG, e_buf)
@@ -312,8 +352,8 @@ def _update_brcddb_obj(objx, obj, uri):
     global _GEN_CASE_ERROR_MSG
 
     if objx is None:
-        # This happens when fabric information is polled from a switch but the principal fabric switch wasn't polled and
-        # we don't know what the principal fabric switch WWN is.
+        # This happens when fabric information is polled from a switch but the principal fabric switch wasn't polled,
+        # and we don't know what the principal fabric switch WWN is.
         return
 
     try:
@@ -329,8 +369,8 @@ def _update_brcddb_obj(objx, obj, uri):
         else:
             brcddb_util.add_to_obj(objx, key, working_obj)
     except BaseException as e:
-        e_buf = str(e) if isinstance(e, (bytes, str)) else str(type(e))
-        brcdapi_log.exception([_GEN_CASE_ERROR_MSG, 'Exception: ' + e_buf], echo=True)
+        e_buf = str(type(e)) + ': ' + str(e)
+        brcdapi_log.exception([_GEN_CASE_ERROR_MSG, e_buf, 'uri: ' + str(uri)], echo=True)
         objx.r_project_obj().s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_PROGRAM_ERROR, None,
                                          _GEN_CASE_ERROR_MSG, e_buf)
         try:
@@ -647,7 +687,7 @@ def results_action(session, brcddb_obj, fos_obj, kpi):
             brcdapi_log.log(buf, echo=True)
 
 
-def get_batch(session, proj_obj, uri_l, fid=None):
+def get_batch(session, proj_obj, uri_l, fid=None, no_mask=False):
     """Processes a batch API requests and adds responses to the associated object. All chassis request are performed
     first, followed by processing of logical switch requests.
 
@@ -662,24 +702,34 @@ def get_batch(session, proj_obj, uri_l, fid=None):
     :type uri_l: list, str
     :param fid: FID, or list of FIDs for logical switch level requests. If None, execute requests for all FIDs.
     :type fid: int, list, tuple, None
+    :param no_mask: If True, do not mask off IP addresses.
+    :type no_mask: bool
     :return: True if no errors encountered, otherwise False
     :rtype: bool
     """
+    global _ip_list, _default_ip_list
+
+    _ip_list = list() if no_mask else _default_ip_list
+
     # Get the chassis object
     chassis_obj = get_chassis(session, proj_obj)
     if chassis_obj is None:
         brcdapi_log.log(brcdapi_util.mask_ip_addr(session.get('ip_addr')) + ' Chassis not found.', echo=True)
         return False
 
-    # Sort out which KPIs are for the chassis and which are for a logical switch
-    chassis_uri_l, switch_uri_l = list(), list()
+    # Sort out which KPIs are for the chassis, which are for a logical switch, which are for CLI
+    fos_cli_l, chassis_uri_l, switch_uri_l = list(), list(), list()
     for uri in gen_util.convert_to_list(uri_l):
-        d = brcdapi_util.uri_d(session, uri)
-        if isinstance(d, dict):  # It's None if the URI isn't supported in this version of FOS
-            if d['fid']:
-                switch_uri_l.append(uri)
-            else:
-                chassis_uri_l.append(uri)
+        fos_command = fos_cli.parse_cli(uri)
+        if isinstance(fos_command, str):
+            fos_cli_l.append(fos_command)
+        else:
+            d = brcdapi_util.uri_d(session, uri)
+            if isinstance(d, dict):  # It's None if the URI isn't supported in this version of FOS
+                if d['fid']:
+                    switch_uri_l.append(uri)
+                else:
+                    chassis_uri_l.append(uri)
 
     # Get all the chassis data
     for uri in chassis_uri_l:
@@ -703,5 +753,16 @@ def get_batch(session, proj_obj, uri_l, fid=None):
         for uri in switch_uri_l:
             obj = get_rest(session, uri, switch_obj, brcddb_switch.switch_fid(switch_obj))
             results_action(session, switch_obj, obj, uri)
+
+    # Process any CLI commands. $ToDo - I'm assuming all these commands are switch level, but it could be chassis
+    for switch_obj in chassis_obj.r_switch_objects():
+        for full_cmd in fos_cli_l:
+            raw_l = fos_cli.send_command(session, brcddb_switch.switch_fid(switch_obj), full_cmd)
+            cmd = full_cmd.split(' ')[0]
+            brcddb_class_util.get_or_add(switch_obj, 'fos_cli/' + cmd, raw_l)
+            try:
+                _parse_cli_ref[cmd](switch_obj, raw_l)
+            except KeyError:
+                brcdapi_log.exception('Unknown FOS CLI command: ' + cmd, echo=True)
 
     return True
