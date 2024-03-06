@@ -58,7 +58,7 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    | 4.0.1     | 06 Mar 2024   | Added aliases_by_name()                                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
@@ -653,16 +653,16 @@ def zone_merge_group(wwn_d, fab_obj, wwn):
     return wwn_l, gen_util.remove_duplicates(missing_l)
 
 
-def fab_match(fab_obj, search_term_l_in, s_type_in):
-    """Returns a list of WWNs matching the search criteria
+def fab_match(fab_obj, search_term_l_in, s_type='exact'):
+    """Returns a list of WWNs logged into the fabric matching the search criteria
 
     :param fab_obj: The fabric object to be copied.
     :type fab_obj: brcddb.classes.fabric.FabricObj, None
     :param search_term_l_in: List of search terms either by WWN or alias
     :type search_term_l_in: list, None
-    :param s_type_in: Search type: None, 'exact', 'wild', 'regex-m', or 'regex-s'. Applied to search_l. None defaults \
+    :param s_type: Search type: None, 'exact', 'wild', 'regex-m', or 'regex-s'. Applied to search_l. None defaults \
         to 'exact'
-    :type s_type_in: str
+    :type s_type: str
     :return: List of matching WWNs
     :rtype: list()
     """
@@ -670,7 +670,6 @@ def fab_match(fab_obj, search_term_l_in, s_type_in):
     search_term_l = gen_util.convert_to_list(search_term_l_in)
     if len(search_term_l) == 0 or fab_obj is None:
         return list()
-    s_type = 'exact' if s_type_in is None else s_type_in
 
     # Perform the search - Get a list of all the matching WWNs
     search_l = [dict(w=wwn, a=fab_obj.r_alias_for_wwn(wwn)) for wwn in fab_obj.r_login_keys()]
@@ -680,3 +679,30 @@ def fab_match(fab_obj, search_term_l_in, s_type_in):
         rl.extend(brcddb_search.match(search_l, 'a', search_term, ignore_case=False, stype=s_type))  # Matching aliases
 
     return gen_util.remove_duplicates([d['w'] for d in rl])
+
+
+def aliases_by_name(fab_obj, search_term_l_in, s_type='exact'):
+    """Returns a list of aliases defined in the fabric matching the search criteria
+
+    :param fab_obj: The fabric object to be copied.
+    :type fab_obj: brcddb.classes.fabric.FabricObj, None
+    :param search_term_l_in: List of search terms either by WWN or alias
+    :type search_term_l_in: list, None
+    :param s_type: Search type: None, 'exact', 'wild', 'regex-m', or 'regex-s'. Applied to search_l. None defaults \
+        to 'exact'
+    :type s_type: str
+    :return: List of matching WWNs
+    :rtype: list()
+    """
+    # Condition the input
+    search_term_l = gen_util.convert_to_list(search_term_l_in)
+    if len(search_term_l) == 0 or fab_obj is None:
+        return list()
+
+    # Perform the search - Get a list of all the matching WWNs
+    search_l = [dict(a=str(key)) for key in fab_obj.r_alias_keys()]
+    rl = list()
+    for search_term in search_term_l:
+        rl.extend(brcddb_search.match(search_l, 'a', search_term, ignore_case=False, stype=s_type))
+
+    return gen_util.remove_duplicates([d['a'] for d in rl])
