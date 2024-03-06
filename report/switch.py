@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.report.switch` - Creates a switch page to be added to an Excel Workbook
 
 Public Methods & Data::
@@ -30,19 +29,22 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 Aug 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import collections
 import openpyxl.utils.cell as xl
+import brcdapi.gen_util as gen_util
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
 import brcdapi.excel_util as excel_util
@@ -66,7 +68,7 @@ _sw_quick_d['Port Configurations'] = 'report_app/hyperlink/pc'
 _sw_quick_d['Port Statistics'] = 'report_app/hyperlink/ps'
 _sw_quick_d['Ports by Zone and Login'] = 'report_app/hyperlink/pz'
 _sw_quick_d['SFP report'] = 'report_app/hyperlink/sfp'
-# Below is for effeciency
+# Below is for efficiency
 _std_font = excel_fonts.font_type('std')
 _bold_font = excel_fonts.font_type('bold')
 _link_font = excel_fonts.font_type('link')
@@ -108,7 +110,7 @@ def _s_switch_list_case(switch_obj, k):
 
 def _s_switch_trunk_case(switch_obj, k):  # Not used yet
     rl = list()
-    for obj in brcddb_util.convert_to_list(switch_obj.r_get(k)):
+    for obj in gen_util.convert_to_list(switch_obj.r_get(k)):
         port_obj = switch_obj.r_port_object_for_index(obj.get('source-port'))
         ps_name = 'Index: ' + obj.get('source-port') if port_obj is None else port_obj.r_obj_key()
         d_switch_obj = switch_obj.r_project_obj().r_switch_obj(obj.get('neighbor-wwn'))
@@ -120,7 +122,8 @@ def _s_switch_trunk_case(switch_obj, k):  # Not used yet
 
 def _s_switch_area_mode_case(switch_obj, k):
     x = switch_obj.r_get(k)
-    return str(x) + ' (' + brcddb_switch.area_mode[x] + ')' if x in brcddb_switch.area_mode else str(x) + '(Unknown)'
+    return str(x) + ' (' + brcddb_switch.area_mode[x] + ')' if x in brcddb_switch.area_mode else \
+        str(x) + ' (Unknown)'
 
 
 def _s_switch_model_case(switch_obj, k):
@@ -281,7 +284,7 @@ def _switch_statistics(sheet, row, switch_obj):
     return row
 
 
-def _add_switch(sheet, row, switch_obj, display, sheet_name, switch_name):
+def _add_switch(sheet, row, switch_obj, display, switch_name):
     """Adds switch detail to the worksheet.
 
     :param sheet: Workbook sheet
@@ -292,8 +295,6 @@ def _add_switch(sheet, row, switch_obj, display, sheet_name, switch_name):
     :type switch_obj: brcddb.classes.switch.SwitchObj
     :param display: List of keys to display. Find next instance of switch_key_case. Much less complex than port_page()
     :type display: dict
-    :param switch_name: When True, adds a seperate line for the switch name.
-    :type switch_name: bool
     :return: Next row
     :rtype: int
     """
@@ -314,7 +315,7 @@ def _add_switch(sheet, row, switch_obj, display, sheet_name, switch_name):
         col = 1
         sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
         excel_util.cell_update(sheet, row, col, brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True),
-                                 font=_hdr2_font)
+                               font=_hdr2_font)
         row += 2
 
     # Add the MAPS dashboard
@@ -368,14 +369,14 @@ def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list_in, in_display=
     :type s_list_in: list, tuple, None, brcddb.classes.switch.SwitchObj
     :param in_display: Display table for switch parameters
     :type in_display: dict, None
-    :param switch_name: When True, adds a seperate line for the switch name.
+    :param switch_name: When True, adds a separate line for the switch name.
     :type switch_name: bool
     :rtype: None
     """
     global _sw_quick_d, _border_thin, _align_wrap, _std_font
 
     # Scrub user input
-    s_list = brcddb_util.convert_to_list(s_list_in)
+    s_list = gen_util.convert_to_list(s_list_in)
     display = rt.Switch.switch_display_tbl if in_display is None else in_display
 
     # Set up the worksheet and add each switch
@@ -383,7 +384,7 @@ def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, s_list_in, in_display=
     for switch_obj in s_list:
 
         # Add the worksheet
-        row = _add_switch(sheet, row, switch_obj, display, sheet_name, switch_name)
+        row = _add_switch(sheet, row, switch_obj, display, switch_name)
         row = _switch_statistics(sheet, row, switch_obj)
 
         # Add the links to the port sheets

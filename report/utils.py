@@ -1,18 +1,16 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
 
 :mod:`report.utils` - Common methods used for reading and generating Excel reports.
 
@@ -21,36 +19,36 @@ Public Methods & Data::
     +-------------------------------+-------------------------------------------------------------------------------+
     | Method                        | Description                                                                   |
     +===============================+===============================================================================+
-    | fabric_name_case              | Return the fabric name. Typically used in case statments for page reports in  |
+    | fabric_name_case              | Return the fabric name. Typically used in case statements for page reports in |
     |                               | brcddb.report.                                                                |
     +-------------------------------+-------------------------------------------------------------------------------+
-    | fabric_name_or_wwn_case       | Return the fabric name with (wwn). Typically used in case statments for page  |
-    |                               | reports in brcddb.report.*"                                                   |
+    | fabric_name_or_wwn_case       | Return the fabric name with (wwn). Typically used in case statements for page |
+    |                               | reports in brcddb.report.*                                                    |
     +-------------------------------+-------------------------------------------------------------------------------+
-    | fabric_wwn_case               | Return the fabric WWN. Typically used in case statments for page reports in   |
+    | fabric_wwn_case               | Return the fabric WWN. Typically used in case statements for page reports in  |
     |                               | brcddb.report.                                                                |
     +-------------------------------+-------------------------------------------------------------------------------+
     | font_type                     | Determines the display font based on alerts.                                  |
     +-------------------------------+-------------------------------------------------------------------------------+
     | font_type_for_key             | Determines the display font based on alerts associated with an object.        |
     +-------------------------------+-------------------------------------------------------------------------------+
-    | comments_for_alerts           | Converts alerts associated with an object to a human readable string.         |
+    | comments_for_alerts           | Converts alerts associated with an object to a human-readable string.         |
     |                               | Multiple comments separated with /n                                           |
     +-------------------------------+-------------------------------------------------------------------------------+
     | combined_login_alert_objects  | Combines login alert objects with FDMI HBA and FDMI port alerts objects       |
     +-------------------------------+-------------------------------------------------------------------------------+
     | combined_login_alerts         | Converts alerts associated with a login object and the login and FDMI objects |
-    |                               | for lwwn to a human readable string                                           |
+    |                               | for lwwn to a human-readable string                                           |
     +-------------------------------+-------------------------------------------------------------------------------+
     | combined_alert_objects        | Combines alerts associated with a port object and the login and FDMI objects  |
     |                               | for wwn.                                                                      |
     +-------------------------------+-------------------------------------------------------------------------------+
     | combined_alerts               | Converts alerts associated with a port object and the login and FDMI objects  |
-    |                               | for lwwn to a human readable string.                                          |
+    |                               | for lwwn to a human-readable string.                                          |
     +-------------------------------+-------------------------------------------------------------------------------+
     | title_page                    | Creates a title page for the Excel report.                                    |
     +-------------------------------+-------------------------------------------------------------------------------+
-    | get_next_switch_d             | Finds the first match in an sl list returned from excel_util.read_sheet() and |
+    | get_next_switch_d             | Finds the first match in sl list returned from excel_util.read_sheet() and    |
     |                               | returns the next entry                                                        |
     +-------------------------------+-------------------------------------------------------------------------------+
     | parse_sfp_file                | Parses Excel file with the new SFP rules. See sfp_rules_rx.xlsx               |
@@ -65,16 +63,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import openpyxl as xl
 import brcdapi.util as brcdapi_util
@@ -98,7 +98,7 @@ _conv_routing_policy_d = dict(EBR='exchange-based', DBR='device-based')
 
 
 def fabric_name_case(obj, k=None, wwn=None):
-    """Return the fabric name. Typically used in case statments for page reports in brcddb.report.*
+    """Return the fabric name. Typically used in case statements for page reports in brcddb.report.*
 
     :param obj: brcddb object that contains a fabric object
     :type obj: brcddb.classes.fabric.FabricObj, brcddb.classes.fabric.SwitchObj, brcddb.classes.fabric.PortObj,
@@ -112,14 +112,14 @@ def fabric_name_case(obj, k=None, wwn=None):
 
 
 def fabric_name_or_wwn_case(obj, k=None, wwn=None):
-    """Return the fabric name with (wwn). Typically used in case statments for page reports in brcddb.report.*
+    """Return the fabric name with (wwn). Typically used in case statements for page reports in brcddb.report.*
 
     See fabric_name_case() for parameter definitions"""
     return brcddb_fabric.best_fab_name(obj.r_fabric_obj(), True)
 
 
 def fabric_wwn_case(obj, k=None, wwn=None):
-    """Return the fabric WWN. Typically used in case statments for page reports in brcddb.report.*
+    """Return the fabric WWN. Typically used in case statements for page reports in brcddb.report.*
 
     See fabric_name_case() for parameter definitions"""
     return obj.r_fabric_key()
@@ -161,7 +161,7 @@ def font_type_for_key(obj, k=None):
 
 
 def comments_for_alerts(gobj, k=None, wwn=None):
-    """Converts alerts associated with an object to a human readable string. Multiple comments separated with /n
+    """Converts alerts associated with an object to a human-readable string. Multiple comments separated with /n
 
     :param gobj: Any brcddb object
     :type gobj: ChassisObj, FabricObj, SwitchObj, PortObj, ZoneObj, ZoneCfgObj, AliasObj
@@ -203,7 +203,7 @@ def combined_login_alert_objects(login_obj):
 
 
 def combined_login_alerts(login_obj, wwn):
-    """Converts alerts associated with a login object and the login and FDMI objects for lwwn to a human readable string
+    """Converts alerts associated with a login object and the login and FDMI objects for lwwn to a human-readable string
 
     :param login_obj: Port object
     :type login_obj: brcddb.classes.port.PortObj
@@ -242,7 +242,7 @@ def combined_alert_objects(port_obj, wwn):
 
 
 def combined_alerts(port_obj, wwn):
-    """Converts alerts associated with a port object and the login and FDMI objects for lwwn to a human readable string.
+    """Converts alerts associated with a port object and the login and FDMI objects for lwwn to a human-readable string.
 
     :param port_obj: Port object
     :type port_obj: brcddb.classes.port.PortObj
@@ -269,7 +269,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
             'border': 'thin'            # Predefined border type in border_tbl
             'align': 'wrap'             # Predefined align type in align_tbl
             'merge': 2,                 # Number of columns to merge, starting from current column
-            'disp': ('col_1', 'col_2', 'etc')   # Str, list or tuple. Content to add to the worksheet
+            'disp': ('col_1', 'col_2', 'etc.')   # Str, list or tuple. Content to add to the worksheet
         }
         Example:
         content = (
@@ -284,7 +284,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
-    :param sheet_i: Sheet index where page is to be placed. Typically 0. Default is 0
+    :param sheet_i: Sheet index where page is to be placed. Typically, 0. Default is 0
     :type sheet_i: int, None
     :param sheet_title: Title to be displayed in large font, hdr_1, with light blue fill at the top of the sheet
     :type sheet_title: str
@@ -357,7 +357,7 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
 
 
 def get_next_switch_d(switch_list, val, test_type, ignore_case=False):
-    """Finds the first match in an sl list returned from excel_util.read_sheet() and returns the next entry
+    """Finds the first match in sl list returned from excel_util.read_sheet() and returns the next entry
 
     :param switch_list: A list of dictionaries as returned from excel_util.read_sheet()
     :type switch_list: list, tuple
@@ -365,7 +365,7 @@ def get_next_switch_d(switch_list, val, test_type, ignore_case=False):
     :type val: str, int, float
     :param test_type: The type of test to perform. See brcddb.util.search.match_test
     :type test_type: str
-    :param ignore_case: If True, performs a case insensitive search
+    :param ignore_case: If True, performs a case-insensitive search
     :return: Entry in switch_list. None if not found or if the match was the last entry in switch_list
     :rtype: dict, None
     """
@@ -566,7 +566,7 @@ def _parse_chassis_sheet(sheet_d):
 
     :param sheet_d: Output from excel_util.read_workbook() for the Chassis worksheet
     :type sheet_d: list
-    :return error_l: List of error messages. Empty if no error encountered
+    :return error_l: Error messages. Empty if no error encountered
     :rtype error_l: list
     :return: Dictionary for chassis.
     :rtype: dict
@@ -682,7 +682,7 @@ def _conv_routing_policy(error_l, obj_d, switch_d, val):
     """Used in _switch_d. To enable CUP. See _conv_add for parameter definitions"""
     global _conv_routing_policy_d
 
-    add_val = switch_d['d'] if not isinstance(val, str) else None if val=='default' else _conv_routing_policy_d[val]
+    add_val = switch_d['d'] if not isinstance(val, str) else None if val == 'default' else _conv_routing_policy_d[val]
     if isinstance(add_val, str):
         _conv_add(error_l, obj_d, switch_d, add_val)
 
@@ -718,7 +718,7 @@ _switch_d = {  # See above for definitions. This table is used in _parse_switch_
     'Switch Type': dict(k='switch_info/switch_type', d=None, c=_conv_add),
     'Duplicate WWN': dict(k='running/' + brcdapi_util.bfc_fport_enforce_login, d=0, c=_conv_req_int),
     'Bind': dict(k='switch_info/bind', d=False, c=_conv_yn_bool),
-    'Routing Policy': dict(k='running/' + brcdapi_util.bfs_adv_tunning, d=None, c=_conv_routing_policy),
+    'Routing Policy': dict(k='running/' + brcdapi_util.bfs_adv_tuning, d=None, c=_conv_routing_policy),
     'Port Name': dict(k='running/' + brcdapi_util.bfc_portname_mode, d=None, c=_conv_port_name),
     'Port Name Format': dict(k='running/' + brcdapi_util.bfc_portname_format, d='S.T.I.A', c=_conv_add),
     'Enable CUP': dict(k='running/' + brcdapi_util.ficon_cup_en, d=False, c=_conv_cup),
@@ -874,7 +874,7 @@ def _parse_slot_sheet(sheet_d, port_name_d):
     """
     global _slot_d_find, _MAX_FICON_PORT_NAME
 
-    error_l, rd, al = list(), dict(), sheet_d['al']
+    error_l, rd, al, buf, slot = list(), dict(), sheet_d['al'], '', ''
 
     # Find the slot number
     for buf in al[0]:
@@ -962,7 +962,7 @@ def parse_switch_file(file):
     :return switch_l: List of logical switch dictionaries as described below.
     :rtype switch_l: list
 
-    Note: This started as as something very different. If I had to do it over again, I would have used the FOS API
+    Note: This started as something very different. If I had to do it over again, I would have used the FOS API
     mnemonics for these values.
 
     +---------------+-----------+-----------------------------------------------------------------------------------+
@@ -1005,11 +1005,13 @@ def parse_switch_file(file):
     | xisl          | bool      | If True, base switch usage is allowed.                                            |
     +---------------+-----------+-----------------------------------------------------------------------------------+
     """
-    chassis_d, port_d, error_l, port_name_d, rd = None, dict(), list(), None, dict()
+    chassis_d, port_d, port_name_d, rd = None, dict(), None, dict()
 
     # Load the workbook
     skip_l = ('About', 'Summary', 'Sheet', 'Instructions', 'CLI_Bind', 'lists', 'VC')
-    sheet_l = excel_util.read_workbook(file, dm=3, skip_sheets=skip_l)
+    error_l, sheet_l = excel_util.read_workbook(file, dm=3, skip_sheets=skip_l)
+    if len(error_l) > 0:
+        return error_l, chassis_d, list()
 
     # Parse the "Chassis", "Sheet_x", and "Slot x" worksheets
     for sheet_d in sheet_l:
@@ -1031,11 +1033,10 @@ def parse_switch_file(file):
             if not isinstance(port_name_d, dict):
                 # This could have been more elegant. I forgot that some port naming modes want all ports not explicitly
                 # named to be set to an empty string. Furthermore, ficon port names need to be truncated to a maximum of
-                # 24 characters so I jammed this in and made a hack in _parse_slot_sheet() to set the names correctly.
+                # 24 characters, so I jammed this in and made a hack in _parse_slot_sheet() to set the names correctly.
                 port_name_d = dict()
                 for fid, temp_switch_d in rd.items():
                     port_name_d.update({fid: temp_switch_d['switch_info']['port_name']})
-            # if not isinstance(port_name_d, port_name_d):
             ml, d = _parse_slot_sheet(sheet_d, port_name_d)
             error_l.extend(ml)
             port_d.update(d)
@@ -1056,40 +1057,3 @@ def parse_switch_file(file):
             switch_d['port_d'].update({k: d})
 
     return error_l, chassis_d, [switch_d for switch_d in rd.values()]
-
-###################################################################
-#
-#                    Depracated
-#
-###################################################################
-
-def parse_parameters(in_wb=None, sheet_name='parameters', hdr_row=0, wb_name=None):
-    return excel_util.parse_parameters(in_wb, sheet_name, hdr_row, wb_name)
-
-
-def new_report():
-    return excel_util.new_report()
-
-
-def save_report(wb, file_name='Report.xlsx'):
-    return excel_util.save_report(wb, file_name)
-
-
-def col_to_num(cell):
-    return excel_util.col_to_num(cell)
-
-
-def cell_match_val(sheet, val, col=None, row=None, num=1):
-    return excel_util.cell_match_val(sheet, val, col, row, num)
-
-
-def datetime(v, granularity):
-    return excel_util.datetime(v, granularity)
-
-
-def read_sheet(sheet, order='col', granularity=2):
-    return excel_util.read_sheet(sheet, order, granularity)
-
-
-def cell_update(sheet, row, col, buf, font=None, align=None, fill=None, link=None, border=None):
-    return excel_util.cell_update(sheet, row, col, buf, font, align, fill, link, border)

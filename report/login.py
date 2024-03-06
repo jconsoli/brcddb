@@ -1,18 +1,16 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
 
 :mod:`brcddb.report.login` - Includes methods to create login page
 
@@ -31,21 +29,25 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
+import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
 import brcdapi.excel_fonts as excel_fonts
+import brcdapi.excel_util as excel_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
@@ -257,10 +259,9 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     row = col = 1
     if isinstance(tc, str):
-        report_utils.cell_update(sheet, row, col, 'Contents', font=_link_font,
-                                 link=tc)
+        excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
-    report_utils.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
+    excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
     sheet.freeze_panes = sheet['A3']
     row, col = row + 1, 1
     for k in display:
@@ -273,20 +274,20 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
             if 'v' in login_display_tbl[k] and login_display_tbl[k]['v']:
                 align = _align_wrap_vc
             buf = login_display_tbl[k]['d'] if 'd' in login_display_tbl[k] else k
-        report_utils.cell_update(sheet, row, col, buf, font=_bold_font, align=align, border=_border_thin)
+        excel_util.cell_update(sheet, row, col, buf, font=_bold_font, align=align, border=_border_thin)
         col += 1
 
     # Add a row for each login
     row += 1
     if s:
-        wl = brcddb_util.sort_obj_num(l_list, 'port-id', r=False, h=True)  # Filters out anything not found
+        wl = gen_util.sort_obj_num(l_list, 'port-id', r=False, h=True)  # Filters out anything not found
         wl.extend(list(set(l_list) - set(wl)))
     else:
         wl = l_list
 
     port_obj_l, login_l = list(), list()
     for login_obj in [obj for obj in wl if obj is not None]:
-        # The name server is on a per switch basis so port_obj can be None if some switches weren't polled
+        # The name server is on a per-switch basis so port_obj can be None if some switches weren't polled
         port_obj = login_obj.r_port_obj()
         if port_obj is None:
             login_l.append(login_obj)
@@ -321,7 +322,7 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
                     buf = _fdmi_case[k_list[0]](login_obj, k_list[1])
                 except BaseException as e:
                     buf = ''
-                    e_buf = 'Exception: ' + str(e) if isinstance(e, (bytes, str)) else str(type(e))
+                    e_buf = str(type(e)) + ': ' + str(e)
                     brcdapi_log.exception(['Unknown key: ' + k_list[0], e_buf], echo=True)
             elif k in _login_case:
                 buf = _login_case[k](login_obj)
@@ -341,6 +342,6 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
             else:
                 font = _std_font
                 buf = '' if login_obj.r_get(k) is None else str(login_obj.r_get(k))
-            report_utils.cell_update(sheet, row, col, buf, font=font, align=align, border=_border_thin)
+            excel_util.cell_update(sheet, row, col, buf, font=font, align=align, border=_border_thin)
             col += 1
         row += 1

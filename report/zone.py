@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`report.zone` - Creates a zoning page to be added to an Excel Workbook
 
 Public Methods & Data::
@@ -36,16 +35,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Adjusted column widths.                                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -55,7 +56,6 @@ import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_zone as brcddb_zone
-import brcddb.report.fonts as report_fonts
 import brcddb.brcddb_login as brcddb_login
 import brcddb.app_data.alert_tables as al
 import brcddb.util.search as brcddb_search
@@ -175,7 +175,7 @@ def _mem_desc_case(obj, mem, wwn, port_obj, obj_l=None):
         t_wwn = port_obj.r_get('fibrechannel/neighbor/wwn')[0] if ',' in wwn else wwn
     except (AttributeError, TypeError, IndexError):
         # If the corresponding zone member wasn't found, port_obj will be None which results in an AttributeError.
-        # Nothing logged in retuns None (so a TypeError) with current FOS but if this ever gets fixed and returns an
+        # Nothing logged in returns None (so a TypeError) with current FOS but if this ever gets fixed and returns an
         # empty list, nothing logged in will be an IndexError so adding IndexError is future proofing. I think the only
         # time this happens is with a d,i zone when nothing is logged in at the corresponding port
         return ''
@@ -220,7 +220,7 @@ def _zoned_to_port_case(obj, mem, wwn, port_obj, obj_l=None):
 
 def _login_speed_case(obj, mem, wwn, port_obj, obj_l=None):
     l_port_obj = None if obj is None else obj.r_port_obj()
-    return '' if l_port_obj is None else l_port_obj.r_get('_search/speed')
+    return '' if l_port_obj is None else l_port_obj.r_get('cs_search/speed')
 
 
 def _login_switch_case(obj, mem, wwn, port_obj, obj_l=None):
@@ -253,7 +253,7 @@ _zone_hdr = collections.OrderedDict({
     'Target Driven': dict(c=5, v=True, z=_zone_target_case, m=_null_case),
     'Principal': dict(c=5, v=True, z=_null_case, m=_mem_principal_case),
     'Configurations': dict(c=22, z=_zone_cfg_case, m=_null_case),
-    'Member': dict(c=32, z=_zone_member_case, m=_mem_member_case),
+    'Member': dict(c=48, z=_zone_member_case, m=_mem_member_case),
     'Member WWN': dict(c=22, z=_zone_member_wwn_case, m=_mem_member_wwn_case),
     'Switch': dict(c=22, z=_null_case, m=_mem_switch_case),
     'Port': dict(c=7, z=_null_case, m=_mem_port_case),
@@ -327,7 +327,7 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             font = report_utils.font_type(zone_obj.r_alert_objects()) if k == 'Comments' else _bold_font
             alignment = _align_wrap_c if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
             excel_util.cell_update(sheet, row, col, _zone_hdr[k]['z'](zone_obj), font=font, align=alignment,
-                                     border=_border_thin, fill=_lightblue_fill)
+                                   border=_border_thin, fill=_lightblue_fill)
             col += 1
 
         # The member information
@@ -363,7 +363,7 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                         font = _std_font
                     alignment = _align_wrap_c if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
                     excel_util.cell_update(sheet, row, col, _zone_hdr[k]['m'](zone_obj, mem, wwn, port_obj),
-                                             font=font, align=alignment, border=_border_thin)
+                                           font=font, align=alignment, border=_border_thin)
                     col += 1
                 row, col = row + 1, 1
 
@@ -414,8 +414,8 @@ def _alias_member_case(obj, mem):
 #   'm' Case method to fill the cell for remaining member information
 _alias_hdr = collections.OrderedDict({
     'Comments': dict(c=40, v=_comment_case, m=_null_case),
-    'Alias': dict(c=32, v=_name_case, m=_null_case),
-    'Used in Zone': dict(c=32, v=_alias_used_in_zone_case, m=_null_case),
+    'Alias': dict(c=48, v=_name_case, m=_null_case),
+    'Used in Zone': dict(c=48, v=_alias_used_in_zone_case, m=_null_case),
     'Member': dict(c=32, v=_alias_member_case, m=_alias_mem_member_case),
     'Switch': dict(c=22, v=_alias_mem_switch_case, m=_alias_mem_switch_case),
     'Port': dict(c=7, v=_alias_mem_port_case, m=_alias_mem_port_case),
@@ -472,7 +472,7 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         for k in _alias_hdr:
             font = report_utils.font_type(alias_obj.r_alert_objects()) if k == 'Comments' else _std_font
             excel_util.cell_update(sheet, row, col,  _alias_hdr[k]['v'](alias_obj, mem), font=font, align=_align_wrap,
-                                     border=_border_thin)
+                                   border=_border_thin)
             col += 1
 
         # Usually just one member per alias, but just in case...
@@ -481,7 +481,7 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             row, col = row+1, 1
             for k in _alias_hdr:
                 excel_util.cell_update(sheet, row, col, _alias_hdr[k]['m'](alias_obj, mem), font=_std_font,
-                                         align=_align_wrap, border=_border_thin)
+                                       align=_align_wrap, border=_border_thin)
                 col += 1
 
 
@@ -661,7 +661,7 @@ def _get_zoned_to(fab_obj, wwn):
 def target_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     """Creates a target zone detail worksheet for the Excel report.
 
-    Note: Adding non_target_zone_page() was an after thought. I created _common_zone_page() to set up the worksheet but
+    Note: Adding non_target_zone_page() was an afterthought. I created _common_zone_page() to set up the worksheet, but
     I certainly could have written target_zone_page() and non_target_zone_page() to share more code.
 
     :param fab_obj: Fabric object
@@ -806,6 +806,7 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     row = col = 1
+    wwn = ''
     if isinstance(tc, str):
         excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, align=_align_wrap, link=tc)
         col += 1
@@ -880,7 +881,7 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             for lwwn, zl in brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True).items():
                 lz_obj = fab_obj.r_login_obj(lwwn)
                 if lz_obj is None:
-                    continue  # The coresponding device may not be logged in
+                    continue  # The corresponding device may not be logged in
 
                 row, col = row+1, 1
                 for d in _zone_group_hdr_d.values():

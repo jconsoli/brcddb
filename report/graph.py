@@ -1,18 +1,16 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
 
 :mod:`report.graph` - Creates a worksheet with a graph
 
@@ -31,16 +29,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 from openpyxl.chart import AreaChart, AreaChart3D, BarChart, BarChart3D, LineChart, LineChart3D, Reference
 from openpyxl.chart.axis import DateAxis
@@ -76,7 +76,7 @@ def graph(wb, tc, sheet_name, sheet_i, data_ref):
     +-----------+-----------+-------------------------------------------+
     | x         | dict      | See Axis dictionary below.                |
     +-----------+-----------+-------------------------------------------+
-    | y         | dict      | Same as x but for the y axis.             |
+    | y         | dict      | Same as x but for the y-axis.             |
     +-----------+-----------+-------------------------------------------+
 
     Axis dictionary
@@ -88,14 +88,14 @@ def graph(wb, tc, sheet_name, sheet_i, data_ref):
     +-----------+-----------+-------------------------------------------+
     | min_col   | int       | Starting column.                          |
     +-----------+-----------+-------------------------------------------+
-    | max_col   | int       | Last column. Not used for the x axis.     |
+    | max_col   | int       | Last column. Not used for the x-axis.     |
     +-----------+-----------+-------------------------------------------+
     | min_row   | int       | Starting row. Should include the labels.  |
     +-----------+-----------+-------------------------------------------+
     | max_row   | int       | Row number for the last sample.           |
     +-----------+-----------+-------------------------------------------+
 
-    :param wb: Workbook object
+    :param wb: Workbook
     :type wb: Workbook object
     :param tc: Link to table of context page.
     :type tc: str, None

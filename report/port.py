@@ -1,20 +1,18 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
-:mod:`report.port` - Includes methods to create port page and performance dsahboard Excel worksheets
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
+:mod:`report.port` - Includes methods to create port page and performance dashboard Excel worksheets
 
 Public Methods & Data::
 
@@ -33,16 +31,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import datetime
 import collections
@@ -128,7 +128,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
         for i in range(col, max_col+1):
             excel_util.cell_update(sheet, row, i, None, border=_border_thin)
         excel_util.cell_update(sheet, row, col, db.get('title'), font=_hdr2_font,
-                                 fill=excel_fonts.fill_type('lightblue'))
+                               fill=excel_fonts.fill_type('lightblue'))
         row, col = row + 1, 1
 
         # Now the individual dashboard headers
@@ -152,10 +152,10 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
             link = port_obj.r_get('report_app/hyperlink_ps')
             if link is not None:
                 excel_util.cell_update(sheet, row, col, port_obj.r_obj_key(), font=_link_font, align=_align_wrap,
-                                         link=link, border=_border_thin)
+                                       link=link, border=_border_thin)
             else:
                 excel_util.cell_update(sheet, row, col, port_obj.r_obj_key(), font=_std_font, align=_align_wrap,
-                                         border=_border_thin)
+                                       border=_border_thin)
             col += 1
             for buf in [port_obj.c_login_type(), brcddb_port.port_best_desc(port_obj)]:
                 excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
@@ -208,12 +208,6 @@ def _p_port_sfp_link_case(port_obj, k, wwn):
 
 def _p_port_rnid_link_case(port_obj, k, wwn):
     return 'RNID', port_obj.r_get('report_app/hyperlink/pr')
-
-
-def _p_port_maps_group_case(port_obj, k, wwn):
-    maps_groups = port_obj.r_get('_maps_fc_port_group')
-    maps_groups.extend(port_obj.r_get('_maps_sfp_group'))
-    return ', '.join(maps_groups)
 
 
 def _p_time_generated_case(port_obj, k, wwn):
@@ -346,7 +340,6 @@ _port_case = {
     '_FABRIC_WWN': report_utils.fabric_wwn_case,
     '_PORT_NUMBER': _p_port_number_case,
     '_BEST_DESC': _p_port_desc_case,
-    '_MAPS_GROUP': _p_port_maps_group_case,
     '_SWITCH_NAME': _p_switch_name_case,
     '_SWITCH_NAME_AND_WWN': _p_switch_name_and_wwn_case,
     '_SWITCH_WWN': _p_switch_wwn_case,
@@ -384,7 +377,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
 
     :param wb: Workbook object
     :type wb: class
-    :param tc: I don't think this is used anymore but if present, it will take precidence over what in the port object
+    :param tc: I don't think this is used anymore but if present, it will take precedence over what in the port object
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
@@ -394,7 +387,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
     :type sheet_title: str
     :param p_list: List of port objects (PortObj) to display
     :type p_list: list, tuple
-    :param in_display: List of parameters to display. If None, default is brcddb.app_data.report_tables.port_config_tbl
+    :param in_display: Parameters to display. If None, default is brcddb.app_data.report_tables.port_config_tbl
     :type in_display: None, list, tuple
     :param in_port_display_tbl: Display control table. If None, default is brcddb.report.report_tables.port_display_tbl
     :type in_port_display_tbl: dict, None
@@ -522,7 +515,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
                         else:
                             buf = port_obj.r_fabric_obj().r_get(k1)
                     excel_util.cell_update(sheet, row, col, '' if buf is None else buf, font=font, align=_align_wrap,
-                                             border=_border_thin, link=link)
+                                           border=_border_thin, link=link)
                 row += 1
 
     return sheet

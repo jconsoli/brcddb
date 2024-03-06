@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.report.fabric` - Creates a fabric page to be added to an Excel Workbook
 
 Public Methods & Data::
@@ -30,16 +29,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -322,11 +323,12 @@ def _zone_configuration(sheet, row, fabric_obj):
     # Links to zoning pages
     row += 2
     sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
-    excel_util.cell_update(sheet, row, col, 'Zone Analysis Links', font=_bold_font)
+    excel_util.cell_update(sheet, row, col, 'Zone Analysis & Login Links', font=_bold_font)
     row += 1
     for d in (dict(t=fabric_obj.r_get('report_app/control/za/tc'), l=fabric_obj.r_get('report_app/hyperlink/za')),
               dict(t=fabric_obj.r_get('report_app/control/zt/tc'), l=fabric_obj.r_get('report_app/hyperlink/zt')),
-              dict(t=fabric_obj.r_get('report_app/control/znt/tc'), l=fabric_obj.r_get('report_app/hyperlink/znt'))):
+              dict(t=fabric_obj.r_get('report_app/control/znt/tc'), l=fabric_obj.r_get('report_app/hyperlink/znt')),
+              dict(t=fabric_obj.r_get('report_app/control/log/tc'), l=fabric_obj.r_get('report_app/hyperlink/log'))):
         if d['l'] is not None:
             sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
             excel_util.cell_update(sheet, row, col, d['t'], font=_link_font, link=d['l'])
