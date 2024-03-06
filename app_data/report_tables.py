@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`report_tables` - Control tables for brcddb.report.xxxx_page modules.
 
 Dynamic control of worksheets is only available for chassis, switch, and page sheets at this time. Possible uses for
@@ -56,22 +55,25 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024  | Removed obsolete MAPS stuff. Added FCR to chassis and switch reports. Fixed        |
+    |           |              | firmware version header.                                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcdapi.util as brcdapi_util
 
 
 class Chassis:
-    # Key - Custom key of key from any of the chassis related API responses. Value is the the column header. This table
+    # Key - Custom key of key from any of the chassis related API responses. Value is the column header. This table
     # also controls what is populated on the sheet page. Comment/Uncomment entries as needed.
     chassis_display_tbl = {
         # From the API
@@ -100,6 +102,8 @@ class Chassis:
         brcdapi_util.bp_vf_enabled: 'Virtual Fabrics Enabled',
         brcdapi_util.bc_vf: 'Virtual Fabrics Supported',
         brcdapi_util.bc_ha: 'HA Enabled',
+        brcdapi_util.bc_fcr_en: 'FCR Enabled',
+        brcdapi_util.bc_fcr_supported: 'FCR Supported',
         brcdapi_util.bc_heartbeat: 'Heart Beat Up',
         brcdapi_util.bc_sync: 'HA Synchronized',
         brcdapi_util.bc_active_cp: 'Active CP',
@@ -154,7 +158,7 @@ class Chassis:
 
 class Switch:
 
-    # Key - Key from any of the switch related API responses. Value is the the column header. This table also controls
+    # Key - Key from any of the switch related API responses. Value is the column header. This table also controls
     # what is populated on the sheet page. Comment/Uncomment entries as needed.
     switch_display_tbl = {
         # Custom
@@ -175,17 +179,17 @@ class Switch:
         brcdapi_util.bc_wwn: 'Chassis WWN',
         brcdapi_util.bfs_did: 'Domain ID',
         brcdapi_util.bfs_domain_name: 'Domain Name',
-        # 'brocade-fabric/fabric-switch/chassis-user-friendly-name': 'Chassis',  # Depracated?
-        # 'brocade-fabric/fabric-switch/chassis-wwn': 'Chassis WWN',  # Depracated?
-        # 'brocade-fabric/fabric-switch/domain-id': 'Domain ID',  # Depracated?
-        # 'brocade-fabric/fabric-switch/domain-name': 'Domain Name',  # Depracated?
+        # 'brocade-fabric/fabric-switch/chassis-user-friendly-name': 'Chassis',  # Deprecated?
+        # 'brocade-fabric/fabric-switch/chassis-wwn': 'Chassis WWN',  # Deprecated?
+        # 'brocade-fabric/fabric-switch/domain-id': 'Domain ID',  # Deprecated?
+        # 'brocade-fabric/fabric-switch/domain-name': 'Domain Name',  # Deprecated?
         # 'fabric': brcdapi_util.get_key_val, This is a dict, but I don't know what the members are yet
         brcdapi_util.bfls_fid: 'Fabric ID (FID)',
         brcdapi_util.bfs_fab_user_name: 'Fabric Name',
         brcdapi_util.bfs_fcid_hex: 'FC ID',
         # 'brocade-fabric/fabric-switch/fcid-hex': 'FC ID',
         'brocade-fabric/fabric-switch/fcip-address': 'FCIP Address',
-        brcdapi_util.bfs_fw_version: '',
+        brcdapi_util.bfs_fw_version: 'Firmware Version',
         # 'brocade-fabric/fabric-switch/firmware-version': 'Firmware Version',
         'brocade-fabric/fabric-switch/ip-address': 'Management IPv4 Address',
         'brocade-fibrechannel-switch/fibrechannel-switch/subnet-mask': 'Management Subnet Mask',
@@ -249,7 +253,21 @@ class Switch:
         brcdapi_util.ficon_sw_rnid_seq: 'RNID: S/N',
         brcdapi_util.ficon_sw_rnid_tag: 'RNID: Tag',
         # MAPS
-        'brocade-maps/system-resources/memory-usage': 'MAPS System Memory Usage'
+        'brocade-maps/system-resources/memory-usage': 'MAPS System Memory Usage',
+        # Fibrechannel Routing (FCR)
+        brcdapi_util.bfr_rc_lc: 'Maximum LSANs',
+        brcdapi_util.bfr_rc_bfid: 'Backbone Fabric ID',
+        brcdapi_util.bfr_rc_ifl: 'Shortest IFL',
+        brcdapi_util.bfr_rc_sp_tags: 'LSAN Speed Tag',
+        brcdapi_util.bfr_rc_mm: 'Migration Mode',
+        brcdapi_util.bfr_rc_ptde: 'Persistent Translate Domain Enabled',
+        brcdapi_util.bfr_stats_lz_in_use: 'LSAN Zones In use',
+        brcdapi_util.bfr_stats_mld: 'Maximum lSAN Devices',
+        brcdapi_util.bfr_stats_ld_in_use: 'LSAN Devices In Use',
+        brcdapi_util.bfr_stats_mpds: 'Maximum Proxy Device Slots',
+        brcdapi_util.bfr_stats_pds_in_use: 'Proxy Device Slots In Use',
+        brcdapi_util.bfr_stats_mpd: 'Maximum Proxy Devices',
+        brcdapi_util.bfr_stats_max_nr: 'Maximum NR Ports',
     }
 
 
@@ -302,10 +320,10 @@ class Port:
                               7   Name server node descriptor - Additional NPIV logins only
       _PORT_COMMENTS      Display alerts
       _FABRIC_NAME        Lookup the fabric name. WWN is used if fabric is not named
-      _FABRIC_NAME_AND_WWN Lookup the fabric name and include the wwn in parenthesis
+      _FABRIC_NAME_AND_WWN Lookup the fabric name and include the wwn in parentheses
       _FABRIC_WWN         Lookup wth fabric WWN
       _SWITCH_NAME        Lookup the switch name. WWN is used if the switch is not named
-      _SWITCH_NAME_AND_WWN Lookup the switch name and include the wwn in parenthesis
+      _SWITCH_NAME_AND_WWN Lookup the switch name and include the wwn in parentheses
       _SWITCH_WWN         Lookup wth switch WWN
       _ALIAS              Lookup aliases for the logged in WWNs.
       _PORT_WWN           Switch port WWN. Typically not used. The attached port WWN is _BASE_WWN and _NPIV_WWN
@@ -317,7 +335,6 @@ class Port:
       _NAME_SERVER_PORT   Port symbol in the name server data
       _FDMI_NODE          Node symbol in the FDMI data
       _FDMI_PORT          Port symbol in the FDMI data
-      _MAPS_GROUP         MAPS group(s) associated with this port
       _PORT_NUMBER        Port number - as it appears on the demarcation panel
       _CONFIG_LINK        'Config' & link, if available, to the port on the "Port Configurations" worksheet
       _STATS_LINK         'Stats' & link, if available, to the port on the "Port Configurations" worksheet
@@ -352,7 +369,6 @@ class Port:
         '_FDMI_PORT': dict(c=35, d='FDMI Port Symbol'),
         '_LOGIN_ADDR': dict(c=10, d='Login Address'),
         '_LOGIN_WWN': dict(c=22, d='Login WWN'),
-        '_MAPS_GROUP': dict(c=22, d='MAPS Group'),
         '_NAME_SERVER_NODE': dict(c=35, d='Name Server Node Symbol'),
         '_NAME_SERVER_PORT': dict(c=35, d='Name Server Port Symbol'),
         '_PORT_COMMENTS': dict(c=26, d='Comments'),
@@ -507,8 +523,7 @@ class Port:
         'fibrechannel-statistics/remote-fec-uncorrected': dict(v=True, c=8, d='Truncated Frames'),
         brcdapi_util.stats_fpr: dict(v=True, c=8, d='Frames Processing Required'),
         brcdapi_util.stats_to: dict(v=True, c=8, d='Frames Timed Out'),
-        brcdapi_util.stats_trans: dict(v=True, c=8,
-                                                                              d='Tx Unavailable Errors'),
+        brcdapi_util.stats_trans: dict(v=True, c=8, d='Tx Unavailable Errors'),
         # Media (media-rdp)
         'media-rdp/connector': dict(v=True, c=6, d='Connector Type'),
         brcdapi_util.sfp_wave: dict(v=True, c=8, d='Wavelength'),
@@ -589,7 +604,6 @@ class Port:
         brcdapi_util.fc_state,
         brcdapi_util.fc_chip_instance,
         '_BEST_DESC',
-        '_MAPS_GROUP',
         brcdapi_util.fc_eport_credit,
         brcdapi_util.fc_fport_buffers,
         brcdapi_util.fc_long_distance,
@@ -868,10 +882,10 @@ class Login:
     # of the special keys below:
     #   _LOGIN_COMMENTS     Display alerts
     #   _FABRIC_NAME        Lookup the fabric name. WWN is used if fabric is not named
-    #   _FABRIC_NAME_AND_WWN Lookup the fabric name and include the wwn in parenthesis
+    #   _FABRIC_NAME_AND_WWN Lookup the fabric name and include the wwn in parentheses
     #   _FABRIC_WWN         Lookup wth switch WWN
     #   _SWITCH_NAME        Lookup the switch name. WWN is used if the switch is not named
-    #   _SWITCH_NAME_AND_WWN Lookup the switch name and include the wwn in parenthesis
+    #   _SWITCH_NAME_AND_WWN Lookup the switch name and include the wwn in parentheses
     #   _SWITCH_WWN         Lookup wth switch WWN
     #   _ALIAS              Lookup aliases for the login WWN.
     #   _ZONES_DEF          Lookup all zones associated with the login WWN
@@ -975,7 +989,7 @@ class Login:
     }
 
     login_tbl = (
-        # Namne Server
+        # Name Server
         '_LOGIN_COMMENTS',
         '_LOGIN_WWN',
         '_ALIAS',
