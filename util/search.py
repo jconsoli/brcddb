@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apahche License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.util.search` - Contains search and threshold compare methods.
 
 Public Methods & Data::
@@ -43,22 +42,23 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import re
 import fnmatch
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
-import brcddb.util.util as brcddb_util
 import brcddb.brcddb_common as brcddb_common
 
 # Common search terms
@@ -156,8 +156,8 @@ def test_threshold(obj_list, key, test, val):
 
     # Now do the test
     for obj in obj_list:
-        v = brcddb_util.get_key_val(obj, key)
-        c_val = val if isinstance(val, (int, float)) else brcddb_util.get_key_val(obj, val)
+        v = gen_util.get_key_val(obj, key)
+        c_val = val if isinstance(val, (int, float)) else gen_util.get_key_val(obj, val)
         if isinstance(v, (int, float)) and isinstance(c_val, (int, float)) and numerical_test_case[test](v, c_val):
             return_list.append(obj)
 
@@ -240,19 +240,19 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
                               True)
         return return_list
 
-    search_key_list = brcddb_util.convert_to_list(search_key)
-    obj_list = brcddb_util.convert_to_list(search_objects)
+    search_key_list = gen_util.convert_to_list(search_key)
+    obj_list = gen_util.convert_to_list(search_objects)
     for obj in obj_list:
         try:
             for sk in search_key_list:
-                sub_obj = brcddb_util.get_key_val(obj, sk)
+                sub_obj = gen_util.get_key_val(obj, sk)
                 if sub_obj is None:
                     continue
                 if isinstance(sub_obj, dict):
                     if len(match(sub_obj, list(sub_obj.keys()), search_term, ignore_case, stype)) > 0:
                         raise Found
                 elif isinstance(sub_obj, (str, list, tuple)):
-                    for buf in brcddb_util.convert_to_list(sub_obj):  # Any match within that list is a match
+                    for buf in gen_util.convert_to_list(sub_obj):  # Any match within that list is a match
                         if isinstance(buf, str):
                             test_buf = buf.lower() if ignore_case else buf
                             if stype == 'regex-m':
@@ -284,7 +284,7 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
             return_list.append(obj)
 
     if len(return_list) > 0 and 'brcddb' in str(type(return_list[0])):
-        return brcddb_util.remove_duplicates(return_list)
+        return gen_util.remove_duplicates(return_list)
     else:
         return return_list
 
@@ -341,7 +341,7 @@ def match_test(obj_list, test_obj, logic=None):
 
     w_list = list() if obj_list is None else [obj_list] if not isinstance(obj_list, (list, tuple)) else obj_list
     lg = 'and' if logic is None else logic
-    t_list = brcddb_util.convert_to_list(test_obj)  # This is the list of objects to test against
+    t_list = gen_util.convert_to_list(test_obj)  # This is the list of objects to test against
     o_list = list()  # This is the NAND and OR list when 'nand' or 'or' logic is specified
 
     for t_obj in t_list:

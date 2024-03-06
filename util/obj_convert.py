@@ -1,23 +1,22 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apahche License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.util.obj_extract` - Extracts a list of objects from one object type to another
 
 Description::
 
-    Getting a list of port objects from a switch object is easy because the switch object has a built in method
+    Getting a list of port objects from a switch object is easy because the switch object has a built-in method
     r_port_objects() but extrapolation is not always that straight forward. For example, you may want a list of all
     port objects associated with a zone object. This module contains the method obj_extract() which returns a list of
     any requested object from any object.
@@ -37,16 +36,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -118,7 +119,7 @@ def _switch_obj(obj):
 
 
 def _chassis_obj(obj):
-    """Returns a list of chssis objects associated with obj. See _obj_self() for parameter detail."""
+    """Returns a list of chassis objects associated with obj. See _obj_self() for parameter detail."""
     return obj.r_chassis_objects() if hasattr(obj, 'r_chassis_objects') else [obj.r_chassis_obj()]
 
 
@@ -318,7 +319,7 @@ def _alias_obj_for_key(obj):
 
 
 def _login_obj_for_fdmi(obj):
-    """Returns a the switch object in a list for an FDMI node or port obj. See _obj_self() for parameter detail."""
+    """Returns the switch object in a list for an FDMI node or port obj. See _obj_self() for parameter detail."""
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
@@ -326,22 +327,22 @@ def _login_obj_for_fdmi(obj):
 
 
 def _port_obj_for_fdmi(obj):
-    """Returns a the port object in a list for a node obj. See _obj_self() for parameter detail."""
+    """Returns the port object in a list for a node obj. See _obj_self() for parameter detail."""
     return [login_obj.r_port_obj() for login_obj in _login_obj_for_fdmi(obj) if login_obj.r_port_obj() is not None]
 
 
 def _switch_obj_for_fdmi(obj):
-    """Returns a the switch object in a list for an FDMI node or port obj. See _obj_self() for parameter detail."""
+    """Returns the switch object in a list for an FDMI node or port obj. See _obj_self() for parameter detail."""
     return [login_obj.r_switch_obj() for login_obj in _login_obj_for_fdmi(obj) if login_obj.r_switch_obj() is not None]
 
 
 def _fabric_obj_for_fdmi(obj):
-    """Returns a the switch object in a list for an FDMI node or port obj. See _obj_self() for parameter detail."""
+    """Returns the switch object in a list for an FDMI node or port obj. See _obj_self() for parameter detail."""
     return [login_obj.r_fabric_obj() for login_obj in _login_obj_for_fdmi(obj) if login_obj.r_fabric_obj() is not None]
 
 
 def _chassis_obj_for_fdmi(obj):
-    """Returns a the chassis object in a list for an FDMI node or port obj. See _obj_self() for parameter detail."""
+    """Returns the chassis object in a list for an FDMI node or port obj. See _obj_self() for parameter detail."""
     return [switch_obj.r_chassis_obj() for switch_obj in _switch_obj_for_fdmi(obj)
             if switch_obj.r_chassis_obj() is not None]
 

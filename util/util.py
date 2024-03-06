@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.util.util` - Utility functions for the brcddb libraries
 
 Public Methods::
@@ -59,22 +58,24 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Removed obsolete add_maps_groups() and depracated functions.                      |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import re
 import datetime
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
-import brcddb.classes.util as brcddb_class_util
+import brcddb.classes.util as class_util
 import brcdapi.port as brcdapi_port
 
 _DEBUG_FICON = False  # Intended for lab use only. Few, if any, will use this to zone a FICON switch
@@ -301,6 +302,8 @@ def add_maps_groups(proj_obj):
                       str(group.get('group-type'))
                 brcdapi_log.exception(buf, echo=True)
 
+    return
+
 
 def global_port_list(fabric_objects, wwn_list):
     """Looks through a list of fabrics for logins in a list of WWNs and returns a list of the associated port objects
@@ -327,7 +330,7 @@ def has_alert(obj, al_num, key, p0, p1):
     :param al_num: Alert number
     :type al_num: int
     :param key: Alert key
-    :type key: str
+    :type key: str, None
     :param p0: Alert parameter p0
     :type p0: str, None
     :param p1: Alert parameter p1
@@ -497,7 +500,7 @@ def add_to_obj(obj, k, v):
             d = dict()
             obj.update({key: d})
         add_to_obj(d, '/'.join(key_list), v)
-    elif brcddb_class_util.get_simple_class_type(obj) is None:
+    elif class_util.get_simple_class_type(obj) is None:
         brcdapi_log.exception('Invalid object type: ' + str(type(obj)) + '. k = ' + k + ', v type: ' + str(type(v)),
                               echo=True)
         error_asserted = True
@@ -525,7 +528,7 @@ def get_from_obj(obj, k):
     """
     if isinstance(obj, dict):
         return gen_util.get_from_obj(obj, k)
-    elif brcddb_class_util.get_simple_class_type(obj) is None:
+    elif class_util.get_simple_class_type(obj) is None:
         brcdapi_log.exception('Invalid object type.', echo=True)
     else:
         return obj.r_get(k)
@@ -688,93 +691,3 @@ def fos_to_dict(version_in, valid_check=True):
                                   echo=True)
 
     return dict(version=str(version_in), major=0, feature=0, minor=0, bug=0, patch='')
-
-
-
-###################################################################
-#
-#                    Depracated
-#
-###################################################################
-
-non_decimal = gen_util.non_decimal
-decimal = gen_util.decimal
-zone_notes = gen_util.zone_notes
-ishex = gen_util.ishex
-valid_file_name = gen_util.valid_file_name
-date_to_space = gen_util.date_to_space
-multiplier = gen_util.multiplier
-month_to_num = gen_util.month_to_num
-num_to_month = gen_util.num_to_month
-
-
-def remove_duplicate_space(buf):
-    return gen_util.remove_duplicate_space(buf)
-
-
-def get_key_val(obj, keys):
-    return gen_util.get_key_val(obj, keys)
-
-
-def sort_obj_num(obj_list, key, r=False, h=False):
-    return gen_util.sort_obj_num(obj_list, key, r, h)
-
-
-def convert_to_list(obj):
-    return gen_util.convert_to_list(obj)
-
-
-def remove_duplicates(obj_list):
-    return gen_util.remove_duplicates(obj_list)
-
-
-def remove_none(obj_list):
-    return gen_util.remove_none(obj_list)
-
-
-def is_wwn(wwn, full_check=True):
-    return gen_util.is_wwn(wwn, full_check)
-
-
-def is_valid_zone_name(zone_name):
-    return gen_util.is_valid_zone_name(zone_name)
-
-
-def slot_port(port):
-    return gen_util.slot_port(port)
-
-
-def is_di(di):
-    return gen_util.is_di(di)
-
-
-def remove_duplicate_space(buf):
-    return gen_util.remove_duplicate_space(buf)
-
-
-def str_to_num(buf):
-    return gen_util.str_to_num(buf)
-
-
-def paren_content(buf, p_remove=False):
-    return gen_util.paren_content(buf, p_remove)
-
-
-def get_struct_from_obj(obj, k):
-    return gen_util.get_struct_from_obj(obj, k)
-
-
-def resolve_multiplier(val):
-    return gen_util.resolve_multiplier(val)
-
-
-def dBm_to_absolute(val, r=1):
-    return dBm_to_absolute(val, r)
-
-
-def int_list_to_range(num_list):
-    return gen_util.int_list_to_range(num_list)
-
-
-def date_to_epoch(date_time, fmt=0, utc=False):
-    return gen_util.date_to_epoch(date_time, fmt, utc)

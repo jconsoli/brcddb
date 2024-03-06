@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.util.copy` - Contains brcddb class object copy methods
 
 Public Methods & Data::
@@ -37,16 +36,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Removed unused maps stuff in switch object.                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
@@ -57,11 +58,6 @@ _default_skip_list = [
     '_zonecfg',
     '_base_logins',
     '_port_map',
-    '_maps_fc_port_group'
-    '_maps_sfp_group',
-    '_maps_rules',
-    '_maps_group_rules',
-    '_maps_groups',
 ]
 
 
@@ -85,7 +81,7 @@ def object_copy(obj, objx, flag_obj=None, skip_list=None):
         for k in obj.keys():
             if k not in skip_list:
                 v = obj.get(k)
-                if isinstance(v, (str, int, float)):  # Remember that bool is a sub-class of int
+                if isinstance(v, (str, int, float)):  # Remember that bool is a subclass of int
                     if flag_obj is None:
                         if isinstance(objx, dict):
                             objx.update({k: v})
@@ -119,7 +115,7 @@ def object_copy(obj, objx, flag_obj=None, skip_list=None):
                     # This happens when a data structure was added, usually with new_key(), to a brcdb object. Methods,
                     # such as brcddb_fabric.zone_analysis(), do this. Since we are making a plain copy here, the only
                     # thing we can do is make copy of it. The copy back to a brcddb uses the object creation methods
-                    # which check to see if the object was already created so it will revert back to just a pointer.
+                    # which check to see if the object was already created, so it will revert back to just a pointer.
                     # Although this works, it wastes a lot of space which could be problematic with large projects,
                     # hence the exception warning.
                     d1 = dict()
@@ -203,7 +199,7 @@ def brcddb_to_plain_copy(objx, obj, flag_obj=None, skip_list=None):
                     obj.update({k: d})
                     for k1 in v.keys():
                         v1 = v.get(k1)
-                        # This wasn't very well thought out. I should have put everything in object_copy() in here
+                        # This wasn't very well-thought-out. I should have put everything in object_copy() in here
                         # rather than break it out separate.
                         if 'brcddb.classes' in str(type(v1)):
                             d1 = dict()
@@ -216,7 +212,7 @@ def brcddb_to_plain_copy(objx, obj, flag_obj=None, skip_list=None):
                 elif 'dict_values' in str(type(v)):
                     # Note: isinstance(v, dict_values) returns False. This is a bug fixed in Python 3.7. See
                     # https://bugs.python.org/issue32467. For those not at 3.7 yet, this cheesy check gets by it.
-                    # All methods that return dict_values were changed to return list so we shouldn't get in here.
+                    # All methods that return dict_values were changed to return list, so we shouldn't get in here.
                     d = dict()
                     obj.update({k: d})
                     for obj1 in v:
@@ -420,11 +416,6 @@ _r_key_table = dict(
     _zonecfg=_brcddb_null,
     _base_logins=_brcddb_null,
     _port_map=_brcddb_null,
-    _maps_fc_port_group=_brcddb_null,
-    _maps_sfp_group=_brcddb_null,
-    _maps_rules=_brcddb_null,
-    _maps_group_rules=_brcddb_null,
-    _maps_groups=_brcddb_null,
     _type=_brcddb_null,
     _chpid_objs=_brcddb_null,
     _switch_id=_brcddb_null,

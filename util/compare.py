@@ -1,22 +1,24 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
-:mod:`brcddb.util.compare` - Useful for comparing complex objects
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
-Although primarily developed to support comparing brcddb objects, those objects also contain standard Python data
-structures so this module can be used to compare anything.
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
+:mod:`brcddb.util.compare` - Useful for comparing complex class objects
+
+**Note***
+
+    Developed to support comparing brcddb class objects, but it works on anything. I didn't need everything in DeepDiff
+    and I needed a way to filter what I was looking for. For example, when trying to determine if TX power levels have
+    changed I want to filter out minor differences.
 
 **Description**
 
@@ -28,7 +30,7 @@ change_rec = compare(b_obj, c_obj, control_tbl)
   control_tbl Controls the comparison. Note that you typically don't want a report cluttered with minor changes. For
               example, if the temperature of an SFP rises by 0.5 degrees, you probably don't care.
               List of dictionaries as follows:
-                  'something': {      ReGex sear h string. The search string is built by the dictionary keys
+                  'something': {      ReGex search string. The search string is built by the dictionary keys
                                       types seperated '/' for each nested level.
                       'skip': flag    If flag is True, skip this test. Assume flag=False if omitted
                       'gt': v         Only report a change if c_obj - b_obj > v. Assume v=0 if omitted
@@ -47,7 +49,7 @@ c, change_rec = compare(b_obj, c_obj, control_tbl)
 
 **Important Notes**
 
-    * int & float types are treated as the same type so as to avoid getting a type mismatch. This means 5 and 5.0 are
+    * int & float types are treated as the same type to avoid getting a type mismatch. This means 5 and 5.0 are
       considered the same.
     * Base ('b') and compare ('c') values are always converted to a str in the output
 
@@ -66,16 +68,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Fixed case where a key was in the control_tbl as skip but processed anyway        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import copy
 import re
@@ -119,7 +123,7 @@ def _check_control(in_ref, control_tbl):
     :type in_ref: str
     :param control_tbl: Control table.
     :type control_tbl: dict
-    :return skip_flag: True if the ref was found in control_tbl and it indicated that the test should be skipped.
+    :return skip_flag: True if the ref was found in control_tbl and the ref indicated that the test should be skipped.
     :rtype skip_flag: bool
     :return lt: Less than or equal amount for this ref in control_tbl. 0 if not found
     :rtype lt: int, float
@@ -280,9 +284,9 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     if skip_flag:
         return 0
 
-    c = 0
+    c = 0  # Number of changes to be returned
     for k in b_obj.keys():  # Check existing
-        new_ref = ref + '/' + k
+        new_ref = ref + '/' + k if len(ref) > 0 else k
         b_obj_r = b_obj.get(k)
         new_r_obj = list() if isinstance(b_obj_r, (list, tuple)) else dict()
         c_obj_r = c_obj.get(k)
@@ -290,12 +294,11 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
             skip_flag_0, lt_0, gt_0 = _check_control(new_ref, control_tbl)
             if not skip_flag_0:
                 _update_r_obj(new_r_obj, {'b': k, 'c': '', 'r': _REMOVED})
-            x = 1
         else:
             x = _compare(new_r_obj, new_ref, b_obj_r, c_obj_r, control_tbl)
-        if x > 0:
-            _update_r_obj(r_obj, {k: copy.deepcopy(new_r_obj)})  # IDK why I made all these copies
-            c += x
+            if x > 0:
+                _update_r_obj(r_obj, {k: copy.deepcopy(new_r_obj)})  # IDK why I made all these copies
+                c += x
     for k in c_obj.keys():  # Anything added?
         if k not in b_obj:
             skip_flag_0, lt_0, gt_0 = _check_control(ref + '/' + k, control_tbl)
@@ -437,7 +440,7 @@ def compare(b_obj, c_obj, control_tbl=None, brcddb_control_tbl=None):
     :type b_obj: brcddb.classes - chassis, fabric, login, port, project, switch, zone
     :param c_obj: Compare object
     :type c_obj: brcddb.classes - chassis, fabric, login, port, project, switch, zone
-    :param control_tbl: Determines what to check. See applications.compare_test.test_control_tbl() for an example
+    :param control_tbl: Determines what to check. See compare_report.py for an example.
     :type control_tbl: dict, None
     :param brcddb_control_tbl: Same function as control_tbl but for brcddb class objects. See \
         applications.compare_report._control_tbl() for an example

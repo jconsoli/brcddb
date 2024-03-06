@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.util.iocp` - Utility functions for the brcddb libraries
 
 **Important Notes**
@@ -38,7 +37,7 @@ Public Methods & Data::
     | full_cpc_sn           | Prepends a CPC SN with 0 such that it is padded to a full 12 character serial number  |
     |                       | to match RNID sequence.                                                               |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | dev_type_desc         | Converts the RNID type to a human readable device type                                |
+    | dev_type_desc         | Converts the RNID type to a human-readable device type                                |
     +-----------------------+---------------------------------------------------------------------------------------+
     | css_to_tag            | Parses a list of CSS into the first byte for the tag                                  |
     +-----------------------+---------------------------------------------------------------------------------------+
@@ -46,12 +45,12 @@ Public Methods & Data::
     +-----------------------+---------------------------------------------------------------------------------------+
     | tag_to_css_list       | Converts a tag to a list of CSS bits                                                  |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | tag_to_text           | Converts a CHPID tag to human readable format (as displayed in the IOCP)              |
+    | tag_to_text           | Converts a CHPID tag to human-readable format (as displayed in the IOCP)              |
     +-----------------------+---------------------------------------------------------------------------------------+
     | tag_to_ind_tag_list   | Returns a list of individual tags for a tag. For example: 'C0' is returned as a list  |
     |                       | of '80', '40'                                                                         |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | rnid_flag_to_text     | Converts the RNID flag to human readable text                                         |
+    | rnid_flag_to_text     | Converts the RNID flag to human-readable text                                         |
     +-----------------------+---------------------------------------------------------------------------------------+
     | parse_iocp            | Parses an IOCP and adds the IOCP to the proj_obj                                      |
     +-----------------------+---------------------------------------------------------------------------------------+
@@ -65,23 +64,25 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import collections
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
 import brcdapi.file as brcdapi_file
 
-# Converts IBM device type to user friendly name, 'd', and the generic type, 't'
+# Converts IBM device type to user-friendly name, 'd', and the generic type, 't'
 # Note: These are the types as ordered from IBM. CECs log in to the fabric with the types in this table but devices log
 # in with generic RNID data. Although all types I knew of at the time I wrote this are in this table, I've only used it
 # to convert RNID log in data. Comments indicate the generic types.
@@ -144,7 +145,7 @@ _ibm_type = {
     '2061': dict(d='Cisco', t='Switch'),
     '2062': dict(d='Cisco', t='Switch'),
     '2109': dict(d='Brocade Gen3', t='Switch'),  # 2400, 2800, 48000
-    '2498': dict(d='Brocade Gen5 Switch', t='Switch'),  # Fixed port switch)
+    '2498': dict(d='Brocade Gen5 Switch', t='Switch'),  # Fixed port switch
     '2499': dict(d='Brocade Gen5 Director', t='Switch'),  # Generic. Bladed (8510-8, 8510-4)
     '8960': dict(d='Brocade Gen6/7 Switch', t='Switch'),  # Fixed port (G720, G730, G630, G620, G610)
     '8961': dict(d='Brocade Gen6/7 Director', t='Switch'),  # Bladed (X7-8, X7-4, X6-8, X6-4)
@@ -192,7 +193,7 @@ def full_cpc_sn(sn):
 
 
 def dev_type_desc(dev_type, inc_dev_type=True, inc_generic=True, inc_desc=True, prepend_text='', append_text=''):
-    """Converts the RNID type to a human readable device type
+    """Converts the RNID type to a human-readable device type
 
     :param dev_type: Device type. If None, '' is returned
     :type dev_type: int, str, None
@@ -202,9 +203,9 @@ def dev_type_desc(dev_type, inc_dev_type=True, inc_generic=True, inc_desc=True, 
     :type inc_generic: bool
     :param inc_desc: If True, include the generic description, 'd' in _ibm_type
     :type inc_desc: bool
-    :param prepend_text: Text to prepend to the description. Typically ' (' when inc_dev_type is True
+    :param prepend_text: Text to prepend to the description. Typically, ' (' when inc_dev_type is True
     :type prepend_text: str
-    :param append_text: Text to append to the description. Typically ')' when inc_dev_type is True
+    :param append_text: Text to append to the description. Typically, ')' when inc_dev_type is True
     :return: Device type followed by description
     :rtype: str
     """
@@ -213,7 +214,7 @@ def dev_type_desc(dev_type, inc_dev_type=True, inc_generic=True, inc_desc=True, 
     if dev_type is None:
         return ''
 
-    # Some times the device type has leading '0' or it is hyphenated with additional detail that is not in _ibm_type
+    # Sometimes the device type has leading '0' or it is hyphenated with additional detail that is not in _ibm_type
     generic_device_type = device_type = str(dev_type)
     while len(generic_device_type) > 4 and generic_device_type not in _ibm_type:
         x = generic_device_type.find('-')
@@ -243,7 +244,7 @@ def dev_type_desc(dev_type, inc_dev_type=True, inc_generic=True, inc_desc=True, 
 
 
 def dev_type_to_name(dev_type):
-    """Converts the RNID type to a human readable device type - Deprecated. Use dev_type_desc()
+    """Converts the RNID type to a human-readable device type - Deprecated. Use dev_type_desc()
 
     :param dev_type: Device type
     :type dev_type: int, str
@@ -409,7 +410,7 @@ def tag_to_css_list(tag):
 
 
 def tag_to_text(tag):
-    """Converts a CHPID tag to human readable format (as displayed in the IOCP)
+    """Converts a CHPID tag to human-readable format (as displayed in the IOCP)
 
     :param tag: CHPID RNID tag
     :type tag: str
@@ -431,11 +432,11 @@ def tag_to_ind_tag_list(tag):
 
 
 def rnid_flag_to_text(rnid_flag, flag=False):
-    """Converts the RNID flag to human readable text
+    """Converts the RNID flag to human-readable text
 
     :param rnid_flag: RNID data flag (from: brocade-ficon/rnid/flags)
     :type rnid_flag: str, int
-    :param flag: If True, includes the actual flag in parenthesis
+    :param flag: If True, includes the actual flag in parentheses
     :return: List of CSS
     :rtype: list
     """
@@ -531,14 +532,14 @@ def _parse_cntlunit(cntlunit):
                LINK=((CSS(0),6304,0122,0122),(CSS(1),6304,0122,0122)),
                CUADD=0,UNIT=NOCHECK
 
-    Retruned dict:
+    Returned dict:
 
     {
         cunumber: {         # CNTLUNIT CUNUMBR
             path: {}        # The keys are the CHPID tags and the values are the link address
-            unitadd: []     # Intended for UNITADD. Not filled in in this version - TBD
-            cuadd: []       # Intended for CUADD. Not filled in in this version - TBD
-            unit: unit_type # unit_type is a str. Not filled in in this version - TBD
+            unitadd: []     # Intended for UNITADD. Not filled in this version - TBD
+            cuadd: []       # Intended for CUADD. Not filled in this version - TBD
+            unit: unit_type # unit_type is a str. Not filled in this version - TBD
             }
         ...
     }

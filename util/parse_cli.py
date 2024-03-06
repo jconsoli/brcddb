@@ -1,17 +1,19 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
+ToDo - nsshow doesn't look like its getting parsed correctly.
+
 :mod:`parse_cli` - Parses CLI output.
 
 Public Methods & Data::
@@ -19,29 +21,31 @@ Public Methods & Data::
     +-----------------------+---------------------------------------------------------------------------------------+
     | Method                | Description                                                                           |
     +=======================+=======================================================================================+
-    | switchshow            | Adds a switch object to a project object from switchshow output                       |
+    | cfgshow               | Parse cfgshow output                                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | chassisshow           | Adds a chassis object to a project object from chassisshow output                     |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | defzone               | Parse defzone output                                                                  |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | fabricshow            | Adds a fabric object to a project object from fabricshow output                       |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | ficonshow             | Parse ficonshow output                                                                |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | nsshow                | Parse nsshow outpu                                                                    |
     +-----------------------+---------------------------------------------------------------------------------------+
     | portbuffershow        | Adds the portbuffershow output to the ports in a switch object                        |
+    +-----------------------+---------------------------------------------------------------------------------------+
+    | portcfgshow           | Adds the portcfgshow output to the ports in a switch object                           |
     +-----------------------+---------------------------------------------------------------------------------------+
     | portstatsshow         | Parse portstatsshow and add to the port objects                                       |
     +-----------------------+---------------------------------------------------------------------------------------+
     | portstats64show       | Parse portstats64show and add to the port objects                                     |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | chassisshow           | Adds a chassis object to a project object from chassisshow output                     |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | fabricshow            | Adds a fabric object to a project object from fabricshow output                       |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | nsshow                | Parse nsshow outpu                                                                    |
-    +-----------------------+---------------------------------------------------------------------------------------+
     | sfpshow               | Parse sfpshow output                                                                  |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | cfgshow               | Parse cfgshow output                                                                  |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | ficonshow             | Parse ficonshow output                                                                |
     +-----------------------+---------------------------------------------------------------------------------------+
     | slotshow_d576         | Parse slotshow_d576 output                                                            |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | defzone               | Parse defzone output                                                                  |
+    | switchshow            | Adds a switch object to a project object from switchshow output                       |
     +-----------------------+---------------------------------------------------------------------------------------+
 
 Version Control::
@@ -51,16 +55,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Fixed address mode. Added portcfgshow()                                           |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import re
 import time
@@ -72,6 +78,7 @@ import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_port as brcddb_port
+import brcddb.classes.util as brcddb_class_util
 
 
 def _conv_to_int(buf):
@@ -420,12 +427,14 @@ def switchshow(obj, content, append_buf=''):
             brcddb_util.add_to_obj(switch_obj, _switch_0_1_boolean_off_on[k], 0 if 'OFF' in v.upper() else 1)
         elif k in _switch_0_1_boolean_yes_no.keys():
             brcddb_util.add_to_obj(switch_obj, _switch_0_1_boolean_yes_no[k], 0 if 'NO' in v.upper() else 1)
+        elif k == 'Address Mode':
+            brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfc_area_mode, int(v))
         i += 1
     brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfs_sw_user_name, switch_obj.r_get(brcdapi_util.bfs_sw_user_name))
     brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfs_did, switch_obj.r_get(brcdapi_util.bfs_did))
 
     # Get the logical switch attributes. Note that these are formated on a single line rather than in a list as the
-    # other switch attributes are displayed.
+    # other switch attributes are displayed when VF is enabled
     if 'LS Attributes:' in buf:
         for t_buf in buf[len('LS Attributes:'):].replace('[', '').replace(']', '').replace('\t', '').strip().split(','):
             cl = [c.strip() for c in t_buf.split(':')]
@@ -452,8 +461,6 @@ def switchshow(obj, content, append_buf=''):
         i += 1
 
     # Now get the port information
-    switch_port_list = list()
-    brcddb_util.add_to_obj(switch_obj, brcdapi_util.bfc_area_mode, switch_port_list)
     i += 2  # Skip the line just below it that has ================ in it
     while len(content) > i:
         buf = content[i].replace('\t', ' ').strip()
@@ -497,7 +504,6 @@ def switchshow(obj, content, append_buf=''):
                     break
             if port_d.get('port-type') is None:
                 port_d.update({'port-type': brcddb_common.PORT_TYPE_U})  # Typical of an offline port
-            switch_port_list.append(port_num)
             port_obj = switch_obj.s_add_port(port_num) if proto == 'FC' \
                 else switch_obj.s_add_ve_port(port_num) if proto == 'VE' \
                 else switch_obj.s_add_ge_port(port_num) if proto == 'FCIP' \
@@ -522,11 +528,11 @@ def _pbs_port_type(port_obj, v):
 
 
 def _pbs_lx_mode(port_obj, v):
-    return  # $ToDo: Finish _pbs_lx_mode()
+    brcddb_util.add_to_obj(port_obj, 'fos_cli/portbuffershow/lx_mode', v)
 
 
 def _pbs_max_resv(port_obj, v):
-    return  # $ToDo: Finish _pbs_max_resv()
+    brcddb_util.add_to_obj(port_obj, 'fos_cli/portbuffershow/max_resv', int(v)) if v.isnumeric() else 0
 
 
 def _pbs_avg_buffer_usage(port_obj, v):
@@ -555,6 +561,10 @@ def _pbs_remaining_buffers(port_obj, v):
     return  # $ToDo: Finish _pbs_remaining_buffers()
 
 
+# The starting alignment for the header denoted with ---- doesn't always align with the values. This is to correct it.
+_portbuffer_show_adj_d = dict(max_resv=-2)
+
+
 def portbuffershow(obj, content):
     """Adds the portbuffershow output to the ports in a switch object
 
@@ -563,20 +573,23 @@ def portbuffershow(obj, content):
     :param content: List of portbuffershow output text
     :type content: list
     """
+    global _portbuffer_show_adj_d
+
     switch_obj = obj.r_switch_obj()
 
     # The output is formated for a human so we have to figure out the begining and end of each item
-    # Create a dictionary to put the start and end indicies in
+    # Create a dictionary to put the start and end indicies in. The starting alignment for the header denoted with ----
+    # doesn't always align with the values. 's' is to correct it.
     port_buf_d = collections.OrderedDict()
-    port_buf_d['user_port'] = dict(a=_pbs_user_port)
-    port_buf_d['port_type'] = dict(a=_pbs_port_type)
-    port_buf_d['lx_mode'] = dict(a=_pbs_lx_mode)
-    port_buf_d['max_resv'] = dict(a=_pbs_max_resv)
-    port_buf_d['avg_pbs_buffer_usage'] = dict(a=_pbs_avg_buffer_usage)
-    port_buf_d['buffer_usage'] = dict(a=_pbs_buffer_usage)
-    port_buf_d['needed_buffers'] = dict(a=_pbs_needed_buffers)
-    port_buf_d['link_distance'] = dict(a=_pbs_link_distance)
-    port_buf_d['remaining_buffers'] = dict(a=_pbs_remaining_buffers)
+    port_buf_d['user_port'] = dict(a=_pbs_user_port, s=0)
+    port_buf_d['port_type'] = dict(a=_pbs_port_type, s=0)
+    port_buf_d['lx_mode'] = dict(a=_pbs_lx_mode, s=-2)
+    port_buf_d['max_resv'] = dict(a=_pbs_max_resv, s=-2)
+    port_buf_d['avg_pbs_buffer_usage'] = dict(a=_pbs_avg_buffer_usage, s=0)
+    port_buf_d['buffer_usage'] = dict(a=_pbs_buffer_usage, s=0)
+    port_buf_d['needed_buffers'] = dict(a=_pbs_needed_buffers, s=0)
+    port_buf_d['link_distance'] = dict(a=_pbs_link_distance, s=0)
+    port_buf_d['remaining_buffers'] = dict(a=_pbs_remaining_buffers, s=0)
 
     # Figure out where everything aligns. $ToDo - Parse Remaining Buffers
     buf_l = [content.pop(0) for i in range(0, 3)]
@@ -587,25 +600,23 @@ def portbuffershow(obj, content):
         if state == 0:
             if char == '-':
                 if isinstance(last_d, dict):
-                    last_d.update(e=i-1)
-                active_d.update(s=i)
+                    last_d.update(e=i - 1 + active_d['s'])
+                active_d.update(s=i + active_d['s'])
                 if len(key_l) > 0:
                     last_d = active_d
                     active_d = port_buf_d[key_l.pop(0)]
                 else:
                     break
                 state = 1
-        else:
-            if char == ' ':
-                state = 0
+        elif char == ' ':
+            state = 0
         i += 1
     active_d.update(e=len(buf_l[2])-1)
 
     # Now parse the portbuffershow output
-    for buf in content:
-
-        if '----------------------------------------------------------------------------' in buf:
-            continue
+    for buf in [b.rstrip() for b in content]:
+        if len(buf) == 0:
+            break
         for k, d in port_buf_d.items():
             v = buf[port_buf_d[k]['s']:port_buf_d[k]['e']].strip()
             if k == 'user_port':
@@ -613,6 +624,53 @@ def portbuffershow(obj, content):
             d['a'](port_obj, v)
 
     return
+
+
+def portcfgshow(obj, content):
+    """Adds the portcfgshow output to the port objects in a switch object
+
+    :param obj: Switch object or object with a switch object associated with it
+    :type obj: brcddb.classes.switch.SwitchObj
+    :param content: List of portcfgshow output text
+    :type content: list
+    """
+    state, switch_obj = 'idle', obj.r_switch_obj()
+
+    for i in range(0, len(content)):
+        buf = content[i].rstrip()
+        if 'where AE:QoSAutoEnable' in buf:
+            break
+        if state == 'idle':
+            if 'No ports found' in buf:
+                break
+            if 'Ports of Slot' in buf:
+                temp_l = buf.split(' ')
+                if len(temp_l) > 3:
+                    slot = temp_l[3]
+                    ports = buf
+                    state = 'separator'
+        elif state == 'separator':
+            separator_index = buf.index('+')
+            port_l = gen_util.remove_duplicate_char(ports[separator_index:].strip(), ' ').split(' ')
+            state = 'values'
+        elif state == 'values':
+            if len(buf) == 0:
+                state = 'idle'
+            else:
+                clean_buf = buf.lstrip().lower()
+                if len(clean_buf) >= len('where') and clean_buf[0: len('where')] == 'where':
+                    break
+                key = 'fos_cli/portcfgshow/' + buf[0: separator_index-1].rstrip().replace('/', '_')
+                vl = [b.strip() for b in gen_util.remove_duplicate_char(buf[separator_index:].strip(), ' ').split(' ')]
+                for x in range(0, len(vl)):
+                    port = slot + '/' + port_l[x]
+                    port_obj = switch_obj.r_port_obj(port)
+                    if port_obj is None:
+                        brcdapi_log.exception('Could not find port ' + port, echo=True)
+                    else:
+                        brcddb_class_util.get_or_add(port_obj, key, vl[x])
+
+    return i + 1
 
 
 # Case methods used in _portstatsshow_special
@@ -1005,6 +1063,7 @@ _sfp_sep_len = len(_sfp_sep)
 _sfp_start_match = re.compile(r'(sfpshow|Media not installed|does not use)', re.IGNORECASE)
 _sfp_skip_match = re.compile(r'(No SFP installed|does not use)', re.IGNORECASE)
 _sfp_clean_port = re.compile(r'(Slot|Port|:|\t| )')
+_sfp_end_match = re.compile(r'(-tuning|SS CMD END)', re.IGNORECASE)
 
 
 def sfpshow(obj, content):
@@ -1025,6 +1084,9 @@ def sfpshow(obj, content):
     for buf in content:
         buf = gen_util.remove_duplicate_char(buf.replace('\t', ' '), ' ')
 
+        if _sfp_end_match.search(buf):
+            break
+
         if 'CURRENT CONTEXT' in buf:
             pass
 
@@ -1043,11 +1105,6 @@ def sfpshow(obj, content):
             port_num = port_obj = None
             if len(buf) >= _sfp_sep_len and buf[0:_sfp_sep_len] == _sfp_sep:
                 state = _sfpshow_state_port
-            elif len(buf) == 0 or _sfp_start_match.search(buf):
-                pass
-            else:
-                ri -= 1
-                break
 
         elif state == _sfpshow_state_port:  # This should be the port number
             port_num = _sfp_clean_port.sub('', buf)
@@ -1066,6 +1123,10 @@ def sfpshow(obj, content):
                 state = _sfpshow_state_start
 
         elif state == _sfpshow_state_parms:  # Parsing parameters. Exit this state on "Last poll time:"
+            if len(buf) >= _sfp_sep_len and buf[0:_sfp_sep_len] == _sfp_sep:
+                state = _sfpshow_state_port
+                ri += 1
+                continue
             if _sfp_skip_match.search(buf):
                 state = _sfpshow_state_1st_sep
                 ri += 1
@@ -1496,7 +1557,7 @@ def defzone(obj, content):
 
     :param obj: Fabric object or object with a fabric object associated with it
     :type obj: brcddb.classes.fabric.FabricObj
-    :param content: Begining of nsshow output text
+    :param content: Begining of defzone output text
     :type content: list
     :return ri: Index into content where we left off
     :rtype ri: int
