@@ -454,8 +454,13 @@ def _zonecfg_obj_for_obj(obj):
 
 def _alias_for_zone(obj):
     """Returns a list of alias objects for a zone. See _obj_self() for parameter detail."""
-    return [mem for mem in obj.r_members() + obj.r_pmembers() if not gen_util.is_wwn(mem) and
-            not gen_util.is_di(mem)]
+    rl, fab_obj = list(), obj.r_fabric_obj()
+    member_l = obj.r_members() + obj.r_pmembers()
+    for mem in member_l:
+        alias_obj = fab_obj.r_alias_obj(mem)
+        if alias_obj is not None:
+            rl.append(alias_obj)
+    return rl
 
 
 def _alias_for_zonecfg(obj):
