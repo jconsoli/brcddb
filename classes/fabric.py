@@ -1,19 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.classes.fabric` - Defines the fabric object, FabricObj.
 
 Special Note::
@@ -31,21 +29,24 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
+import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
-import brcddb.classes.util as util
+import brcddb.classes.util as class_util
 import brcddb.classes.zone as zone_class
 import brcddb.classes.login as login_class
 
@@ -109,7 +110,7 @@ class FabricObj:
          :return: Value associated with k. None if k is not present
          :rtype: *
          """
-        return util.get_reserved(
+        return class_util.get_reserved(
             dict(
                 _obj_key=self.r_obj_key(),
                 _flags=self.r_flags(),
@@ -324,7 +325,7 @@ class FabricObj:
         :param members: Name or list of zone configurations to be deleted
         :type members: None, str, list, tuple
         """
-        for mem in [m for m in util.convert_to_list(members) if m in self._zonecfg_objs]:
+        for mem in [m for m in gen_util.convert_to_list(members) if m in self._zonecfg_objs]:
             del self._zonecfg_objs[mem]
 
     def r_zonecfg_obj(self, name):
@@ -396,7 +397,7 @@ class FabricObj:
         Similarly, zone members will be added if they don't already exist
         Note that a leading '_' is not a valid zone configuration name in FOS so this is strictly an internal database
         zone configuration. This special zone configuration name makes it easy to isolate from defined zones as while
-        using all the same code to mangae the zone configuration. Don't forget that the effective zone configuration
+        using all the same code to manage the zone configuration. Don't forget that the effective zone configuration
         includes the zones at the time the defined zone was activated which will not be the same as the defined zone
         configuration if the defined zone configuration has since been modified.
         :param members: Names of the zones in the effective zone configuration
@@ -482,12 +483,13 @@ class FabricObj:
         """
         if isinstance(did, int) and isinstance(p_index, int):
             di = str(did) + ',' + str(p_index)
-            # Below fills l with the zones defined with d,i
-            l = [obj.r_obj_key() for obj in self.r_zone_objects() if di in obj.r_members() or di in obj.r_pmembers()]
+            # Below fills zone_l with the zones defined with d,i
+            zone_l = \
+                [obj.r_obj_key() for obj in self.r_zone_objects() if di in obj.r_members() or di in obj.r_pmembers()]
             # Below gets all the zones where di is in an alias
             for alias in self.r_alias_for_di(did, p_index):
-                l.extend(self.r_zones_for_alias(alias))
-            return l
+                zone_l.extend(self.r_zones_for_alias(alias))
+            return zone_l
         return list()
 
     def s_add_eff_zone(self, name, zone_type, mem=None, pmem=None):
@@ -502,7 +504,7 @@ class FabricObj:
         :type zone_type: int
         :param mem Zone members (this should be WWN)
         :type mem: str, list, tuple, None
-        :param pmem: Principal zone members (this should be WWN). Only relavant to peer zones
+        :param pmem: Principal zone members (this should be WWN). Only relevant to peer zones
         :type pmem: str, list, tuple, None
         :return: Zone object for this zone
         :rtype: brcddb.classes.zone.ZoneObj
@@ -559,7 +561,7 @@ class FabricObj:
         return list(self._eff_zone_objs.values())
 
     def r_eff_zone_objects_for_wwn(self, wwn):
-        """Returns all the zone objects a WWN is used in in the effective zone configuration
+        """Returns all the zone objects a WWN is used in the effective zone configuration
 
         :param wwn: WWN
         :type wwn: str
@@ -573,7 +575,7 @@ class FabricObj:
         return ret_list
 
     def r_eff_zones_for_wwn(self, wwn):
-        """Returns all the zones, by name, a WWN is used in in the effective zone configuration
+        """Returns all the zones, by name, a WWN is used in the effective zone configuration
 
         :param wwn: WWN
         :type wwn: str
@@ -591,7 +593,7 @@ class FabricObj:
         :param members: Zone name or list of zone names to be deleted
         :type members: None, str, list, tuple
         """
-        for mem in [m for m in util.convert_to_list(members) if m in self._zone_objs]:
+        for mem in [m for m in gen_util.convert_to_list(members) if m in self._zone_objs]:
             del self._zone_objs[mem]
 
     def r_zone_obj(self, name):
@@ -642,7 +644,7 @@ class FabricObj:
         :return: Alias object
         :rtype: brcddb.classes.zone.AliasObj
         """
-        mem = util.convert_to_list(in_mem)
+        mem = gen_util.convert_to_list(in_mem)
         if name in self._alias_objs:
             alias_obj = self._alias_objs[name]
         else:
@@ -658,7 +660,7 @@ class FabricObj:
         :param members: Name or list of the aliases to be deleted
         :type members: None, str, list, tuple
         """
-        for mem in [m for m in util.convert_to_list(members) if m in self._alias_objs]:
+        for mem in [m for m in gen_util.convert_to_list(members) if m in self._alias_objs]:
             del self._alias_objs[mem]
 
     def r_alias_obj(self, name):
@@ -718,7 +720,7 @@ class FabricObj:
         return [alias_obj.r_obj_key() for alias_obj in self.r_alias_obj_for_wwn(wwn)]
 
     def r_alias_obj_for_di(self, did, p_index):
-        """Returns a list of alias objects a d,i is a member of
+        """Returns a list of alias objects a "d,i" zone is a member of
 
         :param did: Domain ID in decimal
         :type did: str, int
@@ -731,7 +733,7 @@ class FabricObj:
         return [alias_obj for alias_obj in self.r_alias_objects() if di in alias_obj.r_members()]
 
     def r_alias_for_di(self, did, p_index):
-        """Returns a list of aliases, by name, a d,i is a member of
+        """Returns a list of aliases, by name, a "d,i zone" is a member of
 
         :param did: Domain ID in decimal
         :type did: str, int
@@ -743,7 +745,7 @@ class FabricObj:
         return [alias_obj.r_obj_key() for alias_obj in self.r_alias_obj_for_di(did, p_index)]
 
     def s_add_fdmi_node(self, wwn):
-        """Adds an FDMI node, 'brocade-fdmi/hba', to the fabric by it's WWN if it doesn't already exist
+        """Adds an FDMI node, 'brocade-fdmi/hba', to the fabric by its WWN if it doesn't already exist
 
         :param wwn: WWN
         :type wwn: str
@@ -802,7 +804,7 @@ class FabricObj:
         return self._fdmi_node_objs
 
     def s_add_fdmi_port(self, wwn):
-        """Adds an FDMI port, 'brocade-fdmi/port', to the fabric by it's WWN if it doesn't already exist
+        """Adds an FDMI port, 'brocade-fdmi/port', to the fabric by its WWN if it doesn't already exist
 
         :param wwn: WWN
         :type wwn: str
@@ -968,7 +970,7 @@ class FabricObj:
         :return: True if the add succeeded or is redundant.
         :rtype: bool
         """
-        return util.s_new_key_for_class(self, k, v, f)
+        return class_util.s_new_key_for_class(self, k, v, f)
 
     def s_base_logins(self, wwn_list):
         """Add a wwn or list of wwns to base login list
@@ -979,7 +981,7 @@ class FabricObj:
         if wwn_list is None:
             self._base_logins.clear()
         else:
-            self._base_logins.extend(util.convert_to_list(wwn_list))
+            self._base_logins.extend(gen_util.convert_to_list(wwn_list))
 
     def r_base_logins(self):
         """Returns a list of base (NPIV) login WWNs for this fabric
@@ -1035,7 +1037,7 @@ class FabricObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v
@@ -1047,7 +1049,7 @@ class FabricObj:
         :return: Value
         :rtype: None, bool, float, str, int, list, dict
         """
-        return util.get_or_add(self, k, v)
+        return class_util.get_or_add(self, k, v)
 
     def r_keys(self):
         """Returns a list of keys added to this object.
@@ -1055,7 +1057,7 @@ class FabricObj:
         :return: List of keys
         :rtype: list
         """
-        return util.class_getkeys(self)
+        return class_util.class_getkeys(self)
 
     def r_format(self, full=False):
         """Returns a list of formatted text for the object. Intended for error reporting.
@@ -1065,4 +1067,4 @@ class FabricObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.format_obj(self, full=full)
+        return class_util.format_obj(self, full=full)

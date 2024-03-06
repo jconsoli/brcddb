@@ -1,19 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.classes.chassis` - Defines the chassis object, ChassisObj.
 
 Version Control::
@@ -23,20 +21,22 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcdapi.util as brcdapi_util
 import brcddb.classes.alert as alert_class
-import brcddb.classes.util as util
+import brcddb.classes.util as class_util
 
 # Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
 # on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
@@ -73,7 +73,7 @@ class ChassisObj:
          :return: Value associated with k. None if k is not present
          :rtype: None, bool, int, float, str, dict, list, tuple, AlertObj, ProjectObj
          """
-        return util.get_reserved(
+        return class_util.get_reserved(
             dict(
                 _obj_key=self.r_obj_key(),
                 _flags=self.r_flags(),
@@ -176,7 +176,7 @@ class ChassisObj:
     def r_is_vf_enabled(self):
         """Tests the virtual fabrics (VF) enabled flag ('brocade-chassis/vf-enabled')
 
-        :return: True if VF is enabled. Otherwise False
+        :return: True if VF is enabled. Otherwise, False
         :rtype: bool
         """
         v = self.r_get(brcdapi_util.bp_vf_enabled)
@@ -185,7 +185,7 @@ class ChassisObj:
     def r_is_vf_supported(self):
         """Tests the virtual fabrics (VF) supported flag ('brocade-chassis/vf-supported')
 
-        :return: True if VF is enabled. Otherwise False
+        :return: True if VF is enabled. Otherwise, False
         :rtype: bool
         """
         v = self.r_get(brcdapi_util.bc_vf)
@@ -194,7 +194,7 @@ class ChassisObj:
     def r_is_ha_enabled(self):
         """Tests the high availability (HA) enabled flag ('brocade-chassis/ha-enabled')
 
-        :return: True if HA is enabled. Otherwise False
+        :return: True if HA is enabled. Otherwise, False
         :rtype: bool
         """
         v = self.r_get(brcdapi_util.bc_ha_enabled)
@@ -203,7 +203,7 @@ class ChassisObj:
     def r_is_heartbeat_up(self):
         """Tests the heart beat up flag ('brocade-chassis/heartbeat-up')
 
-        :return: True if the HA heart beat is up. Otherwise False
+        :return: True if the HA heart beat is up. Otherwise, False
         :rtype: bool
         """
         v = self.r_get(brcdapi_util.bc_heartbeat)
@@ -212,7 +212,7 @@ class ChassisObj:
     def r_is_ha_sync(self):
         """Tests the high availability (HA) sync flag ('brocade-chassis/ha-status/ha-synchronized')
 
-        :return: True if in HA sync. Otherwise False
+        :return: True if in HA sync. Otherwise, False
         :rtype: bool
         """
         v = self.r_get(brcdapi_util.bc_ha_sync)
@@ -222,7 +222,7 @@ class ChassisObj:
         """Tests the virtual fabrics enabled flag ('brocade-fru/blade/extension-enabled')
 
         :param slot: Slot number of board where the extension flag is to be tested
-        :return: True if extension is enabled. Otherwise False
+        :return: True if extension is enabled. Otherwise, False
         :rtype: bool
         """
         blades = self.r_get(brcdapi_util.fru_blade)
@@ -235,7 +235,7 @@ class ChassisObj:
     def r_is_bladded(self):
         """Determines if the chassis is bladed or fixed port
 
-        :return: True if director class. Otherwise False
+        :return: True if director class. Otherwise, False
         :rtype: bool
         """
         v = self.r_get('brocade-chassis/chassis/max-blades-supported')
@@ -416,7 +416,7 @@ class ChassisObj:
         :return: The blade dictionary for a specific blade as returned from the API
         :rtype: dict
         """
-        for b in util.convert_to_list(self.r_get(brcdapi_util.fru_blade)):
+        for b in gen_util.convert_to_list(self.r_get(brcdapi_util.fru_blade)):
             if isinstance(b.get('slot_number'), int) and b.get('slot_number') == s:
                 return b
         return None
@@ -472,7 +472,7 @@ class ChassisObj:
         :rtype: list
         """
         tl = [None, None, None, None, None, None, None, None, None, None, None, None, None]
-        for blade in [b for b in util.convert_to_list(self.r_get(brcdapi_util.fru_blade)) if
+        for blade in [b for b in gen_util.convert_to_list(self.r_get(brcdapi_util.fru_blade)) if
                       isinstance(b, int) and b < len(tl)]:
             tl[blade.get('slot-number')] = blade
         return tl
@@ -495,7 +495,7 @@ class ChassisObj:
         :return: True if the add succeeded or is redundant.
         :rtype: bool
         """
-        return util.s_new_key_for_class(self, k, v, f)
+        return class_util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
@@ -505,7 +505,7 @@ class ChassisObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v
@@ -517,7 +517,7 @@ class ChassisObj:
         :return: Value
         :rtype: None, bool, float, str, int, list, dict
         """
-        return util.get_or_add(self, k, v)
+        return class_util.get_or_add(self, k, v)
 
     def r_keys(self):
         """Returns a list of keys added to this object.
@@ -525,7 +525,7 @@ class ChassisObj:
         :return: List of keys
         :rtype: list
         """
-        return util.class_getkeys(self)
+        return class_util.class_getkeys(self)
 
     def r_format(self, full=False):
         """Returns a list of formatted text for the object. Intended for error reporting.
@@ -535,4 +535,4 @@ class ChassisObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.format_obj(self, full=full)
+        return class_util.format_obj(self, full=full)

@@ -1,19 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.classes.iocp` - Defines the IOCP class IOCPObj
 
 Version Control::
@@ -23,19 +21,21 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcddb.classes.alert as alert_class
-import brcddb.classes.util as util 
+import brcddb.classes.util as class_util
 
 # Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
 # on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this but for now, I took
@@ -48,7 +48,7 @@ class IOCPObj:
     RNID data associated with the API is applied to the port objects. This is the equivalent of open systems zoning.
 
     Attributes:
-        _obj_key (str): Name of the IOCP. Typically the CPC serial number.
+        _obj_key (str): Name of the IOCP. Typically, the CPC serial number.
         _flags (int): Flags for each class are defined in brcddb.brcddb_common
         _project_obj (ProjectObj): The project object this IOCP belongs to.
         _chpid_objs (dict): Dictionary of paths. Key is the CHPID tag, value is the CHPID object, ChpidObj
@@ -70,7 +70,7 @@ class IOCPObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        return util.get_reserved(
+        return class_util.get_reserved(
             dict(
                 _obj_key=self.r_obj_key(),
                 _flags=self.r_flags(),
@@ -261,7 +261,7 @@ class IOCPObj:
         :return: True if the add succeeded or is redundant.
         :rtype: bool
         """
-        return util.s_new_key_for_class(self, k, v, f)
+        return class_util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
@@ -271,7 +271,7 @@ class IOCPObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v
@@ -283,7 +283,7 @@ class IOCPObj:
         :return: Value
         :rtype: None, bool, float, str, int, list, dict
         """
-        return util.get_or_add(self, k, v)
+        return class_util.get_or_add(self, k, v)
 
     def r_keys(self):
         """Returns a list of keys added to this object.
@@ -291,7 +291,7 @@ class IOCPObj:
         :return: List of keys
         :rtype: list
         """
-        return util.class_getkeys(self)
+        return class_util.class_getkeys(self)
 
 
 class ChpidObj:
@@ -328,7 +328,7 @@ class ChpidObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        return util.get_reserved(
+        return class_util.get_reserved(
             dict(
                 _obj_key=self.r_obj_key(),
                 _flags=self.r_flags(),
@@ -528,7 +528,7 @@ class ChpidObj:
         :return: True if the add succeeded or is redundant.
         :rtype: bool
         """
-        return util.s_new_key_for_class(self, k, v, f)
+        return class_util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
@@ -538,7 +538,7 @@ class ChpidObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v
@@ -550,7 +550,7 @@ class ChpidObj:
         :return: Value
         :rtype: None, bool, float, str, int, list, dict
         """
-        return util.get_or_add(self, k, v)
+        return class_util.get_or_add(self, k, v)
 
     def r_keys(self):
         """Returns a list of keys added to this object.
@@ -558,7 +558,7 @@ class ChpidObj:
         :return: List of keys
         :rtype: list
         """
-        return util.class_getkeys(self)
+        return class_util.class_getkeys(self)
 
     def r_format(self, full=False):
         """Returns a list of formatted text for the object. Intended for error reporting.
@@ -568,4 +568,4 @@ class ChpidObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.format_obj(self, full=full)
+        return class_util.format_obj(self, full=full)

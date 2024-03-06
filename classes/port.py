@@ -1,19 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.classes.port` - Defines the port object, PortObj.
 
 Version Control::
@@ -23,22 +21,24 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
-import brcddb.classes.util as util
+import brcddb.classes.util as class_util
 
 # Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
 # on Python garbage collection to clean it up. If delete becomes common, I'll have to revisit this.
@@ -63,8 +63,6 @@ class PortObj:
         _project_obj (ProjectObj): The project object this port belongs to.
         _switch (str): WWN of the switch this port belongs to.
         _alerts (list): List of AlertObj objects associated with this object.
-        _maps_fc_port_group (list): List of MAPS groups associated with the port
-        _maps_sfp_group (list): List of MAPS groups associated with the SFP
     """
 
     def __init__(self, name, project_obj, switch_wwn):
@@ -73,8 +71,6 @@ class PortObj:
         self._switch = switch_wwn
         self._flags = 0
         self._alerts = list()
-        self._maps_fc_port_group = list()
-        self._maps_sfp_group = list()
 
     def _i_port_flags(self, k):
         """For internal use only. Returns the state of the specified port flag
@@ -99,15 +95,13 @@ class PortObj:
         :rtype: *
         """
         # When adding a reserved key, don't forget you may also need to update brcddb.util.copy
-        return util.get_reserved(
+        return class_util.get_reserved(
             dict(
                 _obj_key=self.r_obj_key(),
                 _flags=self.r_flags(),
                 _alerts=self.r_alert_objects(),
                 _project_obj=self.r_project_obj(),
                 _switch=self.r_switch_key(),
-                _maps_fc_port_group=self.r_maps_fc_port_group(),
-                _maps_sfp_group=self.r_maps_sfp_group(),
             ),
             k
         )
@@ -211,7 +205,7 @@ class PortObj:
         """
         fab_obj = self.r_fabric_obj()
         login_obj = fab_obj.s_add_login(wwn)
-        wwn_l = util.get_or_add(self, 'fibrechannel/neighbor/wwn', list())
+        wwn_l = class_util.get_or_add(self, 'fibrechannel/neighbor/wwn', list())
         if wwn not in wwn_l:
             wwn_l.append(wwn)
         return login_obj
@@ -222,7 +216,7 @@ class PortObj:
         :return: List of WWNs logged into this port
         :rtype: list
         """
-        return gen_util.convert_to_list(util.class_getvalue(self, 'fibrechannel/neighbor/wwn'))
+        return gen_util.convert_to_list(class_util.class_getvalue(self, 'fibrechannel/neighbor/wwn'))
 
     def r_login_objects(self):
         """Returns all the login objects for logins on this port
@@ -291,11 +285,11 @@ class PortObj:
         :return: Port name
         :rtype: str
         """
-        if util.class_getvalue(self, 'fibrechannel/port-user-friendly-name') is not None:
-            return util.class_getvalue(self, 'fibrechannel/port-user-friendly-name')
+        if class_util.class_getvalue(self, 'fibrechannel/port-user-friendly-name') is not None:
+            return class_util.class_getvalue(self, 'fibrechannel/port-user-friendly-name')
         else:
-            return '' if util.class_getvalue(self, 'fibrechannel/user-friendly-name') is None else \
-                util.class_getvalue(self, 'fibrechannel/user-friendly-name')
+            return '' if class_util.class_getvalue(self, 'fibrechannel/user-friendly-name') is None else \
+                class_util.class_getvalue(self, 'fibrechannel/user-friendly-name')
 
     def r_flags(self):
         """Returns flags associated with this object. Flags are defined in brcddb_common.py
@@ -613,7 +607,7 @@ class PortObj:
         return self.r_get(brcdapi_util.fc_index)
 
     def c_login_type(self):
-        """Converts the login type to a human readable port type
+        """Converts the login type to a human-readable port type
 
         :return: Port type
         :rtype: str
@@ -649,7 +643,7 @@ class PortObj:
         return ', '.join(gen_util.convert_to_list(self.r_get(brcdapi_util.sfp_speed)))
 
     def c_login_speed(self):
-        """Converts the login speed to a user friendly string (as is reported in the FOS command 'switchshow')
+        """Converts the login speed to a user-friendly string (as is reported in the FOS command 'switchshow')
 
         :return: Login speed
         :rtype: str
@@ -663,7 +657,7 @@ class PortObj:
     def r_chassis_key(self):
         """Returns the chassis key this port belongs to
 
-        :return: Login spped
+        :return: Login speed
         :rtype: str
         """
         return self.r_switch_obj().r_chassis_key()
@@ -675,40 +669,6 @@ class PortObj:
         :rtype: ChassisObj
         """
         return self.r_project_obj().r_chassis_obj(self.r_chassis_key())
-
-    def s_add_maps_fc_port_group(self, group):
-        """Adds a group to the FC port
-
-        :param group: MAPS group name this port is a member of
-        :type group: str
-        """
-        if group not in self._maps_fc_port_group:
-            self._maps_fc_port_group.append(group)
-
-    def r_maps_fc_port_group(self):
-        """Returns the list of MAPS group this port is a member of
-
-        :return: List of strings (MAPS group names)
-        :rtype: list
-        """
-        return self._maps_fc_port_group
-
-    def s_add_maps_sfp_group(self, group):
-        """Adds a group to the SFP for this port
-
-        :param group: MAPS group name this SFP is a member of
-        :type group: str
-        """
-        if group not in self._maps_sfp_group:
-            self._maps_sfp_group.append(group)
-
-    def r_maps_sfp_group(self):
-        """Returns the list of MAPS group this port's SFP is a member of
-
-        :return: List of strings (MAPS group names)
-        :rtype: list
-        """
-        return self._maps_sfp_group
 
     def s_new_key(self, k, v, f=False):
         """Creates a new key/value pair.
@@ -722,7 +682,7 @@ class PortObj:
         :return: True if the add succeeded or is redundant.
         :rtype: bool
         """
-        return util.s_new_key_for_class(self, k, v, f)
+        return class_util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
@@ -732,7 +692,7 @@ class PortObj:
         :return: Value
         :rtype: None, int, float, str, list, dict
         """
-        return util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v
@@ -744,7 +704,7 @@ class PortObj:
         :return: Value
         :rtype: None, bool, float, str, int, list, dict
         """
-        return util.get_or_add(self, k, v)
+        return class_util.get_or_add(self, k, v)
 
     def r_keys(self):
         """Returns a list of keys added to this object.
@@ -752,7 +712,7 @@ class PortObj:
         :return: List of keys
         :rtype: list
         """
-        return util.class_getkeys(self)
+        return class_util.class_getkeys(self)
 
     def r_format(self, full=False):
         """Returns a list of formatted text for the object. Intended for error reporting.
@@ -762,4 +722,4 @@ class PortObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.format_obj(self, full=full)
+        return class_util.format_obj(self, full=full)

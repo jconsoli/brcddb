@@ -1,19 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.classes.switch` - Defines the switch object, SwitchObj.
 
 Version Control::
@@ -22,21 +20,24 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff. Added r_fid()                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
+import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
-import brcddb.classes.util as util
+import brcddb.classes.util as class_util
 import brcddb.classes.port as port_class
 
 # Programmer's Tip: Apparently, .clear() doesn't work on de-referenced list and dict. Rather than write my own, I rely
@@ -59,9 +60,6 @@ class SwitchObj:
         * _fabric_key (str): WWN of the fabric this port belongs to.
         * _chassis_key (str): WWN of the chassis this port belongs to.
         * _alerts (list): List of AlertObj objects associated with this object.
-        * _maps_rules (dict): Key is active rule name. Value is dict from brocade-maps/rule
-        * _maps_group_rules (dict): Key is active group name. Value is list of active rules associated with the group
-        * _maps_groups (dict): Key is group name. Value is dict from brocade-maps/group
     """
 
     def __init__(self, name, project_obj):
@@ -74,9 +72,6 @@ class SwitchObj:
         self._ve_port_objs = dict()
         self._alerts = list()
         self._project_obj = project_obj
-        self._maps_rules = dict()
-        self._maps_group_rules = dict()
-        self._maps_groups = dict()
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
@@ -86,7 +81,7 @@ class SwitchObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        return util.get_reserved(
+        return class_util.get_reserved(
             dict(
                 _obj_key=self.r_obj_key(),
                 _flags=self.r_flags(),
@@ -97,9 +92,6 @@ class SwitchObj:
                 _ve_port_objs=self.r_ve_port_objs(),
                 _fabric_key=self.r_fabric_key(),
                 _chassis_key=self.r_chassis_key(),
-                _maps_rules=self.r_maps_rules(),
-                _maps_group_rules=self.r_maps_group_rules(),
-                _maps_groups=self.r_maps_groups(),
             ),
             k
         )
@@ -269,6 +261,13 @@ class SwitchObj:
         """
         did = self.r_get(brcdapi_util.bfs_did)
         return self.r_get('brocade-fabric/fabric-switch/domain-id') if did is None else did
+
+    def r_fid(self):
+        """Returns the fabric ID, in decimal
+        :return: Fabric ID. None if unavailable
+        :rtype: int, None
+        """
+        return self.r_get(brcdapi_util.bfls_fid)
 
     def s_fabric_key(self, wwn):
         """Set the fabric key to the WWN of the fabric
@@ -488,7 +487,7 @@ class SwitchObj:
             [fab_obj.r_fdmi_port_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_fdmi_port_obj(wwn) is not None]
 
     def r_port_object_for_index(self, i):
-        """Returns the port object matching a port index
+        """Returns the port object matching the port index i
         :param i: Port index
         :type i: int
         :return: PortObj or None if not found
@@ -524,7 +523,7 @@ class SwitchObj:
         """
         proj_obj = self.r_project_obj()
         ret = dict()
-        for td in util.convert_to_list(self.r_get('brocade-fibrechannel-trunk/trunk')):
+        for td in gen_util.convert_to_list(self.r_get('brocade-fibrechannel-trunk/trunk')):
             ds_wwn = td.get('neighbor-wwn')
             if ds_wwn not in ret:
                 ret.update({ds_wwn: dict()})
@@ -546,91 +545,10 @@ class SwitchObj:
         :return: Active MAPS. None if no active MAPS policy
         :rtype: dict, None
         """
-        for obj in util.convert_to_list(self.r_get('brocade-maps/maps-policy')):
+        for obj in gen_util.convert_to_list(self.r_get(brcdapi_util.maps_policy)):
             if obj.get('is-active-policy'):
                 return obj
         return None
-
-    def s_add_group(self, group):
-        """Adds a group to _maps_group_rules
-        :param group: Dictionary of group attributes as returned from brocade-maps/group
-        :type group: dict
-        """
-        name = group.get('name')
-        if name not in self._maps_groups:
-            self._maps_groups.update({name: group})
-
-    def r_maps_rules(self):
-        """Returns the maps rules
-        :return: Dictionary of rule attributes as returned from brocade-maps/rule
-        :type: dict
-        """
-        return self._maps_rules
-
-    def s_add_rule(self, rule):
-        """Adds a rule _maps_rules and adds the rule to _maps_group_rules
-        :param rule: Dictionary of rule attributes as returned from brocade-maps/rule
-        :type rule: dict
-        """
-        name = rule.get('name')
-        if name not in self._maps_rules:
-            self._maps_rules.update({name: rule})
-            group = rule.get('group-name')
-            if group not in self._maps_group_rules:
-                self._maps_group_rules.update({group: list()})
-            self._maps_group_rules.get(group).append(name)
-
-    def r_rule(self, name):
-        """Returns the rule dict for the rule
-        :param name: Rule name
-        :type name: str
-        :return: Dictionary of rule attributes as returned from brocade-maps/rule
-        :type: dict
-        """
-        return self._maps_rules.get(name)
-
-    def r_maps_group_rules(self):
-        """Adds a group to _maps_group_rules"""
-        return self._maps_group_rules
-
-    def r_rule_objects_for_group(self, name):
-        """Returns a list of the rule dictionaries associated with a group
-        :param name: Group name
-        :type name: str
-        :return: List of rule attribute dictionaries as returned from brocade-maps/rule associated with the group
-        :type: list
-        """
-        return [self.r_rule(rule) for rule in self.r_maps_group_rules().get(name) if rule is not None]
-
-    def r_maps_groups(self):
-        """Returns the maps groups
-        :return: Dictionary of group attributes as returned from brocade-maps/group
-        :type: dict
-        """
-        return self._maps_groups
-
-    def r_group(self, name):
-        """Returns the group dict for the group
-        :param name: Group name
-        :type name: str
-        :return: Dictionary of group attributes as returned from brocade-maps/group. Returns None if not found.
-        :type: dict, None
-        """
-        return self.r_maps_groups().get(name)
-
-    def r_active_groups(self):
-        """Returns the list of group names in the active MAPS policy
-        :return: List of group names
-        :rtype: list
-        """
-        return list(self.r_maps_group_rules().keys())
-
-    def r_active_group_objects(self):
-        """Returns the list of group objects in the active MAPS policy
-        :return: List of group objects
-        :rtype: list
-        """
-        return [self.r_group(name) for name in self.r_active_groups() if self.r_group(name) is not None]
 
     def c_switch_model(self):
         """Returns the switch model as an integer
@@ -653,7 +571,7 @@ class SwitchObj:
         :return: True if the add succeeded or is redundant.
         :rtype: bool
         """
-        return util.s_new_key_for_class(self, k, v, f)
+        return class_util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
@@ -662,7 +580,7 @@ class SwitchObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v
@@ -674,14 +592,14 @@ class SwitchObj:
         :return: Value
         :rtype: None, bool, float, str, int, list, dict
         """
-        return util.get_or_add(self, k, v)
+        return class_util.get_or_add(self, k, v)
 
     def r_keys(self):
         """Returns a list of keys added to this object.
         :return: List of keys
         :rtype: list
         """
-        return util.class_getkeys(self)
+        return class_util.class_getkeys(self)
 
     def r_format(self, full=False):
         """Returns a list of formatted text for the object. Intended for error reporting.
@@ -691,4 +609,4 @@ class SwitchObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.format_obj(self, full=full)
+        return class_util.format_obj(self, full=full)

@@ -1,19 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.classes.project` - Defines the project object, ProjectObj.
 
 Version Control::
@@ -23,20 +21,22 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class
-import brcddb.classes.util as util
+import brcddb.classes.util as class_util
 import brcddb.classes.chassis as chassis_class
 import brcddb.classes.switch as switch_class
 import brcddb.classes.fabric as fabric_class
@@ -90,7 +90,7 @@ class ProjectObj:
         :return: Value associated with k. None if k is not present
         :rtype: *
         """
-        return util.get_reserved(
+        return class_util.get_reserved(
             dict(
                 _obj_key=self.r_obj_key(),
                 _flags=self.r_flags(),
@@ -198,7 +198,7 @@ class ProjectObj:
     def r_is_warn(self):
         """Tests the flags against the project warn flag bit (brcddb_common.project_warn)
 
-        :return: True if the project warn flag bit is set. Otherwise False
+        :return: True if the project warn flag bit is set. Otherwise, False
         :rtype: bool
         """
         return bool(self._flags & brcddb_common.project_warn)
@@ -206,7 +206,7 @@ class ProjectObj:
     def r_is_api_warn(self):
         """Tests the flags against the project API warn flag bit (brcddb_common.project_api_warn)
 
-        :return: True if the project API warn flag bit is set. Otherwise False
+        :return: True if the project API warn flag bit is set. Otherwise, False
         :rtype: bool
         """
         return bool(self._flags & brcddb_common.project_api_warn)
@@ -214,7 +214,7 @@ class ProjectObj:
     def r_is_user_warn(self):
         """Tests the flags against the project user warn flag bit (brcddb_common.project_user_warn)
 
-        :return: True if the project user warn flag bit is set. Otherwise False
+        :return: True if the project user warn flag bit is set. Otherwise, False
         :rtype: bool
         """
         return bool(self._flags & brcddb_common.project_user_warn)
@@ -222,14 +222,14 @@ class ProjectObj:
     def r_is_any_warn(self):
         """Tests the flags against the project all the warn flag bits
 
-        :return: True if any project warn bit is set. Otherwise False
+        :return: True if any project warn bit is set. Otherwise, False
         :rtype: bool
         """
         return bool(self.r_is_warn() | self.r_is_api_warn() | self.r_is_user_warn())
 
     def r_is_error(self):
         """Tests the flags against the project error flag bit (brcddb_common.project_error)
-        :return: True if the project error flag bit is set. Otherwise False
+        :return: True if the project error flag bit is set. Otherwise, False
         :rtype: bool
         """
         return bool(self.r_flags() & brcddb_common.project_error)
@@ -237,7 +237,7 @@ class ProjectObj:
     def r_is_api_error(self):
         """Tests the flags against the project API error flag bit (brcddb_common.project_api_error)
 
-        :return: True if the project API error flag bit is set. Otherwise False
+        :return: True if the project API error flag bit is set. Otherwise, False
         :rtype: bool
         """
         return bool(self.r_flags() & brcddb_common.project_api_error)
@@ -245,7 +245,7 @@ class ProjectObj:
     def r_is_user_error(self):
         """Tests the flags against the project user error flag bit (brcddb_common.project_user_error)
 
-        :return: True if the project user error flag bit is set. Otherwise False
+        :return: True if the project user error flag bit is set. Otherwise, False
         :rtype: bool
         """
         return bool(self.r_flags() & brcddb_common.project_user_error)
@@ -253,7 +253,7 @@ class ProjectObj:
     def r_is_any_error(self):
         """Tests the flags against the project all the error flag bits
 
-        :return: True if any project warn bit is set. Otherwise False
+        :return: True if any project warn bit is set. Otherwise, False
         :rtype: bool
         """
         return bool(self.r_is_error() | self.r_is_api_error() | self.r_is_user_error())
@@ -356,7 +356,7 @@ class ProjectObj:
 
         :param principal_wwn: Principal WWN of the fabric
         :type principal_wwn: str
-        :param add_switch: If True, also add the principal_wwn as a switch/
+        :param add_switch: If True, also add the principal_wwn as a switch
         :return: Fabric object
         :rtype: FabricObj
         """
@@ -390,7 +390,7 @@ class ProjectObj:
     def r_fabric_keys(self):
         """Returns the list of fabric keys (principal fabric switch WWN) added to this project
 
-        :return: Fabric WWN list
+        :return: Fabric WWNs
         :rtype: list
         """
         return list(self._fabric_objs.keys())
@@ -447,7 +447,7 @@ class ProjectObj:
         return v
 
     def r_login_obj(self, wwn):
-        """Returns the list of login objects matching wwn. Note that its a list because duplicate WWNs may occur
+        """Returns the list of login objects matching wwn. Note that it's a list because duplicate WWNs may occur
 
         :param wwn: WWN of the login
         :type wwn: str
@@ -665,7 +665,7 @@ class ProjectObj:
         :return: True if the add succeeded or is redundant.
         :rtype: bool
         """
-        return util.s_new_key_for_class(self, k, v, f)
+        return class_util.s_new_key_for_class(self, k, v, f)
 
     def r_get(self, k):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
@@ -675,7 +675,7 @@ class ProjectObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v
@@ -687,7 +687,7 @@ class ProjectObj:
         :return: Value
         :rtype: None, bool, float, str, int, list, dict
         """
-        return util.get_or_add(self, k, v)
+        return class_util.get_or_add(self, k, v)
 
     def r_keys(self):
         """Returns a list of keys added to this object.
@@ -695,12 +695,12 @@ class ProjectObj:
         :return: List of keys
         :rtype: list
         """
-        return util.class_getkeys(self)
+        return class_util.class_getkeys(self)
 
     def s_add_iocp(self, cec_sn):
         """Add an IOCP to the project if the IOCP doesn't already exist
 
-        :param cec_sn CEC serial number
+        :param cec_sn: CEC serial number
         :type cec_sn: str
         :return: IOCP object
         :rtype: brcddb.classes.iocp.IOCPObj
@@ -755,4 +755,4 @@ class ProjectObj:
         :return: Value
         :rtype: Same type as used when the key/value pair was added
         """
-        return util.format_obj(self, full=full)
+        return class_util.format_obj(self, full=full)

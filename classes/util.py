@@ -1,19 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`brcddb.classes.util` - Intended for internal use only. Includes methods common to class methods
 
 Version Control::
@@ -23,16 +21,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Removed unused maps stuff in switch object                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -182,26 +182,6 @@ def _port_map(obj):
     return obj._port_map
 
 
-def _maps_fc_port_group(obj):
-    return obj._maps_fc_port_group
-
-
-def _maps_sfp_group(obj):
-    return obj._maps_sfp_group
-
-
-def _maps_rules(obj):
-    return obj._maps_rules
-
-
-def _maps_group_rules(obj):
-    return obj._maps_group_rules
-
-
-def _maps_groups(obj):
-    return obj._maps_groups
-
-
 def _chpid_objs(obj):
     return obj._chpid_objs
 
@@ -245,11 +225,6 @@ _class_reserved_case = dict(
     _zonecfg=_zonecfg,
     _base_logins=_base_logins,
     _port_map=_port_map,
-    _maps_fc_port_group=_maps_fc_port_group,
-    _maps_sfp_group=_maps_sfp_group,
-    _maps_rules=_maps_rules,
-    _maps_group_rules=_maps_group_rules,
-    _maps_groups=_maps_groups,
     _chpid_objs=_chpid_objs,
     _switch_id=_switch_id,
     _link_addr=_link_addr,
@@ -268,7 +243,7 @@ def _class_reserved(obj, k):
     """
     # Programmer's Tip: Everything in Python is an object and __dict__ contains the namespace for all objects.
     # Attributes added in obj.__init__() are not returned with obj.__dict__.keys() unless they are updated after object
-    # creation. Most reserved keys are for attributes initialized in obj.__int__() and are not updated afterwards.
+    # creation. Most reserved keys are for attributes initialized in obj.__int__() and are not updated afterward.
     # Since all FOS API data, and anything a user wants to add to objects, is added dynamically obj.__dict__ is used
     # to determine what's in the name space. This method returns the value for reserved keys by direct access.
     #
@@ -345,7 +320,7 @@ def special_key_higher(obj, k, v, v1):
 
 
 def special_key_ignore(obj, k, v, v1):
-    """Case for keys who's values and value types may change.
+    """Case for keys whose values and value types may change.
 
     To Do: Choose the preferred format.
     :param obj: brcddb object.
@@ -368,7 +343,7 @@ def _add_to_dict(from_dict, to_dict):
         v = from_dict.get(k)
         if k in to_dict:
             v1 = to_dict.get(k)
-            if type(v) != type(v1):
+            if type(v) is not type(v1):
                 return 'Type mismatch. ' + str(type(v)) + ', ' + str(type(v1))
             if isinstance(v, (str, int, float)):
                 if v != v1:
@@ -469,7 +444,7 @@ def s_new_key_for_class(obj, k, v, f=False):
                 ml.append(special[k](obj, k, v, v1))
                 if ml[len(ml)-1] is None:
                     return False  # False so that no additional processing is done
-            elif type(v) != type(v1):
+            elif type(v) is not type(v1):
                 ml.append(force_msg + 'Key already exists. Value type ' + str(type(v)) +
                           ' is changing. New value type:' + str(type(v1)))
             elif isinstance(v, (str, int, float)):
@@ -484,7 +459,7 @@ def s_new_key_for_class(obj, k, v, f=False):
             else:
                 ml.append(force_msg + 'Attempted to add existing key.')
         else:
-            # callable() would tell us for sure, but what else could it be? Even if I'm over looking something, the
+            # callable() would tell us for sure, but what else could it be? Even if I'm overlooking something, the
             # error message won't be right but the trace stack and information provided should be adequate for most
             # programmers to figure out what's going on.
             ml.append('Attempted to add a key that has the same name as an existing method.')
@@ -505,18 +480,13 @@ def s_new_key_for_class(obj, k, v, f=False):
         return False
 
 
-def convert_to_list(obj):
-    """Moved to brcdapi.gen_util"""
-    return gen_util.convert_to_list(obj)
-
-
 def class_getvalue(obj, keys, flag=False):
     """Returns the value associated with a key. Key may be multiple keys using "/" notation
 
     :param obj: Any brcddb.classes object
     :type obj: ChassisObj, FabricObj, LoginObj, FdmiNodeObj, FdmiPortObj, PortObj, ProjectObj, SwitchObj, ZoneCfgObj \
         ZoneObj, AliasObj
-    :param keys: Key who's value is sought. None is allowed to simplify processing lists of keys that may not be present
+    :param keys: Key whose value is sought. None is allowed to simplify processing lists of keys that may not be present
     :type keys: str, None
     :param flag: If True, combine the first two keys into a single key. Used for port keys.
     :type flag: bool
@@ -566,11 +536,6 @@ def class_getkeys(obj):
     """
     reserved_key_l = obj.r_reserved_keys()
     return [key for key in list(obj.__dict__.keys()) if key not in reserved_key_l]
-    # a = list(obj.__dict__.keys())
-    # for i, e in reversed(list(enumerate(a))):
-    #     if e in obj.r_reserved_keys():
-    #         a.pop(i)
-    # return a
 
 
 def get_reserved(rd, k):
@@ -644,7 +609,7 @@ def _format_obj_all_else(item_l):  # Used in format_obj()
     global _MAX_PRINT_LINE
     r_buf, r_buf_l = '', list()
     p_len = len(r_buf)
-    for buf in [str(b) for b in convert_to_list(item_l)]:
+    for buf in [str(b) for b in gen_util.convert_to_list(item_l)]:
         for sub_buf in buf.split('\n'):
             if len(sub_buf) + p_len > _MAX_PRINT_LINE:
                 if len(r_buf) > 0:
@@ -663,7 +628,7 @@ def _format_obj_dict(obj):  # Used in format_obj()
 
 
 def format_obj(obj, full=False):
-    """Intended for error reporting brcddb objects but will format anything into a human readable format.
+    """Intended for error reporting brcddb objects but will format anything into a human-readable format.
 
     :param obj: brcddb class object
     :type obj: AlertObj, AliasObj, LoginObj, PortObj, SwitchObj, ZoneObj, ZoneCfgObj, FabricObj
@@ -690,9 +655,6 @@ def format_obj(obj, full=False):
                 _fdmi_port_objs=_format_obj_none,
                 _base_logins=_format_obj_none,
                 _port_map=_format_obj_none,
-                _maps_rules=_format_obj_none,
-                _maps_group_rules=_format_obj_none,
-                _maps_groups=_format_obj_none,
                 _msg_tbl=_format_obj_none,
             )
 
@@ -715,6 +677,6 @@ def format_obj(obj, full=False):
                     rl.append(pprint.pformat(obj.r_get(key)))
 
     except BaseException as e:
-        rl.append(str(e))
+        rl.extend(['Exception encountered in format_obj:', str(type(e)) + ': ' + str(e)])
 
     return rl
