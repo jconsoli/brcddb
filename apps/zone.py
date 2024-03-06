@@ -1,18 +1,17 @@
-# Copyright 2023 Consoli Solutions, LLC.  All rights reserved.
-#
-# NOT BROADCOM SUPPORTED
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may also obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 """
+Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
+the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
+
+The license is free for single customer use (internal applications). Use of this module in the production,
+redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+details.
+
 :mod:`zone` - Applies zoning changes to a fabric.
 
 **Overview**
@@ -167,16 +166,18 @@ Version Control::
     +===========+===============+===================================================================================+
     | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '04 August 2023'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '06 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack_consoli@yahoo.com'
+__email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.0'
+__version__ = '4.0.1'
 
 import sys
 import datetime
@@ -275,7 +276,7 @@ def _no_operand_check(cmd, strict=False):
     :type cmd: dict
     :param strict: When True, will generate an error if there is an operand or additional parameters
     :type strict: bool
-    :return obj: If an error is found, dictionary as defined in 'commands' in the response. Otherwise None
+    :return obj: If an error is found, dictionary as defined in 'commands' in the response. Otherwise, None
     :rtype obj: dict, None
     :return operand: The operand from cmd
     :rtype: str
@@ -312,7 +313,7 @@ def _operand_check(cmd, strict=False):
     :type cmd: dict
     :param strict: When True, will generate an error if there are additional parameters
     :type strict: bool
-    :return obj: If an error is found, dictionary as defined in 'commands' in the response. Otherwise None
+    :return obj: If an error is found, dictionary as defined in 'commands' in the response. Otherwise, None
     :rtype obj: dict, None
     :return operand: The operand from cmd
     :rtype: str
@@ -483,6 +484,7 @@ def refresh_zoning(session, fid, fabric_obj):
     :param fid: Fabric ID
     :type fid: int
     :param fabric_obj: Fabric object. Not using global _fab_obj because this method can be called externally.
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
     :return: List of error message encountered.
     :rtype: list
     """
@@ -858,7 +860,7 @@ def _cfg_enable(session, cmd, fid):
         # utility to simulate the zoning response and since we are in test mode, we can't just refresh the zoning
         # database from the switch. Writing a software utility to update it wouldn't be hard but as a practical matter,
         # I don't know of anyone who makes zoning changes, enables a zone configuration, and then continues to make
-        # zoning changes all in the same activity so I didn't bother. This is only a problem in test mode.
+        # zoning changes all in the same activity. This is only a problem in test mode.
         return _good_test_return
     zobj = brcdapi_zone.enable_zonecfg(session, _checksum, fid, zonecfg)
     if not fos_auth.is_error(zobj):
@@ -978,7 +980,7 @@ def _defzone(session, cmd, fid):
     except BaseException as e:
         return dict(status=brcdapi_util.HTTP_BAD_REQUEST,
                     reason='Invalid operand',
-                    err_msg=[action, 'Exception code: ' + str(e) if isinstance(e, (bytes, str)) else str(type(e))],
+                    err_msg=[action, 'Exception code: ' + str(type(e)) + ': ' + str(e)],
                     io=False,
                     changed=False,
                     fail=True)
@@ -1104,7 +1106,7 @@ def _zone_create(session, cmd, fid):
     # sure there were no duplicates as defined. Zone are usually defined with aliases. Below resolves the aliases into
     # WWNs and checks for duplicates in the resolved list of members.
     # often is with aliases. If two different aliases have the same member, a duplicate member error is returned from
-    # FOS but you have no idea which one. The above check would be covered in this check but by doing two separate
+    # FOS, but you have no idea which one. The above check would be covered in this check but by doing two separate
     # checks, the error message(s) can articulate the error.
     err_msg = list()
     resolved = [list(), list()]  # Members in d,i or WWN - 0: members in p0, 1: members in p1
@@ -1283,12 +1285,13 @@ def _alias_replace_int(session, old_obj, fid, new_obj):
     :type new_obj: AliasObj, ZoneObj, ZoneCfgObj
     :return obj: Dictionary as defined in 'commands' in the response
     :rtype obj: dict
-"""
+    """
     global _fab_obj
 
     return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST, 'Replace aliases not yet implemented', list())
 
-    """
+
+"""
     r_obj = brcdapi_util.GOOD_STATUS_OBJ
     old_alias, new_alias = old_obj.r_obj_key(), new_obj.r_obj_key()
     zone_update_d = dict()  # Use zone_update_d to keep track of which zones need to be modified
@@ -1300,6 +1303,7 @@ def _alias_replace_int(session, old_obj, fid, new_obj):
                                          del_pmember=old_alias if old_alias in zone_obj.r_pmembers() else None,
                                          add_member=new_alias if old_alias in zone_obj.r_members() else None,
                                          add_pmember=new_alias if old_alias in zone_obj.r_pmembers() else None)})
+    
     # Modify the zones
     for zone, d in zone_update_d.items():
         r_obj = brcdapi_zone.modify_zone(session,
@@ -1317,7 +1321,7 @@ def _alias_replace_int(session, old_obj, fid, new_obj):
     # TODO - Add alias with brcdapi_zone.create_aliases
 
     return r_obj
-    """
+"""
 
 
 def _zone_replace_int(session, old, new):
@@ -1344,7 +1348,7 @@ def _zone_copy_rename_param(cmd):
 
     :param cmd: Dictionary as returned in the list from 'changes' in the input
     :type cmd: dict
-    :return obj: Dictionary as defined in 'commands' in the response if an error was encountered. Otherwise None
+    :return obj: Dictionary as defined in 'commands' in the response if an error was encountered. Otherwise, None
     :rtype obj: dict, None
     :return zoneobj: The zone object to be copied or renamed. None if the zone object was not found
     :rtype zoneobj: brcddb.classes.AliasObj, brcddb.classes.ZoneObj, brcddb.classes.ZoneCfgObj, None
@@ -1395,7 +1399,7 @@ def _zone_copy_rename_param(cmd):
 
 
 def _zone_object_copy(session, cmd, fid):
-    """Copies a zone object. Force is ignored. The destination zone object will not be over written if it already exists
+    """Copies a zone object. Force is ignored. The destination zone object will not be overwritten if it already exists
 
     See _alias_add() for a description of input and return values"""
     global _f_flag, _t_flag, _fab_obj, _b_flag
@@ -1521,8 +1525,8 @@ _change_type_func = {
 def send_zoning(content, cur_session=None):
     """Entry point. Parses and dispatches all zoning operations
 
-    :param content: List of zone changes as described in Inputs - see module header.
-    :type content: list
+    :param content: Zone changes as described in Inputs - see module header.
+    :type content: dict
     :param cur_session: Session object. If None, a login is performed and a new session captured
     :type cur_session: dict
     :return: Formatted response as described in Return - see module header
@@ -1547,7 +1551,6 @@ def send_zoning(content, cur_session=None):
                                  changed=False,
                                  fail=True))
     fid = content.get('fid')  # We use the fid often, so get a local copy
-    sec = 'none' if content.get('sec') is None else content.get('sec')
     if content.get('force') is not None and content.get('force'):
         _f_flag = True  # Global flag initialized to False
     if content.get('test') is not None and content.get('test'):
@@ -1564,7 +1567,7 @@ def send_zoning(content, cur_session=None):
 
     # Login and prime the project object (proj_obj) with basic fabric info.
     if cur_session is None:
-        session = api_int.login(content.get('id'), content.get('pw'), content.get('ip-addr'), sec, proj_obj)
+        session = api_int.login(content['id'], content['pw'], content['ip-addr'], content['sec'], proj_obj)
         if fos_auth.is_error(session):
             response.append(_format_api_error(session))
             return response
@@ -1636,7 +1639,7 @@ def send_zoning(content, cur_session=None):
                             fail_flag = True
                             break
                 except BaseException as e:
-                    e_buf = 'Exception: ' + str(e) if isinstance(e, (bytes, str)) else str(type(e))
+                    e_buf = str(type(e)) + ': ' + str(e)
                     ml = ['Programming error processing ' + c_type,
                           'Operand: str(change_req.get("operand"))',
                           'Line: ' + str(i),
@@ -1671,7 +1674,7 @@ def send_zoning(content, cur_session=None):
                 response.append(_format_return(obj))
         except BaseException as e:
             buf = 'Programming error in api_zone.replace_zoning()'
-            e_buf = str(e) if isinstance(e, (bytes, str)) else str(type(e))
+            e_buf = str(type(e)) + ': ' + str(e)
             brcdapi_log.exception([buf, 'Exception: ' + e_buf], echo=True)
             response.append(dict(status=brcdapi_util.HTTP_INT_SERVER_ERROR,
                                  reason=buf,
