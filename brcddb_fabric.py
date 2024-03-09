@@ -19,6 +19,8 @@ Public Methods & Data::
     +-----------------------+---------------------------------------------------------------------------------------+
     | Method                | Description                                                                           |
     +=======================+=======================================================================================+
+    | aliases_by_name       | Returns a list of aliases defined in the fabric matching the search criteria.         |
+    +-----------------------+---------------------------------------------------------------------------------------+
     | best_fab_name         | Returns the user friendly fabric name, optionally with the WWN of just the WWN if a   |
     |                       | user friendly name wasn't defined.                                                    |
     +-----------------------+---------------------------------------------------------------------------------------+
@@ -60,16 +62,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 4.0.1     | 06 Mar 2024   | Added aliases_by_name()                                                           |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.2     | 09 Mar 2024   | Added missing documentation for aliases_by_name()                                 |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '09 Mar 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
