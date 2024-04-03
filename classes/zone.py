@@ -23,16 +23,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.2     | 03 Apr 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '03 Apr 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
@@ -265,7 +267,7 @@ class ZoneCfgObj:
             [fab_obj.r_zone_obj(zone) for zone in self.r_members() if fab_obj.r_zone_obj(zone) is not None]
 
     def s_copy(self, zonecfg):
-        """Copy self to a new zone
+        """Copy self to a new zone configuration
 
         :param zonecfg: Name of new alias to create
         :type zonecfg: str
