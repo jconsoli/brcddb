@@ -12,63 +12,85 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.api.zone` - Converts the zoning information in a fabric object (brcddb.classes.fabric.FabricObj) to JSON \
-and sends it to a switch.
+**Description**
 
-Public Methods & Data::
+Collection of zoning operations. The primary purpose is to enable zone configurations and to replace the zone database.
 
-    +-----------------------+---------------------------------------------------------------------------------------|
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | build_alias_content   | Builds the alias dict structure to be converted to JSON and sent to a switch,         |
-    |                       |'zoning/defined-configuration'                                                         |
-    +-----------------------+---------------------------------------------------------------------------------------|
-    | build_zone_content    | Builds the zone dict structure to be converted to JSON and sent to a switch,          |
-    |                       | 'zoning/defined-configuration'                                                        |
-    +-----------------------+---------------------------------------------------------------------------------------|
-    | build_zonecfg_content | Builds the zonecfg dict structure to be converted to JSON and sent to a switch,       |
-    |                       | 'zoning/defined-configuration'                                                        |
-    +-----------------------+---------------------------------------------------------------------------------------|
-    | build_all_zone_content| Builds the zonecfg structure to be converted to JSON and sent to a switch,            |
-    |                       | 'brocade-zone/defined-configuration'                                                  |
-    +-----------------------+---------------------------------------------------------------------------------------|
-    | replace_zoning        | Replaces the zoning database in a fabric by clearing it and then PATCHing it with a   |
-    |                       | new zoning database                                                                   |
-    +-----------------------+---------------------------------------------------------------------------------------|
-    | enable_zonecfg        | Activates a zone configuration (make a zone configuration effective)                  |
-    +-----------------------+---------------------------------------------------------------------------------------|
+**Public Methods & Data**
 
-Version Control::
+Typically, only replace_zoning() and enable_zonecfg() are called externally.
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-------------------------------+-----------------------------------------------------------------------------------|
+| Method                        | Description                                                                       |
++===============================+===================================================================================+
+| build_alias_content           | Builds the alias dict structure to be converted to JSON and sent to a switch,     |
+|                               |'zoning/defined-configuration', from a fabric object.                              |
++-------------------------------+-----------------------------------------------------------------------------------|
+| build_zone_content            | Builds the zone dict structure to be converted to JSON and sent to a switch,      |
+|                               | 'zoning/defined-configuration', from a fabric object.                            |
++-------------------------------+-----------------------------------------------------------------------------------|
+| build_zonecfg_content         | Builds the zonecfg dict structure to be converted to JSON and sent to a switch,   |
+|                               | 'zoning/defined-configuration', from a fabric object.                             |
++-------------------------------+-----------------------------------------------------------------------------------|
+| build_all_zone_content        | Builds the zonecfg structure to be converted to JSON and sent to a switch,        |
+|                               | 'brocade-zone/defined-configuration', from a fabric object. Calls                 |
+|                               |  build_alias_content(), build_zone_content(), build_zonecfg_content().            |
++-------------------------------+-----------------------------------------------------------------------------------|
+| plus_effective_zone_alias     | Makes a copy of fab_obj and adds zone and associated aliases that are in the      |
+|                               | effective zone configuration that are not in fab_obj to the copy.                 |
++-------------------------------+-----------------------------------------------------------------------------------|
+| replace_zoning                | Replaces the zoning database in a fabric by clearing it and then PATCHing it with |
+|                               | a new zoning database                                                             |
++-------------------------------+-----------------------------------------------------------------------------------|
+| enable_zonecfg                | Activates a zone configuration (make a zone configuration effective)              |
++-------------------------------+-----------------------------------------------------------------------------------|
+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 03 Apr 2024   | Added plus_effective_zone_alias() and eff option to replace_zoning().                 |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '03 Apr 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import copy
+import sys
+import datetime
 import brcdapi.log as brcdapi_log
 import brcdapi.zone as brcdapi_zone
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcdapi.brcdapi_rest as brcdapi_rest
 import brcdapi.fos_auth as fos_auth
 import brcdapi.util as brcdapi_util
+import brcddb.brcddb_project as brcddb_project
 import brcddb.brcddb_common as brcddb_common
+import brcddb.api.interface as api_int
 
 _MAX_ZONE_SAVE_TRY = 12  # The maximum number of times to try saving zoning changes
 _ZONE_SAVE_WAIT = 5  # Length of time to wait between fabric busy when saving zone changes
+
+# Data for capture
+_zone_uri_l = (
+    'running/brocade-fibrechannel-switch/fibrechannel-switch',
+    'running/brocade-interface/fibrechannel',
+    'running/brocade-zone/defined-configuration',
+    'running/brocade-zone/effective-configuration',
+    'running/brocade-fibrechannel-configuration/zone-configuration',
+    'running/brocade-fibrechannel-configuration/fabric',
+)
 
 
 def build_alias_content(fab_obj):
@@ -166,27 +188,108 @@ def build_all_zone_content(fab_obj):
     return content
 
 
-def replace_zoning(session, fab_obj, fid):
-    """Replaces the zoning database in a fabric by clearing it and then PATCHing it with a new zoning database
+def plus_effective_zone_alias(session, fab_obj, fid):
+    """Makes a copy of fab_obj and adds zone and associated aliases that are in the effective zone configuration that
+    are not in fab_obj to the copy.
+
+    :param session: Login session object from brcdapi.brcdapi_rest.login()
+    :type session: dict
+    :param fab_obj: Fabric object of the fabric the zone database is being restored from.
+    :type fab_obj: FabricObj
+    :param fid: Fabric ID. If FID check is disabled, this must be the FID of the switch where the request is sent.
+    :type fid: int
+    :return error_l: Error messages.
+    :rtype error_l: list
+    :return fab_obj: A copy of fab_obj with zones and aliases in the effective zone. None if there are no zones or
+        aliases to preserve.
+    :rtype: FabricObj, None
+    """
+    global _zone_uri_l
+
+    mod_flag, error_l = False, list()
+
+    # Note: To avoid confusion, all objects from the target switch are preceeded with t_
+
+    # Get a temorary proj_obj & fabric information for the target switch
+    proj_obj = brcddb_project.new("Captured_data", datetime.datetime.now().strftime('%d %b %Y %H:%M:%S'))
+    proj_obj.s_python_version(sys.version)
+    proj_obj.s_description('Temporary project object for determining the effective zone configuration.')
+    error_flag = api_int.get_batch(session, proj_obj, _zone_uri_l, fid=fid)
+    buf = 'FID ' + str(fid) + ' does not exist in the target switch.'
+    if not error_flag:
+        return [buf], None
+    try:  # If the FID doesn't exist we should never get here. try/except is just belt and suspenders.
+        t_fab_obj = proj_obj.r_fabric_objs_for_fid(fid)[0]
+    except IndexError:
+        return [buf], None
+
+    # Figure out what zones and aliases need to be preserved
+    t_fab_obj = brcddb_fabric.copy_fab_obj(fab_obj, full_copy=True)  # The fabric object to return
+    t_eff_zonecfg_obj = t_fab_obj.r_eff_zone_cfg_obj()
+    if t_eff_zonecfg_obj is None:
+        return list(), None
+    for t_zone_obj in t_eff_zonecfg_obj.r_zone_objects():
+        zone_obj = fab_obj.r_zone_obj(t_zone_obj.r_obj_key())
+        if zone_obj is None:
+            mod_flag = True
+            t_fab_obj.s_add_zone(zone_obj.r_obj_key(),
+                                 zone_obj.r_type(),
+                                 zone_obj.r_name(),
+                                 zone_obj.r_members(),
+                                 zone_obj.r_pmembers())
+
+    return list(), t_fab_obj if mod_flag else None
+
+
+
+def replace_zoning(session, fab_obj, fid, eff=None):
+    """Replaces the zoning database in a fabric and, optionally, enables a zone configuration. Keep in mind that FOS
+        does not allow zones that are in the effective zone to be deleted. As a result, none of the aliases in those
+        zones can be deleted. This function preserves zones and associated aliases that are in the effective zone
+        configuration. If eff is set, that zone configuration is enabled and then the preserved zones and aliases are
+        deleted.
 
      Relevant resource: 'zoning/defined-configuration'
      An error is returned if there is no zone database in the fab_obj. Use clear_zoning() to clear out zoning.
 
     :param session: Login session object from brcdapi.brcdapi_rest.login()
     :type session: dict
-    :param fab_obj: Fabric object whose zone database will be sent to the switch
+    :param fab_obj: Fabric object whose zone database will be sent to the switch. Must contatin at least one zone or
+        alias.
     :type fab_obj: brcddb.classes.fabric.FabricObj
     :param fid: Fabric ID. If FID check is disabled, this must be the FID of the switch where the request is sent.
     :type fid: int
+    :param eff: A zone configuration in fab_obj to enable after the zoning updates are completed.
     :return: Object returned from FOS API
     :rtype: dict
     """
-    # Get the dict to be converted to JSON and sent to the switch
-    content = build_all_zone_content(fab_obj)
+    # Some basic error checking
+    if eff is not None:
+        if not isinstance(eff, str):
+            brcdapi_log.exception('Invalid eff parameter type, ' + str(type(eff)) + str(eff), echo=True)
+            return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST,
+                                         'Invalid eff parameter',
+                                         msg=['Expected type str', 'Received ' + str(type(eff))])
+        if fab_obj.r_zonecfg_obj(eff) is None:
+            return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST,
+                                         'Effective zone configuration does not exist',
+                                         msg=eff)
+
+    # Get a fabric object with fab_obj + whaterver is in the effective zone configuration that is not in fab_obj
+    error_l, fab_obj_eff = plus_effective_zone_alias(session, fab_obj, fid)
+    if len(error_l) > 0:
+        if len(error_l) == 0:
+            error_l.append('Unknown error.')  # We should never get here.
+        return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST, 'Could not replace zoning.', error_l)
+
+    # Get the data structure to be converted to JSON and sent to the switch
+    send_fab_obj = fab_obj if fab_obj_eff is None else fab_obj is fab_obj_eff
+    content = build_all_zone_content(send_fab_obj)
     if content is None:
         return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST,
                                      'No zone database in ' + brcddb_fabric.best_fab_name(fab_obj.r_fabric_obj()),
-                                     '')
+                                     ['This function is not intended for clearing a zone database.',
+                                      'Use brcdapi_zone.clear_zone() to clear the zone database.'])
 
     # Get the checksum - this is needed to save the configuration.
     checksum, obj = brcdapi_zone.checksum(session, fid)
@@ -210,54 +313,17 @@ def replace_zoning(session, fab_obj, fid):
             brcdapi_log.log('Failed to update ' + str(k) + ' in zone database', echo=True)
             return obj
 
-    # Save the zoning changes
+    # Enable the effective zone or save the zoning changes
+    if eff is not None:
+        obj = brcdapi_zone.enable_zonecfg(session, check_sum, fid, eff, echo=False)
+        if fos_auth.is_error(obj):
+            brcdapi_zone.abort(session, fid)
+            return obj
+        return replace_zoning(session, fab_obj, fid, eff=None)
     obj = brcdapi_zone.save(session, fid, checksum)
     if fos_auth.is_error(obj):
         brcdapi_zone.abort(session, fid)
         brcdapi_log.log('Failed to save zoning changes', echo=True)
-
-    return obj
-
-
-def replace_zoning_save(session, fab_obj, fid):
-    """Replaces the zoning database in a fabric by clearing it and then PATCHing it with a new zoning database
-
-     Relevant resource: 'zoning/defined-configuration'
-     An error is returned if there is no zone database in the fab_obj. Use clear_zoning() to clear out zoning.
-
-    :param session: Login session object from brcdapi.brcdapi_rest.login()
-    :type session: dict
-    :param fab_obj: Fabric object whose zone database will be sent to the switch
-    :type fab_obj: brcddb.classes.fabric.FabricObj
-    :param fid: Fabric ID. If FID check is disabled, this must be the FID of the switch where the request is sent.
-    :type fid: int
-    :return: Object returned from FOS API
-    :rtype: dict
-    """
-    # Get the dict to be converted to JSON and sent to the switch
-    content = build_all_zone_content(fab_obj)
-    if content is None:
-        return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST,
-                                     'No zone database in ' + brcddb_fabric.best_fab_name(fab_obj.r_fabric_obj()),
-                                     '')
-
-    # Get the checksum - this is needed to save the configuration.
-    checksum, obj = brcdapi_zone.checksum(session, fid)
-    if fos_auth.is_error(obj):
-        return obj
-
-    # Clear the zone database
-    obj = brcdapi_zone.clear_zone(session, fid)
-    if not fos_auth.is_error(obj):
-        # Send the zoning request
-        obj = brcdapi_rest.send_request(session, 'brocade-zone/defined-configuration', 'PATCH', content, fid)
-        if not fos_auth.is_error(obj):
-            obj = brcdapi_zone.save(session, fid, checksum)
-            if not fos_auth.is_error(obj):
-                return obj
-
-    # If we got this far, something went wrong so abort the transaction.
-    brcdapi_zone.abort(session, fid)
 
     return obj
 
