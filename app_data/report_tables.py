@@ -12,7 +12,9 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`report_tables` - Control tables for brcddb.report.xxxx_page modules.
+**Description**
+
+Control tables for brcddb.report.xxxx_page modules.
 
 Dynamic control of worksheets is only available for chassis, switch, and page sheets at this time. Possible uses for
 these tables are:
@@ -21,53 +23,55 @@ these tables are:
     * Put a copy of this module in your private collection of libraries
         * This allows you to modify the table entries for your own customized reports
 
-Important Classes::
+**Important Classes**
 
-    +---------------+-----------------------+-----------------------------------------------------------------------+
-    | Class         | Sub-class             | Description                                                           |
-    +===============+=======================+=======================================================================+
-    | Chassis       | chassis_display_tbl   | Determines what fields to display and the column header               |
-    |               |                       | Used with brcddb.report.chassis.chassis_page()                        |
-    +---------------+-----------------------+-----------------------------------------------------------------------+
-    | Switch       | switch_display_tbl     | Determines what fields to display and the column header               |
-    |               |                       | Used with brcddb.report.switch.switch_page()                          |
-    +---------------+-----------------------+-----------------------------------------------------------------------+
-    | Port          | port_display_tbl      | Determines how data is to be displayed                                |
-    |               |                       | Used with brcddb.report.port.port_page()                              |
-    +---------------+-----------------------+-----------------------------------------------------------------------+
-    | Port          | port_config_tbl       | Determines what fields to display. Tailored for port configurations   |
-    |               |                       | Used with brcddb.report.chassis.chassis_page()                        |
-    +---------------+-----------------------+-----------------------------------------------------------------------+
-    | Port          | port_stats_tbl        | Determines what fields to display. Tailored for port statistics       |
-    |               |                       | Used with brcddb.report.chassis.chassis_page()                        |
-    +---------------+-----------------------+-----------------------------------------------------------------------+
-    | Port          | port_stats1_tbl       | Determines what fields to display. Tailored for port statistics       |
-    |               |                       | from a single port.                                                   |
-    +---------------+-----------------------+-----------------------------------------------------------------------+
-    | Port          | port_sfp_tbl          | Determines what fields to display. Tailored for SFPs                  |
-    |               |                       | Used with brcddb.report.chassis.chassis_page()                        |
-    +---------------+-----------------------+-----------------------------------------------------------------------+
++---------------+-----------------------+-----------------------------------------------------------------------+
+| Class         | Sub-class             | Description                                                           |
++===============+=======================+=======================================================================+
+| Chassis       | chassis_display_tbl   | Determines what fields to display and the column header               |
+|               |                       | Used with brcddb.report.chassis.chassis_page()                        |
++---------------+-----------------------+-----------------------------------------------------------------------+
+| Switch       | switch_display_tbl     | Determines what fields to display and the column header               |
+|               |                       | Used with brcddb.report.switch.switch_page()                          |
++---------------+-----------------------+-----------------------------------------------------------------------+
+| Port          | port_display_tbl      | Determines how data is to be displayed                                |
+|               |                       | Used with brcddb.report.port.port_page()                              |
++---------------+-----------------------+-----------------------------------------------------------------------+
+| Port          | port_config_tbl       | Determines what fields to display. Tailored for port configurations   |
+|               |                       | Used with brcddb.report.chassis.chassis_page()                        |
++---------------+-----------------------+-----------------------------------------------------------------------+
+| Port          | port_stats_tbl        | Determines what fields to display. Tailored for port statistics       |
+|               |                       | Used with brcddb.report.chassis.chassis_page()                        |
++---------------+-----------------------+-----------------------------------------------------------------------+
+| Port          | port_stats1_tbl       | Determines what fields to display. Tailored for port statistics       |
+|               |                       | from a single port.                                                   |
++---------------+-----------------------+-----------------------------------------------------------------------+
+| Port          | port_sfp_tbl          | Determines what fields to display. Tailored for SFPs                  |
+|               |                       | Used with brcddb.report.chassis.chassis_page()                        |
++---------------+-----------------------+-----------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024  | Removed obsolete MAPS stuff. Added FCR to chassis and switch reports. Fixed        |
-    |           |              | firmware version header.                                                           |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+-----------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                       |
++===========+===============+===================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
++-----------+---------------+-----------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff. Added FCR to chassis and switch reports. Fixed       |
+|           |               | firmware version header.                                                          |
++-----------+---------------+-----------------------------------------------------------------------------------+
+| 4.0.2     | 03 Apr 2024   | Added Fabric and more MAPS stuff.                                                 |
++-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '03 Apr 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.util as brcdapi_util
 
@@ -156,6 +160,13 @@ class Chassis:
     }
 
 
+class Fabric:
+    # Similar to other classes herein.
+    fabric_display_tbl = {
+        'brocade-lldp/lldp-global/system-name': 'System Name',
+    }
+
+
 class Switch:
 
     # Key - Key from any of the switch related API responses. Value is the column header. This table also controls
@@ -179,23 +190,22 @@ class Switch:
         brcdapi_util.bc_wwn: 'Chassis WWN',
         brcdapi_util.bfs_did: 'Domain ID',
         brcdapi_util.bfs_domain_name: 'Domain Name',
-        # 'brocade-fabric/fabric-switch/chassis-user-friendly-name': 'Chassis',  # Deprecated?
-        # 'brocade-fabric/fabric-switch/chassis-wwn': 'Chassis WWN',  # Deprecated?
-        # 'brocade-fabric/fabric-switch/domain-id': 'Domain ID',  # Deprecated?
-        # 'brocade-fabric/fabric-switch/domain-name': 'Domain Name',  # Deprecated?
+        # brcdapi_util.bfsw_uri + '/chassis-user-friendly-name': 'Chassis',  # Deprecated?
+        # brcdapi_util.bfsw_uri + '/chassis-wwn': 'Chassis WWN',  # Deprecated?
+        # brcdapi_util.bfsw_uri + '/domain-id': 'Domain ID',  # Deprecated?
+        # brcdapi_util.bfsw_uri + '/domain-name': 'Domain Name',  # Deprecated?
         # 'fabric': brcdapi_util.get_key_val, This is a dict, but I don't know what the members are yet
         brcdapi_util.bfls_fid: 'Fabric ID (FID)',
         brcdapi_util.bfs_fab_user_name: 'Fabric Name',
         brcdapi_util.bfs_fcid_hex: 'FC ID',
-        # 'brocade-fabric/fabric-switch/fcid-hex': 'FC ID',
-        'brocade-fabric/fabric-switch/fcip-address': 'FCIP Address',
+        # brcdapi_util.bfsw_uri + '/fcid-hex': 'FC ID',
+        brcdapi_util.bfsw_uri + '/fcip-address': 'FCIP Address',
         brcdapi_util.bfs_fw_version: 'Firmware Version',
-        # 'brocade-fabric/fabric-switch/firmware-version': 'Firmware Version',
-        'brocade-fabric/fabric-switch/ip-address': 'Management IPv4 Address',
+        brcdapi_util.bfsw_uri + '/ip-address': 'Management IPv4 Address',
         'brocade-fibrechannel-switch/fibrechannel-switch/subnet-mask': 'Management Subnet Mask',
         'brocade-fibrechannel-switch/fibrechannel-switch/ip-static-gateway-list/ip-static-gateway': 'IP Static Gateway',
-        'brocade-fabric/fabric-switch/ipv6-address': 'Management IPv6 Address',
-        'brocade-fabric/fabric-switch/path-count': 'Path Count',
+        brcdapi_util.bfsw_uri + '/ipv6-address': 'Management IPv6 Address',
+        brcdapi_util.bfsw_uri + '/path-count': 'Path Count',
         brcdapi_util.bfs_model: 'Switch Model',
         # 'brocade-fibrechannel-switch/fibrechannel-switch/name': 'Switch WWN',
         brcdapi_util.bfs_op_status: 'Status',
@@ -219,6 +229,7 @@ class Switch:
         brcdapi_util.bfc_area_mode: 'Address (Area) Mode',
         brcdapi_util.bfs_edge_hold: 'Edge-Hold-Time (msec)',
         brcdapi_util.bfs_sw_user_name: 'Switch Name',
+        brcdapi_util.bf_sw_user_name: 'Switch Name',  # Depracated
         brcdapi_util.bfc_up_time: 'Up Time (days)',
         brcdapi_util.bfs_vf_id: 'Virtual Fabric ID (FID)',
         brcdapi_util.bfs_ag_mode: 'Access Gateway Mode',
@@ -254,6 +265,8 @@ class Switch:
         brcdapi_util.ficon_sw_rnid_tag: 'RNID: Tag',
         # MAPS
         'brocade-maps/system-resources/memory-usage': 'MAPS System Memory Usage',
+        'brocade-maps/dashboard-misc/congestion-db-start-time': 'MAPS Congestion Start Time',
+        'brocade-maps/dashboard-misc/maps-start-time': 'MAPS Start Time',
         # Fibrechannel Routing (FCR)
         brcdapi_util.bfr_rc_lc: 'Maximum LSANs',
         brcdapi_util.bfr_rc_bfid: 'Backbone Fabric ID',
