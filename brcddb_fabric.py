@@ -12,68 +12,68 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb_fabric` - Fabric level utilities. Primarily:
+**Public Methods & Data**
 
-Public Methods & Data::
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| aliases_by_name       | Returns a list of aliases defined in the fabric matching the search criteria.             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| best_fab_name         | Returns the user friendly fabric name, optionally with the WWN of just the WWN if a user  |
+|                       | friendly name wasn't defined.                                                             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| switch_for_did        | Returns the switch object in a fabric for a specified DID.                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| alias_analysis        | Analyzes the aliases in each fabric and adds an alert if any of the following             |
+|                       | conditions exist:                                                                         |
+|                       |   * There are multiple identical aliases                                                  |
+|                       |   * The alias is not used                                                                 |
+|                       |   * The alias contains no members                                                         |
++-----------------------+-------------------------------------------------------------------------------------------+
+| check_ficon_zoning    | Check to make sure all control units in the channel path share a zone with the channel    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| zone_by_target        | Finds all servers in the effective zone that are zoned to each target, does a speed check,|
+|                       | and adds _zoned_servers to each target login object. _zoned_servers is a dictionary.      |
+|                       | Key = server WWN, value = list of zones that server and target are in.                    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| zone_analysis         | Analyzes zoning. Finds where all members are. Adds an alert if any issues found. See      |
+|                       | method header for details of what checks are preformed.                                   |
++-----------------------+-------------------------------------------------------------------------------------------+
+| fab_obj_for_name      | Finds the first fabric matching the user friendly fabric name                             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| fab_fids              | Returns a list of FIDs in a fabric. Note that there can be multiple FIDs if FID check     |
+|                       | is disabled                                                                               |
++-----------------------+-------------------------------------------------------------------------------------------+
+| copy_fab_obj          | Makes a copy of a fabric object                                                           |
++-----------------------+-------------------------------------------------------------------------------------------+
+| zone_merge_group      | Determines all logins that would be effected a result of removing a WWN from a fabric     |
++-----------------------+-------------------------------------------------------------------------------------------+
+| fab_match             | Returns a list of WWNs matching the search criteria                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | aliases_by_name       | Returns a list of aliases defined in the fabric matching the search criteria.         |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | best_fab_name         | Returns the user friendly fabric name, optionally with the WWN of just the WWN if a   |
-    |                       | user friendly name wasn't defined.                                                    |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | switch_for_did        | Returns the switch object in a fabric for a specified DID.                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | alias_analysis        | Analyzes the aliases in each fabric and adds an alert if any of the following         |
-    |                       | conditions exist:                                                                     |
-    |                       |   * There are multiple identical aliases                                              |
-    |                       |   * The alias is not used                                                             |
-    |                       |   * The alias contains no members                                                     |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | check_ficon_zoning    | Check to make sure all control units in the channel path share a zone with the channel|
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | zone_by_target        | Finds all servers in the effective zone that are zoned to each target, does a speed   |
-    |                       | check, and adds _zoned_servers to each target login object. _zoned_servers is a       |
-    |                       | dictionary. Key = server WWN, value = list of zones that server and target are in.    |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | zone_analysis         | Analyzes zoning. Finds where all members are. Adds an alert if any issues found. See  |
-    |                       | method header for details of what checks are preformed.                               |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | fab_obj_for_name      | Finds the first fabric matching the user friendly fabric name                         |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | fab_fids              | Returns a list of FIDs in a fabric. Note that there can be multiple FIDs if FID check |
-    |                       | is disabled                                                                           |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | copy_fab_obj          | Makes a copy of a fabric object                                                       |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | zone_merge_group      | Determines all logins that would be effected a result of removing a WWN from a fabric |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | fab_match             | Returns a list of WWNs matching the search criteria                                   |
-    +-----------------------+---------------------------------------------------------------------------------------+
+**Version Control**
 
-Version Control::
-
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Added aliases_by_name()                                                           |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.2     | 09 Mar 2024   | Added missing documentation for aliases_by_name()                                 |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Added aliases_by_name()                                                               |
++-----------------------+-------------------------------------------------------------------------------------------+
+| 4.0.2     | 09 Mar 2024   | Added missing documentation for aliases_by_name()                                     |
++-----------------------+-------------------------------------------------------------------------------------------+
+| 4.0.3     | 03 Apr 2024   | Updated documentation.                                                                |
++-----------------------+-------------------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '09 Mar 2024'
+__date__ = '03 Apr 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
@@ -688,10 +688,10 @@ def fab_match(fab_obj, search_term_l_in, s_type='exact'):
 def aliases_by_name(fab_obj, search_term_l_in, s_type='exact'):
     """Returns a list of aliases defined in the fabric matching the search criteria
 
-    :param fab_obj: The fabric object to be copied.
+    :param fab_obj: The fabric object to be copied. If None, an empty list is returned.
     :type fab_obj: brcddb.classes.fabric.FabricObj, None
-    :param search_term_l_in: List of search terms either by WWN or alias
-    :type search_term_l_in: list, None
+    :param search_term_l_in: Search term or list of search terms either by WWN or alias. None returns an empty list.
+    :type search_term_l_in: str, list, None
     :param s_type: Search type: None, 'exact', 'wild', 'regex-m', or 'regex-s'. Applied to search_l. None defaults \
         to 'exact'
     :type s_type: str
