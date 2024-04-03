@@ -12,11 +12,11 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-ToDo - nsshow doesn't look like its getting parsed correctly.
+**Description**
 
-:mod:`parse_cli` - Parses CLI output.
+Parses CLI output.
 
-Public Methods & Data::
+**Public Methods & Data**
 
     +-----------------------+---------------------------------------------------------------------------------------+
     | Method                | Description                                                                           |
@@ -48,25 +48,27 @@ Public Methods & Data::
     | switchshow            | Adds a switch object to a project object from switchshow output                       |
     +-----------------------+---------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Fixed address mode. Added portcfgshow()                                           |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+-----------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                       |
++===========+===============+===================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
++-----------+---------------+-----------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Fixed address mode. Added portcfgshow()                                           |
++-----------+---------------+-----------------------------------------------------------------------------------+
+| 4.0.2     | 03 Apr 2024   | Fixed missed FIDchange in sfpshow. Fixed missing NPIV logins in nsshow()          |
++-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '03 Apr 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import re
 import time
@@ -996,14 +998,14 @@ _nsshow_to_api = {
 def nsshow(obj, content):
     """Parse nsshow output
 
-    :param obj: Fabric object or object with a fabric object associated with it
-    :type obj: brcddb.classes.fabric.FabricObj
+    :param obj: Any object that returns a fabric object, obj.r_fabric_obj(), and switch object, obj.r_switch_obj()
+    :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes..port.PortObj
     :param content: Begining of nsshow output text
     :type content: list
     :return ri: Index into content where we left off
     :rtype ri: int
     """
-    fab_obj, port_obj, ri = obj.r_fabric_obj(), None, 0
+    fab_obj, switch_obj, port_obj, ri = obj.r_fabric_obj(), obj.r_switch_obj(), None, 0
 
     buf = content[ri]
     if 'nsshow' in buf:
@@ -1026,13 +1028,6 @@ def nsshow(obj, content):
                 brcddb_util.add_to_obj(login_obj, brcdapi_util.bns_port_id, '0x' + cl[0])
                 brcddb_util.add_to_obj(login_obj, brcdapi_util.bns_node_name, cl[3])
                 brcddb_util.add_to_obj(login_obj, brcdapi_util.bns_port_name, cl[2])
-                port_obj = fab_obj.r_port_obj_for_pid(cl[0])
-                if port_obj is not None:
-                    nl = port_obj.r_get(brcdapi_util.fc_neighbor_wwn)
-                    if nl is None:
-                        nl = list()
-                        brcddb_util.add_to_obj(port_obj, brcdapi_util.fc_neighbor_wwn, nl)
-                    nl.append(cl[2])
 
             else:
                 cl = [b.strip() for b in buf.split(':', 1)]
@@ -1048,6 +1043,14 @@ def nsshow(obj, content):
                             val = val if val_c.get(val) is None else val_c[val]
                         elif isinstance(val_c, (int, str, list, tuple)):
                             val = val_c
+                        if cl[0] == 'Port Index':
+                            port_obj = switch_obj.r_port_object_for_index(val)
+                            if port_obj is not None:
+                                nl = port_obj.r_get(brcdapi_util.fc_neighbor_wwn)
+                                if nl is None:
+                                    nl = list()
+                                    brcddb_util.add_to_obj(port_obj, brcdapi_util.fc_neighbor_wwn, nl)
+                                nl.append(login_obj.r_obj_key())
                         brcddb_util.add_to_obj(login_obj, api_k, val)
 
     return ri
@@ -1088,7 +1091,7 @@ def sfpshow(obj, content):
             break
 
         if 'CURRENT CONTEXT' in buf:
-            pass
+            break
 
         elif state == _sfpshow_state_start:
             # I don't remember why I check for the port seperator, ===== right away. It should always begin with

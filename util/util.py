@@ -60,16 +60,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 4.0.1     | 06 Mar 2024   | Removed obsolete add_maps_groups() and depracated functions.                      |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.2     | 03 Apr 2024   | Explicitly declared c_type_conv as global in parse_cli() functions                |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '03 Apr 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import re
 import datetime
@@ -351,6 +353,7 @@ def has_alert(obj, al_num, key, p0, p1):
 ###################################################################
 
 # Convert CLI commands to the c-type for brcddb.apps.zone
+# c_type_conv was originally intended to be public. I don't think it needs to be public anymore.
 c_type_conv = dict(
     aliadd='alias-add',
     alicreate='alias-create',
@@ -410,6 +413,8 @@ def parse_cli(file_buf):
     :return: List of commands parsed into the aforementioned dictionary
     :rtype: list
     """
+    global c_type_conv
+
     cond_input = list()
     for buf in file_buf:
         mod_line = buf[:buf.find('#')] if buf.find('#') >= 0 else buf

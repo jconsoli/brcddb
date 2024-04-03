@@ -44,16 +44,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.2     | 03 Apr 2024   | Fixed bug in match() whereby multiple search terms were not processed properly    |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '03 Apr 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import re
 import fnmatch
@@ -223,65 +225,67 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
     # a seperate method for a more specific purpose and leave this as a general purpose search and match method.
 
     return_list = list()
-    search_term = in_search_term.lower() if ignore_case else in_search_term
+    for search_term in gen_util.convert_to_list(in_search_term):
+        if isinstance(search_term, str) and ignore_case:
+            search_term = search_term.lower()
 
-    # Validate user input
-    if not isinstance(search_term, (str, list, tuple, bool)):
-        brcdapi_log.exception('Invalid search_term type: ' + str(type(search_term)), echo=True)
-        return return_list
-    if isinstance(stype, str):
-        if stype in ('regex-m', 'regex-s'):
-            regex_obj = re.compile(search_term, re.IGNORECASE) if ignore_case else re.compile(search_term)
-        elif stype not in ('wild', 'exact', 'bool'):
-            brcdapi_log.exception('Invalid search type: ' + stype, echo=True)
+        # Validate user input
+        if not isinstance(search_term, (str, bool)):
+            brcdapi_log.exception('Invalid search_term type: ' + str(type(search_term)), echo=True)
             return return_list
-    else:
-        brcdapi_log.exception('Search type must be str. Search type is: ' + str(type(stype)),
-                              True)
-        return return_list
+        if isinstance(stype, str):
+            if stype in ('regex-m', 'regex-s'):
+                regex_obj = re.compile(search_term, re.IGNORECASE) if ignore_case else re.compile(search_term)
+            elif stype not in ('wild', 'exact', 'bool'):
+                brcdapi_log.exception('Invalid search type: ' + stype, echo=True)
+                return return_list
+        else:
+            brcdapi_log.exception('Search type must be str. Search type is: ' + str(type(stype)),
+                                  True)
+            return return_list
 
-    search_key_list = gen_util.convert_to_list(search_key)
-    obj_list = gen_util.convert_to_list(search_objects)
-    for obj in obj_list:
-        try:
-            for sk in search_key_list:
-                sub_obj = gen_util.get_key_val(obj, sk)
-                if sub_obj is None:
-                    continue
-                if isinstance(sub_obj, dict):
-                    if len(match(sub_obj, list(sub_obj.keys()), search_term, ignore_case, stype)) > 0:
-                        raise Found
-                elif isinstance(sub_obj, (str, list, tuple)):
-                    for buf in gen_util.convert_to_list(sub_obj):  # Any match within that list is a match
-                        if isinstance(buf, str):
-                            test_buf = buf.lower() if ignore_case else buf
-                            if stype == 'regex-m':
-                                if regex_obj.match(test_buf):
-                                    raise Found
-                            elif stype == 'regex-s':
-                                if regex_obj.search(test_buf):
-                                    raise Found
-                            elif stype == 'exact':
-                                if search_term == test_buf:
-                                    raise Found
-                            elif stype == 'wild':
-                                if fnmatch.fnmatch(test_buf, search_term):
-                                    raise Found
-                            elif stype == 'bool':
-                                if isinstance(buf, bool) and isinstance(search_term, bool):
-                                    if bool({search_term: buf}):
+        search_key_list = gen_util.convert_to_list(search_key)
+        obj_list = gen_util.convert_to_list(search_objects)
+        for obj in obj_list:
+            try:
+                for sk in search_key_list:
+                    sub_obj = gen_util.get_key_val(obj, sk)
+                    if sub_obj is None:
+                        continue
+                    if isinstance(sub_obj, dict):
+                        if len(match(sub_obj, list(sub_obj.keys()), search_term, ignore_case, stype)) > 0:
+                            raise Found
+                    elif isinstance(sub_obj, (str, list, tuple)):
+                        for buf in gen_util.convert_to_list(sub_obj):  # Any match within that list is a match
+                            if isinstance(buf, str):
+                                test_buf = buf.lower() if ignore_case else buf
+                                if stype == 'regex-m':
+                                    if regex_obj.match(test_buf):
                                         raise Found
-                        elif isinstance(buf, dict):
-                            if len(match([buf.get(k) for k in buf], None, search_term, ignore_case, stype)) > 0:
-                                raise Found
-                        elif isinstance(buf, (list, tuple)):
-                            if len(match(buf, None, search_term, ignore_case, stype)) > 0:
-                                raise Found
-                elif isinstance(sub_obj, bool):
-                    if (search_term and sub_obj) or (not search_term and not sub_obj):
-                        raise Found
-        except Found:
-            return_list.append(obj)
+                                elif stype == 'regex-s':
+                                    if regex_obj.search(test_buf):
+                                        raise Found
+                                elif stype == 'exact':
+                                    if search_term == test_buf:
+                                        raise Found
+                                elif stype == 'wild':
+                                    if fnmatch.fnmatch(test_buf, search_term):
+                                        raise Found
+                                elif stype == 'bool':
+                                    if isinstance(buf, bool) and isinstance(search_term, bool):
+                                        if bool({search_term: buf}):
+                                            raise Found
+                            elif isinstance(buf, dict):
+                                if len(match([buf.get(k) for k in buf], None, search_term, ignore_case, stype)) > 0:
+                                    raise Found
+                            elif isinstance(buf, (list, tuple)):
+                                if len(match(buf, None, search_term, ignore_case, stype)) > 0:
+                                    raise Found
+                    elif isinstance(sub_obj, bool):
+                        if (search_term and sub_obj) or (not search_term and not sub_obj):
+                            raise Found
+            except Found:
+                return_list.append(obj)
 
     if len(return_list) > 0 and 'brcddb' in str(type(return_list[0])):
         return gen_util.remove_duplicates(return_list)
