@@ -54,17 +54,19 @@ Typically, only replace_zoning() and enable_zonecfg() are called externally.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
 +-----------+---------------+---------------------------------------------------------------------------------------+
-| 4.0.2     | 03 Apr 2024   | Added plus_effective_zone_alias() and eff option to replace_zoning().                 |
+| 4.0.2     | 03 Apr 2024   | Added plus_effective_zone_alias(). Added eff option to replace_zoning().              |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 15 May 2024   | Fixed bad checksum in replace_zoning()                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '03 Apr 2024'
+__date__ = '15 May 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import copy
 import sys
@@ -315,7 +317,7 @@ def replace_zoning(session, fab_obj, fid, eff=None):
 
     # Enable the effective zone or save the zoning changes
     if eff is not None:
-        obj = brcdapi_zone.enable_zonecfg(session, check_sum, fid, eff, echo=False)
+        obj = brcdapi_zone.enable_zonecfg(session, checksum, fid, eff, echo=False)
         if fos_auth.is_error(obj):
             brcdapi_zone.abort(session, fid)
             return obj
