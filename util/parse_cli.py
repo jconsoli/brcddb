@@ -50,25 +50,26 @@ Parses CLI output.
 
 **Version Control**
 
-+-----------+---------------+-----------------------------------------------------------------------------------+
-| Version   | Last Edit     | Description                                                                       |
-+===========+===============+===================================================================================+
-| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-+-----------+---------------+-----------------------------------------------------------------------------------+
-| 4.0.1     | 06 Mar 2024   | Fixed address mode. Added portcfgshow()                                           |
-+-----------+---------------+-----------------------------------------------------------------------------------+
-| 4.0.2     | 03 Apr 2024   | Fixed missed FIDchange in sfpshow. Fixed missing NPIV logins in nsshow()          |
-+-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Fixed address mode. Added portcfgshow()                                               |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 03 Apr 2024   | Fixed missed FIDchange in sfpshow. Fixed missing NPIV logins in nsshow()              |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 15 May 2024   | Fixed missed effective zone configuration.                                            |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '03 Apr 2024'
+__date__ = '15 May 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import re
 import time
@@ -1228,7 +1229,8 @@ def _cfgshow_eff_zone_act(fab_obj, name, mem_l):
 
 
 def _cfgshow_eff_cfg_act(fab_obj, name, mem_l):
-    brcddb_util.add_to_obj(fab_obj.s_add_eff_zonecfg(mem_l), brcdapi_util.bz_eff_cfg, name)
+    fab_obj.s_add_eff_zonecfg(mem_l)
+    brcddb_util.add_to_obj(fab_obj, brcdapi_util.bz_eff_cfg, name)
 
 
 """A state machine is used to parse the cfgshow output. The state machine is designed to accomplish two objectives:
@@ -1280,7 +1282,7 @@ def _cfgshow_process(state, buf):
     :return rl: List of members associated with the operand
     :rtype rl: list()
     """
-    global _cfgshow_state_eff, _cfgshow_state_exit
+    global _cfgshow_state_eff, _cfgshow_state_exit, _cfgshow_operand_tbl
 
     operand, rl, next_state, t_buf, key = None, list(), None, buf, None
 
@@ -1304,8 +1306,8 @@ def _cfgshow_process(state, buf):
         next_state = _cfgshow_state_eff
     elif 'no configuration in effect' in buf:
         next_state = _cfgshow_state_exit
-    elif operand is not None and operand in _cfgshow_operand_tbl:
-        next_state = _cfgshow_operand_tbl[operand]['state']
+    elif k is not None and k in _cfgshow_operand_tbl:
+        next_state = _cfgshow_operand_tbl[k]['state']
 
     return next_state, k, operand, rl
 
@@ -1351,14 +1353,12 @@ def cfgshow(obj, content):
 
     # Process (add to brcddb objects) the parsed data. Note that an alias must be unbundled, see comments in
     # cfgshow_zone_gen(), before evaluating peer zone. Hence the order below.
-    action_key = 'da'
-    for active_l in (def_l, eff_l):
+    for action_key, active_l in dict(da=def_l, ea=eff_l).items():
         for cfg_key in ('alias:', 'zone:', 'cfg:'):
             action = _cfgshow_operand_tbl[cfg_key].get(action_key)
             if callable(action):
                 for active_d in [d for d in active_l if d['key'] == cfg_key]:
                     action(fab_obj, active_d['operand'], active_d['mem_l'])
-        action_key = 'ea'
 
     return ri
 

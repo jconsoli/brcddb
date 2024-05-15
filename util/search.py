@@ -35,27 +35,67 @@ Public Methods & Data::
     |                       | for True or False.                                                                     |
     +-----------------------+---------------------------------------------------------------------------------------+
 
-Version Control::
+**Summary of wild card strings**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.2     | 03 Apr 2024   | Fixed bug in match() whereby multiple search terms were not processed properly    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+Search the web for 'python fnmatch.fnmatch' for additional informaiton
+
+*         matches everything
+?         matches any single character
+[seq]     matches any character in seq
+[!seq]    matches any character not in seq
+
+**Summary of ReGex strings**
+
+Search the web for 'regex' for additional information. A regex match must match the begining of the string. A regex
+search must match any instance of the regex in the string.
+
+abc…          Letters
+123…          Digits
+\d            Any Digit
+\D            Any Non - digit character
+.             Any Character
+\.            Period
+[abc]         Only a, b, or c
+[ ^ abc]      Not a, b, nor c
+[a - z]       Characters a to z
+[0 - 9]       Numbers 0 to 9
+\w            Any Alphanumeric character
+\W            Any Non - alphanumeric character
+{m}           m Repetitions
+{m, n}        m to n Repetitions
+*             Zero or more repetitions
++             One or more repetitions
+?             Optional character
+\s            Any Whitespace
+\S            Any Non - whitespace character
+^ …$          Starts and ends
+(…)           Capture Group
+(a(bc))       Capture Sub - group
+(.*)          Capture all
+(abc | def )  Matches abc or def
+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 03 Apr 2024   | Fixed bug in match() whereby multiple search terms were not processed properly        |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 15 May 2024   | Fixed ignore case with wild card matching.                                            |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '03 Apr 2024'
+__date__ = '15 May 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import re
 import fnmatch
@@ -83,6 +123,13 @@ login_8G = dict(k='fibrechannel/speed', t='==', v=8000000000)  # 8G
 login_16G = dict(k='fibrechannel/speed', t='==', v=16000000000)  # 16G
 login_32G = dict(k='fibrechannel/speed', t='==', v=32000000000)  # 32G
 login_64G = dict(k='fibrechannel/speed', t='==', v=64000000000)  # 64G
+
+_regex_m_type_d = {'regexm': True, 'regex_m': True, 'regex-m': True,}
+_regex_s_type_d = {'regexs': True, 'regex_s': True, 'regex-s': True,}
+_valid_stype = dict(exact=True, wild=True, bool=True)
+_valid_stype.update(_regex_m_type_d)
+_valid_stype.update(_regex_s_type_d)
+
 
 class Found(Exception):
     pass
@@ -171,8 +218,14 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
        after the last search key. If a list is encountered, an iteritive search is performed on the list. If the search
        keys have not been exhausted, then the remaining search keys are applied to the iteritive searches.
 
-        **WARNING:** Circular references will result in Python stack overflow issues. Since all brcddb objects have a
-        link back to the main project object, at least one key must be used to avoid this circular reference
+    **WARNING:**
+    Circular references will result in Python stack overflow issues. Since all brcddb objects have a link back to the
+    main project object, at least one key must be used to avoid this circular reference
+
+    **Programmers Tip**
+    The Python re and fmatch are quite effecient. In order to search for anything in any data structure, this method
+    does not make use of list comprehensions. If you need something more effecient, create a seperate method for a more
+    specific purpose and leave this as a general purpose search and match method.
 
     :param search_objects: Required. These are the objects to search in. Usually a list
     :type search_objects: str, tuple, list, dict or any brcddb object
@@ -182,61 +235,24 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
     :type in_search_term: str, list, tuple, bool
     :param ignore_case: Default is False. If True, ignores case in search_term. Not that keys are always case sensitive
     :type ignore_case: bool
-    :param stype: Valid options are: 'exact', 'wild', 'regex-m', or 'regex-s' ('-m' for match and -s for search)
+    :param stype: See _valid_stype
     :param stype: str
-    :return return_list:  List of matching the search criteria - subset of search_objects
+    :return return_list: List of matching the search criteria - subset of search_objects
     :rtype: list
     """
-
-    # Summary of wild card strings (search the web for 'python fnmatch.fnmatch' for additional informaiton):
-    # *         matches everything
-    # ?         matches any single character
-    # [seq]     matches any character in seq
-    # [!seq]    matches any character not in seq
-
-    # Summary of ReGex strings (search the web for 'regex' for additional information:
-    # abc…          Letters
-    # 123…          Digits
-    # \d            Any Digit
-    # \D            Any Non - digit character
-    # .             Any Character
-    # \.            Period
-    # [abc]         Only a, b, or c
-    # [ ^ abc]      Not a, b, nor c
-    # [a - z]       Characters a to z
-    # [0 - 9]       Numbers 0 to 9
-    # \w            Any Alphanumeric character
-    # \W            Any Non - alphanumeric character
-    # {m}           m Repetitions
-    # {m, n}        m to n Repetitions
-    # *             Zero or more repetitions
-    # +             One or more repetitions
-    # ?             Optional character
-    # \s            Any Whitespace
-    # \S            Any Non - whitespace character
-    # ^ …$          Starts and ends
-    # (…)           Capture Group
-    # (a(bc))       Capture Sub - group
-    # (.*)          Capture all
-    # (abc | def )  Matches abc or def
-
-    # Programmers tip: The Python re and fmatch are quite effecient. In order to search for anything in any data
-    # structure, this method does not make use of list comprehensions. If you need something more effecient, create
-    # a seperate method for a more specific purpose and leave this as a general purpose search and match method.
+    global _valid_stype, _regex_m_type_d, _regex_s_type_d
 
     return_list = list()
     for search_term in gen_util.convert_to_list(in_search_term):
-        if isinstance(search_term, str) and ignore_case:
-            search_term = search_term.lower()
 
         # Validate user input
         if not isinstance(search_term, (str, bool)):
             brcdapi_log.exception('Invalid search_term type: ' + str(type(search_term)), echo=True)
             return return_list
         if isinstance(stype, str):
-            if stype in ('regex-m', 'regex-s'):
+            if _regex_m_type_d.get(stype, False) or _regex_s_type_d.get(stype, False):
                 regex_obj = re.compile(search_term, re.IGNORECASE) if ignore_case else re.compile(search_term)
-            elif stype not in ('wild', 'exact', 'bool'):
+            elif not _valid_stype.get(stype, False):
                 brcdapi_log.exception('Invalid search type: ' + stype, echo=True)
                 return return_list
         else:
@@ -244,9 +260,9 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
                                   True)
             return return_list
 
+        # Input was validated, so find the matches
         search_key_list = gen_util.convert_to_list(search_key)
-        obj_list = gen_util.convert_to_list(search_objects)
-        for obj in obj_list:
+        for obj in gen_util.convert_to_list(search_objects):
             try:
                 for sk in search_key_list:
                     sub_obj = gen_util.get_key_val(obj, sk)
@@ -259,18 +275,22 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
                         for buf in gen_util.convert_to_list(sub_obj):  # Any match within that list is a match
                             if isinstance(buf, str):
                                 test_buf = buf.lower() if ignore_case else buf
-                                if stype == 'regex-m':
+                                if _regex_m_type_d.get(stype, False):
                                     if regex_obj.match(test_buf):
                                         raise Found
-                                elif stype == 'regex-s':
+                                elif _regex_s_type_d.get(stype, False):
                                     if regex_obj.search(test_buf):
                                         raise Found
                                 elif stype == 'exact':
-                                    if search_term == test_buf:
+                                    if ignore_case and search_term.lower() == test_buf.lower():
+                                        raise Found
+                                    elif search_term == test_buf:
                                         raise Found
                                 elif stype == 'wild':
-                                    if fnmatch.fnmatch(test_buf, search_term):
+                                    if ignore_case and fnmatch.fnmatch(test_buf, search_term):
                                         raise Found
+                                    elif fnmatch.fnmatchcase(test_buf, search_term):
+                                        raise found
                                 elif stype == 'bool':
                                     if isinstance(buf, bool) and isinstance(search_term, bool):
                                         if bool({search_term: buf}):
@@ -299,6 +319,45 @@ def match_test(obj_list, test_obj, logic=None):
     search, and wild card match on str value types. Numbers can use comparitive operators >, <, >=, <=, !=, and ==.
     Types bool can only be evaluated for True or False.
 
+    test_obj (pre-defined test) dict or list/tuple of dict that defines the logical tests to perform:
+
+    'skip'    Optional. Bool. Default is False. If True, effectively comments out the test case.
+
+    'l'       Optional. Same as test_obj. When specified, iteratively calls match_test(). This is useful for complex
+              matches. You can nest these as deep as Python allows which is much deeper than any useful search you can
+              dream of.
+
+    'k'       Required. str. This is the key for the value in the object from the obj_list to test for the match to
+              what is specifed in 'v'
+
+    'v'       Required if 's' not specified. (str, int, float, bool). This is the value to compare against. The value
+              type must be consistent with the type of value associated with obj.get('k').
+
+    's'       Optional. str. NOT YET IMPLEMENTED. Same as 'v' except this is a referenced value. The most common use
+              is to compare against MAPS policies. Only 'v' or 's' is compared. If both are present, 's' is ignored.
+
+    't'       Required. str. This is the type of comparison (test) to make. Comparison types may be:
+                  int types: '>', '<', '<=', '>=', '!=', '==', and, for sloppy programmers, '='.
+                  str types:  'exact'     exact match
+                              'wild'      Uses Pythons standard fnmatch library for wild card matching.
+                              'regexm'    Uses Pythons standard re library (re) for regex matching
+                              'regex_m'   Same as regexm
+                              'regex-m'   Same as regexm
+                              'regexs'    Uses Pythons standard re library (re) for regex searching
+                              'regex-s'   Same as regexs
+                              'regex_s'   Same as regexs
+                              'bool'      True/False test
+    'i'       Optional. Bool. Only relevant to str matching. Possible values are:
+                  True - ignore case.
+                  False - Default. match case.
+
+    'logic'   Optionial. Logic to apply to items in 'l'. Although the logic is moot for single items in 'l', 'and' is
+              the most effecient to process the logic. Defined as follows:
+              'and'   Default. All tests specified in 'l' must evaluate True
+              'or'    Any test specified in 'l' must evaluate True
+              'nand'  Opposite of 'and'.
+              'nor'   Opposfite of 'or'
+
     :param obj_list: A list of dictionaries or brcddb objects to search
     :type obj_list: dict, list, tuple
     :param test_obj: Pre-defined test. See comments below.
@@ -308,40 +367,7 @@ def match_test(obj_list, test_obj, logic=None):
     :return: Subset of obj_list whose objects meet the test criteria
     :rtype: list
     """
-    # test_obj (pre-defined test) dict or list/tuple of dict that defines the logical tests to perform:
-    #
-    # 'skip'    Optional. Bool. Default is False. If True, effectively comments out the test case.
-    #
-    # 'l'       Optional. Same as test_obj. When specified, iteratively calls match_test(). This is useful for complex
-    #           matches. You can nest these as deep as Python allows which is much deeper than any useful search you can
-    #           dream of.
-    #
-    # 'k'       Required. str. This is the key for the value in the object from the obj_list to test for the match to
-    #           what is specifed in 'v'
-    #
-    # 'v'       Required if 's' not specified. (str, int, float, bool). This is the value to compare against. The value
-    #           type must be consistent with the type of value associated with obj.get('k').
-    #
-    # 's'       Optional. str. NOT YET IMPLEMENTED. Same as 'v' except this is a referenced value. The most common use
-    #           is to compare against MAPS policies. Only 'v' or 's' is compared. If both are present, 's' is ignored.
-    #
-    # 't'       Required. str. This is the type of comparison (test) to make. Comparison types may be:
-    #               int types: '>', '<', '<=', '>=', '!=', '==', and, for sloppy programmers, '='.
-    #               str types:  'exact'     exact match
-    #                           'wild'      Uses Pythons standard fnmatch library for wild card matching.
-    #                           'regex-m'   Uses Pythons standard re library (re) for regex matching
-    #                           'regex-s'   Uses Pythons standard re library (re) for regex searching
-    #                           'bool'      True/False test
-    # 'i'       Optional. Bool. Only relevant to str matching. Possible values are:
-    #               True - ignore case.
-    #               False - Default. match case.
-    #
-    # 'logic'   Optionial. Logic to apply to items in 'l'. Although the logic is moot for single items in 'l', 'and' is
-    #           the most effecient to process the logic. Defined as follows:
-    #           'and'   Default. All tests specified in 'l' must evaluate True
-    #           'or'    Any test specified in 'l' must evaluate True
-    #           'nand'  Opposite of 'and'.
-    #           'nor'   Opposfite of 'or'
+    global _valid_stype
 
     w_list = list() if obj_list is None else [obj_list] if not isinstance(obj_list, (list, tuple)) else obj_list
     lg = 'and' if logic is None else logic
@@ -358,7 +384,7 @@ def match_test(obj_list, test_obj, logic=None):
             ic = False if t_obj.get('i') is None else t_obj.get('i')
 
             # Perform the test and put results in m_list
-            if t_obj['t'] in ('bool', 'wild', 'regex-m', 'regex-s', 'exact'):
+            if _valid_stype.get(t_obj['t'], False):
                 m_list = match(w_list, t_obj['k'], t_obj['v'], ic, t_obj['t'])
             elif t_obj['t'] in ('>', '<', '<=', '>=', '==', '=', '!='):
                 m_list = test_threshold(w_list, t_obj['k'], t_obj['t'], t_obj['v'])
