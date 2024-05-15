@@ -14,39 +14,40 @@ details.
 
 :mod:`report.zone` - Creates a zoning page to be added to an Excel Workbook
 
-Public Methods & Data::
+**Public Methods & Data**
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | zone_page             | Creates a zone detail worksheet for the Excel report                                  |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | alias_page            | Creates a port detail worksheet for the Excel report.                                 |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | target_zone_page      | Creates a target zone detail worksheet for the Excel report.                          |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | non_target_zone_page  | Creates a non-target zone detail worksheet for the Excel report.                      |
-    +-----------------------+---------------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| zone_page             | Creates a zone detail worksheet for the Excel report                                      |
++-----------------------+-------------------------------------------------------------------------------------------+
+| alias_page            | Creates a port detail worksheet for the Excel report.                                     |
++-----------------------+-------------------------------------------------------------------------------------------+
+| target_zone_page      | Creates a target zone detail worksheet for the Excel report.                              |
++-----------------------+-------------------------------------------------------------------------------------------+
+| non_target_zone_page  | Creates a non-target zone detail worksheet for the Excel report.                          |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Adjusted column widths.                                                           |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Adjusted column widths.                                                               |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 15 May 2024   | Added port name to zone groups                                                        |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '15 May 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -61,6 +62,7 @@ import brcddb.app_data.alert_tables as al
 import brcddb.util.search as brcddb_search
 import brcddb.util.util as brcddb_util
 import brcddb.report.utils as report_utils
+import brcddb.classes.util as brcddb_class_util
 
 UNGROUPED_TARGET = 'ungrouped_target_d'
 UNGROUPED_INITIATOR = 'ungrouped_initiator_d'
@@ -213,6 +215,11 @@ def _login_port_case(obj, mem, wwn, port_obj, obj_l=None):
     return '' if l_port_obj is None else l_port_obj.r_obj_key()
 
 
+def _login_portname_case(obj, mem, wwn, port_obj, obj_l=None):
+    l_port_obj = None if obj is None else obj.r_port_obj()
+    return '' if l_port_obj is None else l_port_obj.r_port_name()
+
+
 def _zoned_to_port_case(obj, mem, wwn, port_obj, obj_l=None):
     fab_obj = None if port_obj is None else port_obj.r_fabric_obj()
     return 0 if fab_obj is None else len(brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True))
@@ -265,12 +272,13 @@ _zone_group_hdr_d = collections.OrderedDict({  # Same format as _zone_hdr
     'Comments': dict(c=30, z=_null_case, m=_group_comment_case, g=True, zg=True),
     'Switch': dict(c=30, z=_null_case, m=_login_switch_case, g=True, zg=True),
     'Port': dict(c=8, z=_null_case, m=_login_port_case, g=True, zg=True),
+    'Port Name': dict(c=32, z=_null_case, m=_login_portname_case, g=True, zg=True),
     'Zoned To': dict(c=8, z=_null_case, m=_zoned_to_port_case, g=True, zg=False),
     'Speed Gbps': dict(c=8, z=_null_case, m=_login_speed_case, g=True, zg=True),
     'WWN': dict(c=23, z=_null_case, m=_mem_member_wwn_case, g=True, zg=True),
-    'Alias': dict(c=34, z=_null_case, m=_alias_case, g=True, zg=True),
+    'Alias': dict(c=38, z=_null_case, m=_alias_case, g=True, zg=True),
     'Description': dict(c=40, z=_null_case, m=_group_desc_case, g=True, zg=True),
-    'Common Zone': dict(c=30, z=_null_case, m=_zone_list_case, zg=True),
+    'Common Zone': dict(c=38, z=_null_case, m=_zone_list_case, zg=True),
 })
 
 
@@ -423,11 +431,11 @@ _alias_hdr = collections.OrderedDict({
 })
 
 
-def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
+def alias_page(obj, tc, wb, sheet_name, sheet_i, sheet_title):
     """Creates a port detail worksheet for the Excel report.
 
-    :param fab_obj: Fabric object
-    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param obj: Fabric object or list of alias objects
+    :type obj: list, brcddb.classes.fabric.AliasObj, brcddb.classes.fabric.FabricObj
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param wb: Workbook object
@@ -458,8 +466,11 @@ def alias_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=_align_wrap, border=_border_thin)
         col += 1
 
+    alias_obj_l = obj.r_alias_objects() if str(brcddb_class_util.get_simple_class_type(obj)) == 'FabricObj' else \
+        gen_util.convert_to_list(obj)
+
     # Fill out the alias information
-    for alias_obj in fab_obj.r_alias_objects():
+    for alias_obj in alias_obj_l:
         mem_list = alias_obj.r_members().copy()
         mem = mem_list.pop(0) if len(mem_list) > 0 else None
         row, col = row+1, 1
