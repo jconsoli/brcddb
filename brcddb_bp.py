@@ -29,33 +29,35 @@ details.
     This module imports other modules from the same directory. To avoid circular imports, this module should
     only be imported by applications uses the brcdb libraries not no any of the library modules within brcddb.
 
-Public Methods & Data::
+**Public Methods & Data**
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | best_practice         | Checks for defined conditions and adds an alert for every out of bounds condition.    |
-    +-----------------------+---------------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| best_practice         | Checks for defined conditions and adds an alert for every out of bounds condition.        |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Fixed speed search terms.                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Fixed speed search terms.                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 16 Jun 2024   | Added bp_sheet, ability to specify the sheet to read, in best_practice()              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '16 Jun 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -143,9 +145,13 @@ _rule_template = {
         'Rx Low (uW)': dict(t='<=', a=al.ALERT_NUM.PORT_L_RXP_A, l=True),
     }
 }
-# The remote SFPs still return the old alarm and warning levels so that's what we will use for the remote media tests.
-# It's an ordered dictionary because once we find something to alert on, the remaining rules are skipped. This is to
-# prevent a warning alert if an alarm was already found.
+"""The remote SFPs still return the old alarm and warning levels so that's what is used for the remote media tests.
+I looked into matching the SFP part number to the part numbers defined in sfp_rules_rxx.xlsx. I already had legacy
+code that did the check against values returned by the SFP so I took the easy way out and used that code. If erroneous
+alarms becomes a problem, I'll revisit this. For now, this is good enough.
+
+_remote_current_rules is an ordered dictionary because once something to alert on is found, the remaining rules are
+skipped. This is to prevent cluttering the report with alarms."""
 _remote_current_rules = collections.OrderedDict()
 _remote_current_rules[brcdapi_util.sfp_cur_high_alarm] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_CUR_A)
 _remote_current_rules[brcdapi_util.sfp_cur_high_warn] = dict(t='>=', a=al.ALERT_NUM.REMOTE_PORT_H_CUR_W)
@@ -596,11 +602,13 @@ def _min_firmware(rule, obj_l, t_obj):
                 break
 
 
-def _read_bp_workbook(bp_file):
+def _read_bp_workbook(bp_file, bp_sheet=None):
     """Checks for defined conditions and adds an alert for every out of bounds condition.
 
     :param bp_file: Name of best practice file
     :type bp_file: str
+    :param bp_sheet: Name of sheet in bp_file to read. If None, defaults to "active"
+    :type bp_sheet: str, None
     :return: Dictionary of best practices
     :type: None, dict
     :return: List of best practice checks to perform
@@ -613,7 +621,8 @@ def _read_bp_workbook(bp_file):
         return bp_l
 
     # Read the workbook with best practice rules
-    error_l, sheet_l = excel_util.read_workbook(bp_file, dm=3, sheets='active')
+    bp_sheet = 'active' if in_bp_sheet is None else in_bp_sheet
+    error_l, sheet_l = excel_util.read_workbook(bp_file, dm=3, sheets='active' if bp_sheet is None else bp_sheet)
     if len(sheet_l) == 0 and len(error_l) == 0:
         error_l.append('"active" sheet not found in ' + bp_file + '.')
     if len(error_l) > 0:
@@ -812,7 +821,7 @@ _bp_tbl_d = {
 }
 
 
-def best_practice(bp_file, sfp_file, a_tbl, proj_obj):
+def best_practice(bp_file, sfp_file, a_tbl, proj_obj, bp_sheet=None):
     """Checks for defined conditions and adds an alert for every out of bounds condition.
 
     :param bp_file: Name of best practice file
@@ -823,6 +832,8 @@ def best_practice(bp_file, sfp_file, a_tbl, proj_obj):
     :type a_tbl: dict
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
+    :param bp_sheet: Name of sheet in bp_file to read. If None, defaults to "active"
+    :type bp_sheet: str, None
     """
     global _alert_tbl_d, _bp_tbl_d, _sfp_file, _sfp_rules
 
@@ -840,7 +851,7 @@ def best_practice(bp_file, sfp_file, a_tbl, proj_obj):
     )
 
     brcdapi_log.log('Checking best practices', echo=True)
-    for rule in _read_bp_workbook(bp_file):
+    for rule in _read_bp_workbook(bp_file, bp_sheet):
         rule_d = _bp_tbl_d[rule.split('(')[0]] if isinstance(rule, str) else _bp_tbl_d[rule]
         try:
             rule_d['a'](rule, obj_d[rule_d['d']], rule_d.get('t'))

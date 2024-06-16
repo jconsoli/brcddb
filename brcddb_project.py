@@ -55,16 +55,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 4.0.2     | 16 Apr 2024   | Improved report output of scan()                                                  |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.3     | 16 Jun 2024   | Fixed spelling mistakes in messages.                                              |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '16 Apr 2024'
+__date__ = '16 Jun 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.file as brcdapi_file
@@ -353,11 +355,21 @@ def scan(proj_obj, fab_only=False, logical_switch=False):
             rl.extend(['Chassis: ' + brcddb_chassis.best_chassis_name(chassis_obj, wwn=True), ''])
             for switch_obj in chassis_obj.r_switch_objects():
                 fab_obj = switch_obj.r_fabric_obj()
-                zonecfg = 'None' if fab_obj is None else str(fab_obj.r_defined_eff_zonecfg_key())
+                zonecfg_l = list()
+                if fab_obj is not None:
+                    for zonecfg_obj in fab_obj.r_zonecfg_objects():
+                        buf = '      ' + zonecfg_obj.r_obj_key()
+                        if '_effective_zone_cfg' not in buf:
+                            if zonecfg_obj.r_is_effective():
+                                buf += ' (effective zone configuration)'
+                            zonecfg_l.append(buf)
                 rl.extend([
                     '  Switch: ' + brcddb_switch.best_switch_name(switch_obj, did=True, wwn=True),
-                    '    Member of Fabric:   ' + brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True),
-                    '    Active Zone Config: ' + zonecfg,
-                    '',
+                    '    Member of Fabric: ' + brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True),
+                    '    Zone Configurations: ',
                 ])
+                if len(zonecfg_l) == 0:
+                    zonecfg_l.append('      None')
+                rl.extend(zonecfg_l)
+                rl.append('')
     return rl
