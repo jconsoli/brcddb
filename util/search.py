@@ -87,15 +87,17 @@ abc…          Letters
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 15 May 2024   | Fixed ignore case with wild card matching.                                            |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 16 Jun 2024   | Fixed bad reference, raise found. Should have been "raise Found"                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '15 May 2024'
+__date__ = '16 Jun 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import re
 import fnmatch
@@ -290,7 +292,7 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
                                     if ignore_case and fnmatch.fnmatch(test_buf, search_term):
                                         raise Found
                                     elif fnmatch.fnmatchcase(test_buf, search_term):
-                                        raise found
+                                        raise Found
                                 elif stype == 'bool':
                                     if isinstance(buf, bool) and isinstance(search_term, bool):
                                         if bool({search_term: buf}):
