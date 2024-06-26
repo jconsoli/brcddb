@@ -14,69 +14,71 @@ details.
 
 :mod:`brcddb.util.util` - Utility functions for the brcddb libraries
 
-Public Methods::
+**Public Methods**
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | ports_for_login       | Returns a list of port objects associated with a list of login objects.               |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | port_obj_for_wwn      | Returns the port object for a switch port WWN.                                        |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | sort_ports            | Sorts a list of port objects by switch, then slot, then port number.                  |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | login_to_port_map     | Creates a map of logins to the port where the login occured for                       |
-    |                       | build_login_port_map()                                                                |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | build_login_port_map  | Creates a map of logins to the port where the login occured for each fabric and adds  |
-    |                       | it to the fabric object                                                               |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | add_maps_groups       | Adds the associated maps group to each object. Limited to port objects. Additional    |
-    |                       | objects a future.                                                                     |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | global_port_list      | Looks through a list of fabrics for logins in a list of WWNs and returns a list of    |
-    |                       | the associated port objects                                                           |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | has_alert             | Determines if an alert has already been added to an object                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | parse_cli             | Conditions each line read from the file of FOS commands into a list of dictionaries   |
-    |                       | for use with send_zoning()                                                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | add_to_obj            | Adds a key value pair to obj using '/' notation in the key. If the key already        |
-    |                       | exists, it is overwritten.                                                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | get_from_obj          | Returns the value associated with a key in / notation for a dict or brcddb.class      |
-    |                       | object                                                                                |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | zone_cli              | Creates CLI commands for fabric zoning                                                |
-    +-----------------------+---------------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| ports_for_login       | Returns a list of port objects associated with a list of login objects.                   |
++-----------------------+-------------------------------------------------------------------------------------------+
+| port_obj_for_wwn      | Returns the port object for a switch port WWN.                                            |
++-----------------------+-------------------------------------------------------------------------------------------+
+| sort_ports            | Sorts a list of port objects by switch, then slot, then port number.                      |
++-----------------------+-------------------------------------------------------------------------------------------+
+| login_to_port_map     | Creates a map of logins to the port where the login occured for                           |
+|                       | build_login_port_map()                                                                    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| build_login_port_map  | Creates a map of logins to the port where the login occured for each fabric and adds      |
+|                       | it to the fabric object                                                                   |
++-----------------------+-------------------------------------------------------------------------------------------+
+| add_maps_groups       | Adds the associated maps group to each object. Limited to port objects. Additional        |
+|                       | objects a future.                                                                         |
++-----------------------+-------------------------------------------------------------------------------------------+
+| global_port_list      | Looks through a list of fabrics for logins in a list of WWNs and returns a list of        |
+|                       | the associated port objects                                                               |
++-----------------------+-------------------------------------------------------------------------------------------+
+| has_alert             | Determines if an alert has already been added to an object                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| parse_cli             | Conditions each line read from the file of FOS commands into a list of dictionaries       |
+|                       | for use with send_zoning()                                                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| add_to_obj            | Adds a key value pair to obj using '/' notation in the key. If the key already            |
+|                       | exists, it is overwritten.                                                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| get_from_obj          | Returns the value associated with a key in / notation for a dict or brcddb.class          |
+|                       | object                                                                                    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| zone_cli              | Creates CLI commands for fabric zoning                                                    |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Removed obsolete add_maps_groups() and depracated functions.                      |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.2     | 03 Apr 2024   | Explicitly declared c_type_conv as global in parse_cli() functions                |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Removed obsolete add_maps_groups() and depracated functions.                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 03 Apr 2024   | Explicitly declared c_type_conv as global in parse_cli() functions                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 26 Jun 2024   | Moved fos_to_dict() to brcdapi.util.fos_to_dict()                                     |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '03 Apr 2024'
+__date__ = '26 Jun 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import re
 import datetime
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
+import brcdapi.util as brcdapi_util
 import brcddb.classes.util as class_util
 import brcdapi.port as brcdapi_port
 
@@ -636,29 +638,8 @@ def zone_cli(fab_obj, filter_fab_obj=None):
     return rl
 
 
-_letter_to_num = dict(a=1, b=2, c=3, d=4, e=5, f=6, g=7, h=8, i=9, j=10, k=11, l=12, m=13, n=14, o=15, p=16, q=17, r=18,
-                      s=19, t=20, u=21, v=22, w=23, x=24, y=25, z=26)  # Used in fos_to_dict()
-
-
 def fos_to_dict(version_in, valid_check=True):
-    """Converts a FOS version into a dictionary to be used for comparing for version numbers
-
-    +-----------+-------+-------------------------------------------------------------------------------+
-    | Key       | Type  |Description                                                                    |
-    +===========+=======+===============================================================================+
-    | version   | str   | Same as version_in                                                            |
-    +-----------+-------+-------------------------------------------------------------------------------+
-    | major     | int   | In example 9.1.0b, this is 9                                                  |
-    +-----------+-------+-------------------------------------------------------------------------------+
-    | feature   | int   | In example 9.1.0b, this is 1                                                  |
-    +-----------+-------+-------------------------------------------------------------------------------+
-    | minor     | int   | In example 9.1.0b, this is 0                                                  |
-    +-----------+-------+-------------------------------------------------------------------------------+
-    | bug       | int   | In example 9.1.0b, this is 2 (converted to a numeric for easier comparisons). |
-    |           |       | In example 9.1.0, this is 0.                                                  |
-    +-----------+-------+-------------------------------------------------------------------------------+
-    | patch     | str   | In example 9.1.0b, this is an empty str. In 9.1.0b_01, this is "_01"          |
-    +-----------+-------+-------------------------------------------------------------------------------+
+    """Depracated.
 
     :param version_in: FOS version
     :type version_in: str
@@ -667,32 +648,4 @@ def fos_to_dict(version_in, valid_check=True):
     :return: Dictionary as described above
     :rtype dict
     """
-    global _letter_to_num
-
-    try:
-        version = version_in.lower()
-        if version[0] == 'v':
-            version = version[1:]
-        version_l = version.split('.')
-        if len(version_l[2]) > 1:
-            try:
-                bug = _letter_to_num[version_l[2][1:2]]
-                patch = version_l[2][2:] if len(version_l[2]) > 1 else ''
-            except KeyError:
-                bug = 0
-                patch = version_l[2][1:]
-        else:
-            bug = 0
-            patch = ''
-        return dict(version=str(version_in),
-                    major=int(version_l[0]),
-                    feature=int(version_l[1]),
-                    minor=int(version_l[2][0:1]),
-                    bug=bug,
-                    patch=patch)
-    except (IndexError, TypeError, ValueError, AttributeError):
-        if valid_check:
-            brcdapi_log.exception(['Invalid FOS version: ' + str(version_in), 'Type: ' + str(type(version_in))],
-                                  echo=True)
-
-    return dict(version=str(version_in), major=0, feature=0, minor=0, bug=0, patch='')
+    return brcdapi_util.fos_to_dict(version_in, valid_check)
