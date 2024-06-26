@@ -14,33 +14,34 @@ details.
 
 :mod:`brcddb.report.chassis` - Creates a chassis page to be added to an Excel Workbook
 
-Public Methods::
+**Public Methods**
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | chassis_page          | Creates a chassis detail worksheet for the Excel report.                              |
-    +-----------------------+---------------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| chassis_page          | Creates a chassis detail worksheet for the Excel report.                                  |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 26 Jun 2024   | Added firmware version and missing alerts to chassis report.                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '26 Jun 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -63,6 +64,7 @@ _bold_font = excel_fonts.font_type('bold')
 _link_font = excel_fonts.font_type('link')
 _hdr2_font = excel_fonts.font_type('hdr_2')
 _hdr1_font = excel_fonts.font_type('hdr_1')
+_error_font = excel_fonts.font_type('error')
 _align_wrap = excel_fonts.align_type('wrap')
 _align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
 _align_wrap_c = excel_fonts.align_type('wrap_center')
@@ -96,6 +98,11 @@ _switch_hdr['Name'] = dict(k='_SWITCH_NAME', l=True)
 _switch_hdr['WWN'] = dict(k='_SWITCH_WWN', l=True)
 _switch_hdr['Fabric ID'] = dict(k=brcdapi_util.bfls_fid, l=False)
 _switch_hdr['Domain ID'] = dict(k=brcdapi_util.bfs_did, l=False)
+
+# Matching aleert number for key in chassis
+_alert_num_d = {
+    '_FIRMWARE_VERSION': al.ALERT_NUM.CHASSIS_FIRMWARE
+}
 
 
 def _setup_worksheet(wb, tc, sheet_name, sheet_i, sheet_title, chassis_obj):
@@ -175,6 +182,16 @@ def _maps_dashboard(chassis_obj):
         excel_util.cell_update(_sheet, _row, 1, 'None', font=_std_font, align=_align_wrap)
 
 
+def _firmware_version(obj, k):
+    """Returns the firmware version in plain text.
+
+    :param obj: Chassis object
+    :type obj: brcddb.class.chassis.ChassisObj
+    :return: Firmware version as plain text.
+    :rtype: str
+    """
+    return brcddb_chassis.firmware_version(obj)
+
 ##################################################################
 #
 # Case statements for _chassis_detail()
@@ -186,14 +203,16 @@ def _cfru_blade_id_case(v):
     return brcddb_chassis.blade_name(v) + ' (' + str(v) + ')'
 
 
-_chassis_key_case = dict()  # This is consistent with all  other reports. I just don't have anything chassis custom
+_chassis_key_case_d = dict(
+    _FIRMWARE_VERSION=_firmware_version
+)
 
 
-chassis_fru_key_case = {
+_chassis_fru_key_case_d = {
     'blade-id': _cfru_blade_id_case,
 }
 
-_bladed_chassis_only = (
+_bladed_chassis_only_l = (
     brcdapi_util.bc_ha,
     brcdapi_util.bc_heartbeat,
     brcdapi_util.bc_sync,
@@ -215,18 +234,23 @@ def _chassis_detail(chassis_obj, display):
     :type display: dict
     :rtype: None
     """
-    global _row, _sheet, _bladed_chassis_only, _fru, _border_thin
+    global _row, _sheet, _bladed_chassis_only_l, _fru, _border_thin, _chassis_key_case_d, _alert_num_d, _error_font
 
     for k in display:
+        comment_l, alert_num = list(), _alert_num_d.get(k)
+        if isinstance(alert_num, int):
+            for alert_obj in chassis_obj.r_alert_objects():
+                if alert_obj.alert_num() == alert_num:
+                    comment_l.append(alert_obj.fmt_msg())  # Currently, comment_l is empty or has just one entry
         if 'brocade-fru' in k:
             _fru.update({k: gen_util.convert_to_list(chassis_obj.r_get(k))})
         else:
-            font = report_utils.font_type_for_key(chassis_obj, k)
+            font = report_utils.font_type_for_key(chassis_obj, k) if len(comment_l) == 0 else _error_font
             _row, col = _row+1, 1
-            if k in _chassis_key_case:
-                val = _chassis_key_case[k](chassis_obj, k)
+            if k in _chassis_key_case_d:
+                val = _chassis_key_case_d[k](chassis_obj, k)
             else:
-                if not chassis_obj.r_is_bladded() and k in _bladed_chassis_only:
+                if not chassis_obj.r_is_bladded() and k in _bladed_chassis_only_l:
                     val = 'n/a'
                 else:
                     v = chassis_obj.r_get(k)
@@ -235,7 +259,7 @@ def _chassis_detail(chassis_obj, display):
                     else:
                         val = v if isinstance(v, (str, int, float)) else '' if v is None else str(v)
 
-            for buf in [report_utils.comments_for_alerts(chassis_obj, k),  # Comments
+            for buf in ['\n'.join(comment_l),
                         display[k],  # Key description
                         val]:  # Value
                 excel_util.cell_update(_sheet, _row, col, buf, font=font, align=_align_wrap, border=_border_thin)
@@ -249,7 +273,7 @@ def _chassis_frus(display):
     :type display: dict
     :rtype: None
     """
-    global _row, _sheet, _fru, _fru_hdr, _border_thin, _align_wrap, _bold_font, _std_font
+    global _row, _sheet, _fru, _fru_hdr, _border_thin, _align_wrap, _bold_font, _std_font, _chassis_fru_key_case_d
 
     for fk in _fru:
         _row, col = _row+2, 1
@@ -265,7 +289,8 @@ def _chassis_frus(display):
         for d in gen_util.sort_obj_num(_fru[fk], _fru_hdr[fk]['s'], r=False):
             _row, col = _row+1, 2
             for k in disp:
-                buf = chassis_fru_key_case[k](d[k]) if k in chassis_fru_key_case and k in d else d[k] if k in d else ''
+                buf = _chassis_fru_key_case_d[k](d[k]) if k in _chassis_fru_key_case_d and k in d \
+                    else d[k] if k in d else ''
                 excel_util.cell_update(_sheet, _row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
                 if disp[k] == 'State':  # Add the comments
                     if 'ault' in d[k]:  # A simple way to match "Fault" or "fault"
