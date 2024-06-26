@@ -14,52 +14,55 @@ details.
 
 :mod:`brcddb_chassis` - Methods and tables to support the class ChassisObj.
 
-Public Methods::
+**Public Methods**
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | blade_name            | Converts the brocade-fru/blade/blade-id number to a user friendly blade type          |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | best_chassis_name     | Returns the chassis name, if available. Otherwise, the WWN for the chassis            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | chassis_type          | Returns the chassis type (ie: G720)                                                   |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | eos_epoch             | Returns the End of Support (EOS) date in epoch time                                   |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | eos                   | Returns the End of Support (EOS) date in human readable format                        |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | gen                   | Returns the gen type as an integer                                                    |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | slots                 | Returns the number of slots for a switch or chassis                                   |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | ibm_machine_type      | Returns the IBM machine type for the switch                                           |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | sys_z_supported       | Returns True if z systems supported                                                   |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | chassis_speed         | Converts the switch type number to the max speed the switch is capable of as an int   |
-    |                       | in Gbps                                                                               |
-    +-----------------------+---------------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| blade_name            | Converts the brocade-fru/blade/blade-id number to a user friendly blade type              |
++-----------------------+-------------------------------------------------------------------------------------------+
+| best_chassis_name     | Returns the chassis name, if available. Otherwise, the WWN for the chassis                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| chassis_type          | Returns the chassis type (ie: G720)                                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
+| eos_epoch             | Returns the End of Support (EOS) date in epoch time                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
+| eos                   | Returns the End of Support (EOS) date in human readable format                            |
++-----------------------+-------------------------------------------------------------------------------------------+
+| firmware_version      | Returns the firmware version as text.                                                     |
++-----------------------+-------------------------------------------------------------------------------------------+
+| gen                   | Returns the gen type as an integer                                                        |
++-----------------------+-------------------------------------------------------------------------------------------+
+| slots                 | Returns the number of slots for a switch or chassis                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
+| ibm_machine_type      | Returns the IBM machine type for the switch                                               |
++-----------------------+-------------------------------------------------------------------------------------------+
+| sys_z_supported       | Returns True if z systems supported                                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
+| chassis_speed         | Converts the switch type number to the max speed the switch is capable of as an int in    |
+|                       | Gbps.                                                                                     |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Added FC64-48 to blade_id_name                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Added FC64-48 to blade_id_name                                                        |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 26 Jun 2024   | Added firmware_version()                                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '26 Jun 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import time
 import brcdapi.log as brcdapi_log
@@ -496,6 +499,22 @@ def eos_epoch(obj):
     :rtype: int, None
     """
     return chassis_type_d[_chassis_type(obj.r_chassis_obj())]['eos']
+
+
+def firmware_version(obj):
+    """Returns the firmware version as text.
+
+    :param obj: Any object that contains a chassis object
+    :type obj: brcddb.class.chassis.ChassisObj, brcddb.class.switch.SwitchObj, brcddb.class.port.PortObj
+    :return: Firmware version as plain text.
+    :rtype: str
+    """
+    firmware_l = obj.r_chassis_obj().r_get('brocade-firmware/firmware-history')
+    try:
+        return firmware_l[len(firmware_l)-1]['firmware-version'].replace('Fabos Version ', '')
+    except (IndexError, TypeError, KeyError):
+        pass
+    return 'Unknown'
 
 
 def eos(obj):

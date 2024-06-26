@@ -48,16 +48,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 16 Jun 2024   | Added bp_sheet, ability to specify the sheet to read, in best_practice()              |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 26 Jun 2024   | Check firmware in chassis instead of switch (new in FOS 9.?)                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '16 Jun 2024'
+__date__ = '26 Jun 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -67,6 +68,7 @@ import brcdapi.excel_util as excel_util
 import brcddb.report.utils as report_utils
 import brcddb.util.util as brcddb_util
 import brcddb.util.search as brcddb_search
+import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_login as brcddb_login
 import brcddb.app_data.alert_tables as al
@@ -185,7 +187,6 @@ _remote_rule_template = {
     'media-rdp/remote-media-tx-power': _remote_tpx_rules,
     'media-rdp/remote-media-rx-power': _remote_rpx_rules,
 }
-
 
 def _amp_in_switch_pair(switch_pair):
     """Determines if either switch in a switch pair from FabricObj.r_isl_map() is an AMP
@@ -428,6 +429,32 @@ def _chassis_err_log(rule, chassis_obj_l, t_obj):
     return
 
 
+def _min_firmware(rule, chassis_obj_l, t_obj):
+    """Validate the firmware level. See _isl_num_links() for parameters."""
+    for chassis_obj in chassis_obj_l:
+        fos_version = brcddb_chassis.firmware_version(chassis_obj)
+        if fos_version == 'Unknown':
+            continue
+        fos_d = brcdapi_util.fos_to_dict(fos_version)
+        try:
+            compare_fos_d = brcdapi_util.fos_to_dict(gen_util.paren_content('(' + rule.split('(')[1], p_remove=True)[0])
+        except IndexError:
+            brcdapi_log.log('Rule ' + str(rule) + ' is not valid.', echo=True)
+            return
+        if compare_fos_d['major'] == 0:
+            brcdapi_log.log('Rule ' + str(rule) + ' is not valid.', echo=True)
+            return
+        for key in ('major', 'feature', 'minor', 'bug'):
+            if fos_d[key] > compare_fos_d[key]:
+                break
+            if compare_fos_d[key] > fos_d[key]:
+                chassis_obj.s_add_alert(_alert_tbl_d,
+                                        al.ALERT_NUM.CHASSIS_FIRMWARE,
+                                        p0=compare_fos_d['version'],
+                                        p1=fos_d['version'])
+                break
+
+
 def _check_sfps(rule, port_obj_l, t_obj):
     """Checks SFP levels and adds appropriate alerts to port objects. See _isl_num_links() for parameters"""
     global _rule_template, _sfp_rules, _alert_tbl_d, _sfp_file
@@ -577,31 +604,6 @@ def _check_best_practice(rule, obj_l, t_obj):
         obj.s_add_alert(_alert_tbl_d, rule, key=t_obj.get('key'), p0=px_d['p0'], p1=px_d['p1'])
 
 
-def _min_firmware(rule, obj_l, t_obj):
-    try:
-        compare_fos_d = brcddb_util.fos_to_dict(gen_util.paren_content('('+rule.split('(')[1], p_remove=True)[0])
-    except IndexError:
-        brcdapi_log.log('Rule ' + str(rule) + ' is not valid.', echo=True)
-        return
-    if compare_fos_d['major'] == 0:
-        brcdapi_log.log('Rule ' + str(rule) + ' is not valid.', echo=True)
-        return
-    for switch_obj in obj_l:
-        fos_d = brcddb_util.fos_to_dict(switch_obj.r_get(brcdapi_util.bf_fw_version),
-                                        valid_check=False)
-        if fos_d['major'] == 0:
-            continue
-        for key in ('major', 'feature', 'minor', 'bug'):
-            if fos_d[key] > compare_fos_d[key]:
-                break
-            if compare_fos_d[key] > fos_d[key]:
-                switch_obj.s_add_alert(_alert_tbl_d,
-                                       al.ALERT_NUM.SWITCH_FIRMWARE,
-                                       p0=compare_fos_d['version'],
-                                       p1=fos_d['version'])
-                break
-
-
 def _read_bp_workbook(bp_file, bp_sheet=None):
     """Checks for defined conditions and adds an alert for every out of bounds condition.
 
@@ -621,7 +623,7 @@ def _read_bp_workbook(bp_file, bp_sheet=None):
         return bp_l
 
     # Read the workbook with best practice rules
-    bp_sheet = 'active' if in_bp_sheet is None else in_bp_sheet
+    bp_sheet = 'active' if bp_sheet is None else bp_sheet
     error_l, sheet_l = excel_util.read_workbook(bp_file, dm=3, sheets='active' if bp_sheet is None else bp_sheet)
     if len(sheet_l) == 0 and len(error_l) == 0:
         error_l.append('"active" sheet not found in ' + bp_file + '.')
@@ -700,6 +702,7 @@ _bp_tbl_d = {
     'chassis_fru_check': dict(a=_chassis_fru_check, d='ChassisObj'),
     'fc16_32_haa_sfp_p8': dict(a=_fc16_48_haa_p8, d='ChassisObj'),
     'err_log': dict(a=_chassis_err_log, d='ChassisObj'),
+    'min_firmware': dict(a=_min_firmware, d='ChassisObj'),
 
     # Fabric
 
@@ -728,7 +731,6 @@ _bp_tbl_d = {
     'isl_bw': dict(a=_isl_bw, d='SwitchObj'),
     'isl_fru': dict(a=_isl_fru, d='SwitchObj'),
     'isl_redundant': dict(a=_isl_redundant, d='SwitchObj'),
-    'min_firmware': dict(a=_min_firmware, d='SwitchObj'),
 
     # Ports
     'sfp_health_check': dict(a=_check_sfps, d='PortObj'),
