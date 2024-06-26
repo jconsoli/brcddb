@@ -62,16 +62,17 @@ these tables are:
 +-----------+---------------+-----------------------------------------------------------------------------------+
 | 4.0.2     | 03 Apr 2024   | Added Fabric and more MAPS stuff.                                                 |
 +-----------+---------------+-----------------------------------------------------------------------------------+
+| 4.0.3     | 26 Jun 2024   | Added _FIRMWARE_VERSION                                                           |
++-----------+---------------+-----------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '03 Apr 2024'
+__date__ = '26 Jun 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcdapi.util as brcdapi_util
 
@@ -80,8 +81,8 @@ class Chassis:
     # Key - Custom key of key from any of the chassis related API responses. Value is the column header. This table
     # also controls what is populated on the sheet page. Comment/Uncomment entries as needed.
     chassis_display_tbl = {
-        # From the API
         brcdapi_util.bc_user_name: 'Chassis Name',
+        '_FIRMWARE_VERSION': 'Firmware Version',
         brcdapi_util.bc_wwn: 'Chassis WWN',
         brcdapi_util.bc_license_id: 'License ID',
         brcdapi_util.bc_mfg: 'Manufacturer',
@@ -130,7 +131,6 @@ class Chassis:
             'blade-type': 'Type',
             'fc-port-count': 'Port Count',
             'extension-enabled': 'Extension Enabled',
-            # 'firmware-version': 'Firmware',
             # 'manufacturer': 'Manufacturer',
             'slot-number': 'Slot',
             'power-consumption': 'Power Consumed',

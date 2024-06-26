@@ -16,29 +16,29 @@ details.
 
 **Description**
 
-    Defines how alerts are displayed. It could probably be reduced to one simple dictionary. It started as something
-    more complicated. I left it this way because other code references the class herein. Adding lookup_d was an
-    afterthought.
+Defines how alerts are displayed. It could probably be reduced to one simple dictionary. It started as something more
+complicated. I left it this way because other code references the class herein. Adding lookup_d was an afterthought.
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 26 Jun 2024   | Changed SWITCH_FIRMWARE to CHASSIS_FIRMWARE                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '26 Jun 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcddb.classes.alert as al
 
@@ -71,7 +71,6 @@ class ALERT_NUM:
     SWITCH_ISL_BW = SWITCH_ISL_IMBALANCE + 1
     SWITCH_ISL_FRU = SWITCH_ISL_BW + 1
     SWITCH_ISL_REDUNDANT = SWITCH_ISL_FRU + 1
-    SWITCH_FIRMWARE = SWITCH_ISL_REDUNDANT + 1
 
     # Port level alerts
     PORT_BASE = 400
@@ -190,6 +189,7 @@ class ALERT_NUM:
     CHASSIS_FRU = CHASSIS_BASE + 1
     CHASSIS_TEMP_ERROR = CHASSIS_FRU + 1
     CHASSIS_TEMP_WARN = CHASSIS_TEMP_ERROR + 1
+    CHASSIS_FIRMWARE = CHASSIS_TEMP_WARN + 1
 
     # IOCP alerts
     IOCP_BASE = 800
@@ -250,7 +250,6 @@ class AlertTable:
         ALERT_NUM.SWITCH_ISL_FRU: dict(m='ISLs on same slot from $p0 to $p1', s=al.ALERT_SEV.WARN, k='_isl'),
         ALERT_NUM.SWITCH_ISL_REDUNDANT: dict(m='Non-redundant ISL trunks from $p0 to $p1', s=al.ALERT_SEV.ERROR,
                                              k='_isl'),
-        ALERT_NUM.SWITCH_FIRMWARE: dict(m='Required minimum firmware is $p0. Actual is $p1', s=al.ALERT_SEV.ERROR),
 
         # Port
         ALERT_NUM.PORT_ENABLED_NO_LIGHT: dict(m='Enabled port has no logins', s=al.ALERT_SEV.GENERAL,
@@ -387,6 +386,7 @@ class AlertTable:
         # Warn or Error severity for CHASSIS_TEMP is set in brcddb_bp._chassis_temp_check()
         ALERT_NUM.CHASSIS_TEMP_ERROR: dict(m='Sensor $p0 temperature $p1', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.CHASSIS_TEMP_WARN: dict(m='Sensor $p0 temperature $p1', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.CHASSIS_FIRMWARE: dict(m='Required minimum firmware is $p0. Actual is $p1', s=al.ALERT_SEV.ERROR),
 
         # IOCP
         ALERT_NUM.IOCP_MIXED_CU_TYPES: dict(
