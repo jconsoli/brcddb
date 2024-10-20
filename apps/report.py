@@ -16,31 +16,32 @@ details.
 
 **Public Methods**
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | report                | Creates an Excel report. Sort of a SAN Health like report.                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| report                | Creates an Excel report. Sort of a SAN Health like report.                                |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Updated call to switch_page() to match new inputs.                                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import collections
 import copy
@@ -66,6 +67,7 @@ import brcddb.report.switch as report_switch
 import brcddb.report.zone as report_zone
 import brcddb.util.search as brcddb_search
 import brcddb.classes.util as brcddb_class_util
+import brcddb.classes.alert as alert_class
 import brcddb.util.obj_convert as obj_convert
 
 """
@@ -173,7 +175,7 @@ _dup_login_tbl = (
 )
 _port_links_tbl = (
     '_PORT_COMMENTS',
-    '_SWITCH_NAME',
+    '_SWITCH_LINK',
     '_PORT_NUMBER',
     '_ALIAS',
     '_BEST_DESC',
@@ -253,19 +255,26 @@ def _add_fabric_summary(fab_obj, wb, sheet_index):
     return 1
 
 
-def _add_switch_detail(fab_obj, wb, sheet_index):
-    """Adds the port configuration page. See _add_fabric_summary() for parameter definitions"""
-    control_d = fab_obj.r_get('report_app/control/sw')
+def _add_switch_page(switch_obj, wb, sheet_index):
+    """Adds the switch page. See _add_fabric_summary() for parameter definitions"""
+    control_d = switch_obj.r_get('report_app/control/switch')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_switch.switch_page(wb,
-                              fab_obj.r_get('report_app/hyperlink/tc'),
+                              switch_obj.r_get('report_app/hyperlink/tc'),
                               control_d['sn'],
                               sheet_index,
                               control_d['t'],
-                              fab_obj.r_switch_objects(),
-                              rt.Switch.switch_display_tbl,
-                              True)
+                              switch_obj,
+                              in_display=rt.Switch.switch_display_tbl)
     return 1
+
+
+def _add_switch_ports(switch_obj, wb, sheet_index):
+    """Adds the port map. See _add_fabric_summary() for parameter definitions"""
+    brcdapi_log.log('    Adding the port map', echo=True)
+    report_switch.add_port_map(switch_obj)
+
+    return 0
 
 
 def _add_port_page(fab_obj, wb, sheet_index, control_d, config_tbl, login_flag, link_type):
@@ -287,7 +296,7 @@ def _add_port_page(fab_obj, wb, sheet_index, control_d, config_tbl, login_flag, 
                           control_d['sn'],
                           sheet_index,
                           control_d['t'],
-                          brcddb_util.sort_ports(fab_obj.r_port_objects()),
+                          brcddb_util.sort_ports(fab_obj.r_all_port_objects()),
                           in_display=config_tbl,
                           in_port_display_tbl=rt.Port.port_display_tbl,
                           login_flag=login_flag,
@@ -402,17 +411,31 @@ def _add_login_detail(fab_obj, wb, sheet_index):
 
 # Chassis
 def _add_chassis(chassis_obj, wb, sheet_index):
-    """Adds the port configuration page. See _add_fabric_summary() for parameter definitions"""
+    """Adds the chassis page. See _add_fabric_summary() for parameter definitions"""
     control_d = chassis_obj.r_get('report_app/control/chassis')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     report_chassis.chassis_page(wb,
                                 chassis_obj.r_get('report_app/hyperlink/tc'),
                                 control_d['sn'],
                                 sheet_index,
-                                control_d['t'],
-                                chassis_obj,
-                                rt.Chassis.chassis_display_tbl)
+                                chassis_obj)
     return 1
+
+
+# Chassis
+def _add_hidden_chassis_port_page(chassis_obj, wb, sheet_index):
+    """Adds the hidden chassis port page. See _add_fabric_summary() for parameter definitions"""
+    control_d = chassis_obj.r_get('report_app/control/chassis_p')
+    brcdapi_log.log('    Adding Hidden Port Page For: ' + control_d['sn'], echo=True)
+    report_chassis.chassis_hidden_port_page(wb, control_d['sn'], sheet_index, chassis_obj)
+    return 1
+
+
+def _add_chassis_ports(chassis_obj, wb, sheet_index):
+    """Adds the port map. See _add_fabric_summary() for parameter definitions"""
+    report_chassis.add_port_map(chassis_obj)
+
+    return 0
 
 
 # Project
@@ -454,7 +477,7 @@ def _add_project_dup(proj_obj, wb, sheet_index):
 
 def _add_zone_by_group(proj_obj, wb, sheet_index):
     """Adds the zone by groups page. See _add_fabric_summary() for parameter definitions"""
-    if proj_obj.r_get('report_app/group_d') is None or len(proj_obj.r_get('report_app/group_d')) == 0:
+    if len(proj_obj.r_get('report_app/group_d', dict())) == 0:
         return 0
 
     control_d = proj_obj.r_get('report_app/control/zg')
@@ -520,9 +543,11 @@ def _add_project_tc(proj_obj, wb, sheet_index):
     for fab_obj in proj_obj.r_fabric_objects():
         control_d = fab_obj.r_get('report_app/control')
         hyper_d = fab_obj.r_get('report_app/hyperlink')
-        temp_l = ('fab', 'db', 'sw', 'pl', 'za', 'zt', 'znt', 'ali', 'log')
-        contents_l.append(dict(t=brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True),
-                               cl=[dict(t=control_d[key]['tc'], l=hyper_d[key]) for key in temp_l]))
+        sub_content_l = [dict(t=control_d[key]['tc'], l=hyper_d[key]) for key in ('fab', 'db')]
+        sub_content_l.extend(
+            [dict(t=control_d[key]['tc'], l=hyper_d[key]) for key in ('pl', 'za', 'zt', 'znt', 'ali', 'log')]
+        )
+        contents_l.append(dict(t=brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True), cl=sub_content_l))
 
     # Add the IOCPs
     temp_l = proj_obj.r_iocp_objects()
@@ -531,7 +556,7 @@ def _add_project_tc(proj_obj, wb, sheet_index):
               obj in proj_obj.r_iocp_objects()]
         contents_l.append(dict(t='IOCPs',
                                cl=[dict(t=obj.r_get('report_app/control/iocp/t'),
-                                        l=obj.r_get('report_app/hyperlink/iocp')) \
+                                        l=obj.r_get('report_app/hyperlink/iocp'))
                                    for obj in proj_obj.r_iocp_objects()]))
 
     # Add all the Table of Contents items
@@ -589,27 +614,29 @@ action methods.
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | Key   | Type      | Description                                                                                   |
 +=======+===========+===============================================================================================+
-| p     | str       | Sheet name prefix. Used to create sheet names.                                                |
+| a     | method    | Pointer to action method that creates the worksheet                                           |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| t     | str       | Sheet title. The object name is typically appended. See 'st'                                  |
+| p     | str       | Sheet name prefix. A prefix to the value specified in sn.                                     |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| st    | bool      | If True, the object name is added to the sheet title, 't', in _add_sheet_names(). Default is  |
-|       |           | False.                                                                                        |
-+-------+-----------+-----------------------------------------------------------------------------------------------+
-| u     | bool      | If True, add a unique number. Used to guarantee unique sheet names. Default is False          |
+| rs    | bool      | If True, reset to the sheet_index to 0. Default is False                                      |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | s     | bool      | If True, add the object name to the sheet name. Used in _add_sheet_names() to determine 'sn'  |
 |       |           | Default is False.                                                                             |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| sn    | str       | Sheet name. Filled in by _add_sheet_names()                                                   |
+| sn    | str       | Sheet name. Filled in by _add_sheet_names(). If None, no sheet is added. None is useful for   |
+|       |           | wrap up processing not specific to adding sheets.                                             |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | sf    | bool      | True: Use starting index. False: Use current index                                            |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| a     | method    | Pointer to action method that creates the worksheet                                           |
+| st    | bool      | If True, the object name is added to the sheet title, 't', in _add_sheet_names(). Default is  |
+|       |           | False.                                                                                        |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| tc    | str       | Name for this page to put in the table of contents                                            |
+| t     | str       | Sheet title. The object name is typically appended. See 'st'. Not used if sn is None.         |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| rs    | bool      | If True, reset to the sheet_index to 0. Default is False                                      |
+| tc    | str       | Name for this page to put in the table of contents. if None, sheet is not added to the table  |
+|       |           | of contents.                                                                                  |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| u     | bool      | If True, add a unique number. Used to guarantee unique sheet names. Default is False          |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 """
 _tc = dict(p='table_of_contents', t='Table of Contents', u=False, s=False, sf=True, a=_add_project_tc)
@@ -624,7 +651,6 @@ _fab_control_d = dict(
     tc=_tc,
     fab=dict(p='fab_', tc='Fabric Summary', t='Fabric Summary: ', u=True, s=True, sf=True, a=_add_fabric_summary),
     db=dict(p='db_', tc='Fabric Dashboard', t='Fabric Dashboard: ', u=True, s=True, sf=True, a=_dashboard),
-    sw=dict(p='sw_', tc='Switch Detail', t='Switch Detail For Fabric: ', u=True, s=True, sf=True, a=_add_switch_detail),
     pc=dict(p='pc_', tc='Port Configurations', t='Port Configurations For Fabric: ', u=True, s=True,
             a=_add_port_config),
     pl=dict(p='pl_', tc='Port Page Links', t='Port Links For Fabric: ', u=True, s=True, sf=True, a=_add_port_links),
@@ -643,28 +669,53 @@ _fab_control_d = dict(
 _chassis_control_d = dict(
     tc=_tc,
     chassis=dict(tc='Chassis', t='Chassis Detail For: ', u=True, s=True, a=_add_chassis),
+    chassis_p=dict(tc=None, t='Chassis Hidden Port Page: ', u=True, s=True, a=_add_hidden_chassis_port_page),
+)
+_chassis_ports_control_d = dict(
+    chassis=dict(a=_add_chassis_ports)
 )
 _iocp_control_d = dict(
     tc=_tc,
     iocp=dict(p='iocp_', tc='IOCP', t='IOCP Detail For: ', s=True, a=_add_iocp),
 )
+_switch_control_d = dict(
+    tc=_tc,
+    switch=dict(t='Switch Detail: ', u=True, s=True, a=_add_switch_page)
+)
+_switch_ports_control_d = dict(
+    switch=dict(a=_add_switch_ports)
+)
 
 
 def _add_sheet_names(proj_obj):
-    """Adds sheet names to the major objects. This is to simplify cross-references
+    """Adds sheet names to the major objects so that pages can be created with links to pages not yet created.
 
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
+    :rtype: None
     """
-    global _proj_control_d, _chassis_control_d, _fab_control_d, _unique_index
+    global _proj_control_d, _chassis_control_d, _fab_control_d, _switch_control_d, _unique_index
 
-    # Chassis, Fabric, Switch, and IOCP object control
+    # Set up the control data structures.
     add_l = (
-        dict(obj_l=[proj_obj], control_d=_proj_control_d, name_m=''),
-        dict(obj_l=proj_obj.r_chassis_objects(), control_d=_chassis_control_d, name_m=brcddb_chassis.best_chassis_name),
-        dict(obj_l=proj_obj.r_fabric_objects(), control_d=_fab_control_d, name_m=brcddb_fabric.best_fab_name),
-        dict(obj_l=proj_obj.r_iocp_objects(), control_d=_iocp_control_d, name_m=_iocp_name),
+        dict(obj_l=[proj_obj],  # List of objects to create worksheets for.,
+             control_d=_proj_control_d,  # Data structure that controls how to set up the worksheet.
+             name_m=''),  # Sheet title and sheet name prefix or pointer to function to supply the same.
+        dict(obj_l=proj_obj.r_chassis_objects(),
+             control_d=_chassis_control_d,
+             name_m=brcddb_chassis.best_chassis_name),
+        dict(obj_l=proj_obj.r_switch_objects(),
+             control_d=_switch_control_d,
+             name_m=brcddb_switch.best_switch_name),
+        dict(obj_l=proj_obj.r_fabric_objects(),
+             control_d=_fab_control_d,
+             name_m=brcddb_fabric.best_fab_name),
+        dict(obj_l=proj_obj.r_iocp_objects(),
+             control_d=_iocp_control_d,
+             name_m=_iocp_name),
     )
+
+    # Create unique sheet names and add to the associated objects
     for obj_d in add_l:
         for obj in obj_d['obj_l']:
             control_d = copy.deepcopy(obj_d['control_d'])
@@ -719,6 +770,10 @@ def _iocp_name(obj):
     return obj.r_obj_key()
 
 
+def _switch_name(obj):
+    return brcddb_switch.best_switch_name(obj, wwn=True, did=True, fid=True)
+
+
 def report(proj_obj, outf, group_d=None):
     """Creates an Excel report. Sort of a SAN Health like report.
 
@@ -761,7 +816,7 @@ def report(proj_obj, outf, group_d=None):
     report_l = (
         dict(obj_l=proj_obj.r_fabric_objects(),
              add_name=('pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'ali', 'log', 'db', 'fab'),
-             order=('pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'ali', 'log', 'sw', 'db', 'fab'),
+             order=('pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'ali', 'log', 'db', 'fab'),
              feedback='Processing fabric: ',
              control=_fab_control_d,
              obj_name=_fabric_name),
@@ -771,12 +826,33 @@ def report(proj_obj, outf, group_d=None):
              feedback='Processing IOCP: ',
              control=_iocp_control_d,
              obj_name=_iocp_name),
+        dict(obj_l=proj_obj.r_switch_objects(),
+             add_name=('switch',),
+             order=('switch',),
+             feedback='Processing switch: ',
+             control=_switch_control_d,
+             obj_name=_switch_name,
+             rs=True),
         dict(obj_l=proj_obj.r_chassis_objects(),
-             add_name=('chassis',),
-             order=('chassis',),
+             add_name=('chassis', 'chassis_p'),
+             order=('chassis', 'chassis_p'),
              feedback='Processing chassis: ',
              control=_chassis_control_d,
              obj_name=_chassis_name,
+             rs=True),
+        dict(obj_l=proj_obj.r_chassis_objects(),
+             add_name=('chassis',),
+             order=('chassis',),
+             feedback='Adding port map to chassis: ',
+             control=_chassis_ports_control_d,
+             obj_name=_chassis_name,
+             rs=True),
+        dict(obj_l=proj_obj.r_switch_objects(),
+             add_name=('switch',),
+             order=('switch',),
+             feedback='Adding port map to switch: ',
+             control=_switch_ports_control_d,
+             obj_name=_switch_name,
              rs=True),
         dict(obj_l=[proj_obj],
              add_name=(),
