@@ -26,8 +26,8 @@ Public Methods::
     | login_best_node_desc  | Finds the first descriptor for what's attached to the port. See module header for     |
     |                       | details                                                                               |
     +-----------------------+---------------------------------------------------------------------------------------+
-    | login_best_port_desc  | Finds the first descriptor for what's attached to the port. See module header for     |
-    |                       | details.                                                                              |
+    | login_best_port_desc  | Finds the first descriptor for this login using the FDMI port descriptor, name        |
+    |                       | server, and FDMI node descriptor.                                                     |
     +-----------------------+---------------------------------------------------------------------------------------+
     | best_login_name       | Returns the alias, WWN, or d,i for the name parameter                                 |
     +-----------------------+---------------------------------------------------------------------------------------+
@@ -45,16 +45,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.2     | 20 Oct 2024   | Documentation updates only.                                                       |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -129,9 +131,7 @@ def login_best_node_desc(login_obj):
 
 
 def login_best_port_desc(login_obj):
-    """Finds the first descriptor for what's attached to the port in this order:
-        1   FDMI  Port descriptor
-        2   Name server port descriptor
+    """Finds the first descriptor for this login using the FDMI port descriptor, name server, and FDMI node descriptor
 
     :param login_obj: Login Object
     :type login_obj: brcddb.classes.login.login_obj

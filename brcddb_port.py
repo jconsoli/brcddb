@@ -12,56 +12,57 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb_chassis` - Methods and tables to support the class ChassisObj.
+**Description**
 
-Public Methods::
+Methods and tables to support the class ChassisObj.
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | port_best_desc        | Finds the first descriptor for what's attached to the port. See module header for     |
-    |                       | details.                                                                              |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | best_port_name        | Returns the user defined port name, if available. Otherwise, the port number          |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | port_type             | Returns the port type (F-Port, E-Port, etc.) in plain text                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | port_obj_for_index    | Returns the port object for a port index.                                             |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | port_obj_for_wwn      | Returns the port object for a logged in WWN                                           |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | port_obj_for_chpid    | Returns the port object matching the rnid/sequence-number and rnid/tag. Used for      |
-    |                       | finding CHPIDs                                                                        |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | port_obj_for_addr     | Returns the port object for a port in a given fabric matching a link address. Used    |
-    |                       | for finding control units                                                             |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | port_objects_for_addr | Returns a list of port objects using an exact, wild card, or regex match of the fibre |
-    |                       | channel address.                                                                      |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | port_objects_for_name | Returns a list of port objects using an exact, wild card, or regex match of the port  |
-    |                       | name.                                                                                 |
-    +-----------------------+---------------------------------------------------------------------------------------+
+**Public Methods**
 
-Version Control::
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| port_best_desc        | Finds the first descriptor for what's attached to the port. See module header for details.|
++-----------------------+-------------------------------------------------------------------------------------------+
+| best_port_name        | Returns the user defined port name, if available. Otherwise, the port number              |
++-----------------------+-------------------------------------------------------------------------------------------+
+| port_type             | Returns the port type (F-Port, E-Port, etc.) in plain text                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| port_obj_for_index    | Returns the port object for a port index.                                                 |
++-----------------------+-------------------------------------------------------------------------------------------+
+| port_obj_for_wwn      | Returns the port object for a logged in WWN                                               |
++-----------------------+-------------------------------------------------------------------------------------------+
+| port_obj_for_chpid    | Returns the port object matching the rnid/sequence-number and rnid/tag. Used for finding  |
+|                       | CHPIDs                                                                                    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| port_obj_for_addr     | Returns the port object for a port in a given fabric matching a link address. Used for    |
+|                       | finding control units                                                                     |
++-----------------------+-------------------------------------------------------------------------------------------+
+| port_objects_for_addr | Returns a list of port objects using an exact, wild card, or regex match of the fibre     |
+|                       | channel address.                                                                          |
++-----------------------+-------------------------------------------------------------------------------------------+
+| port_objects_for_name | Returns a list of port objects using an exact, wild card, or regex match of the port name |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Added more error checking. Deleted port_type()                                        |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -87,7 +88,7 @@ def port_best_desc(port_obj):
     """
     if port_obj is None:
         return 'Unknown'
-    wwn_list = gen_util.convert_to_list(port_obj.r_get(brcdapi_util.fc_neighbor_wwn))
+    wwn_list = port_obj.r_get(brcdapi_util.fc_neighbor_wwn, list())
     if len(wwn_list) == 0:
         return ''
 
@@ -126,26 +127,6 @@ def best_port_name(port_obj, port_num=False):
     if port_num:
         return buf + ' (' + port_obj.r_obj_key() + ')'
     return buf
-
-
-def port_type(port_obj, num_flag=False):
-    """Returns the port type (F-Port, E-Port, etc.) in plain text
-
-    :param port_obj: Port Object
-    :type port_obj: brcddb.classes.port.PortObj
-    :param num_flag: If True, append (type) where type is the numerical port type returned from the API
-    :type num_flag: bool
-    :return: Port type
-    :rtype: str
-    """
-    port_type_s = port_obj.r_get(brcdapi_util.fc_port_type)
-    if port_type_s is None:
-        return ''
-    try:
-        buf = brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][port_type_s]
-    except KeyError:
-        buf = 'unknown'
-    return buf + '(' + str(port_type_s) + ')' if num_flag else buf
 
 
 def port_obj_for_index(obj, index):
@@ -225,7 +206,7 @@ def port_objects_for_addr(obj, addr, search='exact'):
                 brcddb.classes.chassis.ChassisObj
     :param addr: Hex FC address. Not case-sensitive. Must begin with '0x'. Remaining characters depend on search type.
     :type addr: str
-    :param search: Search type. Must be one of the search types accpted by brcddb_search.match_test()
+    :param search: Search type. Must be one of the search types accepted by brcddb_search.match_test()
     :type search: str
     :return: Port object matching the link address. None if not found
     :rtype: brcddb.classes.port.PortObj, None
@@ -259,7 +240,7 @@ def port_objects_for_name(obj, name, search='exact'):
                 brcddb.classes.chassis.ChassisObj
     :param name: Port name + search characters (if applicable). Case-sensitive.
     :type name: str
-    :param search: Search type. Must be one of the search types accpted by brcddb_search.match_test()
+    :param search: Search type. Must be one of the search types accepted by brcddb_search.match_test()
     :type search: str
     :return: Port object matching the link address. None if not found
     :rtype: brcddb.classes.port.PortObj, None

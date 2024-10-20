@@ -17,63 +17,68 @@ details.
 +-----------------------+-------------------------------------------------------------------------------------------+
 | Method                | Description                                                                               |
 +=======================+===========================================================================================+
-| aliases_by_name       | Returns a list of aliases defined in the fabric matching the search criteria.             |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| best_fab_name         | Returns the user friendly fabric name, optionally with the WWN of just the WWN if a user  |
-|                       | friendly name wasn't defined.                                                             |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| switch_for_did        | Returns the switch object in a fabric for a specified DID.                                |
-+-----------------------+-------------------------------------------------------------------------------------------+
 | alias_analysis        | Analyzes the aliases in each fabric and adds an alert if any of the following             |
 |                       | conditions exist:                                                                         |
 |                       |   * There are multiple identical aliases                                                  |
 |                       |   * The alias is not used                                                                 |
 |                       |   * The alias contains no members                                                         |
 +-----------------------+-------------------------------------------------------------------------------------------+
+| aliases_by_name       | Returns a list of aliases defined in the fabric matching the search criteria.             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| best_fab_name         | Returns the user friendly fabric name, optionally with the WWN of just the WWN if a user  |
+|                       | friendly name wasn't defined.                                                             |
++-----------------------+-------------------------------------------------------------------------------------------+
 | check_ficon_zoning    | Check to make sure all control units in the channel path share a zone with the channel    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| copy_fab_obj          | Makes a copy of a fabric object                                                           |
++-----------------------+-------------------------------------------------------------------------------------------+
+| fab_match             | Returns a list of WWNs matching the search criteria                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
+| fab_fids              | Returns a list of FIDs in a fabric. Note that there can be multiple FIDs if FID check     |
+|                       | is disabled                                                                               |
++-----------------------+-------------------------------------------------------------------------------------------+
+| fab_obj_for_name      | Finds the first fabric matching the user friendly fabric name                             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| switch_for_did        | Returns the switch object in a fabric for a specified DID.                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| zone_analysis         | Analyzes zoning. Finds where all members are. Adds an alert if any issues found. See      |
+|                       | method header for details of what checks are preformed.                                   |
++-----------------------+-------------------------------------------------------------------------------------------+
+| zone_merge_group      | Determines all logins that would be effected a result of removing a WWN from a fabric     |
 +-----------------------+-------------------------------------------------------------------------------------------+
 | zone_by_target        | Finds all servers in the effective zone that are zoned to each target, does a speed check,|
 |                       | and adds _zoned_servers to each target login object. _zoned_servers is a dictionary.      |
 |                       | Key = server WWN, value = list of zones that server and target are in.                    |
 +-----------------------+-------------------------------------------------------------------------------------------+
-| zone_analysis         | Analyzes zoning. Finds where all members are. Adds an alert if any issues found. See      |
-|                       | method header for details of what checks are preformed.                                   |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| fab_obj_for_name      | Finds the first fabric matching the user friendly fabric name                             |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| fab_fids              | Returns a list of FIDs in a fabric. Note that there can be multiple FIDs if FID check     |
-|                       | is disabled                                                                               |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| copy_fab_obj          | Makes a copy of a fabric object                                                           |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| zone_merge_group      | Determines all logins that would be effected a result of removing a WWN from a fabric     |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| fab_match             | Returns a list of WWNs matching the search criteria                                       |
+| zone_by_name          | Returns a list of zones defined in the fabric matching the search criteria                |
 +-----------------------+-------------------------------------------------------------------------------------------+
 
 **Version Control**
 
-+-----------------------+-------------------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
 | Version   | Last Edit     | Description                                                                           |
 +===========+===============+=======================================================================================+
 | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
-+-----------------------+-------------------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.1     | 06 Mar 2024   | Added aliases_by_name()                                                               |
-+-----------------------+-------------------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 09 Mar 2024   | Added missing documentation for aliases_by_name()                                     |
-+-----------------------+-------------------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 03 Apr 2024   | Updated documentation.                                                                |
-+-----------------------+-------------------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 15 May 2024   | Added  zone_by_name()                                                                 |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 20 Oct 2024   | Updated comments only.                                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '03 Apr 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.5'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
@@ -536,13 +541,9 @@ def fab_fids(fab_obj):
     :return: List of FIDs as int
     :rtype: list
     """
-    rl = list()
-    for switch_obj in fab_obj.r_switch_objects():
-        fid = switch_obj.r_get(brcdapi_util.bfls_fid)
-        if fid is not None and fid not in rl:
-            rl.append(fid)
-
-    return rl
+    return gen_util.remove_duplicates(
+        gen_util.remove_none([switch_obj.r_fid() for switch_obj in fab_obj.r_switch_objects()])
+    )
 
 
 def copy_fab_obj(fab_obj, fab_key=None, full_copy=False, skip_zone=False, skip_zonecfg=False):
@@ -597,7 +598,7 @@ def copy_fab_obj(fab_obj, fab_key=None, full_copy=False, skip_zone=False, skip_z
 def _zone_merge_group(wwn_d, missing_l, fab_obj, in_wwn):
     """Internal for zone_merge_group()
 
-    This method was written to support scripts that determine zone migration groups. Keep in mind that has to be
+    This method was written to support scripts that determine zone migration groups. Keep in mind that it has to be
     iterative because everything associated with every login has to move.
 
     :param wwn_d: Used to track WWNs already taken into account
@@ -627,7 +628,7 @@ def _zone_merge_group(wwn_d, missing_l, fab_obj, in_wwn):
         rl.append(wwn)
         wwn_d.update({wwn: True})
         for d_wwn, zone_l in brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, target=True, initiator=True).items():
-            for zone in zone_l:
+            for zone in zone_l:  # I don't think this loop does anything, but I'm not fixing working code.
                 for next_wwn in brcddb_zone.eff_zoned_to_wwn(fab_obj, d_wwn, target=True, initiator=True).keys():
                     if next_wwn not in wwn_d:
                         rl.extend(_zone_merge_group(wwn_d, missing_l, fab_obj, next_wwn))
@@ -710,3 +711,30 @@ def aliases_by_name(fab_obj, search_term_l_in, s_type='exact'):
         rl.extend(brcddb_search.match(search_l, 'a', search_term, ignore_case=False, stype=s_type))
 
     return gen_util.remove_duplicates([d['a'] for d in rl])
+
+
+def zone_by_name(fab_obj, search_term_l_in, s_type='exact'):
+    """Returns a list of zones defined in the fabric matching the search criteria
+
+    :param fab_obj: The fabric object to be copied. If None, an empty list is returned.
+    :type fab_obj: brcddb.classes.fabric.FabricObj, None
+    :param search_term_l_in: Search term or list of search terms either by WWN or alias. None returns an empty list.
+    :type search_term_l_in: str, list, None
+    :param s_type: Search type: None, 'exact', 'wild', 'regex-m', or 'regex-s'. Applied to search_l. None defaults \
+        to 'exact'
+    :type s_type: str
+    :return: List of matching WWNs
+    :rtype: list()
+    """
+    # Condition the input
+    search_term_l = gen_util.convert_to_list(search_term_l_in)
+    if len(search_term_l) == 0 or fab_obj is None:
+        return list()
+
+    # Perform the search - Get a list of all the matching WWNs
+    search_l = [dict(z=str(key)) for key in fab_obj.r_zone_keys()]
+    rl = list()
+    for search_term in search_term_l:
+        rl.extend(brcddb_search.match(search_l, 'z', search_term, ignore_case=False, stype=s_type))
+
+    return gen_util.remove_duplicates([d['z'] for d in rl])

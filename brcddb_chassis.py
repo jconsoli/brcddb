@@ -54,15 +54,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 26 Jun 2024   | Added firmware_version()                                                              |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 20 Oct 2024   | Updated comments only.                                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Jun 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import time
 import brcdapi.log as brcdapi_log
@@ -426,13 +428,15 @@ chassis_type_d = {
 
 
 def _chassis_type(chassis_obj):
-    """Returns the key into chassis_type_d for the chassis
+    """Returns the switch type ID. This is an integer. See key into chassis_type_d
 
     :param chassis_obj: Chassis Object
     :type chassis_obj: brcddb_classes.chassis.ChassisObj
     :return: Chassis type. 0 if unknown
     :rtype: int
     """
+    global chassis_type_d
+
     if chassis_obj is not None:
         for switch_obj in chassis_obj.r_switch_objects():  # Chassis type is embedded with the switch data
             switch_type = switch_obj.c_switch_model()
@@ -468,26 +472,47 @@ def best_chassis_name(chassis_obj, wwn=False):
     return chassis_obj.r_obj_key() if buf is None else buf + ' (' + chassis_obj.r_obj_key() + ')' if wwn else buf
 
 
-def chassis_type(chassis_obj, type_num=False, in_oem='brcd'):
-    """Returns the chassis type (ie: G720)
+def chassis_type(chassis_obj, type_num=False, oem='brcd'):
+    """Returns the chassis type by brand name (ie: G720).
+
+    Notes:
+
+    'brocade-chassis/chassis/product-name', was introduced in 9.1. It returns the product name. Previously, in
+    FOS 8.x, OEM product names were supported. I don't recall any formal announcement about support for vendor, OEM,
+    names being dropped, but I haven't seen vendor names displayed in quite some time. I'm assuming this is why
+    'brocade-chassis/chassis' doesn't contain something like 'vendor-product-name'. In case it was an omission in FOS
+    9.1 and 9.2, I try 'brocade-chassis/chassis/vendor-product-name' first. If it's not present, I just return the
+    Brocade product name, 'brocade-chassis/chassis/product-name'. This means the oem parameter is ignored in FOS 9.1
+    and above. Furthermore, it means that until 'brocade-chassis/chassis/vendor-product-name' is introduced in FOS 9.1,
+    vendor product names are unavailable.
+
+    Brocade branding is always uppercase. The FOS API, however, returns the Brocade brand name in lowercase. The
+    Brocade brand name therefore is always converted to uppercase. I'm not certain that OEMs always use uppercase, so I
+    don't change it. I'm assuming that if a vendor product name is introduced in future versions of FOS, it will be with
+    the correct case.
 
     :param chassis_obj: Chassis Object
     :type chassis_obj: brcddb_classes.chassis.ChassisObj
     :param type_num: If True, append (type number) to the chassis name
     :type type_num: bool
-    :param in_oem: 'brcd', 'ibm', 'hpe', 'dell', 'hv', 'netapp', or 'pure'
-    :type in_oem: str
-    :return: Chassis type
+    :param oem: 'brcd', 'ibm', 'hpe', 'dell', 'hv', 'netapp', or 'pure'. See notes in function description.
+    :type oem: str
+    :return: Chassis type in upper case unless unknown in which just 'U' is uppercase, 'Unknown'
     :rtype: str
     """
-    switch_type = _chassis_type(chassis_obj)
-    d = chassis_type_d[switch_type]
-    if in_oem.lower() in d:
-        oem = in_oem.lower()
-    else:
-        brcdapi_log.exception('Invalid oem, ' + str(in_oem), echo=True)
-        oem = 'brcd'
-    return d[oem] + ' (' + str(switch_type) + ')' if type_num else d[oem]
+    global chassis_type_d
+
+    type_str = ' (' + str(_chassis_type(chassis_obj)) + ')' if type_num else ''
+    try:  # See notes in function description.
+        brand_name = chassis_obj.r_get(brcdapi_util.bc_product_name)
+    except (TypeError, AttributeError):  # Try getting the name from the chassis ID which has been in FOS since 8.2
+        try:
+            brand_name = chassis_type_d.get(_chassis_type(chassis_obj))[oem.lower()]
+        except KeyError:
+            brcdapi_log.exception('Invalid oem parameter. Type: ' + str(type(oem)) + ', Value: ' + str(oem), echo=True)
+            brand_name = chassis_type_d.get(_chassis_type(chassis_obj))['brcd']
+
+    return brand_name + type_str
 
 
 def eos_epoch(obj):

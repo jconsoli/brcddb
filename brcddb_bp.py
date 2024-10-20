@@ -12,12 +12,12 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb_bp` - Best Practices checking
-
 **Description**
 
-    This module is primarily contains tables that define how best practice checks are to be performed. There are
-    two methods for checking best practices:
+Best Practices checking
+
+This module is primarily contains tables that define how best practice checks are to be performed. There are two
+methods for checking best practices:
 
     * Complex checks which require
     * Checks that can be defined with a single dictionary to be passed to brcddb.util.search
@@ -26,8 +26,8 @@ details.
 
 **WARNING**
 
-    This module imports other modules from the same directory. To avoid circular imports, this module should
-    only be imported by applications uses the brcdb libraries not no any of the library modules within brcddb.
+This module imports other modules from the same directory. To avoid circular imports, this module should only be
+imported by applications uses the brcddb libraries not no any of the library modules within brcddb.
 
 **Public Methods & Data**
 
@@ -50,15 +50,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 26 Jun 2024   | Check firmware in chassis instead of switch (new in FOS 9.?)                          |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 20 Oct 2024   | Added more error checking.                                                            |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Jun 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -187,6 +189,7 @@ _remote_rule_template = {
     'media-rdp/remote-media-tx-power': _remote_tpx_rules,
     'media-rdp/remote-media-rx-power': _remote_rpx_rules,
 }
+
 
 def _amp_in_switch_pair(switch_pair):
     """Determines if either switch in a switch pair from FabricObj.r_isl_map() is an AMP
@@ -410,7 +413,7 @@ def _chassis_err_log(rule, chassis_obj_l, t_obj):
 
     for chassis_obj in chassis_obj_l:
         check_time = int(gen_util.date_to_epoch(chassis_obj.r_project_obj().r_date(), fmt=1)) - look_back_sec
-        for error_d in reversed(chassis_obj.r_get('brocade-logging/error-log')):
+        for error_d in reversed(chassis_obj.r_get('brocade-logging/error-log', list())):
             # I've never seen the error log ordered any other way than by oldest first. Spinning through it in
             # reverse allows me to bail out as soon as I'm past alerts we're not looking for.
             if int(gen_util.date_to_epoch(error_d['time-stamp'], fmt=8)) < check_time:
