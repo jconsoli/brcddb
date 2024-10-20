@@ -33,15 +33,17 @@ Version Control::
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 26 Jun 2024   | Added missing chassis alerts.                                                         |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 20 Oct 2024   | New switch page hyperlink                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Jun 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
@@ -64,7 +66,7 @@ _obj_type_link = dict(
     FdmiPortObj='report_app/hyperlink/log',
     PortObj='report_app/hyperlink/pl',
     ProjectObj='report_app/hyperlink/tc',
-    SwitchObj='report_app/hyperlink/sw',
+    SwitchObj='report_app/hyperlink/switch',
     ZoneCfgObj='report_app/hyperlink/za',
     ZoneObj='report_app/hyperlink/za',
     # IOCPObj='report_app/hyperlink/',

@@ -14,33 +14,34 @@ details.
 
 :mod:`brcddb.report.fabric` - Creates a fabric page to be added to an Excel Workbook
 
-Public Methods & Data::
+**Public Methods & Data**
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | fabric_page           | Creates the fabric summary page                                                       |
-    +-----------------------+---------------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| fabric_page           | Creates the fabric summary page                                                           |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | PEP 8 corrections to login speeds in brcddb.util.search.login_xxx                     |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -153,7 +154,7 @@ def _fabric_summary(sheet, row, fabric_obj):
         buf = brcddb_switch.best_switch_name(switch_obj, False)
         if switch_obj.r_is_principal():
             buf = '*' + buf
-        link = switch_obj.r_get('report_app/hyperlink/sw')
+        link = switch_obj.r_get('report_app/hyperlink/switch')
         font = _std_font if link is None else _link_font
         excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin, link=link)
         col += 1
@@ -259,13 +260,14 @@ def _fabric_statistics(sheet, row, fabric_obj):
     for port_obj in port_obj_l:
         sum_logins += len(port_obj.r_login_keys())
     fab_stats_d['Name Server Logins'] = sum_logins
-    fab_stats_d['Port Logins at 1G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_1G))
-    fab_stats_d['Port Logins at 2G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_2G))
-    fab_stats_d['Port Logins at 4G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_4G))
-    fab_stats_d['Port Logins at 8G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_8G))
-    fab_stats_d['Port Logins at 16G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_16G))
-    fab_stats_d['Port Logins at 32G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_32G))
-    fab_stats_d['Port Logins at 64G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_64G))
+    fab_stats_d['Port Logins at 1G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_1g))
+    fab_stats_d['Port Logins at 2G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_2g))
+    fab_stats_d['Port Logins at 4G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_4g))
+    fab_stats_d['Port Logins at 8G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_8g))
+    fab_stats_d['Port Logins at 16G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_16g))
+    fab_stats_d['Port Logins at 32G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_32g))
+    fab_stats_d['Port Logins at 64G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_64g))
+    fab_stats_d['Port Logins at 128G'] = len(brcddb_search.match_test(port_obj_l, brcddb_search.login_128g))
 
     # Add the statistics summary items to the sheet
     for k, v in fab_stats_d.items():

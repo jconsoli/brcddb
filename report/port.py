@@ -12,37 +12,41 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`report.port` - Includes methods to create port page and performance dashboard Excel worksheets
+**Description**
 
-Public Methods & Data::
+Contains functions to create port page and performance dashboard Excel worksheets
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | performance_dashboard | Creates a dashboard worksheet for the Excel report.                                   |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | port_page             | Creates a port detail worksheet for the Excel report.                                 |
-    +-----------------------+---------------------------------------------------------------------------------------+
+**Public Methods & Data**
 
-Version Control::
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| performance_dashboard | Creates a dashboard worksheet for the Excel report.                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
+| port_page             | Creates a port detail worksheet for the Excel report.                                     |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Added links to switch (_SWITCH_LINK)                                                  |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import datetime
 import collections
@@ -99,7 +103,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
     hdr['Switch'] = 22
     hdr['Port'] = 7
     hdr['Type'] = 8
-    hdr['Description'] = 117 - (hdr['Count'] + hdr['Switch'] + hdr['Switch'] + hdr['Port'] + hdr['Type'])
+    hdr['Description'] = 117 - hdr['Count'] - hdr['Switch'] - hdr['Switch'] - hdr['Port'] - hdr['Type']
 
     # Create the worksheet, add the title, and set up the column widths
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
@@ -188,6 +192,12 @@ def _p_port_number_case(port_obj, k, wwn):
 
 def _p_port_desc_case(port_obj, k, wwn):
     return brcddb_port.port_best_desc(port_obj)
+
+
+def _p_switch_link_case(port_obj, k, wwn):
+    switch_obj = port_obj.r_switch_obj()
+    # return brcddb_switch.best_switch_name(port_obj.r_switch_obj()), None
+    return brcddb_switch.best_switch_name(switch_obj), switch_obj.r_get('report_app/hyperlink/switch')
 
 
 def _p_port_config_link_case(port_obj, k, wwn):
@@ -314,20 +324,10 @@ def _p_media_rspeed_case(port_obj, k, wwn):
 
 
 def _p_operational_status_case(port_obj, k, wwn):
-    os = port_obj.r_get(brcdapi_util.fc_op_status)
-    if os is not None:
-        try:
-            return brcddb_common.port_conversion_tbl[brcdapi_util.fc_op_status][os]
-        except KeyError:
-            pass
-    return brcddb_common.port_conversion_tbl[brcdapi_util.fc_op_status][0]
-
+    return port_obj.r_status()
 
 def _p_port_type_case(port_obj, k, wwn):
-    try:
-        return brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][port_obj.r_get(brcdapi_util.fc_port_type)]
-    except KeyError:
-        return brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][brcddb_common.PORT_TYPE_UNKNOWN]
+    return port_obj.c_login_type()
 
 
 def _p_port_speed_case(port_obj, k, wwn):
@@ -346,8 +346,8 @@ _port_case = {
     'media-rdp/media-distance': _p_media_distance_case,
     'media-rdp/media-speed-capability': _p_media_speed_case,
     'media-rdp/remote-media-speed-capability': _p_media_rspeed_case,
-    brcdapi_util.fc_op_status: _p_operational_status_case,
-    brcdapi_util.fc_port_type: _p_port_type_case,
+    brcdapi_util.fc_op_status_str: _p_operational_status_case,
+    brcdapi_util.fc_port_type_str: _p_port_type_case,
     'fibrechannel/speed': _p_port_speed_case,
     brcdapi_util.stats_time: _p_time_generated_case,
     brcdapi_util.sfp_power_on: _p_media_uptime_case,
@@ -363,6 +363,7 @@ _port_case = {
     '_FDMI_PORT': _p_fdmi_port_case,
 }
 _port_link_case = {
+    '_SWITCH_LINK': _p_switch_link_case,
     '_CONFIG_LINK': _p_port_config_link_case,
     '_STATS_LINK': _p_port_stats_link_case,
     '_ZONE_LINK': _p_port_zone_link_case,
@@ -459,6 +460,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
                                        'report_app/hyperlink/' + link_type,
                                        '#' + sheet_name + '!' + cell)
             brcddb_util.add_to_obj(port_obj, 'report_app/hyperlink/' + link_type, '#' + sheet_name + '!' + cell)
+
         # We don't want SIM ports
         login = [wwn for wwn in port_obj.r_login_keys() if port_obj.c_login_type() == 'F-Port']
         lwwn = None if len(login) == 0 else login[0]
