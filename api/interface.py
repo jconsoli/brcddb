@@ -12,52 +12,55 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.api.interface` - Single interface to brcdapi. Intended for all applications include brcddb apps
+**Description**
 
-Public Methods::
+Single interface to brcdapi. Intended for all applications using brcddb apps
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | get_chassis           | Gets the  chassis object and objects for all logical switches in the chassis.         |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | login                 | Wrapper around login of a Rest API session using brcdapi.brcdapi_rest.login()         |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | logout                | Wrapper around logout of a Rest API session using brcdapi.brcdapi_rest.logout()       |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | get_rest              | Wraps logging around a call to brcdapi.brcdapi_rest.get_request() and adds responses  |
-    |                       | to the associated object.                                                             |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | get_batch             | Processes a batch API requests and adds responses to the associated object. All       |
-    |                       | chassis request are performed first, followed by processing of logical switch         |
-    |                       | requests.                                                                             |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | results_action        | Updates the brcddb database for an API request response. Typically only called by     |
-    |                       | get_rest() and get_batch() so making this public was a future consideration.          |
-    +-----------------------+---------------------------------------------------------------------------------------+
+**Public Methods**
 
-$ToDo in get_batch() - All raw output for CLI goes to the switch object which is fine for now but could chassis level
-commands
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| get_chassis           | Gets the  chassis object and objects for all logical switches in the chassis.             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| login                 | Wrapper around login of a Rest API session using brcdapi.brcdapi_rest.login()             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| logout                | Wrapper around logout of a Rest API session using brcdapi.brcdapi_rest.logout()           |
++-----------------------+-------------------------------------------------------------------------------------------+
+| get_rest              | Wraps logging around a call to brcdapi.brcdapi_rest.get_request() and adds responses to   |
+|                       | the associated object.                                                                    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| get_batch             | Processes a batch API requests and adds responses to the associated object. All chassis   |
+|                       | request are performed first, followed by processing of logical switch requests.           |
++-----------------------+-------------------------------------------------------------------------------------------+
+| results_action        | Updates the brcddb database for an API request response. Typically only called by         |
+|                       | get_rest() and get_batch() so making this public was a future consideration.              |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-Version Control::
+ToDo in get_batch() - All raw output for CLI goes to the switch object which is fine for now. This will have to be
+modified if CLI commands are used for data that should be associated with an object other than the switch
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Added no_mask option to get_batch(). Added CLI command handling. Added logout()   |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Added no_mask option to get_batch(). Added CLI command handling. Added logout()       |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Use port_obj.r_addr() instead of hard coded key r_get()                               |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import http.client
 import brcdapi.brcdapi_rest as brcdapi_rest
@@ -269,12 +272,10 @@ def _port_case_media(objx, port):
 
 
 def _port_case_rnid(objx, port):
-    # RNID data is matched to a port by the link address. A GET request for brocade-fibrechannel/fibrechannel must be
-    # done first to find the port object.
+    # RNID data is matched to a port by the link address. I don't think a leading '0x' is present, but just in case...
     fc_addr = port.get('link-address') + '00'
     for port_obj in objx.r_port_objects():
-        port_addr = port_obj.r_get('fibrechannel/fcid-hex')
-        if port_addr is not None and port_addr == fc_addr:
+        if str(port_obj.r_addr()).replace('0x', '') == fc_addr:
             return port_obj
     return None
 

@@ -58,15 +58,17 @@ Typically, only replace_zoning() and enable_zonecfg() are called externally.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 15 May 2024   | Fixed bad checksum in replace_zoning()                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 20 Oct 2024   | Fixed missing principal members in plus_effective_zone_alias().                       |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '15 May 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import copy
 import sys
@@ -210,9 +212,9 @@ def plus_effective_zone_alias(session, fab_obj, fid):
 
     mod_flag, error_l = False, list()
 
-    # Note: To avoid confusion, all objects from the target switch are preceeded with t_
+    # Note: To avoid confusion, all objects from the target switch are preceded with t_
 
-    # Get a temorary proj_obj & fabric information for the target switch
+    # Get a temporary proj_obj & fabric information for the target switch
     proj_obj = brcddb_project.new("Captured_data", datetime.datetime.now().strftime('%d %b %Y %H:%M:%S'))
     proj_obj.s_python_version(sys.version)
     proj_obj.s_description('Temporary project object for determining the effective zone configuration.')
@@ -221,7 +223,7 @@ def plus_effective_zone_alias(session, fab_obj, fid):
     if not error_flag:
         return [buf], None
     try:  # If the FID doesn't exist we should never get here. try/except is just belt and suspenders.
-        t_fab_obj = proj_obj.r_fabric_objs_for_fid(fid)[0]
+        t_fab_obj = proj_obj.r_fabric_objs_for_fid(fid)[0]  # Not using t_fab_obj. Just making sure it exists.
     except IndexError:
         return [buf], None
 
@@ -236,12 +238,10 @@ def plus_effective_zone_alias(session, fab_obj, fid):
             mod_flag = True
             t_fab_obj.s_add_zone(zone_obj.r_obj_key(),
                                  zone_obj.r_type(),
-                                 zone_obj.r_name(),
-                                 zone_obj.r_members(),
-                                 zone_obj.r_pmembers())
+                                 mem=zone_obj.r_members(),
+                                 pmem=zone_obj.r_pmembers())
 
     return list(), t_fab_obj if mod_flag else None
-
 
 
 def replace_zoning(session, fab_obj, fid, eff=None):
@@ -256,7 +256,7 @@ def replace_zoning(session, fab_obj, fid, eff=None):
 
     :param session: Login session object from brcdapi.brcdapi_rest.login()
     :type session: dict
-    :param fab_obj: Fabric object whose zone database will be sent to the switch. Must contatin at least one zone or
+    :param fab_obj: Fabric object whose zone database will be sent to the switch. Must contain at least one zone or
         alias.
     :type fab_obj: brcddb.classes.fabric.FabricObj
     :param fid: Fabric ID. If FID check is disabled, this must be the FID of the switch where the request is sent.
@@ -277,7 +277,7 @@ def replace_zoning(session, fab_obj, fid, eff=None):
                                          'Effective zone configuration does not exist',
                                          msg=eff)
 
-    # Get a fabric object with fab_obj + whaterver is in the effective zone configuration that is not in fab_obj
+    # Get a fabric object with fab_obj + whatever is in the effective zone configuration that is not in fab_obj
     error_l, fab_obj_eff = plus_effective_zone_alias(session, fab_obj, fid)
     if len(error_l) > 0:
         if len(error_l) == 0:
