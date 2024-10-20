@@ -12,29 +12,32 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.classes.zone` - Defines the zone classes ZoneCfgObj, ZoneObj, and AliasObj
+**Description**
 
-Version Control::
+Defines the zone classes ZoneCfgObj, ZoneObj, and AliasObj
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.2     | 03 Apr 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 03 Apr 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 20 Oct 2024   | Added default value to r_get() and r_alert_obj()                                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '03 Apr 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
@@ -123,6 +126,17 @@ class ZoneCfgObj:
         :rtype: list
         """
         return [alert_obj.alert_num() for alert_obj in self._alerts]
+
+    def r_alert_obj(self, alert_num):
+        """Returns the alert object for a specific alert number
+
+        :return: Alert object. None if not found.
+        :rtype: None, brcddb.classes.alert.AlertObj
+        """
+        for alert_obj in self.r_alert_objects():
+            if alert_obj.alert_num() == alert_num:
+                return alert_obj
+        return None
 
     def r_reserved_keys(self):
         """Returns a list of reserved words (keys) associated with this object
@@ -293,15 +307,17 @@ class ZoneCfgObj:
         """
         return class_util.s_new_key_for_class(self, k, v, f)
 
-    def r_get(self, k):
+    def r_get(self, k, default=None):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int
-        :return: Value
-        :rtype: Same type as used when the key/value pair was added
+        :param default: Value to return if key is not found
+        :type default: str, bool, int, float, list, dict, tuple
+        :return: Value matching the key/value pair of dflt_val if not found.
+        :rtype: str, bool, int, float, list, dict, tuple
         """
-        return class_util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k, default=default)
 
     def r_keys(self):
         """Returns a list of keys added to this object.

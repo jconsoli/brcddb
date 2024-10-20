@@ -12,26 +12,29 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.classes.switch` - Defines the switch object, SwitchObj.
+**Description**
 
-Version Control::
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff. Added r_fid()                                        |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+Defines the switch object, SwitchObj.
+
+**Version Control**
++-----------+---------------+--------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff. Added r_fid()                                            |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Added default value to r_get() and r_alert_obj()                                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
@@ -127,6 +130,17 @@ class SwitchObj:
         :rtype: list
         """
         return [alert_obj.alert_num() for alert_obj in self._alerts]
+
+    def r_alert_obj(self, alert_num):
+        """Returns the alert object for a specific alert number
+
+        :return: Alert object. None if not found.
+        :rtype: None, brcddb.classes.alert.AlertObj
+        """
+        for alert_obj in self.r_alert_objects():
+            if alert_obj.alert_num() == alert_num:
+                return alert_obj
+        return None
 
     def r_reserved_keys(self):
         """Returns a list of reserved words (keys) associated with this object
@@ -237,8 +251,11 @@ class SwitchObj:
         :return: True: Switch is the fabric principal switch. False: Switch is not the fabric principal switch
         :rtype: bool
         """
-        p = self.r_get(brcdapi_util.bfs_principal)
-        return bool(self.r_get('brocade-fabric/fabric-switch/principal') if p is None else p)
+        p = self.r_get(brcdapi_util.bfs_isprincipal)
+        if p is not None:
+            return p
+        # As of 9.1, the two URIs below were deprecated
+        return bool(self.r_get(brcdapi_util.bfs_principal, self.r_get('brocade-fabric/fabric-switch/principal')))
 
     def r_is_xisl(self):
         """Test to determine is logical ISLs is enabled in the switch, 'fibrechannel-switch/logical-isl-enabled'
@@ -259,8 +276,7 @@ class SwitchObj:
         :return: Domain ID. None if unavailable
         :rtype: int, None
         """
-        did = self.r_get(brcdapi_util.bfs_did)
-        return self.r_get('brocade-fabric/fabric-switch/domain-id') if did is None else did
+        return self.r_get(brcdapi_util.bfs_did, self.r_get('brocade-fabric/fabric-switch/domain-id'))
 
     def r_fid(self):
         """Returns the fabric ID, in decimal
@@ -338,8 +354,10 @@ class SwitchObj:
         """Returns the port object for a port
         :param k: Port name in s/p notation
         :type k: str
+        :return: Port object. None if port not found.
+        :rtype: brcddb.classes.port.PortObj, None
         """
-        return self._port_objs[k] if k in self._port_objs else None
+        return self._port_objs.get(k)
 
     def s_add_ge_port(self, port):
         """Add a GE port to the switch
@@ -362,7 +380,7 @@ class SwitchObj:
         return list(self._ge_port_objs.keys())
 
     def r_ge_port_objects(self):
-        """Returns a list of port objects for all ports in this switch
+        """Returns a list of port objects for all GE ports in this switch
         :return: List of PortObj
         :rtype: list
         """
@@ -378,18 +396,20 @@ class SwitchObj:
         return self._ge_port_objs
 
     def r_ge_port_obj(self, k):
-        """Returns the port object for a port
+        """Returns the port object for a GE port
         :param k: Port name in s/p notation
         :type k: str
+        :return: GE Port object. None if not found.
+        :rtype: brcddb.classes.port.PortObj
         """
-        return self._ge_port_objs[k] if k in self._ge_port_objs else None
+        return self._ge_port_objs.get(k)
 
     def s_add_ve_port(self, port):
         """Add a VE port to the switch
         :param port: Port in s/p notation
         :type port: str
         :return: Port object
-        :rtype: PortObj
+        :rtype: brcddb.classes.port.PortObj
         """
         port_obj = self.r_ve_port_obj(port)
         if port_obj is None:
@@ -398,14 +418,14 @@ class SwitchObj:
         return port_obj
 
     def r_ve_port_keys(self):
-        """Returns a list of all GE ports in this switch
+        """Returns a list of all VE ports in this switch
         :return: List of ports in s/p format
         :rtype: list
         """
         return list(self._ve_port_objs.keys())
 
     def r_ve_port_objects(self):
-        """Returns a list of port objects for all ports in this switch
+        """Returns a list of port objects for all VE ports in this switch
         :return: List of PortObj
         :rtype: list
         """
@@ -421,21 +441,61 @@ class SwitchObj:
         return self._ve_port_objs
 
     def r_ve_port_obj(self, k):
-        """Returns the port object for a port
+        """Returns the port object for a VE port
         :param k: Port name in s/p notation
         :type k: str
+        :return: Port object. None if matching port not found
+        :rtype: brcddb.classes.port.PortObj, None
         """
-        return self._ve_port_objs[k] if k in self._ve_port_objs else None
+        return self._ve_port_objs.get(k)
+
+    def r_all_port_objects(self, ve=False):
+        """Returns a list of all FC, GE, and optionally VE port objects in this switch.
+        :param ve: If True, include VE port objects
+        :type ve: bool
+        :return: List of ports in s/p format
+        :rtype: list
+        """
+        rl = self.r_port_objects() + self.r_ge_port_objects()
+        if ve:
+            rl.extend(self.r_ve_port_objects())
+        return rl
+
+    def r_all_port_keys(self, ve=False):
+        """Returns a list of all FC, GE, and optionally VE port keys in this switch.
+        :param ve: If True, include VE port keys
+        :type ve: bool
+        :return: List of ports in s/p format
+        :rtype: list
+        """
+        rl = self.r_port_keys() + self.r_ge_port_keys()
+        if ve:
+            rl.extend(self.r_ve_port_keys())
+        return rl
+
+    def r_any_port_obj(self, k, ve=False):
+        """Returns the port object for an FC port or GE port. Optionally include VE ports in search.
+        :param k: Port name in s/p notation
+        :type k: str
+        :param ve: If True, include VE ports in search
+        :type ve: bool
+        :return: Port object. None if port not found.
+        :rtype: brcddb.classes.port.PortObj, None
+        """
+        for port_obj in self.r_all_port_objects(ve):
+            if port_obj.r_obj_key() == k:
+                return port_obj
+        return None
 
     def r_login_keys(self):
         """Returns all the login WWNs associated with this switch. Includes E-Ports
         :return: List of WWNs logged into this switch
         :rtype: list
         """
-        k = list()
-        for p in self.r_port_objects():
-            k.extend(p.r_login_keys())
-        return k
+        key_l = list()
+        for port_obj in self.r_port_objects():
+            key_l.extend(port_obj.r_login_keys())
+        return key_l
 
     def r_login_objects(self):
         """Returns all the login objects for logins on this switch
@@ -443,8 +503,8 @@ class SwitchObj:
         :rtype: list
         """
         fab_obj = self.r_fabric_obj()
-        return list() if fab_obj is None else\
-            [fab_obj.r_login_obj(wwn) for wwn in self.r_login_keys() if fab_obj.r_login_obj(wwn) is not None]
+        return list if fab_obj is None else \
+            gen_util.remove_none([fab_obj.r_login_obj(wwn) for wwn in self.r_login_keys()])
 
     def r_fdmi_node_keys(self):
         """Returns all the FDMI node WWNs associated with this switch.
@@ -573,14 +633,16 @@ class SwitchObj:
         """
         return class_util.s_new_key_for_class(self, k, v, f)
 
-    def r_get(self, k):
+    def r_get(self, k, default=None):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
         :param k: Key
         :type k: str, int
-        :return: Value
-        :rtype: Same type as used when the key/value pair was added
+        :param default: Value to return if key is not found
+        :type default: str, bool, int, float, list, dict, tuple
+        :return: Value matching the key/value pair of dflt_val if not found.
+        :rtype: str, bool, int, float, list, dict, tuple
         """
-        return class_util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k, default=default)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v

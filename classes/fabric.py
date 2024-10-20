@@ -12,35 +12,39 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.classes.fabric` - Defines the fabric object, FabricObj.
+**Description**
 
-Special Note::
+Defines the fabric object, FabricObj.
 
-    A login object is created for every WWN that registers with the name server. E-Ports do not register with the name
-    server but SIM ports and AMP trunk master does register with the name server and therefore will have a login object.
-    The 'port-properties' will be 'SIM Port' for a SIM port and 'I/O Analytics Port' for an AMP trunk master. The other
-    AMP trunk members of the trunk register with the name server but 'port-properties' is not present. I'm sure there
-    is some way to determine this case but it being such a rare scenario, no code was added to make this determination.
+**Special Note**
 
-Version Control::
+A login object is created for every WWN that registers with the name server. E-Ports do not register with the name
+server but SIM ports and AMP trunk master does register with the name server and therefore will have a login object.
+The 'port-properties' will be 'SIM Port' for a SIM port and 'I/O Analytics Port' for an AMP trunk master. The other
+AMP trunk members of the trunk register with the name server but 'port-properties' is not present. I'm sure there
+is some way to determine this case but it being such a rare scenario, no code was added to make this determination.
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Added default value to r_get() and r_alert_obj(). Added r_ge_port_keys(),             |
+|           |               | r_ge_port_objects(), r_ve_port_objects(), and r_all_port_objects()                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
@@ -164,6 +168,17 @@ class FabricObj:
         :rtype: list
         """
         return [alert_obj.alert_num() for alert_obj in self._alerts]
+
+    def r_alert_obj(self, alert_num):
+        """Returns the alert object for a specific alert number
+
+        :return: Alert object. None if not found.
+        :rtype: None, brcddb.classes.alert.AlertObj
+        """
+        for alert_obj in self.r_alert_objects():
+            if alert_obj.alert_num() == alert_num:
+                return alert_obj
+        return None
 
     def r_reserved_keys(self):
         """Returns a list of reserved words (keys) associated with this object
@@ -875,7 +890,6 @@ class FabricObj:
 
     def r_switch_obj(self, switch_wwn):
         """Returns the switch object for a given switch WWN
-
         :param switch_wwn: Switch WWN
         :type switch_wwn: str
         :return: Switch object
@@ -883,20 +897,8 @@ class FabricObj:
         """
         return self.r_project_obj().r_switch_obj(switch_wwn)
 
-    def r_port_keys(self):
-        """Returns a list of all ports in this fabric
-
-        :return: List of ports in s/p format
-        :rtype: list
-        """
-        rl = list()
-        for switch_obj in self.r_switch_objects():
-            rl.extend(switch_obj.r_port_keys())
-        return rl
-
     def r_port_objects(self):
         """Returns a list of port objects for all ports in this fabric
-
         :return: List of PortObj
         :rtype: list
         """
@@ -907,7 +909,6 @@ class FabricObj:
 
     def r_port_obj_for_wwn(self, wwn):
         """Returns the port object associated with a login WWN
-
         :param wwn: WWN of attached device
         :type wwn: str
         :return: PortObj or None if not found
@@ -945,12 +946,42 @@ class FabricObj:
         if len(tl) != 2:
             return None
         for switch_obj in self.r_switch_objects():
-            did = switch_obj.r_get(brcdapi_util.bfs_did)
-            if did is None:
-                did = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
+            did = switch_obj.r_did()
             if isinstance(did, int) and did == tl[0]:
                 return switch_obj.r_port_object_for_index(tl[1])
         return None
+
+    def r_ge_port_objects(self):
+        """Returns a list of port objects for all GE ports in this fabric
+        :return: List of PortObj
+        :rtype: list
+        """
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_ge_port_objects())
+        return rl
+
+    def r_ve_port_objects(self):
+        """Returns a list of port objects for all VE ports in this switch
+        :return: List of PortObj
+        :rtype: list
+        """
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_ve_port_objects())
+        return rl
+
+    def r_all_port_objects(self, ve=False):
+        """Returns a list of all FC, GE, and optionally VE port objects in this chassis.
+        :param ve: If True, include VE port objects
+        :type ve: bool
+        :return: List of ports in s/p format
+        :rtype: list
+        """
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_all_port_objects(ve))
+        return rl
 
     def r_fabric_obj(self):
         return self
@@ -1029,15 +1060,17 @@ class FabricObj:
         """
         return self._port_map[wwn] if wwn in self._port_map else None
 
-    def r_get(self, k):
+    def r_get(self, k, default=None):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int
-        :return: Value
-        :rtype: Same type as used when the key/value pair was added
+        :param default: Value to return if key is not found
+        :type default: str, bool, int, float, list, dict, tuple
+        :return: Value matching the key/value pair of dflt_val if not found.
+        :rtype: str, bool, int, float, list, dict, tuple
         """
-        return class_util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k, default=default)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v

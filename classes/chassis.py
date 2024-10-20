@@ -12,27 +12,30 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.classes.chassis` - Defines the chassis object, ChassisObj.
+**Description**
 
-Version Control::
+Defines the chassis object, ChassisObj.
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Added default value to r_get() and r_alert_obj().                                     |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.util as brcdapi_util
 import brcddb.classes.alert as alert_class
@@ -67,7 +70,6 @@ class ChassisObj:
 
     def r_get_reserved(self, k):
         """Returns a value for any reserved key. Don't forget to update brcddb.util.copy when adding a new key.
-
          :param k: Reserved key
          :type k: str
          :return: Value associated with k. None if k is not present
@@ -105,7 +107,6 @@ class ChassisObj:
 
     def r_alert_objects(self):
         """Returns a list of alert objects associated with this object
-
         :return: List of alert objects (brcddb.classes.alert.AlertObj)
         :rtype: list
         """
@@ -113,15 +114,23 @@ class ChassisObj:
 
     def r_alert_nums(self):
         """Returns a list of alert numbers associated with this object
-
         :return: List of alert objects (brcddb.classes.alert.AlertObj)
         :rtype: list
         """
         return [alert_obj.alert_num() for alert_obj in self._alerts]
 
+    def r_alert_obj(self, alert_num):
+        """Returns the alert object for a specific alert number
+        :return: Alert object. None if not found.
+        :rtype: None, brcddb.classes.alert.AlertObj
+        """
+        for alert_obj in self.r_alert_objects():
+            if alert_obj.alert_num() == alert_num:
+                return alert_obj
+        return None
+
     def r_reserved_keys(self):
         """Returns a list of reserved words (keys) associated with this object
-
         :return: List of reserved words
         :rtype: list
         """
@@ -129,7 +138,6 @@ class ChassisObj:
 
     def r_project_obj(self):
         """Returns the project object associated with this object
-
         :return: Project object
         :rtype: ProjectObj
         """
@@ -145,7 +153,6 @@ class ChassisObj:
 
     def r_flags(self):
         """Returns flags associated with this object. Flags are defined in brcddb_common.py
-
         :return: Bit flags
         :rtype: int
         """
@@ -153,7 +160,6 @@ class ChassisObj:
 
     def s_or_flags(self, bits):
         """Performs a logical OR on the flags associated with this object. Flags are defined in brcddb_common.py
-
         :param bits: Bits to be ORed with the bit flags
         :type bits: int
         :return: Bit flags
@@ -184,7 +190,6 @@ class ChassisObj:
 
     def r_is_vf_supported(self):
         """Tests the virtual fabrics (VF) supported flag ('brocade-chassis/vf-supported')
-
         :return: True if VF is enabled. Otherwise, False
         :rtype: bool
         """
@@ -193,7 +198,6 @@ class ChassisObj:
 
     def r_is_ha_enabled(self):
         """Tests the high availability (HA) enabled flag ('brocade-chassis/ha-enabled')
-
         :return: True if HA is enabled. Otherwise, False
         :rtype: bool
         """
@@ -202,7 +206,6 @@ class ChassisObj:
 
     def r_is_heartbeat_up(self):
         """Tests the heart beat up flag ('brocade-chassis/heartbeat-up')
-
         :return: True if the HA heart beat is up. Otherwise, False
         :rtype: bool
         """
@@ -211,7 +214,6 @@ class ChassisObj:
 
     def r_is_ha_sync(self):
         """Tests the high availability (HA) sync flag ('brocade-chassis/ha-status/ha-synchronized')
-
         :return: True if in HA sync. Otherwise, False
         :rtype: bool
         """
@@ -220,7 +222,6 @@ class ChassisObj:
 
     def r_is_extension_enabled(self, slot=0):
         """Tests the virtual fabrics enabled flag ('brocade-fru/blade/extension-enabled')
-
         :param slot: Slot number of board where the extension flag is to be tested
         :return: True if extension is enabled. Otherwise, False
         :rtype: bool
@@ -234,16 +235,14 @@ class ChassisObj:
 
     def r_is_bladded(self):
         """Determines if the chassis is bladed or fixed port
-
         :return: True if director class. Otherwise, False
         :rtype: bool
         """
-        v = self.r_get('brocade-chassis/chassis/max-blades-supported')
+        v = self.r_get(brcdapi_util.bc_max_blades)
         return False if not isinstance(v, int) else True if v > 1 else False
 
     def s_add_switch(self, wwn):
         """Adds a switch to the project if it doesn't already exist and then adds it to chassis if not already added
-
         :param wwn: WWN of logical switch
         :type wwn: str
         """
@@ -255,7 +254,6 @@ class ChassisObj:
 
     def s_del_switch(self, wwn):
         """Deletes a switch key from the fabric. It does not delete the switch object from the project.
-
         :param wwn: WWN of logical switch
         :type wwn: str
         :rtype: None
@@ -264,7 +262,6 @@ class ChassisObj:
 
     def r_switch_keys(self):
         """Returns the list of logical switch WWNs in this chassis
-
         :return: List of switch WWNs
         :rtype: list
         """
@@ -272,7 +269,6 @@ class ChassisObj:
 
     def r_switch_objects(self):
         """Returns the list of switch objects for the switches in this chassis
-
         :return: List of SwitchObj
         :rtype: list
         """
@@ -280,82 +276,108 @@ class ChassisObj:
 
     def r_switch_obj_for_fid(self, fid):
         """Returns the switch objects for the fid in this chassis
-
         :param fid: Fabric ID
         :type fid: int
         :return: Switch object matching fid. None if not found
         :rtype: None, brcddb.chassis.switch.SwitchObj
         """
         for switch_obj in self.r_switch_objects():
-            if switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id') == fid:
+            if switch_obj.r_get(brcdapi_util.bfls_fid) == fid:
                 return switch_obj
         return None
 
     def r_default_switch_obj(self):
         """Returns the switch object for the default switch in this chassis
-
         :return: Switch object. None if default switch object not found (logical switches haven't been polled yet)
         :rtype: brcddb.classes.switch.SwitchObj, None
         """
         for switch_obj in self.r_switch_objects():
-            if switch_obj.r_get(
-                    'brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/default-switch-status'):
+            if switch_obj.r_get(brcdapi_util.bfls_def_sw_status):
                 return switch_obj
         return None
 
     def r_default_switch_fid(self):
         """Returns the FID for the default switch in this chassis
-
-        :return: Fabric ID. None if not found
+        :return: Fabric ID. None if not found.
         :rtype: int, None
         """
         switch_obj = self.r_default_switch_obj()
-        return None if switch_obj is None else \
-            switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
+        return None if switch_obj is None else switch_obj.r_get(brcdapi_util.bfls_fid)
 
     def r_fabric_keys(self):
         """Returns the list of fabric keys associated with switches in this chassis
-
         :return: List of keys (fabric WWNs)
         :rtype: list
         """
-        return [switch_obj.r_fabric_key() for switch_obj in self.r_switch_objects() if
-                switch_obj.r_fabric_key() is not None]
+        # If FID checking is disabled, two switches in this chassis can be in the same fabric. This is why I remove
+        # duplicates. If the data capture did not include all chassis, a switch object may return None for the fabric
+        return gen_util.remove_duplicates(gen_util.remove_none([obj.r_fabric_key() for obj in self.r_switch_objects()]))
 
     def r_fabric_objects(self):
         """Returns the list of fabric objects associated with switches in this chassis
-
         :return: List of keys (fabric WWNs)
         :rtype: list
         """
-        return [switch_obj.r_fabric_obj() for switch_obj in self.r_switch_objects() if
-                switch_obj.r_fabric_obj() is not None]
+        # If FID checking is disabled, two switches in this chassis can be in the same fabric. This is why I look up the
+        # fabric object based on the list of fabric keys returned from self.r_fabric_keys().
+        proj_obj = self.r_project_obj()
+        return [proj_obj.r_fabric_obj(wwn) for wwn in self.r_fabric_keys()]
+
+    def r_ve_port_keys(self):
+        """Returns a list of all VE ports in this switch
+        :return: List of ports in s/p format
+        :rtype: list
+        """
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_ve_port_keys())
+        return rl
+
+    def r_ve_port_objects(self):
+        """Returns a list of port objects for all VE ports in this switch
+        :return: List of PortObj
+        :rtype: list
+        """
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_ve_port_objects())
+        return rl
+
+    def r_ve_port_obj(self, k):
+        """Returns the port object for a VE port
+        :param k: Port name in s/p notation
+        :type k: str
+        :return: Port object. None if matching port not found
+        :rtype: brcddb.classes.port.PortObj, None
+        """
+        for switch_obj in self.r_switch_objects():
+            ve_port_obj = switch_obj.r_ve_port_obj(k)
+            if ve_port_obj is not None:
+                return ve_port_obj
+        return None
 
     def r_login_keys(self):
         """Returns all the login WWNs associated with this chassis. Includes E-Ports
-
         :return: List of WWNs logged into this port
         :rtype: list
         """
-        k = list()
-        for s in self.r_switch_objects():
-            k.extend(s.r_login_keys())
-        return k
+        key_l = list()
+        for switch_obj in self.r_switch_objects():
+            key_l.extend(switch_obj.r_login_keys())
+        return key_l
 
     def r_login_objects(self):
         """Returns all the login objects for logins in this chassis
-
         :return: List of LoginObj logged into this port
         :rtype: list
         """
-        k = list()
-        for s in self.r_switch_objects():
-            k.extend(s.r_login_objects())
-        return k
+        login_obj_l = list()
+        for switch_obj in self.r_switch_objects():
+            login_obj_l.extend(switch_obj.r_login_objects())
+        return login_obj_l
 
     def r_fdmi_node_keys(self):
         """Returns all the FDMI node WWNs associated with this chassis.
-
         :return: List of FDMI node WWNs associated this chassis
         :rtype: list
         """
@@ -366,7 +388,6 @@ class ChassisObj:
 
     def r_fdmi_node_objects(self):
         """Returns all the FDMI node objects for logins associated with this chassis
-
         :return: List of FdmiNodeObj associated with this chassis
         :rtype: list
         """
@@ -377,7 +398,6 @@ class ChassisObj:
 
     def r_fdmi_port_keys(self):
         """Returns all the FDMI port WWNs associated with this chassis.
-
         :return: List of FDMI port WWNs associated this chassis
         :rtype: list
         """
@@ -388,7 +408,6 @@ class ChassisObj:
 
     def r_fdmi_port_objects(self):
         """Returns all the FDMI port objects for logins associated with this chassis
-
         :return: List of FdmiPortObj associated with this chassis
         :rtype: list
         """
@@ -399,16 +418,10 @@ class ChassisObj:
 
     def r_fid_list(self):
         """Returns the list of logical fabric ID (FID) in this chassis
-
         :return: List of FIDs (int)
         :rtype: list
         """
-        fid = list()
-        for switch_obj in self.r_switch_objects():
-            tf = switch_obj.r_get('brocade-fibrechannel-logical-switch/fibrechannel-logical-switch/fabric-id')
-            if tf is not None:
-                fid.append(tf)
-        return fid
+        return gen_util.remove_none([switch_obj.r_get(brcdapi_util.bfls_fid) for switch_obj in self.r_switch_objects()])
 
     def r_slot(self, s):
         """Returns the FRU information for a specific blade
@@ -427,7 +440,10 @@ class ChassisObj:
         :return: List of ports in s/p format
         :rtype: list
         """
-        return [v for switch_obj in self.r_switch_objects() for v in switch_obj.r_port_keys()]
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_port_keys())
+        return rl
 
     def r_port_objects(self):
         """Returns a list of port objects for all ports in this chassis
@@ -435,7 +451,10 @@ class ChassisObj:
         :return: List of PortObj
         :rtype: list
         """
-        return [v for switch_obj in self.r_switch_objects() for v in switch_obj.r_port_objects()]
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_port_objects())
+        return rl
 
     def r_port_obj(self, port):
         """Returns the port object for a port
@@ -459,10 +478,81 @@ class ChassisObj:
         :rtype: PortObj, None
         """
         if isinstance(i, int):
-            for port_obj in self.r_port_objects():
+            for port_obj in self.r_all_port_objects():
                 port_index = port_obj.r_index()
                 if isinstance(port_index, int) and port_index == i:
                     return port_obj
+        return None
+
+    def r_ge_port_keys(self):
+        """Returns a list of all GE ports in this chassis
+        :return: List of ports in s/p format
+        :rtype: list
+        """
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_ge_port_keys())
+        return rl
+
+    def r_ge_port_objects(self):
+        """Returns a list of port objects for all GE ports in this chassis
+        :return: List of PortObj
+        :rtype: list
+        """
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_ge_port_objects())
+        return rl
+
+    def r_ge_port_obj(self, k):
+        """Returns the port object for a GE port
+        :param k: Port name in s/p notation
+        :type k: str
+        :return: Port object. None if port not found.
+        :rtype: brcddb.classes.port.PortObj, None
+        """
+        for switch_obj in self.r_switch_objects():
+            if switch_obj.r_ge_port_obj(k) is not None:
+                return switch_obj.r_ge_port_obj(k)
+        return None
+
+    def r_all_port_objects(self, ve=False):
+        """Returns a list of all FC, GE, and optionally VE port objects in this chassis.
+        :param ve: If True, include VE port objects
+        :type ve: bool
+        :return: List of ports in s/p format
+        :rtype: list
+        """
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_all_port_objects(ve))
+        return rl
+
+    def r_all_port_keys(self, ve=False):
+        """Returns a list of all FC, GE, and optionally VE port keys in this fabric.
+        :param ve: If True, include VE port keys
+        :type ve: bool
+        :return: List of ports in s/p format
+        :rtype: list
+        """
+        rl = list()
+        for switch_obj in self.r_switch_objects():
+            rl.extend(switch_obj.r_all_port_keys(ve))
+        return rl
+
+    def r_any_port_obj(self, k, ve=False):
+        """Returns the port object for an FC port or GE port. Optionally include VE ports in search.
+        :param k: Port name in s/p notation
+        :type k: str
+        :param ve: If True, include VE ports in search
+        :type ve: bool
+        :return: Port object. None if port not found.
+        :rtype: brcddb.classes.port.PortObj, None
+        """
+        for switch_obj in self.r_switch_objects():
+            port_obj = switch_obj.r_any_port_obj(k, ve)
+            if port_obj is not None:
+                return port_obj
         return None
 
     def c_fru_blade_map(self):
@@ -497,15 +587,17 @@ class ChassisObj:
         """
         return class_util.s_new_key_for_class(self, k, v, f)
 
-    def r_get(self, k):
+    def r_get(self, k, default=None):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int
-        :return: Value
-        :rtype: Same type as used when the key/value pair was added
+        :param default: Value to return if key is not found
+        :type default: str, bool, int, float, list, dict, tuple
+        :return: Value matching the key/value pair of dflt_val if not found.
+        :rtype: str, bool, int, float, list, dict, tuple
         """
-        return class_util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k, default=default)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v

@@ -12,27 +12,38 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.classes.util` - Intended for internal use only. Includes methods common to class methods
+**Description**
 
-Version Control::
+Includes methods common to class methods.
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Removed unused maps stuff in switch object                                        |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Public Methods**
+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| get_simple_class_type | Returns a simple 'ProjectObj', 'SwitchObj', ... for brcddb.classes.* types                |
++-----------------------+-------------------------------------------------------------------------------------------+
+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Removed unused maps stuff in switch object                                            |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Added default value to class_getvalue()                                               |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -254,8 +265,8 @@ def _class_reserved(obj, k):
     return _class_reserved_case[k](obj) if k in _class_reserved_case else None
 
 
-# Case statements for special in s_new_key_for_class
-def special_key_scr(obj, k, v, v1):
+# Case statements for _special in s_new_key_for_class
+def _special_key_scr(obj, k, v, v1):
     """Case for 'state-change-registration'
 
     This the RSCN handling and is only valid on the chassis where the login occurred. RSCN handling is not distributed
@@ -392,8 +403,8 @@ def _add_to_list(from_list, to_list):
             return 'Unknown type in list: ' + str(type(v))
 
 
-special = {
-    'state-change-registration': special_key_scr,
+_special = {
+    'state-change-registration': _special_key_scr,
     'firmware-version': special_key_ignore,
     'dns-servers': special_key_ignore,
     'ip-static-gateway-list': special_key_ignore,
@@ -431,7 +442,7 @@ def s_new_key_for_class(obj, k, v, f=False):
     :return: True if the add succeeded or is redundant.
     :rtype: bool
     """
-    global force_msg
+    global force_msg, _special
 
     ml = list()
     if k in obj.r_reserved_keys():
@@ -440,8 +451,8 @@ def s_new_key_for_class(obj, k, v, f=False):
         if k in obj.__dict__.keys():
             # The key and value pair already exists
             v1 = obj.r_get(k)
-            if k in special:
-                ml.append(special[k](obj, k, v, v1))
+            if k in _special:
+                ml.append(_special[k](obj, k, v, v1))
                 if ml[len(ml)-1] is None:
                     return False  # False so that no additional processing is done
             elif type(v) is not type(v1):
@@ -480,21 +491,23 @@ def s_new_key_for_class(obj, k, v, f=False):
         return False
 
 
-def class_getvalue(obj, keys, flag=False):
+def class_getvalue(obj, keys, flag=False, default=None):
     """Returns the value associated with a key. Key may be multiple keys using "/" notation
 
     :param obj: Any brcddb.classes object
     :type obj: ChassisObj, FabricObj, LoginObj, FdmiNodeObj, FdmiPortObj, PortObj, ProjectObj, SwitchObj, ZoneCfgObj \
-        ZoneObj, AliasObj
+        ZoneObj, AliasObj, None
     :param keys: Key whose value is sought. None is allowed to simplify processing lists of keys that may not be present
     :type keys: str, None
     :param flag: If True, combine the first two keys into a single key. Used for port keys.
     :type flag: bool
-    :return: Value associated with key
-    :rtype: any
+    :param default: Value to return if key is not found
+    :type default: str, bool, int, float, list, dict, tuple
+    :return: Value matching the key/value pair of default if not found.
+    :rtype: str, bool, int, float, list, dict, tuple
     """
     if keys is None or obj is None or len(keys) == 0:
-        return None
+        return default
     kl = keys.split('/')
     if flag:
         # The next key is going to be for the port which is in slot/port notation. The split above will separate the
@@ -502,14 +515,18 @@ def class_getvalue(obj, keys, flag=False):
         if len(kl) > 1:
             kl[0] = kl.pop(0) + '/' + kl[0]
         else:
-            return None  # Someone called this with missing keys if we get here.
+            return default  # Someone called this with missing keys if we get here.
 
     if hasattr(obj, '_reserved_keys') and kl[0] in obj._reserved_keys:
         # Typically get here when someone did an obj.r_get() on a reserved key
         new_obj = _class_reserved(obj, kl.pop(0), )
         if len(kl) > 0:
             s_type = get_simple_class_type(obj)
-            return class_getvalue(new_obj, '/'.join(kl), True if s_type is not None and s_type == 'PortObj' else False)
+            return class_getvalue(
+                new_obj,
+                '/'.join(kl), True if s_type is not None and s_type == 'PortObj' else False,
+                default
+            )
         else:
             return new_obj
     elif hasattr(obj, '__dict__'):
@@ -518,12 +535,12 @@ def class_getvalue(obj, keys, flag=False):
         while len(kl) > 0:
             k0 = kl.pop(0)
             try:
-                v0 = v0.get(k0) if isinstance(v0, dict) else v0.__dict__.get(k0)
-            except AttributeError:
-                return None  # The key was not found if we get here
+                v0 = v0[k0] if isinstance(v0, dict) else v0.__dict__[k0]
+            except (AttributeError, KeyError):
+                return default  # The key was not found if we get here
         return v0
     else:
-        brcdapi_log.exception('Unknown object type: ' + str(type(obj)) + '. keys: ' + keys, echo=True)
+        brcdapi_log.exception('Unknown object type: ' + str(type(obj)) + '. keys: ' + str(keys), echo=True)
 
     return None
 
@@ -640,8 +657,9 @@ def format_obj(obj, full=False):
     rl = list()
 
     # Try/Except because this is typically called when something went wrong. It could be in the Python script, FOS, or
-    # a library. The assumption is that this output will get printed somewhere so the intent is to make a best effort at
-    # formatting the object without causing the script to crash before this data is logged or displayed to the console.
+    # a library. The assumption is that this output will get printed somewhere so the intent is to make the best effort
+    # at formatting the object without causing the script to crash before this data is logged or displayed to the
+    # console.
     try:
         rl.append('Object Type: ' + str(type(obj)))
         if get_simple_class_type(obj) is None:

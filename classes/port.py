@@ -12,27 +12,30 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.classes.port` - Defines the port object, PortObj.
+**Description**
 
-Version Control::
+Defines the port object, PortObj.
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Added default value to r_get() and r_alert_obj()                                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -140,6 +143,17 @@ class PortObj:
         :rtype: list
         """
         return [alert_obj.alert_num() for alert_obj in self._alerts]
+
+    def r_alert_obj(self, alert_num):
+        """Returns the alert object for a specific alert number
+
+        :return: Alert object. None if not found.
+        :rtype: None, brcddb.classes.alert.AlertObj
+        """
+        for alert_obj in self.r_alert_objects():
+            if alert_obj.alert_num() == alert_num:
+                return alert_obj
+        return None
 
     def r_reserved_keys(self):
         """Returns a list of reserved words (keys) associated with this object
@@ -559,17 +573,27 @@ class PortObj:
         """
         return self._i_port_flags('fibrechannel/non-dfe-enabled')
 
+    def r_status(self):
+        """Returns the port status using FOS 9.0 string type first. Old converted integer if string type not found.
+
+        :return: Port status
+        :rtype: str
+        """
+        try:
+            return self.r_get(
+                brcdapi_util.fc_op_status_str,
+                brcddb_common.port_conversion_tbl[brcdapi_util.fc_op_status][self.r_get(brcdapi_util.fc_op_status)]
+            )
+        except (KeyError, ValueError, IndexError):
+            return 'Unknown'
+
     def r_is_online(self):
         """Determines if the port is online
 
         :return: True: port is online. False: port is offline.
         :rtype: bool
         """
-        try:
-            conv_d = brcddb_common.port_conversion_tbl[brcdapi_util.fc_op_status]
-            return True if conv_d[self.r_get(brcdapi_util.fc_op_status)] == 'Online' else False
-        except (ValueError, IndexError):
-            return False
+        return True if self.r_status().lower() == 'online' else False
 
     def r_is_icl(self):
         """Determines if the port is on a core blade
@@ -585,10 +609,19 @@ class PortObj:
     def r_slot(self):
         """Returns the slot number for the port
 
-        :return: Slot number
-        :rtype: int
+        :return: Slot number. None if slot number is not valid (which only happens here with a code bug)
+        :rtype: int, None
         """
-        return int(self.r_obj_key().split('/')[0])
+        return gen_util.slot_port(self.r_obj_key())[0]
+
+    def r_port(self):
+        """Returns the port number for the port
+
+        :return: Port number, which may be a GE port. None if port number is not valid
+        :rtype: int, str, None
+        """
+        slot, port, ge_port = gen_util.slot_port(self.r_obj_key())
+        return port if isinstance(port, int) else ge_port
 
     def r_addr(self):
         """Returns the FC address for the port
@@ -613,7 +646,10 @@ class PortObj:
         :rtype: str
         """
         try:
-            return brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][self.r_get(brcdapi_util.fc_port_type)]
+            return self.r_get(
+                brcdapi_util.fc_port_type_str,
+                brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][self.r_get(brcdapi_util.fc_port_type)]
+            )
         except (IndexError, ValueError, KeyError):
             return 'Unknown'
 
@@ -684,15 +720,17 @@ class PortObj:
         """
         return class_util.s_new_key_for_class(self, k, v, f)
 
-    def r_get(self, k):
+    def r_get(self, k, default=None):
         """Returns the value for a given key. Keys for nested objects must be separated with '/'.
 
         :param k: Key
         :type k: str, int
-        :return: Value
-        :rtype: None, int, float, str, list, dict
+        :param default: Value to return if key is not found
+        :type default: str, bool, int, float, list, dict, tuple
+        :return: Value matching the key/value pair of dflt_val if not found.
+        :rtype: str, bool, int, float, list, dict, tuple
         """
-        return class_util.class_getvalue(self, k)
+        return class_util.class_getvalue(self, k, default=default)
 
     def rs_key(self, k, v):
         """Return the value of a key. If the key doesn't exist, create it with value v
