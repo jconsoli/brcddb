@@ -25,10 +25,10 @@ details.
 +-----------------------+-------------------------------------------------------------------------------------------+
 | sort_ports            | Sorts a list of port objects by switch, then slot, then port number.                      |
 +-----------------------+-------------------------------------------------------------------------------------------+
-| login_to_port_map     | Creates a map of logins to the port where the login occured for                           |
+| login_to_port_map     | Creates a map of logins to the port where the login occurred for                          |
 |                       | build_login_port_map()                                                                    |
 +-----------------------+-------------------------------------------------------------------------------------------+
-| build_login_port_map  | Creates a map of logins to the port where the login occured for each fabric and adds      |
+| build_login_port_map  | Creates a map of logins to the port where the login occurred for each fabric and adds     |
 |                       | it to the fabric object                                                                   |
 +-----------------------+-------------------------------------------------------------------------------------------+
 | add_maps_groups       | Adds the associated maps group to each object. Limited to port objects. Additional        |
@@ -58,21 +58,23 @@ details.
 +===========+===============+=======================================================================================+
 | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
-| 4.0.1     | 06 Mar 2024   | Removed obsolete add_maps_groups() and depracated functions.                          |
+| 4.0.1     | 06 Mar 2024   | Removed obsolete add_maps_groups() and deprecated functions.                          |
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 03 Apr 2024   | Explicitly declared c_type_conv as global in parse_cli() functions                    |
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 26 Jun 2024   | Moved fos_to_dict() to brcdapi.util.fos_to_dict()                                     |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 20 Oct 2024   | Removed obsolete zonecleanup()                                                        |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Jun 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import re
 import datetime
@@ -109,7 +111,7 @@ def port_obj_for_wwn(objx, wwn):
 
     This method is extremely inefficient but since E-Port look up in this manner is infrequent, it's good enough. If you
     find yourself in a situation where you need to look up a port object from a port WWN often, you should build a
-    table, similar to brcddb_project.build_xref(), for efficient look ups.
+    table, similar to brcddb_project.build_xref(), for efficient look-ups.
 
     :param objx: A brcddb class object that has a method port_objects()
     :type objx: ProjectObj, FabricObj, SwitchObj, ChassisObj
@@ -125,11 +127,6 @@ def port_obj_for_wwn(objx, wwn):
     return None
 
 
-def sp_port_sort(port_list):
-    """Sorts a list of port objects by slot then port number. Deprecated."""
-    return brcdapi_port.sort_ports(port_list)
-
-
 def sort_ports(port_obj_list):
     """Sorts a list of port objects by switch, then slot, then port number.
 
@@ -139,41 +136,34 @@ def sort_ports(port_obj_list):
     :rtype: list
     """
     rl = list()
-    if len(port_obj_list) == 0:
-        return rl
-    proj_obj = port_obj_list[0].r_project_obj()  # Assume the same project for all ports
+    wd = dict()  # Use wd below to sort the port objects by the switch they belong to
 
-    # Use wd below to sort the port objects by the switch they belong to
-    wd = dict()
+    # Add a port list to wd for each switch
     for port_obj in port_obj_list:
         switch_obj = port_obj.r_switch_obj()
-        switch_key = switch_obj.r_get('brocade-fibrechannel-switch/fibrechannel-switch/user-friendly-name')
-        if switch_key is None:
-            switch_key = switch_obj.r_get('brocade-fabric/fabric-switch/switch-user-friendly-name')
-        if switch_key is None:
-            switch_key = ''
-        switch_key += '_' + switch_obj.r_obj_key()
+        switch_key = switch_obj.r_get(brcdapi_util.bfs_sw_user_name, switch_obj.r_get(brcdapi_util.bf_sw_user_name, ''))
+        switch_key += '_' + switch_obj.r_obj_key()  # User-friendly switch name may not be unique, so add the WWN
         switch_d = wd.get(switch_key)
         if switch_d is None:
-            switch_d = dict(switch_obj=switch_obj, port_obj_l=list())
-            wd.update({switch_key: switch_d})
-        switch_d['port_obj_l'].append(port_obj)
+            switch_d = dict(switch_obj=switch_obj, port_key_l=list(), port_obj_d=dict())
+            wd[switch_key] = switch_d
+        port_key = port_obj.r_obj_key()
+        switch_d['port_key_l'].append(port_key)
+        switch_d['port_obj_d'][port_key] = port_obj
 
-    # Sort the switch keys
+    # Sort the ports and switch keys
     switch_key_l = list(wd.keys())
     switch_key_l.sort()
 
-    # Sort the ports on a per switch basis and add to the return list
+    # Sort the ports on a per-switch basis and add to the return list
     for switch_d in [wd[k] for k in switch_key_l]:
-        switch_obj = switch_d['switch_obj']
-        rl.extend([switch_obj.r_port_obj(port) for port in \
-                   brcdapi_port.sort_ports([port_obj.r_obj_key() for port_obj in switch_d['port_obj_l']])] )
+        rl.extend(switch_d['port_obj_d'][port] for port in brcdapi_port.sort_ports(switch_d['port_key_l']))
 
     return rl
 
 
 def login_to_port_map(fab_obj):
-    """Creates a map of logins to the port where the login occured for build_login_port_map()
+    """Creates a map of logins to the port where the login occurred for build_login_port_map()
 
     :param fab_obj: Fabric Object
     :type fab_obj: brcddb.classes.fabric.FabricObj
@@ -355,7 +345,8 @@ def has_alert(obj, al_num, key, p0, p1):
 ###################################################################
 
 # Convert CLI commands to the c-type for brcddb.apps.zone
-# c_type_conv was originally intended to be public. I don't think it needs to be public anymore.
+# c_type_conv was originally intended to be public. I don't think it needs to be public anymore. There is some history
+# as to why the need to convert to something with a hyphen in it.
 c_type_conv = dict(
     aliadd='alias-add',
     alicreate='alias-create',
@@ -371,12 +362,11 @@ c_type_conv = dict(
     cfgsave='cfg-save',
     defzone='defzone',
     zoneadd='zone-add',
-    zonecleanup='zone-cleanup',
     zonecreate='zone-create',
     zonedelete='zone-delete',
     zoneobjectcopy='zone-object-copy',
     # zoneobjectexpunge=None,  # Not supported
-    zoneobjectrename='zone-object-rename',  # Not supported
+    zoneobjectrename='zone-object-rename',
     # zoneobjectreplace=None,  # Not supported
     zoneremove='zone-remove',
 )
@@ -390,7 +380,8 @@ _state_members = _state_principal + 1
 
 
 def parse_cli(file_buf):
-    """Conditions each line read from the file of FOS commands into a list of dictionaries for use with send_zoning()
+    """Conditions each line read from the file of FOS commands into a list of dictionaries for use with
+    brcddb.apps.zone.send_zoning()
 
     WARNING: This is a quick and dirty method that only works on WWN and alias zones. It will not work with d,i
     Ignores all extraneous white space, comments, and null lines. Each dict contains:
@@ -490,11 +481,8 @@ def add_to_obj(obj, k, v):
     :param v: Value associated with the key.
     :type v: int, str, list, dict
     """
-    global error_asserted
-
     if not isinstance(k, str):
         brcdapi_log.exception('Invalid key. Expected type str, received type ' + str(type(k)), echo=True)
-        error_asserted = True
         return
     key_list = k.split('/')
     if isinstance(obj, dict):
@@ -510,7 +498,6 @@ def add_to_obj(obj, k, v):
     elif class_util.get_simple_class_type(obj) is None:
         brcdapi_log.exception('Invalid object type: ' + str(type(obj)) + '. k = ' + k + ', v type: ' + str(type(v)),
                               echo=True)
-        error_asserted = True
     else:
         key = key_list.pop(0)
         if len(key_list) == 0:
@@ -639,7 +626,7 @@ def zone_cli(fab_obj, filter_fab_obj=None):
 
 
 def fos_to_dict(version_in, valid_check=True):
-    """Depracated.
+    """Deprecated.
 
     :param version_in: FOS version
     :type version_in: str

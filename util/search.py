@@ -22,22 +22,22 @@ Public Methods & Data::
     | test_threshold        | Filters a list of objects based on a number (int or float) and test condition         |
     +-----------------------+---------------------------------------------------------------------------------------+
     | match                 | Performs a regex match/search or wild card search in dict or brcddb class object(s).  |
-    |                       | If search_key is a list of more than one, OR logic applies. Performs an iteritive     |
+    |                       | If search_key is a list of more than one, OR logic applies. Performs an iterative     |
     |                       | search on any list, tuple, dict, or brcddb object found after the last search key. If |
-    |                       | a list is encountered, an iteritive search is performed on the list. If the search    |
+    |                       | a list is encountered, an iterative search is performed on the list. If the search    |
     |                       | keys have not been exhausted, then the remaining search keys are applied to the       |
-    |                       | iteritive searches.                                                                   |
+    |                       | iterative searches.                                                                   |
     +-----------------------+---------------------------------------------------------------------------------------+
     | match_test            | Performs a pre-defined complex test using match() and test_threshold. Any key         |
     |                       | collected from the API and put into an object can be evaluated for an exact match,    |
     |                       | a regex match, a regex search, and wild card match on str value types. Numbers can    |
-    |                       | use comparitive operators >, <, >=, <=, !=, and ==. Types bool can only be evaluated  |
+    |                       | use comparative operators >, <, >=, <=, !=, and ==. Types bool can only be evaluated  |
     |                       | for True or False.                                                                     |
     +-----------------------+---------------------------------------------------------------------------------------+
 
 **Summary of wild card strings**
 
-Search the web for 'python fnmatch.fnmatch' for additional informaiton
+Search the web for 'python fnmatch.fnmatch' for additional information
 
 *         matches everything
 ?         matches any single character
@@ -46,7 +46,7 @@ Search the web for 'python fnmatch.fnmatch' for additional informaiton
 
 **Summary of ReGex strings**
 
-Search the web for 'regex' for additional information. A regex match must match the begining of the string. A regex
+Search the web for 'regex' for additional information. A regex match must match the beginning of the string. A regex
 search must match any instance of the regex in the string.
 
 abc…          Letters
@@ -89,15 +89,17 @@ abc…          Letters
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 16 Jun 2024   | Fixed bad reference, raise found. Should have been "raise Found"                      |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 20 Oct 2024   | PEP 8 corrections to login speeds in brcddb.util.search.login_xxx                     |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '16 Jun 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import re
 import fnmatch
@@ -118,16 +120,17 @@ initiator = dict(k='brocade-name-server/fibrechannel-name-server/fc4-features', 
 port_online = dict(k='fibrechannel/operational-status', t='==', v=2)
 port_offline = dict(k='fibrechannel/operational-status', t='==', v=3)
 # Reminder: The login speed is only valid if the port is online. Use the port_online filter in conjunction with these:
-login_1G = dict(k='fibrechannel/speed', t='==', v=1000000000)  # 1G
-login_2G = dict(k='fibrechannel/speed', t='==', v=2000000000)  # 2G
-login_4G = dict(k='fibrechannel/speed', t='==', v=4000000000)  # 4G
-login_8G = dict(k='fibrechannel/speed', t='==', v=8000000000)  # 8G
-login_16G = dict(k='fibrechannel/speed', t='==', v=16000000000)  # 16G
-login_32G = dict(k='fibrechannel/speed', t='==', v=32000000000)  # 32G
-login_64G = dict(k='fibrechannel/speed', t='==', v=64000000000)  # 64G
+login_1g = dict(k='fibrechannel/speed', t='==', v=1000000000)  # 1G
+login_2g = dict(k='fibrechannel/speed', t='==', v=2000000000)  # 2G
+login_4g = dict(k='fibrechannel/speed', t='==', v=4000000000)  # 4G
+login_8g = dict(k='fibrechannel/speed', t='==', v=8000000000)  # 8G
+login_16g = dict(k='fibrechannel/speed', t='==', v=16000000000)  # 16G
+login_32g = dict(k='fibrechannel/speed', t='==', v=32000000000)  # 32G
+login_64g = dict(k='fibrechannel/speed', t='==', v=64000000000)  # 64G
+login_128g = dict(k='fibrechannel/speed', t='==', v=128000000000)  # 128G
 
-_regex_m_type_d = {'regexm': True, 'regex_m': True, 'regex-m': True,}
-_regex_s_type_d = {'regexs': True, 'regex_s': True, 'regex-s': True,}
+_regex_m_type_d = {'regexm': True, 'regex_m': True, 'regex-m': True}
+_regex_s_type_d = {'regexs': True, 'regex_s': True, 'regex-s': True}
 _valid_stype = dict(exact=True, wild=True, bool=True)
 _valid_stype.update(_regex_m_type_d)
 _valid_stype.update(_regex_s_type_d)
@@ -135,6 +138,7 @@ _valid_stype.update(_regex_s_type_d)
 
 class Found(Exception):
     pass
+
 
 # The case statements for numerical_test_case used in test_threshold()
 def _test_greater(v1, v2):
@@ -177,7 +181,7 @@ def test_threshold(obj_list, key, test, val):
 
     :param obj_list: list of brcddb classes - see brcddb.class
     :type obj_list: list
-    :param key: Key for the value to be compared. To look in a substr, seperate keys with a '/'. All keys must be a \
+    :param key: Key for the value to be compared. To look in a substr, separate keys with a '/'. All keys must be a \
         key to a dict or brcddb object
     :type key: str, list, tuple
     :param test: Test condition: '>', '<', '==', '=', '>=', '<=', '!=', '!', 'not'
@@ -191,12 +195,12 @@ def test_threshold(obj_list, key, test, val):
     #  Validate the inputs
     msg = list()
     if not isinstance(obj_list, (list, tuple)):
-        msg.append('\nobj_list is type ' + str(type(obj_list)) + '. It must be a list or typle of brcddb objects')
+        msg.append('\nobj_list is type ' + str(type(obj_list)) + '. It must be a list or tuple of brcddb objects')
     if not isinstance(key, str):
         msg.append('\nkey is type ' + str(type(key)) + '. It must be a type str')
     if isinstance(test, str):
         if test not in numerical_test_case:
-            msg.append('\nUnkown "test": ' + test)
+            msg.append('\nUnknown "test": ' + test)
     else:
         msg.append('\n"test" must be str. Actual type is ' + str(type(test)))
     if not isinstance(val, (int, float, str)):
@@ -214,19 +218,20 @@ def test_threshold(obj_list, key, test, val):
 
     return return_list
 
+
 def match(search_objects, search_key, in_search_term, ignore_case=False, stype='exact'):
     """Performs a regex match/search or wild card search in dict or brcddb class object(s). If search_key is a list of
-       more than one, OR logic applies. Performs an iteritive search on any list, tuple, dict, or brcddb object found
-       after the last search key. If a list is encountered, an iteritive search is performed on the list. If the search
-       keys have not been exhausted, then the remaining search keys are applied to the iteritive searches.
+       more than one, OR logic applies. Performs an iterative search on any list, tuple, dict, or brcddb object found
+       after the last search key. If a list is encountered, an iterative search is performed on the list. If the search
+       keys have not been exhausted, then the remaining search keys are applied to the iterative searches.
 
     **WARNING:**
     Circular references will result in Python stack overflow issues. Since all brcddb objects have a link back to the
     main project object, at least one key must be used to avoid this circular reference
 
     **Programmers Tip**
-    The Python re and fmatch are quite effecient. In order to search for anything in any data structure, this method
-    does not make use of list comprehensions. If you need something more effecient, create a seperate method for a more
+    The Python re and fmatch are quite efficient. In order to search for anything in any data structure, this method
+    does not make use of list comprehensions. If you need something more efficient, create a separate method for a more
     specific purpose and leave this as a general purpose search and match method.
 
     :param search_objects: Required. These are the objects to search in. Usually a list
@@ -235,7 +240,7 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
     :type search_key: str, list, tuple
     :param in_search_term: Required. This is what to look for.
     :type in_search_term: str, list, tuple, bool
-    :param ignore_case: Default is False. If True, ignores case in search_term. Not that keys are always case sensitive
+    :param ignore_case: Default is False. If True, ignores case in search_term. Not that keys are always case-sensitive
     :type ignore_case: bool
     :param stype: See _valid_stype
     :param stype: str
@@ -318,7 +323,7 @@ def match(search_objects, search_key, in_search_term, ignore_case=False, stype='
 def match_test(obj_list, test_obj, logic=None):
     """Performs a pre-defined complex test using match() and test_threshold.
     Any key collected from the API and put into an object can be evaluated for an exact match, a regex match, a regex
-    search, and wild card match on str value types. Numbers can use comparitive operators >, <, >=, <=, !=, and ==.
+    search, and wild card match on str value types. Numbers can use comparative operators >, <, >=, <=, !=, and ==.
     Types bool can only be evaluated for True or False.
 
     test_obj (pre-defined test) dict or list/tuple of dict that defines the logical tests to perform:
@@ -353,12 +358,12 @@ def match_test(obj_list, test_obj, logic=None):
                   True - ignore case.
                   False - Default. match case.
 
-    'logic'   Optionial. Logic to apply to items in 'l'. Although the logic is moot for single items in 'l', 'and' is
-              the most effecient to process the logic. Defined as follows:
+    'logic'   Optional. Logic to apply to items in 'l'. Although the logic is moot for single items in 'l', 'and' is
+              the most efficient to process the logic. Defined as follows:
               'and'   Default. All tests specified in 'l' must evaluate True
               'or'    Any test specified in 'l' must evaluate True
               'nand'  Opposite of 'and'.
-              'nor'   Opposfite of 'or'
+              'nor'   Opposite of 'or'
 
     :param obj_list: A list of dictionaries or brcddb objects to search
     :type obj_list: dict, list, tuple

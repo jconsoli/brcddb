@@ -21,33 +21,35 @@ Description::
     port objects associated with a zone object. This module contains the method obj_extract() which returns a list of
     any requested object from any object.
 
-Public Methods & Data::
+**Public Methods & Data**
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | obj_extract           | Extracts a list of objects from an object or list of objects                          |
-    +-----------------------+---------------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| obj_extract           | Extracts a list of objects from an object or list of objects                              |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Fixed bad switch object reference in _alias_obj_for_port()                            |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -139,7 +141,7 @@ def _zonecfg_obj(obj):
 
 
 def _port_obj_for_alias(obj):
-    """Returns a list of login objects associated with an alias obj. See _obj_self() for parameter detail."""
+    """Returns a list of port objects associated with a list of alias objects. See _obj_self() for parameter detail."""
     fab_obj = obj.r_fabric_obj()
     if fab_obj is None:
         return list()
@@ -278,7 +280,7 @@ def _zonecfg_obj_for_chassis(obj):
 def _alias_obj_for_port(obj):
     """Returns a list of alias objects associated with a fabric. See _obj_self() for parameter detail."""
     rl = list()
-    if hasattr(obj, r_switch_obj):
+    if hasattr(obj, 'r_switch_obj'):
         switch_obj = obj.r_switch_obj()
         if switch_obj is not None:
             fab_obj = switch_obj.r_fabric_obj()
