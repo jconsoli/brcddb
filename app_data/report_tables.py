@@ -14,14 +14,11 @@ details.
 
 **Description**
 
-Control tables for brcddb.report.xxxx_page modules.
-
-Dynamic control of worksheets is only available for chassis, switch, and page sheets at this time. Possible uses for
-these tables are:
-
-    * Retrieve the pointers to the tables directly from this library
-    * Put a copy of this module in your private collection of libraries
-        * This allows you to modify the table entries for your own customized reports
+Originally intended for the report pages. It contains a class for each object type which contains a dictionary. The
+dictionary key is the URI. The value is the suggest text to display what the URI is in human-readable format. Some of
+the tables also include column width and formatting suggestions. Column width and formatting is being phased out in
+favor of putting that information directly into the individual modules for each page type. As a result, there may be
+information in here that is no longer used.
 
 **Important Classes**
 
@@ -64,15 +61,18 @@ these tables are:
 +-----------+---------------+-----------------------------------------------------------------------------------+
 | 4.0.3     | 26 Jun 2024   | Added _FIRMWARE_VERSION                                                           |
 +-----------+---------------+-----------------------------------------------------------------------------------+
+| 4.0.4     | 20 Oct 2024   | Corrected header for fibrechannel-statistics/remote-fec-uncorrected. Use string   |
+|           |               | type for port type and status first, then old numbered types.                     |
++-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Jun 2024'
+__date__ = '20 Oct 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
-__status__ = 'Released'
-__version__ = '4.0.3'
+__status__ = 'Development'
+__version__ = '4.0.4'
 
 import brcdapi.util as brcdapi_util
 
@@ -95,7 +95,7 @@ class Chassis:
         brcdapi_util.bc_vendor_sn: 'Vendor Serial Number',
         brcdapi_util.bc_vendor_rev_num: 'Vendor Revision Number',
         brcdapi_util.bc_product_name: 'Product Name',
-        brcdapi_util.bc_date: 'Date',
+        brcdapi_util.bc_date: 'Data Collected',
         brcdapi_util.bc_enabled: 'Chassis Enabled',
         brcdapi_util.bc_motd: 'Daily Message',
         brcdapi_util.bc_shell_to: 'Shell Timeout',
@@ -198,7 +198,6 @@ class Switch:
         brcdapi_util.bfls_fid: 'Fabric ID (FID)',
         brcdapi_util.bfs_fab_user_name: 'Fabric Name',
         brcdapi_util.bfs_fcid_hex: 'FC ID',
-        # brcdapi_util.bfsw_uri + '/fcid-hex': 'FC ID',
         brcdapi_util.bfsw_uri + '/fcip-address': 'FCIP Address',
         brcdapi_util.bfs_fw_version: 'Firmware Version',
         brcdapi_util.bfsw_uri + '/ip-address': 'Management IPv4 Address',
@@ -207,7 +206,6 @@ class Switch:
         brcdapi_util.bfsw_uri + '/ipv6-address': 'Management IPv6 Address',
         brcdapi_util.bfsw_uri + '/path-count': 'Path Count',
         brcdapi_util.bfs_model: 'Switch Model',
-        # 'brocade-fibrechannel-switch/fibrechannel-switch/name': 'Switch WWN',
         brcdapi_util.bfs_op_status: 'Status',
         # Performance all comes back as a list. Need a custom type for this.
         # 'brocade-fibrechannel-trunk/performance/group': 'Performance Group',
@@ -228,15 +226,18 @@ class Switch:
         brcdapi_util.bfc_portname_mode: 'Port Name Mode',
         brcdapi_util.bfc_area_mode: 'Address (Area) Mode',
         brcdapi_util.bfs_edge_hold: 'Edge-Hold-Time (msec)',
+        brcdapi_util.bf_sw_user_name: 'Switch Name',  # Deprecated
         brcdapi_util.bfs_sw_user_name: 'Switch Name',
-        brcdapi_util.bf_sw_user_name: 'Switch Name',  # Depracated
         brcdapi_util.bfc_up_time: 'Up Time (days)',
         brcdapi_util.bfs_vf_id: 'Virtual Fabric ID (FID)',
-        brcdapi_util.bfs_ag_mode: 'Access Gateway Mode',
+        brcdapi_util.bfs_ag_mode: 'Access Gateway Mode',  # Deprecated
+        brcdapi_util.bfs_ag_mode_str: 'Access Gateway Mode',
+        brcdapi_util.bfs_op_status_str: 'Status',
         brcdapi_util.bfc_max_logins: 'Maximum switch logins',
         brcdapi_util.bfc_max_flogi_rate: 'Maximum FLOGI rate',
         brcdapi_util.bfc_stage_interval: 'F-Port enable rate (msec)',
-        brcdapi_util.bfc_fport_enforce_login: 'Duplicate WWN handling',
+        brcdapi_util.bfc_fport_enforce_login: 'Duplicate WWN handling',  # Deprecated
+        brcdapi_util.bfc_fport_enforce_login_str: 'Duplicate WWN handling',
         brcdapi_util.bfc_free_fdisc: 'Maximum FDISC logins before staging',
         brcdapi_util.bfc_max_flogi_rate_port: 'Maximum FLOGI rate (logins/sec)',
         # Flags
@@ -245,24 +246,24 @@ class Switch:
         brcdapi_util.bfs_principal: 'Fabric Principal',
         brcdapi_util.bfc_port_id_mode: 'Persistent WWN PID Mode',
         brcdapi_util.bfc_idid: 'Insistent Domain ID',
-        # RNID
-        brcdapi_util.ficon_cup_en: 'FICON CUP: Enabled',
-        brcdapi_util.ficon_posc: 'FICON CUP: Programmed Offline State Control',
-        brcdapi_util.ficon_uam: 'FICON CUP: User Alert Mode',
-        brcdapi_util.ficon_asm: 'FICON CUP: Active Equal Saved',
-        brcdapi_util.ficon_dcam: 'FICON CUP: Clock Alert Mode',
-        brcdapi_util.ficon_mihpto: 'FICON CUP: MIHPTO',
-        brcdapi_util.ficon_uam_fru: 'FICON CUP: Unsolicited FRU Alert',
-        brcdapi_util.ficon_uam_hsc: 'FICON CUP: Unsolicited HSC Alert',
-        brcdapi_util.ficon_uam_invalid_attach: 'FICON CUP: Unsolicited Invalid Attach Alert',
-        brcdapi_util.ficon_sw_rnid_flags: 'RNID: Flags',
+        # FICON CUP & RNID
+        brcdapi_util.ficon_cup_en: 'Enabled',
+        brcdapi_util.ficon_posc: 'Programmed Offline State Control',
+        brcdapi_util.ficon_uam: 'User Alert Mode',
+        brcdapi_util.ficon_asm: 'Active Equal Saved',
+        brcdapi_util.ficon_dcam: 'Clock Alert Mode',
+        brcdapi_util.ficon_mihpto: 'MIHPTO',
+        brcdapi_util.ficon_uam_fru: 'Unsolicited FRU Alert',
+        brcdapi_util.ficon_uam_hsc: 'Unsolicited HSC Alert',
+        brcdapi_util.ficon_uam_invalid_attach: 'Unsolicited Invalid Attach Alert',
+        brcdapi_util.ficon_sw_rnid_flags: 'Flags',
         brcdapi_util.ficon_sw_node_params: 'Node Parameters',
-        brcdapi_util.ficon_sw_rnid_type: 'RNID: Type',
-        brcdapi_util.ficon_sw_rnid_model: 'RNID: Model',
-        brcdapi_util.ficon_sw_rnid_mfg: 'RNID: Manufacturer',
-        brcdapi_util.ficon_sw_rnid_pant: 'RNID: Plant',
-        brcdapi_util.ficon_sw_rnid_seq: 'RNID: S/N',
-        brcdapi_util.ficon_sw_rnid_tag: 'RNID: Tag',
+        brcdapi_util.ficon_sw_rnid_type: 'Type',
+        brcdapi_util.ficon_sw_rnid_model: 'Model',
+        brcdapi_util.ficon_sw_rnid_mfg: 'Manufacturer',
+        brcdapi_util.ficon_sw_rnid_pant: 'Plant',
+        brcdapi_util.ficon_sw_rnid_seq: 'S/N',
+        brcdapi_util.ficon_sw_rnid_tag: 'Tag',
         # MAPS
         'brocade-maps/system-resources/memory-usage': 'MAPS System Memory Usage',
         'brocade-maps/dashboard-misc/congestion-db-start-time': 'MAPS Congestion Start Time',
@@ -385,7 +386,7 @@ class Port:
         '_NAME_SERVER_NODE': dict(c=35, d='Name Server Node Symbol'),
         '_NAME_SERVER_PORT': dict(c=35, d='Name Server Port Symbol'),
         '_PORT_COMMENTS': dict(c=26, d='Comments'),
-        '_PORT_NUMBER': dict(c=7, d='Port'),
+        '_PORT_NUMBER': dict(c=8, d='Port'),
         '_CONFIG_LINK': dict(c=8, d='Config'),
         '_STATS_LINK': dict(c=8, d='Stats'),
         '_ZONE_LINK': dict(c=8, d='Zone'),
@@ -394,6 +395,7 @@ class Port:
         '_SWITCH_NAME': dict(c=22, d='Switch Name'),
         '_SWITCH_NAME_AND_WWN': dict(c=22, d='Switch Name'),
         '_SWITCH_WWN': dict(c=22, d='Switch WWN'),
+        '_SWITCH_LINK': dict(c=22, d='Switch Name'),
         '_ZONES_DEF': dict(c=48, d='In Defined Zone(s)'),
         '_ZONES_EFF': dict(c=48, d='In Effective Zone(s)'),
         # Internal
@@ -407,15 +409,15 @@ class Port:
         brcdapi_util.fc_fport_buffers: dict(v=True, c=8, d='F-Port Buffers'),
         brcdapi_util.fc_fcid: dict(c=10, d='FC Address'),  # Deprecated
         brcdapi_util.fc_fcid_hex: dict(c=10, d='FC Address'),
-        brcdapi_util.fc_long_distance: dict(v=True, c=8, d='Long Distance Mode'),
+        brcdapi_util.fc_long_distance: dict(v=True, c=9, d='Long Distance Mode'),
         brcdapi_util.fc_los_tov: dict(v=True, c=12, d='LOS_TOV Mode'),
         brcdapi_util.fc_neighbor: dict(v=True, c=12, d='Neighbor port WWN'),
         brcdapi_util.fc_neighbor_node_wwn: dict(v=True, c=12, d='Neighbor node WWN'),
         brcdapi_util.fc_npiv_pp_limit: dict(v=True, c=6, d='NPIV Limit'),
-        brcdapi_util.fc_speed_combo: dict(c=20, d='Speed Combo'),
-        brcdapi_util.fc_op_status: dict(c=10, d='Status'),
+        brcdapi_util.fc_speed_combo: dict(c=23, d='Speed Combo'),
+        brcdapi_util.fc_op_status_str: dict(c=10, d='Status'),
         brcdapi_util.fc_state: dict(c=11, d='State'),
-        brcdapi_util.fc_port_type: dict(c=7, d='Port Type'),
+        brcdapi_util.fc_port_type_str: dict(c=9, d='Port Type'),
         brcdapi_util.fc_rate_limited_en: dict(v=True, c=8, d='Rate Limit'),
         brcdapi_util.fc_speed: dict(v=True, c=6, d='Login Speed Gbps'),
         brcdapi_util.fc_max_speed: dict(v=True, c=6, d='Max Speed Gbps'),
@@ -463,7 +465,7 @@ class Port:
         'fibrechannel/npiv-flogi-logout-enabled': dict(v=True, m=True, c=5, d='NPIV FLOGI Logout Enabled'),
         'fibrechannel/path-count': dict(v=True, m=True, c=5, d='Path Count'),
         'fibrechannel/persistent-disable': dict(v=True, m=True, c=5, d='Persistent Disable'),
-        'fibrechannel/port-autodisable-enabled': dict(v=True, m=True, c=5, d='Autodisable Enabled'),
+        'fibrechannel/port-autodisable-enabled': dict(v=True, m=True, c=5, d='Auto-disable Enabled'),
         'fibrechannel/qos-enabled': dict(v=True, m=True, c=5, d='QoS Enabled'),
         'fibrechannel/rscn-suppression-enabled': dict(v=True, m=True, c=5, d='RSCN Suppression Enabled'),
         'fibrechannel/target-driven-zoning-enable': dict(v=True, m=True, c=5, d='Target Driven Zoning Enabled'),
@@ -533,7 +535,7 @@ class Port:
         brcdapi_util.stats_time: dict(c=24, d='Time Generated'),
         brcdapi_util.stats_rdy: dict(v=True, c=8, d='To Many RDYs'),
         brcdapi_util.stats_tunc: dict(v=True, c=8, d='Truncated Frames'),
-        'fibrechannel-statistics/remote-fec-uncorrected': dict(v=True, c=8, d='Truncated Frames'),
+        'fibrechannel-statistics/remote-fec-uncorrected': dict(v=True, c=8, d='Remote FEC Uncorrected'),
         brcdapi_util.stats_fpr: dict(v=True, c=8, d='Frames Processing Required'),
         brcdapi_util.stats_to: dict(v=True, c=8, d='Frames Timed Out'),
         brcdapi_util.stats_trans: dict(v=True, c=8, d='Tx Unavailable Errors'),
@@ -604,16 +606,16 @@ class Port:
 
     port_config_tbl = (
         '_PORT_COMMENTS',
-        '_SWITCH_NAME',
+        '_SWITCH_LINK',
         '_PORT_NUMBER',
         brcdapi_util.fc_index,
         brcdapi_util.fc_user_name,
         '_ALIAS',
         brcdapi_util.fc_fcid_hex,
-        brcdapi_util.fc_port_type,
+        brcdapi_util.fc_port_type_str,
         brcdapi_util.sfp_wave,
         brcdapi_util.fc_enabled,
-        brcdapi_util.fc_op_status,
+        brcdapi_util.fc_op_status_str,
         brcdapi_util.fc_state,
         brcdapi_util.fc_chip_instance,
         '_BEST_DESC',
@@ -663,14 +665,14 @@ class Port:
     # Similar to port_config_tbl but for the port statistics page. From brocade-interface/fibrechannel-statistics
     port_stats_tbl = (
         '_PORT_COMMENTS',
-        '_SWITCH_NAME',
+        '_SWITCH_LINK',
         '_PORT_NUMBER',
         brcdapi_util.fc_fcid_hex,
-        brcdapi_util.fc_port_type,
+        brcdapi_util.fc_port_type_str,
         '_ALIAS',
         '_BEST_DESC',
         brcdapi_util.fc_enabled,
-        brcdapi_util.fc_op_status,
+        brcdapi_util.fc_op_status_str,
         brcdapi_util.stats_time,
         'fibrechannel-statistics/sampling-interval',
         brcdapi_util.stats_addr,
@@ -729,7 +731,7 @@ class Port:
         'fibrechannel-statistics/pcs-block-errors',
         brcdapi_util.stats_seq,
         'fibrechannel-statistics/remote-primitive-sequence-protocol-error',
-        # 'fibrechannel-statistics/reset-statistics', # This is write only. Here for negative testing purposes only.
+        # 'fibrechannel-statistics/reset-statistics', # Here for negative testing purposes only.
         brcdapi_util.stats_rdy,
         brcdapi_util.stats_tunc,
         brcdapi_util.stats_fpr,
@@ -809,11 +811,11 @@ class Port:
     )
     port_sfp_tbl = (
         '_PORT_COMMENTS',
-        '_SWITCH_NAME',
+        '_SWITCH_LINK',
         '_PORT_NUMBER',
         brcdapi_util.fc_fcid_hex,
-        brcdapi_util.fc_port_type,
-        brcdapi_util.fc_op_status,
+        brcdapi_util.fc_port_type_str,
+        brcdapi_util.fc_op_status_str,
         '_ALIAS',
         '_BEST_DESC',
         brcdapi_util.sfp_sn,
@@ -850,14 +852,14 @@ class Port:
     )
     port_rnid_tbl = (
         '_PORT_COMMENTS',
-        '_SWITCH_NAME',
+        '_SWITCH_LINK',
         '_PORT_NUMBER',
         brcdapi_util.fc_index,
         brcdapi_util.fc_fcid_hex,
         '_ALIAS',
         '_BEST_DESC',
-        brcdapi_util.fc_op_status,
-        brcdapi_util.fc_port_type,
+        brcdapi_util.fc_op_status_str,
+        brcdapi_util.fc_port_type_str,
         'rnid/format',
         'rnid/flags',
         'rnid/node-parameters',
@@ -870,9 +872,9 @@ class Port:
     )
     port_zone_tbl = (
         '_PORT_COMMENTS',
-        '_SWITCH_NAME',
+        '_SWITCH_LINK',
         '_PORT_NUMBER',
-        brcdapi_util.fc_op_status,
+        brcdapi_util.fc_op_status_str,
         brcdapi_util.fc_speed,
         '_LOGIN_ADDR',
         '_LOGIN_WWN',
@@ -941,7 +943,7 @@ class Login:
         'brocade-name-server/fibrechannel-name-server/port-name': dict(v=False, c=22, d='Login WWN'),
         'brocade-name-server/fibrechannel-name-server/port-properties': dict(v=False, c=12, d='Port properties'),
         'brocade-name-server/fibrechannel-name-server/port-symbolic-name': dict(v=False, c=35, d='Port Symbol'),
-        'brocade-name-server/fibrechannel-name-server/port-type': dict(v=False, c=7, d='Port Type'),
+        'brocade-name-server/fibrechannel-name-server/port-type': dict(v=False, c=8.5, d='Port Type'),
         'brocade-name-server/fibrechannel-name-server/state-change-registration': dict(v=False, c=30,
                                                                                        d='State Change Registration'),
 
