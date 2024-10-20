@@ -3,6 +3,10 @@
 Consoli Solutions, LLC
 jack@consoli-solutions.com
 
+**Update 20 Oct 2024**
+
+Primary changes were to support the new chassis and report pages.
+
 **Updates 6 March 2024**
 
 * Miscellaneous bug fixes
