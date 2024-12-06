@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -23,6 +23,8 @@ details.
 +-----------------------+-------------------------------------------------------------------------------------------+
 | alias_page            | Creates a port detail worksheet for the Excel report.                                     |
 +-----------------------+-------------------------------------------------------------------------------------------+
+| group_zone_page       | Creates a zone group detail worksheet for the Excel report.                               |
++-----------------------+-------------------------------------------------------------------------------------------+
 | target_zone_page      | Creates a target zone detail worksheet for the Excel report.                              |
 +-----------------------+-------------------------------------------------------------------------------------------+
 | non_target_zone_page  | Creates a non-target zone detail worksheet for the Excel report.                          |
@@ -39,25 +41,30 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 15 May 2024   | Added port name to zone groups                                                        |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 06 Dec 2024   | Added mainframe groups to group_zone_page().                                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '15 May 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import collections
 import openpyxl.utils.cell as xl
+import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
 import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_switch as brcddb_switch
+import brcddb.brcddb_port as brcddb_port
 import brcddb.brcddb_zone as brcddb_zone
 import brcddb.brcddb_login as brcddb_login
+import brcddb.util.iocp as brcddb_iocp
 import brcddb.app_data.alert_tables as al
 import brcddb.util.search as brcddb_search
 import brcddb.util.util as brcddb_util
@@ -66,17 +73,16 @@ import brcddb.classes.util as brcddb_class_util
 
 UNGROUPED_TARGET = 'ungrouped_target_d'
 UNGROUPED_INITIATOR = 'ungrouped_initiator_d'
+MISSING_CPU = 'missing_cpu'  # Mainframe CPUs found in SAN but no IOCP was provided for it.
 
 _std_font = excel_fonts.font_type('std')
 _bold_font = excel_fonts.font_type('bold')
 _link_font = excel_fonts.font_type('link')
-_italic_font = excel_fonts.font_type('italic')
 _hdr2_font = excel_fonts.font_type('hdr_2')
 _hdr1_font = excel_fonts.font_type('hdr_1')
 _align_wrap = excel_fonts.align_type('wrap')
 _align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
 _align_wrap_c = excel_fonts.align_type('wrap_center')
-_align_wrap_r = excel_fonts.align_type('wrap_right')
 _border_thin = excel_fonts.border_type('thin')
 _lightblue_fill = excel_fonts.fill_type('lightblue')
 
@@ -104,8 +110,6 @@ def _null_case(obj, p0=None, p1=None, p2=None):
 #              Case methods for hdr in zone_page()
 #
 ##################################################################
-
-
 def _zone_effective_case(obj):
     return '\u221A' if obj.r_is_effective() else ''
 
@@ -185,53 +189,113 @@ def _mem_desc_case(obj, mem, wwn, port_obj, obj_l=None):
     return brcddb_login.login_best_port_desc(obj.r_fabric_obj().r_login_obj(t_wwn))
 
 
-def _alias_case(obj, mem, wwn, port_obj, obj_l=None):
-    try:
-        return obj.r_fabric_obj().r_alias_for_wwn(wwn)[0]
-    except (AttributeError, IndexError):
-        pass
-    return ''
-
-
-def _zone_list_case(obj, mem, wwn, port_obj, obj_l=None):
-    return ', '.join(gen_util.convert_to_list(obj_l))
+#################################################################################
+#                                                                               #
+#                    Case methods for the group page                            #
+#                                                                               #
+#    _zone_group_hdr_d, _zone_group_hdr_add_d, _zone_group_hdr_login_d          #
+# _mf_zone_group_hdr_d, _mf_zone_group_hdr_add_d, _mf_zone_group_hdr_login_d    #
+#                                                                               #
+#################################################################################
+def _group_null_case(obj, mem, wwn, port_obj, obj_l=None):
+    return None, None
 
 
 def _group_case(obj, mem, wwn, port_obj, obj_l=None):
-    return '\u221A'
+    return '\u221A', None
 
 
 def _group_comment_case(obj, mem, wwn, port_obj, obj_l=None):
     l_port_obj = None if obj is None else obj.r_port_obj()
-    return '' if l_port_obj is None else report_utils.combined_alerts(l_port_obj, wwn)
+    return None if l_port_obj is None else report_utils.combined_alerts(l_port_obj, wwn), None
 
 
 def _group_desc_case(obj, mem, wwn, port_obj, obj_l=None):
-    return brcddb_login.login_best_node_desc(obj)
+    return brcddb_port.port_best_desc(port_obj), None
 
 
-def _login_port_case(obj, mem, wwn, port_obj, obj_l=None):
-    l_port_obj = None if obj is None else obj.r_port_obj()
-    return '' if l_port_obj is None else l_port_obj.r_obj_key()
+def _group_desc_add_login_case(obj, mem, wwn, port_obj, obj_l=None):
+    return brcddb_login.login_best_node_desc(obj), None
 
 
-def _login_portname_case(obj, mem, wwn, port_obj, obj_l=None):
-    l_port_obj = None if obj is None else obj.r_port_obj()
-    return '' if l_port_obj is None else l_port_obj.r_port_name()
+def _mf_group_desc_add_login_case(obj, mem, wwn, port_obj, obj_l=None):
+    return brcddb_port.port_best_desc(port_obj), None
 
 
-def _zoned_to_port_case(obj, mem, wwn, port_obj, obj_l=None):
+def _group_login_port_case(obj, mem, wwn, port_obj, obj_l=None):
+    buf, link = None, None
+    if obj is not None:
+        l_port_obj = obj.r_port_obj()
+        if l_port_obj is not None:
+            buf = l_port_obj.r_obj_key()
+            link = l_port_obj.r_get('report_app/hyperlink/pl')
+    return buf, link
+
+
+def _group_login_portname_case(obj, mem, wwn, port_obj, obj_l=None):
+    return brcddb_port.best_port_name(port_obj), None
+
+
+def _group_zoned_to_port_case(obj, mem, wwn, port_obj, obj_l=None):
     fab_obj = None if port_obj is None else port_obj.r_fabric_obj()
-    return 0 if fab_obj is None else len(brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True))
+    return 0 if fab_obj is None else len(brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True)), None
 
 
-def _login_speed_case(obj, mem, wwn, port_obj, obj_l=None):
+def _group_paths_to_port_case(obj, mem, wwn, port_obj, obj_l=None):
+    """ Mainframe equivalent to _group_zoned_to_port_case() """
+    return len(port_obj.r_get('report_app/chpid_paths', list())), None
+
+
+def _group_login_speed_case(obj, mem, wwn, port_obj, obj_l=None):
     l_port_obj = None if obj is None else obj.r_port_obj()
-    return '' if l_port_obj is None else l_port_obj.r_get('cs_search/speed')
+    return None if l_port_obj is None else l_port_obj.r_get('cs_search/speed'), None
 
 
-def _login_switch_case(obj, mem, wwn, port_obj, obj_l=None):
-    return '' if obj is None else brcddb_switch.best_switch_name(obj.r_switch_obj())
+def _group_login_switch_case(obj, mem, wwn, port_obj, obj_l=None):
+    buf, link = None, None
+    if obj is not None:
+        switch_obj = obj.r_switch_obj()
+        if switch_obj is not None:
+            buf = brcddb_switch.best_switch_name(obj.r_switch_obj())
+            link = switch_obj.r_get('report_app/hyperlink/switch')
+    return buf, link
+
+
+def _group_mem_member_wwn_case(obj, mem, wwn, port_obj, obj_l=None):
+    return _mem_member_wwn_case(obj, mem, wwn, port_obj, obj_l=obj_l), None
+
+
+def _group_fc_addr_case(obj, mem, wwn, port_obj, obj_l=None):
+    """Returns the FC address. See _null_case() for parameter definitions"""
+    return None if port_obj is None else port_obj.r_get(brcdapi_util.fc_fcid_hex), None
+
+
+def _group_mem_tx_case(obj, mem, wwn, port_obj, obj_l=None):
+    """Returns the number of in-frames. See _null_case() for parameter definitions"""
+    return None if obj is None else port_obj.r_get(brcdapi_util.stats_out_frames), None
+
+
+def _group_mem_rx_case(obj, mem, wwn, port_obj, obj_l=None):
+    """Returns the number or out-frames. See _null_case() for parameter definitions"""
+    return None if port_obj is None else port_obj.r_get(brcdapi_util.stats_in_frames), None
+
+
+def _group_alias_case(obj, mem, wwn, port_obj, obj_l=None):
+    buf = None
+    if obj is not None:
+        fabric_obj = None, obj.r_fabric_obj()
+        try:
+            buf = fabric_obj.r_alias_for_wwn(wwn)[0]
+        except (AttributeError, IndexError):
+            try:
+                buf = fabric_obj.r_alias_obj_for_di(port_obj.r_did(), port_obj.r_index)[0]
+            except (AttributeError, IndexError):
+                buf = None
+    return buf, None
+
+
+def _group_zone_list_case(obj, mem, wwn, port_obj, obj_l=None):
+    return ', '.join(gen_util.convert_to_list(obj_l)), None
 
 
 """
@@ -239,15 +303,15 @@ _zone_hdr & _zone_group_hdr_d: Key is the column header. Value is a dict as foll
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | Key   | Type      | Description                                                                                   |
 +=======+===========+===============================================================================================+
+| a     | ?         | Alignment type. If not specified, _align_wrap is assumed.                                     |
++-------+-----------+-----------------------------------------------------------------------------------------------+
 | c     | int       | Column width                                                                                  |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| z     | method    | Case method to fill in the cell for basic zone information                                    |
+| g     | bool      | When True, fill in the cell for the group port.                                               |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | m     | method    | Case method to fill the cell for member information                                           |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| v     | bool      | True - display centered in column. Headers vertical, Otherwise, use default wrap alignment    |
-+-------+-----------+-----------------------------------------------------------------------------------------------+
-| g     | bool      | When True, fill in the cell for the group port.                                               |
+| z     | method    | Case method to fill in the cell for basic zone information                                    |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | zg    | bool      | Same as 'g' except this is used for what is zoned to the group port.                          | 
 +-------+-----------+-----------------------------------------------------------------------------------------------+
@@ -255,10 +319,10 @@ _zone_hdr & _zone_group_hdr_d: Key is the column header. Value is a dict as foll
 _zone_hdr = collections.OrderedDict({
     'Comments': dict(c=30, z=_comment_case, m=_mem_comment_case),
     'Zone': dict(c=22, z=_name_case, m=_null_case),
-    'Effective': dict(c=5, v=True, z=_zone_effective_case, m=_null_case),
-    'Peer': dict(c=5, v=True, z=_zone_peer_case, m=_null_case),
-    'Target Driven': dict(c=5, v=True, z=_zone_target_case, m=_null_case),
-    'Principal': dict(c=5, v=True, z=_null_case, m=_mem_principal_case),
+    'Effective': dict(c=5, a=_align_wrap_c, z=_zone_effective_case, m=_null_case),
+    'Peer': dict(c=5, a=_align_wrap_c, z=_zone_peer_case, m=_null_case),
+    'Target Driven': dict(c=5, a=_align_wrap_c, z=_zone_target_case, m=_null_case),
+    'Principal': dict(c=5, a=_align_wrap_c, z=_null_case, m=_mem_principal_case),
     'Configurations': dict(c=22, z=_zone_cfg_case, m=_null_case),
     'Member': dict(c=48, z=_zone_member_case, m=_mem_member_case),
     'Member WWN': dict(c=22, z=_zone_member_wwn_case, m=_mem_member_wwn_case),
@@ -267,19 +331,64 @@ _zone_hdr = collections.OrderedDict({
     'Speed Gbps': dict(c=7, z=_null_case, m=_mem_speed_case),
     'Description': dict(c=50, z=_null_case, m=_mem_desc_case)
 })
-_zone_group_hdr_d = collections.OrderedDict({  # Same format as _zone_hdr
-    'Group': dict(c=9, z=_null_case, m=_group_case, g=True, v=True),
-    'Comments': dict(c=30, z=_null_case, m=_group_comment_case, g=True, zg=True),
-    'Switch': dict(c=30, z=_null_case, m=_login_switch_case, g=True, zg=True),
-    'Port': dict(c=8, z=_null_case, m=_login_port_case, g=True, zg=True),
-    'Port Name': dict(c=32, z=_null_case, m=_login_portname_case, g=True, zg=True),
-    'Zoned To': dict(c=8, z=_null_case, m=_zoned_to_port_case, g=True, zg=False),
-    'Speed Gbps': dict(c=8, z=_null_case, m=_login_speed_case, g=True, zg=True),
-    'WWN': dict(c=23, z=_null_case, m=_mem_member_wwn_case, g=True, zg=True),
-    'Alias': dict(c=38, z=_null_case, m=_alias_case, g=True, zg=True),
-    'Description': dict(c=40, z=_null_case, m=_group_desc_case, g=True, zg=True),
-    'Common Zone': dict(c=38, z=_null_case, m=_zone_list_case, zg=True),
+
+# Group headers. The code uses different dictionaries for determining headers and content. At the time this was written,
+# the only difference was the "Zoned To" content. Creating seperate dictionaries was intended to simplify customizing
+# mainframe displays in the future.
+_zone_group_hdr_d = collections.OrderedDict({  # Same format as _zone_hdr. Use for first login for the group
+    'Group': dict(c=9, m=_group_case, a=_align_wrap_c),
+    'Comments': dict(c=30, m=_group_comment_case),
+    'Switch': dict(c=30, m=_group_login_switch_case),
+    'Port': dict(c=8, m=_group_login_port_case),
+    'Port Name': dict(c=32, m=_group_login_portname_case),
+    'Zoned To': dict(c=8, m=_group_zoned_to_port_case),
+    'Speed Gbps': dict(c=8, m=_group_login_speed_case),
+    'FC Addr': dict(c=10, m=_group_fc_addr_case),
+    'Tx Frames': dict(c=15, m=_group_mem_tx_case, f='#,###'),
+    'Rx Frames': dict(c=15, m=_group_mem_rx_case, f='#,###'),
+    'WWN': dict(c=23, m=_group_mem_member_wwn_case),
+    'Alias': dict(c=38, m=_group_alias_case),
+    'Description': dict(c=40, m=_group_desc_case),
+    'Common Zone': dict(c=38, m=_group_zone_list_case),
 })
+_mf_zone_group_hdr_d = _zone_group_hdr_d.copy()
+_mf_zone_group_hdr_d['Zoned To']['m'] = _group_paths_to_port_case
+_zone_group_hdr_add_d = collections.OrderedDict({  # Used for additional logins for the group port
+    'Group': dict(m=_group_case, a=_align_wrap_c),
+    'Comments': dict(m=_group_comment_case),
+    'Switch': dict(m=_group_login_switch_case),
+    'Port': dict(m=_group_login_port_case),
+    'Port Name': dict(m=_group_login_portname_case),
+    'Zoned To': dict(m=_group_zoned_to_port_case),
+    'Speed Gbps': dict(m=_group_login_speed_case),
+    'FC Addr': dict(m=_group_fc_addr_case),
+    'Tx Frames': dict(m=_group_mem_tx_case, f='#,###'),
+    'Rx Frames': dict(m=_group_mem_rx_case, f='#,###'),
+    'WWN': dict(m=_group_mem_member_wwn_case),
+    'Alias': dict(m=_group_alias_case),
+    'Description': dict(m=_group_desc_case),
+    'Common Zone': dict(m=_group_zone_list_case),
+})
+_mf_zone_group_hdr_add_d = _zone_group_hdr_add_d.copy()  # FICON doesn't support NPIV, so this is just future proofing
+_mf_zone_group_hdr_add_d['Zoned To']['m'] = _group_paths_to_port_case
+_zone_group_hdr_login_d = collections.OrderedDict({  # Used for ports zoned to the group
+    'Group': dict(m=_group_null_case),
+    'Comments': dict(m=_group_comment_case),
+    'Switch': dict(m=_group_login_switch_case),
+    'Port': dict(m=_group_login_port_case),
+    'Port Name': dict(m=_group_login_portname_case),
+    'Zoned To': dict(m=_group_null_case),
+    'Speed Gbps': dict(m=_group_login_speed_case),
+    'FC Addr': dict(m=_group_fc_addr_case),
+    'Tx Frames': dict(m=_group_mem_tx_case, f='#,###'),
+    'Rx Frames': dict(m=_group_mem_rx_case, f='#,###'),
+    'WWN': dict(m=_group_mem_member_wwn_case),
+    'Alias': dict(m=_group_alias_case),
+    'Description': dict(m=_group_desc_add_login_case),
+    'Common Zone': dict(m=_group_zone_list_case),
+})
+_mf_zone_group_hdr_login_d = _zone_group_hdr_login_d.copy()
+_mf_zone_group_hdr_login_d['Description']['m'] = _mf_group_desc_add_login_case
 
 
 def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
@@ -809,8 +918,9 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
     See comments with target_zone_page() for additional notes and input parameter definitions.
     """
-    global _zone_group_hdr_d, _std_font, _bold_font, _italic_font, _align_wrap, _border_thin, _lightblue_fill
-    global _align_wrap_c, _align_wrap_r, UNGROUPED_TARGET, UNGROUPED_INITIATOR
+    global _zone_group_hdr_d, _std_font, _bold_font, _align_wrap, _border_thin, _lightblue_fill
+    global _align_wrap_c, UNGROUPED_TARGET, UNGROUPED_INITIATOR, _zone_group_hdr_login_dm, MISSING_CPU
+    global _mf_zone_group_hdr_d, _mf_zone_group_hdr_login_d, _zone_group_hdr_add_d, _mf_zone_group_hdr_add_d
 
     # Create the worksheet, add the headers, and set up the column widths
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
@@ -825,37 +935,35 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     sheet.merge_cells(start_row=row, start_column=2, end_row=row, end_column=len(_zone_group_hdr_d))
     row, col = row+1, 2
     sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_zone_group_hdr_d))
-    excel_util.cell_update(sheet,
-                           row,
-                           col,
-                           'Port in group is highlighted and followed by all that is online and zoned to that port',
-                           font=_std_font,
-                           align=_align_wrap,
-                           border=_border_thin)
-    row, col = row+1, 1
+    buf = 'Ports in the group are highlighted in bold font and followed by all that is online and zoned to that port. '\
+          'Groups for mainframes are auto-generated based on RNID data. The "zoned to" ports are determined by the '\
+          'IOCP instead of fabric zoning. If IOCPs were not supplied, there won\'t be any "zoned to" ports to display'
+    excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
+    row, col = row + 1, 1
     sheet.freeze_panes = sheet['A4']
     for k, d in _zone_group_hdr_d.items():
         sheet.column_dimensions[xl.get_column_letter(col)].width = d['c']
         excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=_align_wrap, border=_border_thin)
         col += 1
+    row += 2
 
-    # This list is to ensure the ungrouped targets and initiators come after all the groups
     zone_group_d = proj_obj.r_get('report_app/group_d')
     if not isinstance(zone_group_d, dict):
         return
-    last_group_d = {UNGROUPED_TARGET: True, UNGROUPED_INITIATOR: True}
-    zone_group_l = [k for k in zone_group_d.keys() if not bool(last_group_d.get(k))]
-    zone_group_l.extend(last_group_d.keys())
 
     # Add each group
-    for group_name in zone_group_l:
-        group_d = zone_group_d[group_name]
-        group_obj_l = brcddb_util.sort_ports(group_d['port_obj_l'])  # List of port objects in the zone group
-        row, col = row+2, 1
+    for group_name, group_d in zone_group_d.items():
 
-        # The group name
+        if group_name == MISSING_CPU:
+            continue  # Missing mainframe CPUs is handled as a special case at the end of this loop
+
+        group_obj_l = brcddb_util.sort_ports(group_d['port_obj_l'])  # List of port objects in the zone group
+        col = 1
+
+        # Add the group name to the worksheet
         excel_util.cell_update(sheet, row, col, group_name, fill=_lightblue_fill, font=_bold_font, border=_border_thin)
         sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(_zone_group_hdr_d))
+        row += 1
 
         # A common use for groups is to define storage enclosures. It's also common to put all the storage in the same
         # zone. This means the same WWNs can appear in multiple places. zone_d is used to ensure each group member is
@@ -865,45 +973,124 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
             for login_obj in port_obj.r_login_objects():
                 zone_d.update({login_obj.r_obj_key(): True})
 
-        # Each port in the zone group
+        # Add each port in the zone group to the worksheet
         for port_obj in group_obj_l:
-            # Information about the logins for this port.
+
+            # Make sure we have a valid fabric object
             fab_obj = port_obj.r_fabric_obj()
             if fab_obj is None:
-                # I can't think of a way for fab_obj to be None here so this is just in case I'm overlooking something
-                continue
+                continue  # There was a partial data collection with mainframe or AS/400 connections if we get here.
 
-            # The logins for this port - typically just one
-            for login_obj in port_obj.r_login_objects():
-                row, col, wwn = row+1, 1, login_obj.r_obj_key()
-                for d in _zone_group_hdr_d.values():
-                    excel_util.cell_update(sheet,
-                                           row,
-                                           col,
-                                           d['m'](login_obj, None, wwn, port_obj) if bool(d.get('g')) else '',
-                                           font=_bold_font,
-                                           border=_border_thin,
-                                           align=_align_wrap_c if bool(d.get('v')) else _align_wrap)
-                    col += 1
+            # Is it open or mainframe?
+            if isinstance(group_d.get('mf_group'), str):
+                hdr_d, add_hdr_d, sub_hdr_d = _mf_zone_group_hdr_d, _mf_zone_group_hdr_add_d, _mf_zone_group_hdr_login_d
+            else:
+                hdr_d, add_hdr_d, sub_hdr_d = _zone_group_hdr_d, _zone_group_hdr_add_d, _zone_group_hdr_login_d
 
-            # The logins zoned to this port
-            if bool(last_group_d.get(group_name)):
-                continue
-            for lwwn, zl in brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True).items():
-                lz_obj = fab_obj.r_login_obj(lwwn)
-                if lz_obj is None:
-                    continue  # The corresponding device may not be logged in
-
-                row, col = row+1, 1
-                for d in _zone_group_hdr_d.values():
-                    buf = d['m'](lz_obj, None, lwwn, port_obj, zl) if bool(d.get('zg')) else ''
+            # Fill in the cells for this port.
+            try:
+                col = 1
+                login_obj = port_obj.r_login_objects()[0] if len(port_obj.r_login_objects()) > 0 else None
+                wwn = None if login_obj is None else login_obj.r_obj_key()
+                for d in hdr_d.values():
+                    buf, link = d['m'](login_obj, None, wwn, port_obj)
                     excel_util.cell_update(sheet,
                                            row,
                                            col,
                                            buf,
-                                           font=_std_font,
+                                           font=_bold_font if link is None else _link_font,
                                            border=_border_thin,
-                                           align=_align_wrap_c if bool(d.get('v')) else _align_wrap)
+                                           align=d.get('a', _align_wrap),
+                                           link=link,
+                                           number_format=d.get('f'))
                     col += 1
+                row += 1
+
+                # Fill in any additional logins for this port
+                for login_obj in port_obj.r_login_objects()[1:]:
+
+                    col, wwn = 1, login_obj.r_obj_key()
+                    for d in add_hdr_d.values():
+                        buf, link = d['m'](login_obj, None, wwn, port_obj)
+                        excel_util.cell_update(sheet,
+                                               row,
+                                               col,
+                                               buf,
+                                               font=_bold_font if link is None else _link_font,
+                                               border=_border_thin,
+                                               align=d.get('a', _align_wrap),
+                                               link=link,
+                                               number_format=d.get('f'))
+                        col += 1
+                    row += 1
+            except (IndexError):
+                pass
+
+            # No need to list what's zoned to ungrouped targets or initiators
+            if group_name == UNGROUPED_TARGET or group_name == UNGROUPED_INITIATOR or group_name == MISSING_CPU:
+                continue
+
+            if isinstance(group_d.get('mf_group'), str):
+                # Add the channel paths to the port at this link address. The mainframe equivalent to zoning.
+                for chpid_port_obj in port_obj.r_get('report_app/chpid_paths'):
+                    col = 1
+                    for d in sub_hdr_d.values():
+                        lwwn = None
+                        try:
+                            lwwn = chpid_port_obj.r_get(brcdapi_util.fc_neighbor_wwn)[0]
+                        except(IndexError, TypeError):
+                            brcdapi_log.exception('No login data for CHPID port.', echo=True)
+                        buf, link = d['m'](chpid_port_obj, None, lwwn, chpid_port_obj)
+                        excel_util.cell_update(sheet,
+                                               row,
+                                               col,
+                                               buf,
+                                               font=_std_font  if link is None else _link_font,
+                                               border=_border_thin,
+                                               align=d.get('a', _align_wrap),
+                                               link=link,
+                                               number_format=d.get('f'))
+                        col += 1
+                    row += 1
+
+            else:
+                # Add what's ever zoned to this device
+                for lwwn, zl in brcddb_zone.eff_zoned_to_wwn(fab_obj, wwn, all_types=True).items():
+                    lz_obj = fab_obj.r_login_obj(lwwn)
+                    if lz_obj is None:
+                        continue  # The corresponding device may not be logged in
+
+                    col = 1
+                    for d in sub_hdr_d.values():
+                        buf, link = d['m'](lz_obj, None, lwwn, port_obj, zl)
+                        excel_util.cell_update(sheet,
+                                               row,
+                                               col,
+                                               buf,
+                                               font=_std_font  if link is None else _link_font,
+                                               border=_border_thin,
+                                               align=d.get('a', _align_wrap),
+                                               link=link,
+                                               number_format=d.get('f'))
+                        col += 1
+                    row += 1
 
         row += 1
+
+    missing_cpu_l = zone_group_d.get(MISSING_CPU, dict()).get('port_obj_l', list())
+    if isinstance(missing_cpu_l, list) and len(missing_cpu_l) > 0:
+        row, col = row + 1, 1
+        buf = 'Missing IOCPs for the following CECs:'
+        excel_util.cell_update(sheet, row, col, buf, fill=_lightblue_fill, font=_bold_font, border=_border_thin)
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(_zone_group_hdr_d))
+        for rnid_d in [port_obj.r_get('rnid') for port_obj in missing_cpu_l]:
+            buf_l = [
+                'Mfg: ' + rnid_d.get('manufacturer', ''),
+                'Model: ' + rnid_d.get('model-number', ''),
+                'S/N:   ' + rnid_d.get('sequence-number', ''),
+                'Tag:   ' + rnid_d.get('tag', ''),
+                'Type:  ' + brcddb_iocp.dev_type_desc(rnid_d.get('type-number')),
+                'First found port: ' + brcddb_switch.best_switch_name(port_obj.r_switch_obj()) + port_obj.r_obj_key()
+            ]
+            buf = ', '.join(buf_l)
+            excel_util.cell_update(sheet, row, col, buf, font=_std_font, border=_border_thin, align= _align_wrap)

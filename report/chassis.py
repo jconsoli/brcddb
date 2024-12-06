@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -39,15 +39,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 20 Oct 2024   | Added hidden chassis port page, chassis_hidden_port_page()                            |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 06 Dec 2024   | Added entitlement S/N to chassis report.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import collections
 import copy
@@ -66,6 +68,7 @@ import brcddb.report.utils as report_utils
 import brcddb.app_data.alert_tables as al
 import brcddb.classes.alert as alert_class
 import brcddb.util.obj_convert as obj_convert
+import brcddb.util.iocp as brcddb_iocp
 
 _std_font = excel_fonts.font_type('std')
 _bold_font = excel_fonts.font_type('bold')
@@ -293,6 +296,17 @@ def _insert_port(chassis_obj, port_obj, span):
         'Status: ' + status,
         'Switch: ' + brcddb_switch.best_switch_name(port_obj.r_switch_obj(), fid=True),
     ]
+    rnid_d = port_obj.r_get('rnid')
+    if isinstance(rnid_d, dict):
+        comment_l.extend([
+            'RNID:',
+            ' Mfg:   ' + rnid_d.get('manufacturer', ''),
+            ' Model: ' + rnid_d.get('model-number', ''),
+            ' S/N:   ' + rnid_d.get('sequence-number', ''),
+            ' Tag:   ' + rnid_d.get('tag', ''),
+            ' Type:  ' + brcddb_iocp.dev_type_desc(rnid_d.get('type-number')),
+            ' Link Addr: ' + port_obj.r_get(brcdapi_util.fc_fcid_hex, 'Unknown').replace('0x', '')[:4].upper()
+        ])
     fabric_obj = port_obj.r_fabric_obj()
     login_l = [' ' + brcddb_login.best_login_name(fabric_obj, obj.r_obj_key()) for obj in port_obj.r_login_objects()]
     comment_l.extend(['Logins: None'] if len(login_l) == 0 else ['Logins:'] + login_l)
@@ -552,6 +566,7 @@ _contents = [  # Search for **add_contents()** in brcddb.report.utils for an exp
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_org_reg_date)],
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_pn)],
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_serial_num)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_support_sn)],
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_max_blades)],
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_vendor_pn)],
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_vendor_sn)],
@@ -888,7 +903,7 @@ def chassis_page(wb, tc, sheet_name, sheet_i, chassis_obj):
     """Creates a chassis detail worksheet for the Excel report.
 
     :param wb: Workbook object
-    :type wb: class
+    :type wb: openpyxl.workbook.workbook.Workbook
     :param tc: Table of context page. A link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
@@ -962,7 +977,7 @@ def chassis_hidden_port_page(wb, sheet_name, sheet_i, chassis_obj):
     """Adds the hidden chassis port page which is used for port conditional highlighting
 
     :param wb: Workbook object
-    :type wb: openpyxl.Workbook
+    :type wb: openpyxl.workbook.workbook.Workbook
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
     :param sheet_i: Location for this sheet.
