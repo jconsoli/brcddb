@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -27,15 +27,17 @@ Defines the port object, PortObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 20 Oct 2024   | Added default value to r_get() and r_alert_obj()                                      |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 06 Dec 2024   | Added r_did()                                                                         |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -630,6 +632,18 @@ class PortObj:
         :rtype: str, None
         """
         return self.r_get(brcdapi_util.fc_fcid_hex)
+
+    def r_did(self, hex=False):
+        """Returns the domain ID, in decimal
+        :param hex: If True, return the DID in hex.
+        :return: Domain ID as an int if hex is False. Otherwise a string. None if unavailable
+        :rtype: int, str, None
+        """
+        try:
+            return self.r_switch_obj().r_did(hex=hex)
+        except TypeError:
+            # Just future proofing. The port object always belonged to a switch object when this was written
+            return None
 
     def r_index(self):
         """Returns the port index for the port

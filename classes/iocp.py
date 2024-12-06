@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -27,15 +27,18 @@ Defines the IOCP class IOCPObj
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 20 Oct 2024   | Added default value to r_get() and r_alert_obj()                                      |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 06 Dec 2024   | Fixed wrong value returned in r_link_addresses_d(). Accounted for leading "0x" in FC  |
+|           |               | addresses and single-byte addressing in r_has_link_addr().                            |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as class_util
@@ -225,7 +228,7 @@ class IOCPObj:
         return None
 
     def r_path_list(self):
-        """Returns a list of paths in the IOCP
+        """Returns a list of CHPID tags (which is used to identify the channel path) in the IOCP
 
         :return: The path names (CHPID tags) in a list of str
         :rtype: list
@@ -238,7 +241,7 @@ class IOCPObj:
         :return: List of path objects
         :rtype: list
         """
-        return self._chpid_objs.values()
+        return [obj for obj in self._chpid_objs.values()]
 
     def r_link_addr(self, tag):
         """Returns a list of link addresses associated with the specified path
@@ -251,17 +254,33 @@ class IOCPObj:
         chpid_obj = self.r_path_obj(tag)
         return list() if chpid_obj is None else chpid_obj.r_link_addresses()
 
-    def r_has_link_addr(self, tag, addr):
+    def r_has_link_addr(self, tag, in_addr, in_chpid_addr=None):
         """Checks to see if an FC address or link address is part of a path
 
         :param tag: CHPID tag
         :type tag: str
-        :param addr: Either an FC address (3 bytes) or link address (2 bytes)
+        :param in_addr: Either an FC address (3 bytes) or link address (2 bytes) for the device
+        :type in_addr: str
+        :param in_chpid_addr:FC address of where the CHPID is connected. When present, the DID portion of the address
+                             must match when single by link addressing is used. This was implemented for upgrades from
+                             switches that were in a fabric but single byte addressing was used in the IOCP. This was
+                             possible in FOS 8.x
+        :type in_chpid_addr: str, None
         :return: True: Link address is in the path
         :rtype: bool
         """
-        link_addr = addr[0: 4] if len(addr) > 4 else addr
-        return True if link_addr in self.r_link_addr(tag) else False
+        # Fibre channel addressess are always lower case. Depending on where the address came from, it may be preceeded
+        # with 0x. I don't know if that will always be true and I've never seen an IOCP that wasn't upper case. By
+        # striping off '0x' and converting everything to upper case, I've taken care of all scenarios.
+        addr = in_addr.upper().replace('0X', '')
+        dev_link_addr = addr[0: 4] if len(addr) > 4 else addr
+        dev_did = dev_link_addr[0: 2]
+        chpid_did = dev_did if in_chpid_addr is None else in_chpid_addr.upper().replace('0X', '')[0: 2]
+        for link_addr in [a.upper() for a in self.r_link_addr(tag)]:
+            chpid_link_addr = chpid_did + link_addr if len(link_addr) == 2 else link_addr
+            if chpid_link_addr == dev_link_addr:
+                return True
+        return False
 
     def s_new_key(self, k, v, f=False):
         """Creates a new key/value pair.
@@ -486,7 +505,7 @@ class ChpidObj:
         :return: Link address dictionary
         :rtype: dict
         """
-        return [str(key) for key in self._link_addr.keys()]
+        return self._link_addr.copy()
 
     def r_pchid(self):
         """Returns the physical channel ID
