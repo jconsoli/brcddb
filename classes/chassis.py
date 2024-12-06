@@ -37,7 +37,7 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.x'
+__version__ = '4.0.3'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
