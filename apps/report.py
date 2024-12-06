@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -33,16 +33,19 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 20 Oct 2024   | Updated call to switch_page() to match new inputs.                                    |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 06 Dec 2024   | Added "About" page.                                                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
+import os
 import collections
 import copy
 import openpyxl.utils.cell as xl
@@ -65,6 +68,7 @@ import brcddb.report.login as report_login
 import brcddb.report.port as report_port
 import brcddb.report.switch as report_switch
 import brcddb.report.zone as report_zone
+import brcddb.report.utils as report_utils
 import brcddb.util.search as brcddb_search
 import brcddb.classes.util as brcddb_class_util
 import brcddb.classes.alert as alert_class
@@ -196,6 +200,17 @@ _align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
 _align_wrap_c = excel_fonts.align_type('wrap_center')
 _border_thin = excel_fonts.border_type('thin')
 
+_about_buf_l = (
+    'The contents of this Workbook were generated from a script, report.py, that reads a data collection file and '
+    'generates a general SAN report.',
+    '',
+    'The intended uses are:',
+    '  *   Determine where connections are made',
+    '  *   Zone analysis',
+    '  *   Checking for errors and best practice violations',
+    '  *   Analyzing enclosure usage (typically storage arrays)',
+)
+
 
 def _dashboard(obj, wb, sheet_index):
     """Adds a port performance dashboard. See _add_fabric_summary() for parameter definitions
@@ -271,7 +286,6 @@ def _add_switch_page(switch_obj, wb, sheet_index):
 
 def _add_switch_ports(switch_obj, wb, sheet_index):
     """Adds the port map. See _add_fabric_summary() for parameter definitions"""
-    brcdapi_log.log('    Adding the port map', echo=True)
     report_switch.add_port_map(switch_obj)
 
     return 0
@@ -426,7 +440,6 @@ def _add_chassis(chassis_obj, wb, sheet_index):
 def _add_hidden_chassis_port_page(chassis_obj, wb, sheet_index):
     """Adds the hidden chassis port page. See _add_fabric_summary() for parameter definitions"""
     control_d = chassis_obj.r_get('report_app/control/chassis_p')
-    brcdapi_log.log('    Adding Hidden Port Page For: ' + control_d['sn'], echo=True)
     report_chassis.chassis_hidden_port_page(wb, control_d['sn'], sheet_index, chassis_obj)
     return 1
 
@@ -492,6 +505,23 @@ def _add_zone_by_group(proj_obj, wb, sheet_index):
     return 1
 
 
+def _add_about(proj_obj, wb, sheet_index):
+    """Adds the zone by groups page. See _add_fabric_summary() for parameter definitions"""
+    global __version__, _about_buf_l
+
+    control_d = proj_obj.r_get('report_app/control/ab')
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
+    report_utils.about_page(wb,
+                            sheet_index,
+                            control_d['sn'],
+                            os.path.basename(__file__),
+                            __version__,
+                            _about_buf_l,
+                            tc=proj_obj.r_get('report_app/hyperlink/tc'))
+
+    return 1
+
+
 def _add_project_tc(proj_obj, wb, sheet_index):
     """Adds the "Table of Contents" page. See _add_fabric_summary() for parameter definitions"""
     global _hdr1_font, _std_font, _align_wrap, _link_font, _hdr2_font
@@ -530,6 +560,7 @@ def _add_project_tc(proj_obj, wb, sheet_index):
         else dict(t='No Duplicate WWNs Found')
 
     contents_l = [
+        dict(t='About', cl=[dict(t=control_d['ab']['tc'], l=hyper_d['ab'])]),
         dict(t='Zone Groups', zg=True, cl=[dict(t=control_d['zg']['tc'], l=hyper_d['zg'])]),
         dict(t='Best Practice Violations', cl=[dict(t=control_d['bp']['tc'], l=hyper_d['bp'])]),
         dict(t='Duplicate WWNs', cl=[dup_d]),
@@ -631,7 +662,7 @@ action methods.
 | st    | bool      | If True, the object name is added to the sheet title, 't', in _add_sheet_names(). Default is  |
 |       |           | False.                                                                                        |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
-| t     | str       | Sheet title. The object name is typically appended. See 'st'. Not used if sn is None.         |
+| t     | str, None | Sheet title. The object name is typically appended. See 'st'. Not used if sn is None.         |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | tc    | str       | Name for this page to put in the table of contents. if None, sheet is not added to the table  |
 |       |           | of contents.                                                                                  |
@@ -642,6 +673,7 @@ action methods.
 _tc = dict(p='table_of_contents', t='Table of Contents', u=False, s=False, sf=True, a=_add_project_tc)
 _proj_control_d = dict(
     tc=_tc,
+    ab=dict(p='About', tc='About', t=None, sf=True, a=_add_about),
     db=dict(p='proj_dashboard', tc='Project Dashboard', t='Project Dashboard', a=_dashboard),
     bp=dict(p='Best_Practice', tc='Best Practice Violations', t='Best Practice Violations', a=_add_project_bp),
     dup=dict(p='dup_wwns', tc='Duplicate WWNs', t='Duplicate WWNs', a=_add_project_dup),
@@ -728,17 +760,15 @@ def _add_sheet_names(proj_obj):
                 sname_base = obj_d['name_m']
             sname_d = dict()
             for k, d in control_d.items():
-                prefix = d['p'] if 'p' in d else ''
-                st_flag = d['st'] if 'st' in d else False
-                unique_flag = d['u'] if 'u' in d else False
+                prefix = d.get('p', '')
                 sname = excel_util.valid_sheet_name.sub('_', prefix if k == 'tc' else prefix + sname_base)
-                if unique_flag:
+                if d.get('u', False):
                     if len(sname) > 26:
                         sname = sname[0:27]
                     _unique_index += 1
                     sname += '_' + str(_unique_index)
                 sname = gen_util.remove_duplicate_char(sname, '_')
-                temp_d = dict(sn=sname, t=obj_d['name_m']) if st_flag else dict(sn=sname)
+                temp_d = dict(sn=sname, t=obj_d['name_m']) if d.get('st', False) else dict(sn=sname)
                 d.update(temp_d)
                 sname_d.update({k: '#' + sname + '!A1'})
             brcddb_util.add_to_obj(obj, 'report_app/control', control_d)
@@ -856,7 +886,7 @@ def report(proj_obj, outf, group_d=None):
              rs=True),
         dict(obj_l=[proj_obj],
              add_name=(),
-             order=('zg', 'dup', 'bp', 'db', 'tc'),
+             order=('zg', 'dup', 'bp', 'db', 'ab', 'tc'),
              feedback='Processing: ',
              control=_proj_control_d,
              obj_name=_project_name,
@@ -865,7 +895,7 @@ def report(proj_obj, outf, group_d=None):
 
     # Add the pages to the report
     for report_d in report_l:
-        if 'rs' in report_d and report_d['rs']:
+        if report_d.get('rs', False):
             sheet_index = 0
         for obj in report_d['obj_l']:
             start_i = sheet_index
