@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -12,7 +12,9 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.util.iocp` - Utility functions for the brcddb libraries
+**Description**
+
+Utility functions for the brcddb libraries
 
 **Important Notes**
 
@@ -29,58 +31,65 @@ Note that an IOCP is in old punch card format where certain characters in certai
 re-invent the wheel, this was taken from an old Perl script and converted to Python. It certainly isn't elegant but it
 is functional.
 
-Public Methods & Data::
+**Public Methods & Data**
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | full_cpc_sn           | Prepends a CPC SN with 0 such that it is padded to a full 12 character serial number  |
-    |                       | to match RNID sequence.                                                               |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | dev_type_desc         | Converts the RNID type to a human-readable device type                                |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | css_to_tag            | Parses a list of CSS into the first byte for the tag                                  |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | css_chpid_to_tag      | Parses a CSS(x,y)chpid into the equivalent tag                                        |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | tag_to_css_list       | Converts a tag to a list of CSS bits                                                  |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | tag_to_text           | Converts a CHPID tag to human-readable format (as displayed in the IOCP)              |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | tag_to_ind_tag_list   | Returns a list of individual tags for a tag. For example: 'C0' is returned as a list  |
-    |                       | of '80', '40'                                                                         |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | rnid_flag_to_text     | Converts the RNID flag to human-readable text                                         |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | parse_iocp            | Parses an IOCP and adds the IOCP to the proj_obj                                      |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | link_addr_to_fc_addr  | Converts a link address to a fibre channel address.                                   |
-    +-----------------------+---------------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| full_cpc_sn           | Prepends a CPC SN with 0 such that it is padded to a full 12 character serial number to   |
+|                       | match RNID sequence.                                                                      |
++-----------------------+-------------------------------------------------------------------------------------------+
+| dev_type_desc         | Converts the RNID type to a human-readable device type                                    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| css_to_tag            | Parses a list of CSS into the first byte for the tag                                      |
++-----------------------+-------------------------------------------------------------------------------------------+
+| css_chpid_to_tag      | Parses a CSS(x,y)chpid into the equivalent tag                                            |
++-----------------------+-------------------------------------------------------------------------------------------+
+| generic_dev_type      | Returns a generic 4 character device type.                                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| generic_device_type   | Returns the generic device type, such as DASD, Tape, CEC, CTC                             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| link_addr_to_fc_addr  | Converts a link address to a fibre channel address.                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
+| parse_iocp            | Parses an IOCP and adds the IOCP to the proj_obj                                          |
++-----------------------+-------------------------------------------------------------------------------------------+
+| rnid_flag_to_text     | Converts the RNID flag to human-readable text                                             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| tag_to_css_list       | Converts a tag to a list of CSS bits                                                      |
++-----------------------+-------------------------------------------------------------------------------------------+
+| tag_to_ind_tag_list   | Returns a list of individual tags for a tag. For example: 'C0' is returned as a list of   |
+|                       | '80', '40'                                                                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| tag_to_text           | Converts a CHPID tag to human-readable format (as displayed in the IOCP)                  |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 06 Dec 2024   | Check for link address FE in parse_iocp() before reporting bad link address. Added    |
+|           |               | generic_dev_type() and generic_device_type()                                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import collections
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
 import brcdapi.file as brcdapi_file
+import brcddb.brcddb_port as brcddb_port
 
 # Converts IBM device type to user-friendly name, 'd', and the generic type, 't'
 # Note: These are the types as ordered from IBM. CECs log in to the fabric with the types in this table but devices log
@@ -108,6 +117,7 @@ _ibm_type = {
     '8561': dict(d='z15 T01', t='CPU'),
     '8562': dict(d='z15 T02', t='CPU'),
     '3931': dict(d='z16', t='CPU'),
+    '3932': dict(d='z16s', t='CPU'),  # An educated guess
 
     # CTC
     'FCTC': dict(d='CTC', t='CTC'),
@@ -157,7 +167,12 @@ _ibm_type = {
     'XTV': dict(d='XTV', t='Test'),  # Generic Switch. DCX, DCX-4S, 8510-8, 8510-4
     '3868': dict(d='3868', t='Test'),  # Generic Switch. DCX, DCX-4S, 8510-8, 8510-4
 }
-_rnid_flag = {
+_rnid_types_d = dict(UNKN=True)
+for _d in _ibm_type.values():
+    _rnid_types_d.update({_d['t']: True})
+_rnid_types_l = [str(_k) for _k in _rnid_types_d.keys()]
+
+_rnid_flag = {  # RNID flag decoder
     0x00: 'Storage - Current',
     0x10: 'Channel - Current',
     0x20: 'Storage - Stale',
@@ -179,6 +194,35 @@ _sn_pad = (
     '00',  # len(sn) is 10
     '0'  # len(sn) is 11
 )
+
+
+def generic_dev_type(dev_type):
+    """Returns a generic 4 character device type, such as 2107. Intended to determine a key for _ibm_type, but made it
+    public in case it becomes useful for external scripts. See generic_device_type() if your looking for the more
+    generic type, such as DASD.
+
+    :param dev_type: Device type. If None, '' is returned
+    :type dev_type: int, str, None
+    :return: Generic device type
+    :rtype: str
+    """
+    global _ibm_type
+
+    if dev_type is None:
+        return ''
+
+    # Sometimes the device type has leading '0' or it is hyphenated with additional detail that is not in _ibm_type
+    generic_device_type = str(dev_type)
+    while len(generic_device_type) > 4 and generic_device_type not in _ibm_type:
+        x = generic_device_type.find('-')
+        if x > 0:  # See if the hyphen is messing things up
+            generic_device_type = generic_device_type[0:x]
+        elif generic_device_type[0] == '0':
+            generic_device_type = generic_device_type[1:]
+        else:
+            break
+
+    return generic_device_type
 
 
 def full_cpc_sn(sn):
@@ -215,18 +259,11 @@ def dev_type_desc(dev_type, inc_dev_type=True, inc_generic=True, inc_desc=True, 
         return ''
 
     # Sometimes the device type has leading '0' or it is hyphenated with additional detail that is not in _ibm_type
-    generic_device_type = device_type = str(dev_type)
-    while len(generic_device_type) > 4 and generic_device_type not in _ibm_type:
-        x = generic_device_type.find('-')
-        if x > 0:  # See if the hyphen messing things up
-            generic_device_type = generic_device_type[0:x]
-        elif generic_device_type[0] == '0':
-            generic_device_type = generic_device_type[1:]
-        else:
-            break
+    device_type = str(dev_type)
+    generic_device_type = generic_dev_type(dev_type)
 
     # Format the return string
-    r_buf = device_type + prepend_text if inc_dev_type else prepend_text
+    r_buf = device_type + ' ' + prepend_text if inc_dev_type else prepend_text
     d = _ibm_type.get(generic_device_type)
     if d is None:
         brcdapi_log.log('RNID Type unknown: ' + device_type, False)
@@ -251,6 +288,8 @@ def dev_type_to_name(dev_type):
     :return: Device type
     :rtype: str
     """
+    global _ibm_type
+
     device_type = str(dev_type)
     device_type = device_type[0:4] if len(device_type) > 4 else device_type
     return _ibm_type[device_type]['d'] if device_type in _ibm_type else str(dev_type) + ' Unknown'
@@ -652,12 +691,13 @@ def parse_iocp(proj_obj, iocp):
     # Figure out what the paths are and add them to the IOCP object
     for k, v in control_units.items():  # k is the CU number, v is a dict of the parsed CONTLUNIT macro
         for tag, link_addr in v['path'].items():
-            try:
-                iocp_obj.r_path_obj(tag, exact_match=False).s_add_path(link_addr, k, v['unit'])
-            except AttributeError:
-                # Every once in a while, someone gives me an IOCP that doesn't compile
-                brcdapi_log.log('tag in CNTLUNIT macro, ' + tag + ', for link address ' + link_addr +
-                                ' does not match any defined CHPIDs in ' + iocp, True)
+            if link_addr.upper() != 'FE':
+                try:
+                    iocp_obj.r_path_obj(tag, exact_match=False).s_add_path(link_addr, k, v['unit'])
+                except AttributeError:
+                    # Every once in a while, someone gives me an IOCP that doesn't compile
+                    brcdapi_log.log('tag in CNTLUNIT macro, ' + tag + ', for link address ' + link_addr +
+                                    ' does not match any defined CHPIDs in ' + iocp, True)
 
     return
 
@@ -678,3 +718,96 @@ def link_addr_to_fc_addr(link_addr, switch_id=None, did=None, leading_0x=False):
         prefix += hex(did)[2:] if switch_id is None else switch_id.lower()
 
     return prefix + link_addr.lower() + '00'
+
+
+def generic_device_type(dev_type):
+    """Returns the generic device type, such as DASD, Tape, CPU, CTC
+
+    :param dev_type: Device type. If None, '' is returned
+    :type dev_type: int, str, None
+    :return: Generic device type
+    :rtype: str
+    """
+    global _ibm_type
+
+    try:
+        return _ibm_type[generic_dev_type(dev_type)]['t']
+    except (KeyError, TypeError, ValueError):
+        pass
+
+    return 'UNKN'
+
+
+def chpid_paths_to_port(port_obj):
+    """Returns a list of chpid objects with a path a port
+    """
+    rl = list()
+    proj_obj, fab_obj = port_obj.r_project_obj(), port_obj.r_fabric_obj()
+    for iocp_obj in proj_obj.r_iocp_objects():
+        for chpid_obj in iocp_obj.r_path_objects():
+            chpid_port_obj = brcddb_port.port_obj_for_chpid(proj_obj, iocp_obj.r_obj_key(), chpid_obj.r_obj_key())
+            if chpid_port_obj is not None:
+                if fab_obj.r_obj_key() == chpid_port_obj.r_fabric_obj().r_obj_key():
+                    if iocp_obj.r_has_link_addr(chpid_obj.r_obj_key(), port_obj.r_addr()):
+                        rl.append(chpid_port_obj)
+
+    return rl
+
+
+def build_rnid_table(proj_obj):
+    """Adds report_app/rnid_d to each fabric object.
+
+    :param proj_obj: Project object where collected data is to be added
+    :type proj_obj: brcddb.classes.project.ProjectObj
+    """
+    global _rnid_types_l
+
+    error_l = list()
+
+    # For faster reference, build a table, chpids_by_fabric_d of channels by port object
+    chpids_by_fabric_d = dict()
+    for fabric_key in proj_obj.r_fabric_keys():
+        chpids_by_fabric_d[fabric_key] = list()
+    for iocp_obj in proj_obj.r_iocp_objects():
+        brcdapi_log.log('  ' + iocp_obj.r_obj_key(), echo=True)
+        for chpid_obj in iocp_obj.r_path_objects():
+            chpid_port_obj = brcddb_port.port_obj_for_chpid(proj_obj, iocp_obj.r_obj_key(), chpid_obj.r_obj_key())
+            if chpid_port_obj is None:
+                buf = 'Could not find ' + tag_to_text(chpid_obj.r_obj_key()) + ' for Switch ID: '
+                buf += chpid_obj.r_switch_id() + ' in ' + iocp_obj.r_obj_key()
+                error_l.append(buf)
+            else:
+                fabric_key = chpid_port_obj.r_fabric_key()
+                if fabric_key is None:
+                    buf = 'Could not find a fabric for port ' + \
+                          brcddb_port.best_port_name(chpid_port_obj, port_num=True)
+                    error_l.append(buf)
+                else:
+                    chpids_by_fabric_d[fabric_key].append(dict(port=chpid_port_obj, chpid=chpid_obj, iocp=iocp_obj))
+
+    # Add the rnid_d dictionary to the fabric object to each fabric
+    for fabric_obj in proj_obj.r_fabric_objects():
+        fabric_key = fabric_obj.r_obj_key()
+        rnid_d = dict()
+        for key in _rnid_types_l:
+            rnid_d.update({key: list()})
+        fabric_obj.rs_key('report_app/rnid_d', rnid_d)
+
+        # Sort out ports by device type
+        for port_obj in fabric_obj.r_port_objects():
+            # Set up the RNID tracking data structure in the port object
+            port_rnid_d = port_obj.r_get('rnid')
+            # I suspect the RNID flag is not always correct. I discovered this with supportshow output, so it could just
+            # be there. This is why rather than testing the RNID flag, I check to see if something is logged in.
+            if isinstance(port_rnid_d, dict) and len(port_obj.r_login_keys()) > 0:
+                chpid_l = list()
+                port_obj.rs_key('report_app/chpid_paths', chpid_l)
+                rnid_d[generic_device_type(port_rnid_d.get('type-number'))].append(port_obj)
+
+                # Add the port objects for CHPIDs with paths to this port address
+                for d in chpids_by_fabric_d[fabric_key]:
+                    if d['iocp'].r_has_link_addr(d['chpid'].r_obj_key(), port_obj.r_addr(), d['port'].r_addr()):
+                        chpid_l.append(d['port'])
+
+    if len(error_l) > 0:
+        brcdapi_log.log(error_l, echo=True)

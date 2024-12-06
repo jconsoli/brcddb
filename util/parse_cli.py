@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -63,15 +63,17 @@ Parses CLI output.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 20 Oct 2024   | Typos in error messages.                                                              |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 06 Dec 2024   | Added portname_range()                                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import re
 import time
@@ -1580,6 +1582,37 @@ def defzone(obj, content):
         elif 'zone --show' in buf and 'defzone' not in buf:
             brcdapi_log.exception(['Could not find in "committed" in:'] + content[0:7], echo=True)
             ri = max(0, ri-1)
+            break
+
+    return ri
+
+
+def portname_range(obj, content):
+    """Adds the port name to each associated port object
+
+    :param obj: Object with a chassis object associated with it
+    :type obj: brcddb.classes.chassis.ChassisObj, brcddb.classes.port.PortObj, brcddb.classes.switch.SwitchObj
+    :param content: List of portname output when a range is selected for the portname command
+    :type content: list
+    :return ri: Index into content where we left off
+    :rtype ri: int
+    """
+    ri, chassis_obj = 0, obj.r_chassis_obj()
+
+    for buf in content:
+        ri += 1
+        if 'CURRENT CONTEXT' in buf or 'portname' in buf:
+            pass
+        elif 'port' in buf:
+            try:
+                buf_l = buf.split(':')
+                port_index = int(gen_util.remove_duplicate_char(buf_l[0], ' ').split(' ')[1])
+                port_obj = chassis_obj.r_port_object_for_index(port_index)
+                port_obj.rs_key(brcdapi_util.fc_user_name, buf_l[1].strip())
+            except (IndexError, TypeError, ValueError):
+                brcdapi_log.exception('Invalid format for port name: ' + buf, echo=True)
+                break
+        else:
             break
 
     return ri
