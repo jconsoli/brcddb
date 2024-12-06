@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -30,15 +30,17 @@ complicated. I left it this way because other code references the class herein. 
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 26 Jun 2024   | Changed SWITCH_FIRMWARE to CHASSIS_FIRMWARE                                           |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 06 Dec 2024   | Made LOGIN_FDMI_NOT_ENABLED a port level alert, PORT_FDMI_NOT_ENABLED                 |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Jun 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcddb.classes.alert as al
 
@@ -107,8 +109,9 @@ class ALERT_NUM:
     PORT_FAULT = PORT_L_TEMP_W + 1
     PORT_SEGMENTED = PORT_FAULT + 1
     PORT_QSFP_BRKOUT_ASN = PORT_SEGMENTED + 1
+    PORT_FDMI_NOT_ENABLED = PORT_QSFP_BRKOUT_ASN + 1
     # Below are the remote port thresholds. Note that remote optics still have the old alarm & warn thresholds
-    REMOTE_PORT_H_TXP_W = PORT_QSFP_BRKOUT_ASN + 1
+    REMOTE_PORT_H_TXP_W = PORT_FDMI_NOT_ENABLED + 1
     REMOTE_PORT_H_TXP_A = REMOTE_PORT_H_TXP_W + 1
     REMOTE_PORT_L_TXP_W = REMOTE_PORT_H_TXP_A + 1
     REMOTE_PORT_L_TXP_A = REMOTE_PORT_L_TXP_W + 1
@@ -145,8 +148,7 @@ class ALERT_NUM:
     LOGIN_MAX_ZONE_PARTICIPATION = LOGIN_BASE_ZONED + 1
     LOGIN_SIM = LOGIN_MAX_ZONE_PARTICIPATION + 1
     LOGIN_AMP = LOGIN_SIM + 1
-    LOGIN_FDMI_NOT_ENABLED = LOGIN_AMP + 1
-    LOGIN_MIXED_SPEED_T = LOGIN_FDMI_NOT_ENABLED + 1
+    LOGIN_MIXED_SPEED_T = LOGIN_AMP + 1
     LOGIN_FASTER_S = LOGIN_MIXED_SPEED_T + 1
     LOGIN_SPEED_DIFF_W = LOGIN_FASTER_S + 1  # Deprecated
     LOGIN_SPEED_DIFF_E = LOGIN_SPEED_DIFF_W + 1  # Deprecated
@@ -294,6 +296,8 @@ class AlertTable:
         ALERT_NUM.PORT_FAULT: dict(m='Port fault: $p0', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.PORT_SEGMENTED: dict(m='Segmented port', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.PORT_QSFP_BRKOUT_ASN: dict(m='ASN not supported on breakout QSFP', s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.PORT_FDMI_NOT_ENABLED: dict(m='FDMI on attached HBA is not enabled. Switch $p0. Port: $p1',
+                                              s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.REMOTE_PORT_H_TXP_A: dict(m='Remote Tx power' + _power_above_threshold, s=al.ALERT_SEV.ERROR),
         ALERT_NUM.REMOTE_PORT_H_TXP_W: dict(m='Remote Tx power' + _power_above_threshold, s=al.ALERT_SEV.WARN),
         ALERT_NUM.REMOTE_PORT_L_TXP_A: dict(m='Remote Tx power' + _power_below_threshold, s=al.ALERT_SEV.ERROR),
@@ -327,7 +331,6 @@ class AlertTable:
                                                      s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SIM: dict(m='SIM port', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_AMP: dict(m='AMP', s=al.ALERT_SEV.GENERAL),
-        ALERT_NUM.LOGIN_FDMI_NOT_ENABLED: dict(m='FDMI on attached HBA is not enabled', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_MIXED_SPEED_T: dict(m='Mixed server login speeds zoned to this target.', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_FASTER_S: dict(m='Faster server(s) zoned to this target.', s=al.ALERT_SEV.WARN),
         # Deprecated
@@ -468,6 +471,7 @@ lookup_d = dict(
     PORT_FAULT=ALERT_NUM.PORT_FAULT,
     PORT_SEGMENTED=ALERT_NUM.PORT_SEGMENTED,
     PORT_QSFP_BRKOUT_ASN=ALERT_NUM.PORT_QSFP_BRKOUT_ASN,
+    PORT_FDMI_NOT_ENABLED=ALERT_NUM.PORT_FDMI_NOT_ENABLED,
     REMOTE_PORT_H_TXP_A=ALERT_NUM.REMOTE_PORT_H_TXP_A,
     REMOTE_PORT_H_TXP_W=ALERT_NUM.REMOTE_PORT_H_TXP_W,
     REMOTE_PORT_L_TXP_A=ALERT_NUM.REMOTE_PORT_L_TXP_A,
@@ -498,7 +502,6 @@ lookup_d = dict(
     LOGIN_MAX_ZONE_PARTICIPATION=ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION,
     LOGIN_SIM=ALERT_NUM.LOGIN_SIM,
     LOGIN_AMP=ALERT_NUM.LOGIN_AMP,
-    LOGIN_FDMI_NOT_ENABLED=ALERT_NUM.LOGIN_FDMI_NOT_ENABLED,
     LOGIN_MIXED_SPEED_T=ALERT_NUM.LOGIN_MIXED_SPEED_T,
     LOGIN_FASTER_S=ALERT_NUM.LOGIN_FASTER_S,
 
