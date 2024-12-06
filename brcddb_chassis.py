@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -56,15 +56,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 20 Oct 2024   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 06 Dec 2024   | Fixed configuration types for X7-4 and X7-8                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import time
 import brcdapi.log as brcdapi_log
@@ -395,10 +397,10 @@ chassis_type_d = {
               pure='7810', netapp='Unknown', ibm_t='8960-R18', spd=32, cfg=cfg_fixed,
               gen=7, z=False, eos=None),
     179: dict(brcd='X7-4', ibm='SAN256B-7', hpe='SN8700B-4', dell='ED-DCX7-4B', hv='X7-4',
-              pure='X7-4', netapp='Unknown', ibm_t='8960-F128/N64', spd=64, cfg=cfg_fixed,
+              pure='X7-4', netapp='Unknown', ibm_t='8960-F128/N64', spd=64, cfg=cfg_4_slot,
               gen=7, z=True, eos=None),
     180: dict(brcd='X7-8', ibm='SAN512B-7', hpe='SN8700B-8', dell='ED-DCX7-8B', hv='X7-8',
-              pure='X7-8', netapp='Unknown', ibm_t='8961-F78', spd=64, cfg=cfg_fixed,
+              pure='X7-8', netapp='Unknown', ibm_t='8961-F78', spd=64, cfg=cfg_8_slot,
               gen=7, z=True, eos=None),
     181: dict(brcd='G720', ibm='SAN64B-7', hpe='SN6700B', dell='DS-7720', hv='HD-720',
               pure='G720', netapp='Unknown', ibm_t='8960-R64/P64', spd=64, cfg=cfg_fixed,
@@ -504,7 +506,7 @@ def chassis_type(chassis_obj, type_num=False, oem='brcd'):
 
     type_str = ' (' + str(_chassis_type(chassis_obj)) + ')' if type_num else ''
     try:  # See notes in function description.
-        brand_name = chassis_obj.r_get(brcdapi_util.bc_product_name)
+        brand_name = chassis_obj.r_get(brcdapi_util.bc_product_name).upper()
     except (TypeError, AttributeError):  # Try getting the name from the chassis ID which has been in FOS since 8.2
         try:
             brand_name = chassis_type_d.get(_chassis_type(chassis_obj))[oem.lower()]

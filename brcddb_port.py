@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -54,15 +54,17 @@ Methods and tables to support the class ChassisObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 20 Oct 2024   | Added more error checking. Deleted port_type()                                        |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 06 Dec 2024   | Added more RNID data to port_best_desc()                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -71,23 +73,38 @@ import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_login as brcddb_login
 import brcddb.util.search as brcddb_search
+import brcddb.util.iocp as brcddb_iocp
+
+
+# _rnid_keys is used in port_best_desc() to add additional RNID data. This is not a complete list of RNID data
+_rnid_keys = ('manufacturer', 'model-number', 'sequence-number', 'tag', 'flags')
 
 
 def port_best_desc(port_obj):
     """Finds the first descriptor for what's attached to the port in this order:
-        1   If E-Port, the upstream switch & port
-        2   FDMI  Node descriptor
-        3   FDMI Port descriptor
-        4   Name server node descriptor
-        5   Name server port descriptor
+        1   RNID data if RNID data is present
+        2   If E-Port, the upstream switch & port
+        3   FDMI  Node descriptor
+        4   FDMI Port descriptor
+        5   Name server node descriptor
+        6   Name server port descriptor
 
     :param port_obj: Port Object
     :type port_obj: brcddb.classes.port.PortObj
     :return: desc
     :rtype: str
     """
+    global _rnid_keys
+
     if port_obj is None:
         return 'Unknown'
+
+    # Try RNID data
+    rnid_d = port_obj.r_get('rnid')
+    if isinstance(rnid_d, dict) and 'type-number' in rnid_d:
+        return (brcddb_iocp.dev_type_desc(rnid_d['type-number']) + ' ' +
+                ' '.join([rnid_d.get(k, '') for k in _rnid_keys]))
+
     wwn_list = port_obj.r_get(brcdapi_util.fc_neighbor_wwn, list())
     if len(wwn_list) == 0:
         return ''
@@ -182,14 +199,14 @@ def port_obj_for_chpid(obj, seq, tag):
     :return: Port object where this CHPID is connected. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
-    # The tag from the IOCP will never have '0x' prefix so below is just in case I ever use this for something else.
-    test_tag = tag if '0x' in tag else '0x' + tag
+    # The tag from the IOCP will never have '0x' prefix, so adding it if it's missing is in case I ever use this
+    # function for a tag that came from elsewhere.
     port_list = brcddb_search.match_test(
         obj.r_port_objects(),
         {
             'l': (
-                dict(k='rnid/sequence-number', t='exact', v=seq, i=True),
-                dict(k='rnid/tag', t='exact', v=test_tag, i=True),
+                dict(k='rnid/sequence-number', t='exact', v=brcddb_iocp.full_cpc_sn(seq), i=True),
+                dict(k='rnid/tag', t='exact', v=tag if '0x' in tag else '0x' + tag, i=True),
                 dict(k='rnid/flags', t='exact', v='0x10'),  # Indicates the RNID data is valid for a channel
             ),
             'logic': 'and'  # 'and' is the default logic so this is just for clarity for the reader
@@ -218,9 +235,12 @@ def port_objects_for_addr(obj, addr, search='exact'):
 
 
 def port_obj_for_addr(obj, addr):
-    """Returns the port object for a port in a given fabric matching a link address. Used for finding control units
+    """Returns the port object for a port matching a fibre channel address.
 
-    :param obj: Object with port objects, obj.r_port_objects()
+    WARNING: Project objects may contain multiple switches with the same DID and therefore it's possible to match
+    multiple ports to the same address. This function returns the first port object found.
+
+    :param obj: Object with port objects, obj.r_port_objects(). See warning above.
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
                 brcddb.classes.chassis.ChassisObj
     :param addr: Hex FC address (format is 0x123400)

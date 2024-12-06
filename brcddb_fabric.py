@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -70,15 +70,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 20 Oct 2024   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 06 Dec 2024   | Removed duplicate formatting of CEC serial number.                                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
@@ -214,7 +216,7 @@ def check_ficon_zoning(fabric_obj):
     :type fabric_obj: brcddb.classes.fabric.FabricObj
     """
     for iocp_obj in fabric_obj.r_project_obj().r_iocp_objects():
-        cec_sn = brcddb_iocp.full_cpc_sn(iocp_obj.r_obj_key())  # The SN is always the same for each IOCP
+        cec_sn = iocp_obj.r_obj_key()  # The SN is always the same for each IOCP
         for chpid_obj in iocp_obj.r_path_objects():  # For every defined path
             tag = chpid_obj.r_obj_key()
 

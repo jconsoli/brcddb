@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -12,61 +12,64 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb_project` - Support for project level operations.
+**Description**
 
-Public Methods & Data::
+Support for project level operations.
 
-    +---------------------------+-----------------------------------------------------------------------------------+
-    | Method                    | Description                                                                       |
-    +===========================+===================================================================================+
-    | new                       | Creates a new project object                                                      |
-    +---------------------------+-----------------------------------------------------------------------------------+
-    | dup_wwn                   | Searches all fabrics in the project for duplicate WWNs.                           |
-    +---------------------------+-----------------------------------------------------------------------------------+
-    | read_from                 | Creates a new project object from a JSON dump of a previous project object.       |
-    +---------------------------+-----------------------------------------------------------------------------------+
-    | build_xref                | Builds cross-references for brcddb objects. This is necessary because it's not    |
-    |                           | immediately obvious how request data is interrelated.                             |
-    +---------------------------+-----------------------------------------------------------------------------------+
-    | add_custom_search_terms   | The search utility cannot dereference embedded lists so create custom search      |
-    |                           | terms. See module header for details.                                             |
-    +---------------------------+-----------------------------------------------------------------------------------+
-    | fab_obj_for_user_name     | Returns a list of fabric objects matching a user-friendly name. It may be a regex |
-    |                           | match, regex search, wild card, or exact match.                                   |
-    +---------------------------+-----------------------------------------------------------------------------------+
-    | switch_obj_for_user_name  | Returns a list of switch objects matching a user-friendly name. It may be a regex |
-    |                           | match, regex search, wild card, or exact match.                                   |
-    +---------------------------+-----------------------------------------------------------------------------------+
-    | best_project_name         | Returns the project object key                                                    |
-    +---------------------------+-----------------------------------------------------------------------------------+
-    | fab_obj_for_fid           | Returns a list of fabric objects matching a FID.                                  |
-    +---------------------------+-----------------------------------------------------------------------------------+
-    | scan                      | Returns a list of text containing basic fabric information for a project.         |
-    +---------------------------+-----------------------------------------------------------------------------------+
+**Public Methods & Data**
 
-Version Control::
++---------------------------+---------------------------------------------------------------------------------------+
+| Method                    | Description                                                                           |
++===========================+=======================================================================================+
+| new                       | Creates a new project object                                                          |
++---------------------------+---------------------------------------------------------------------------------------+
+| dup_wwn                   | Searches all fabrics in the project for duplicate WWNs.                               |
++---------------------------+---------------------------------------------------------------------------------------+
+| read_from                 | Creates a new project object from a JSON dump of a previous project object.           |
++---------------------------+---------------------------------------------------------------------------------------+
+| build_xref                | Builds cross-references for brcddb objects. This is necessary because it's not        |
+|                           | immediately obvious how request data is interrelated.                                 |
++---------------------------+---------------------------------------------------------------------------------------+
+| add_custom_search_terms   | The search utility cannot dereference embedded lists so create custom search terms.   |
+|                           | See module header for details.                                                        |
++---------------------------+---------------------------------------------------------------------------------------+
+| fab_obj_for_user_name     | Returns a list of fabric objects matching a user-friendly name. It may be a regex     |
+|                           | match, regex search, wild card, or exact match.                                       |
++---------------------------+---------------------------------------------------------------------------------------+
+| switch_obj_for_user_name  | Returns a list of switch objects matching a user-friendly name. It may be a regex     |
+|                           | match, regex search, wild card, or exact match.                                       |
++---------------------------+---------------------------------------------------------------------------------------+
+| best_project_name         | Returns the project object key                                                        |
++---------------------------+---------------------------------------------------------------------------------------+
+| fab_obj_for_fid           | Returns a list of fabric objects matching a FID.                                      |
++---------------------------+---------------------------------------------------------------------------------------+
+| scan                      | Returns a list of text containing basic fabric information for a project.             |
++---------------------------+---------------------------------------------------------------------------------------+
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Removed call to obsolete add_maps_groups(), added scan()                          |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.2     | 16 Apr 2024   | Improved report output of scan()                                                  |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.3     | 16 Jun 2024   | Fixed spelling mistakes in messages.                                              |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Removed call to obsolete add_maps_groups(), added scan()                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 16 Apr 2024   | Improved report output of scan()                                                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 16 Jun 2024   | Fixed spelling mistakes in messages.                                                  |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 06 Dec 2024   | Added the FID number to the logical switch in scan()                                  |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '16 Jun 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.file as brcdapi_file
@@ -364,7 +367,7 @@ def scan(proj_obj, fab_only=False, logical_switch=False):
                                 buf += ' (effective zone configuration)'
                             zonecfg_l.append(buf)
                 rl.extend([
-                    '  Switch: ' + brcddb_switch.best_switch_name(switch_obj, did=True, wwn=True),
+                    '  Switch: ' + brcddb_switch.best_switch_name(switch_obj, did=True, wwn=True, fid=True),
                     '    Member of Fabric: ' + brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True),
                     '    Zone Configurations: ',
                 ])

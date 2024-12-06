@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -584,7 +584,7 @@ def _max_zone_participation(rule, obj_l, t_obj):
 def _check_best_practice(rule, obj_l, t_obj):
     """Simple best practice check. See _isl_num_links() for parameters."""
     global _alert_tbl_d
-    
+
     for obj in brcddb_search.match_test(obj_l, t_obj.get('l'), t_obj.get('logic')):
         px_d = dict(p0=None, p1=None)
         for key in px_d.keys():
@@ -604,7 +604,41 @@ def _check_best_practice(rule, obj_l, t_obj):
                         ml = ['Invalid parameter type for ' + key + ':' + sub_key + ' (' + str(type(val)) + ')',
                               'Object key: ' + obj.r_obj_key() + ', Object type: ' + str(type(obj))]
                         brcdapi_log.exception(ml, echo=True)
+
         obj.s_add_alert(_alert_tbl_d, rule, key=t_obj.get('key'), p0=px_d['p0'], p1=px_d['p1'])
+
+
+def _fdmi_enabled(rule, obj_l, t_obj):
+    """Check to see if FDMI data was presented for initiators. See _isl_num_links() for parameters."""
+    # ToDo - Fix this.
+    brcdapi_log.log('FDMI checking disabled in this version of report.py. Check was ignored.', echo=True)
+    return
+
+    for port_obj in obj_l:
+        fabric_obj = port_obj.r_fabric_obj()
+        # Mainframes present RNID data instead of FDMI data.
+        if port_obj.r_get('rnid') is not None:
+            continue  # It's a mainframe
+        login_obj_l = port_obj.r_login_objects()
+        if len(login_obj_l) == 0:
+            continue
+        for login_obj in login_obj_l:
+            initiator_flag, ns = False, login_obj.r_get(brcdapi_util.bns_node_symbol, 'None')
+            fc4_type = login_obj.r_get(brcdapi_util.bns_fc4_features, '')
+            for hba_type in _servers_in_ns_l:
+                if hba_type in ns:
+                    initiator_flag = True
+                    if len(fc4_type) > 0:
+                        break
+            if initiator_flag:
+                port_obj.s_add_alert(
+                    _alert_tbl_d,
+                    al.ALERT_NUM.PORT_FDMI_NOT_ENABLED,
+                    p0=brcddb_switch.best_switch_name(port_obj.r_switch_obj()),
+                    p1=port_obj.r_obj_key()
+                )
+
+    return
 
 
 def _read_bp_workbook(bp_file, bp_sheet=None):
@@ -817,11 +851,7 @@ _bp_tbl_d = {
            dict(k=brcdapi_util.sfp_sn, v='HAA*', t='wild')),
         logic='and')
     ),
-
-    # Login
-    'fdmi_enabled': dict(a=_check_best_practice, d='LoginObj', t=dict(
-        l=(dict(k=brcdapi_util.bns_fc4_features, t='exact', v='FCP-Initiator'),))
-    ),
+    'fdmi_enabled': dict(a=_fdmi_enabled, d='PortObj',),
     'alias_initiator_lower': dict(a=_alias_initiator_lower, d='LoginObj'),
 }
 
