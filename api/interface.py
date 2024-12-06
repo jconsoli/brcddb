@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -51,16 +51,17 @@ modified if CLI commands are used for data that should be associated with an obj
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 20 Oct 2024   | Use port_obj.r_addr() instead of hard coded key r_get()                               |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 06 Dec 2024   | Removed out dated URI references.                                                     |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__date__ = '06 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import http.client
 import brcdapi.brcdapi_rest as brcdapi_rest
@@ -155,7 +156,7 @@ def get_chassis(session, proj_obj):
             return chassis_obj
 
     # Go get it
-    uri = 'running/brocade-chassis/chassis'
+    uri = 'running/' + brcdapi_util.bcc_uri
     obj = brcdapi_rest.get_request(session, uri, None)
     if fos_auth.is_error(obj):
         return None
@@ -166,13 +167,13 @@ def get_chassis(session, proj_obj):
         session.update(chassis_wwn=wwn)
         # Get all the switches in this chassis
         if chassis_obj.r_is_vf_enabled():  # Get all the logical switches in this chassis
-            uri = 'running/brocade-fibrechannel-logical-switch/fibrechannel-logical-switch'
+            uri = 'running/' + brcdapi_util.bfls_uri
             obj = brcdapi_rest.get_request(session, uri, None)
             _process_errors(session, uri, obj, chassis_obj)
             results_action(session, chassis_obj, obj, uri)
         # Get the logical switch configurations
         for fid in chassis_obj.r_fid_list():
-            uri = 'running/brocade-fabric/fabric-switch'
+            uri = 'running/' + brcdapi_util.bfsw_uri
             obj = brcdapi_rest.get_request(session, uri, fid)
             _process_errors(session, uri, obj, chassis_obj)
             results_action(session, chassis_obj, obj, uri)
@@ -759,11 +760,12 @@ def get_batch(session, proj_obj, uri_l, fid=None, no_mask=False):
     for switch_obj in chassis_obj.r_switch_objects():
         for full_cmd in fos_cli_l:
             raw_l = fos_cli.send_command(session, brcddb_switch.switch_fid(switch_obj), full_cmd)
-            cmd = full_cmd.split(' ')[0]
-            brcddb_class_util.get_or_add(switch_obj, 'fos_cli/' + cmd, raw_l)
-            try:
-                _parse_cli_ref[cmd](switch_obj, raw_l)
-            except KeyError:
-                brcdapi_log.exception('Unknown FOS CLI command: ' + cmd, echo=True)
+            if len(raw_l) > 0:
+                cmd = full_cmd.split(' ')[0]
+                brcddb_class_util.get_or_add(switch_obj, 'fos_cli/' + cmd, raw_l)
+                try:
+                    _parse_cli_ref[cmd](switch_obj, raw_l)
+                except KeyError:
+                    brcdapi_log.exception('Unknown FOS CLI command: ' + cmd, echo=True)
 
     return True
