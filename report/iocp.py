@@ -35,15 +35,17 @@ Creates an iocp page to be added to an Excel Workbook
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 06 Dec 2024   | Fixed references to cell_update() and added port and switch links to iocp page.       |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 26 Dec 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -237,7 +239,7 @@ def _link_addr_case(port_obj, chpid_obj, link_addr=None):
 
 
 _chpid_hdr = collections.OrderedDict({
-# Key   Column header. Value is dict: 'c' - Column width, 'm' - Method to call to fill in the cell data
+    # Key   Column header. Value is dict: 'c' - Column width, 'm' - Method to call to fill in the cell data
     'Comments': dict(c=30, m=_comment_case),
     'PCHID': dict(c=7, m=_pchid_case),
     'CSS': dict(c=10, m=_css_case),
@@ -340,7 +342,7 @@ def iocp_page(iocp_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         row += 1
         chpid_port_obj = brcddb_port.port_obj_for_chpid(proj_obj, cec_sn, chpid_obj.r_obj_key())
         fabric_obj = None if chpid_port_obj is None else chpid_port_obj.r_fabric_obj()
-        for k,d in _chpid_hdr.items():
+        for k, d in _chpid_hdr.items():
             font, link = _std_font, None
             if chpid_port_obj is not None:
                 if k == 'Switch':

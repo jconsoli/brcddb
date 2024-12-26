@@ -43,15 +43,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 06 Dec 2024   | Added mainframe groups to group_zone_page().                                          |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 26 Dec 2024   | Merge cells for missing IOCPs.                                                        |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -1023,7 +1025,7 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                                                number_format=d.get('f'))
                         col += 1
                     row += 1
-            except (IndexError):
+            except IndexError:
                 pass
 
             # No need to list what's zoned to ungrouped targets or initiators
@@ -1038,14 +1040,14 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                         lwwn = None
                         try:
                             lwwn = chpid_port_obj.r_get(brcdapi_util.fc_neighbor_wwn)[0]
-                        except(IndexError, TypeError):
+                        except (IndexError, TypeError):
                             brcdapi_log.exception('No login data for CHPID port.', echo=True)
                         buf, link = d['m'](chpid_port_obj, None, lwwn, chpid_port_obj)
                         excel_util.cell_update(sheet,
                                                row,
                                                col,
                                                buf,
-                                               font=_std_font  if link is None else _link_font,
+                                               font=_std_font if link is None else _link_font,
                                                border=_border_thin,
                                                align=d.get('a', _align_wrap),
                                                link=link,
@@ -1067,7 +1069,7 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                                                row,
                                                col,
                                                buf,
-                                               font=_std_font  if link is None else _link_font,
+                                               font=_std_font if link is None else _link_font,
                                                border=_border_thin,
                                                align=d.get('a', _align_wrap),
                                                link=link,
@@ -1083,7 +1085,8 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         buf = 'Missing IOCPs for the following CECs:'
         excel_util.cell_update(sheet, row, col, buf, fill=_lightblue_fill, font=_bold_font, border=_border_thin)
         sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(_zone_group_hdr_d))
-        for rnid_d in [port_obj.r_get('rnid') for port_obj in missing_cpu_l]:
+        row += 1
+        for rnid_d in [obj.r_get('rnid') for obj in missing_cpu_l]:
             buf_l = [
                 'Mfg: ' + rnid_d.get('manufacturer', ''),
                 'Model: ' + rnid_d.get('model-number', ''),
@@ -1093,4 +1096,6 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                 'First found port: ' + brcddb_switch.best_switch_name(port_obj.r_switch_obj()) + port_obj.r_obj_key()
             ]
             buf = ', '.join(buf_l)
-            excel_util.cell_update(sheet, row, col, buf, font=_std_font, border=_border_thin, align= _align_wrap)
+            excel_util.cell_update(sheet, row, col, buf, font=_std_font, border=_border_thin, align=_align_wrap)
+            sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(_zone_group_hdr_d))
+            row += 1

@@ -184,15 +184,17 @@ data was also added for fabrics with future plans to add port highlighting to th
 | 4.0.3     | 06 Dec 2024   | Fixed bugs: FC address on ICL ports for FICON switches, allowing XISL on base switch, |
 |           |               | and setting the default routing policy.                                               |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 26 Dec 2024   | Fixed grammar mistake in help message.                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import collections
 import copy
@@ -290,7 +292,7 @@ _about_sheet_l = (
            'license agreements.'),
     None,
     dict(f=_std_font,
-         t='The accuracy and completness information contained herein are dependant of the FOS version, data '
+         t='The accuracy and completness of information contained herein are dependant of the FOS version, data '
            'collection method, and other factors. Consoli-Solutions does not assume any liability arising out of the '
            'application or use of this information, nor the application or use of any product or software described '
            'herein, neither does it convey any license under its patent rights nor the rights of others.'),
@@ -1272,7 +1274,7 @@ def parse_switch_file(file):
             except TypeError:
                 pass  # It's a GE port
             except KeyError:
-                pass  # It doesn't have a port address. Typically ICL ports or virtual ports
+                pass  # It doesn't have a port address. Typically, ICL ports or virtual ports
 
             switch_d['port_d'].update({k: d})
 
@@ -1831,7 +1833,7 @@ def add_contents(obj, contents_l):
                         align=col_d.get('align'),
                         border=col_d.get('border'),
                         comments=col_d.get('comments'),
-                        comment_height= len(col_d.get('comments', list())) + 20,
+                        comment_height=len(col_d.get('comments', list())) + 20,
                         link=col_d.get('link'),
                         cf=rule,
                         dv=col_d.get('dv')
@@ -1887,7 +1889,7 @@ def about_page(wb, sheet_i, sheet_name, file_name, version, description, tc=None
     # First portion of the About page
     for d in _about_sheet_l:
         if d is not None:
-            buf_l = gen_util.convert_to_list( buf_xlate_d.get(d.get('s', 'default')))
+            buf_l = gen_util.convert_to_list(buf_xlate_d.get(d.get('s', 'default')))
             for buf in buf_l:
                 excel_util.cell_update(sheet, row, col, d['t'] + buf, font=d['f'], align=_align_wrap, link=d.get('l'))
                 row += 1

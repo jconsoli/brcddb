@@ -41,15 +41,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 06 Dec 2024   | Added entitlement S/N to chassis report.                                              |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 26 Dec 2024   | Removed unused parameter in chassis_hidden_port_page()                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import collections
 import copy
@@ -286,8 +288,6 @@ def _insert_port(chassis_obj, port_obj, span):
     :rtype: dict
     """
     global _std_font, _link_font, _align_wrap_c, _border_thin, _fill_lightred
-
-    fill, link = None, None
 
     # Excel comment for this port - Includes status, port type, and alerts
     status = port_obj.r_status()
@@ -973,14 +973,12 @@ def _solve_ref(in_buf, row):
     return in_buf
 
 
-def chassis_hidden_port_page(wb, sheet_name, sheet_i, chassis_obj):
+def chassis_hidden_port_page(wb, sheet_i, chassis_obj):
     """Adds the hidden chassis port page which is used for port conditional highlighting
 
     :param wb: Workbook object
     :type wb: openpyxl.workbook.workbook.Workbook
-    :param sheet_name: Sheet (tab) name
-    :type sheet_name: str
-    :param sheet_i: Location for this sheet.
+    :param sheet_i: Sheet index - where to place sheet.
     :type sheet_i: int
     :param chassis_obj: Chassis object
     :type chassis_obj: brcddb.classes.chassis.ChassisObj
