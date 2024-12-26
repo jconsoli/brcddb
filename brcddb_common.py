@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -24,16 +24,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.2     | 26 Dec 2024   | Added Port type by string                                                         |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import brcdapi.util as brcdapi_util
 
@@ -270,7 +272,7 @@ PORT_TYPE_FC_LAG = 33
 PORT_TYPE_LB = 32768
 
 port_conversion_tbl = {
-    'fibrechannel/port-type': {
+    brcdapi_util.fc_port_type: {
         PORT_TYPE_UNKNOWN: 'Unknown',
         PORT_TYPE_E: 'E-Port',
         PORT_TYPE_G: 'G-Port',
@@ -292,7 +294,18 @@ port_conversion_tbl = {
         PORT_TYPE_FC_LAG: 'FC-LAG',
         PORT_TYPE_LB: 'LB-Port',
     },
-    'fibrechannel/operational-status': {
+    brcdapi_util.fc_port_type_str: {
+        'n-port': 'N-Port',
+        'nl-port': 'NL-Port',
+        'f/nl-port': 'F/NL-Port',
+        'nx-port': 'NX-Port',
+        'f-port': 'F-Port',
+        'fl-port': 'FL_Port',
+        'e-port': 'E-Port',
+        'b-port': 'B-Port',
+        'a-port': 'A-Port',
+    },
+    brcdapi_util.fc_op_status: {
         0: 'Undefined',
         2: 'Online',
         3: 'Offline',
@@ -407,7 +420,7 @@ port_conversion_tbl = {
         0: False,
         1: True,
     },
-    brcdapi_util.fc_enabled: {
+    brcdapi_util.fc_enabled: {  # I don't think this is ever used because fibrechannel/is-enabled-state is a bool
         0: False,
         1: True,
     },

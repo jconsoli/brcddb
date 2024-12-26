@@ -12,7 +12,9 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb_chassis` - Methods and tables to support the class ChassisObj.
+**Description**
+
+Methods and tables to support the class ChassisObj.
 
 **Public Methods**
 
@@ -58,15 +60,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 06 Dec 2024   | Fixed configuration types for X7-4 and X7-8                                           |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 26 Dec 2024   | Updated comments only.                                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import time
 import brcdapi.log as brcdapi_log

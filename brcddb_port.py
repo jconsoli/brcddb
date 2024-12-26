@@ -25,8 +25,6 @@ Methods and tables to support the class ChassisObj.
 +-----------------------+-------------------------------------------------------------------------------------------+
 | best_port_name        | Returns the user defined port name, if available. Otherwise, the port number              |
 +-----------------------+-------------------------------------------------------------------------------------------+
-| port_type             | Returns the port type (F-Port, E-Port, etc.) in plain text                                |
-+-----------------------+-------------------------------------------------------------------------------------------+
 | port_obj_for_index    | Returns the port object for a port index.                                                 |
 +-----------------------+-------------------------------------------------------------------------------------------+
 | port_obj_for_wwn      | Returns the port object for a logged in WWN                                               |
@@ -56,15 +54,17 @@ Methods and tables to support the class ChassisObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 06 Dec 2024   | Added more RNID data to port_best_desc()                                              |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 26 Dec 2024   | Updated comments only.                                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -237,8 +237,8 @@ def port_objects_for_addr(obj, addr, search='exact'):
 def port_obj_for_addr(obj, addr):
     """Returns the port object for a port matching a fibre channel address.
 
-    WARNING: Project objects may contain multiple switches with the same DID and therefore it's possible to match
-    multiple ports to the same address. This function returns the first port object found.
+    WARNING: Project objects may contain multiple switches with the same DID, therefore, it's possible to match multiple
+    ports to the same address. This function returns the first port object found.
 
     :param obj: Object with port objects, obj.r_port_objects(). See warning above.
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
