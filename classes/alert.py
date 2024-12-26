@@ -2,7 +2,7 @@
 Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -12,33 +12,37 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.classes.alert` - Establishes a common framework for processing post data collection analysis.
+**Description**
 
-    Alerts are not copied in brcddb.util.brcddb_to_plain_copy() and therefore not saved.
+Establishes a common framework for processing post data collection analysis.
 
-Version Control::
+Alerts are not copied in brcddb.util.brcddb_to_plain_copy() and therefore not saved.
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 26 Dec 2024   | Fixed error condition when checking for error level with invalid errors.              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import copy
 import brcddb.classes.util as class_util
+
+import brcdapi.log as brcdapi_log
 
 
 class ALERT_SEV:
@@ -100,7 +104,6 @@ class AlertObj:
     """
 
     def __init__(self, msg_tbl, anum, key=None, p0=None, p1=None):
-
         self._msg_tbl = msg_tbl
         self._alert_num = anum
         self._key = key
@@ -167,16 +170,24 @@ class AlertObj:
     def is_error(self):
         """
         :return: True if severity level is ALERT_SEV.ERROR
-        :rtype bool:
+        :rtype: bool
         """
-        return bool(self._msg_tbl.get(self.alert_num()).get('s') == ALERT_SEV.ERROR)
+        try:
+            return True if self._msg_tbl[self.alert_num()]['s'] == ALERT_SEV.ERROR else False
+        except (KeyError, IndexError, TypeError):
+            pass
+        return False
 
     def is_warn(self):
         """
         :return: True if severity level is ALERT_SEV.WARN
         :rtype bool:
         """
-        return bool(self._msg_tbl.get(self.alert_num()).get('s') == ALERT_SEV.WARN)
+        try:
+            return True if self._msg_tbl[self.alert_num()]['s'] == ALERT_SEV.WARN else False
+        except (KeyError, IndexError, TypeError):
+            pass
+        return False
 
     def key(self):
         """

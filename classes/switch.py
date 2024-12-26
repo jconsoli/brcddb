@@ -28,15 +28,17 @@ Defines the switch object, SwitchObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 06 Dec 2024   | Added a hex option to r_did()                                                         |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 26 Dec 2024   | Fixed bug in r_port_obj_for_pid() when PID does not have leading '0x'                 |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
@@ -273,14 +275,14 @@ class SwitchObj:
         """
         return bool(self.r_get(brcdapi_util.bfls_ficon_mode_en))
 
-    def r_did(self, hex=False):
+    def r_did(self, hex_did=False):
         """Returns the domain ID, in decimal
-        :param hex: If True, return the DID in hex.
-        :return: Domain ID as an int if hex is False. Otherwise a string. None if unavailable
+        :param hex_did: If True, return the DID in hex.
+        :return: Domain ID as an int if hex_did is False. Otherwise, a string. None if unavailable
         :rtype: int, str, None
         """
         did = self.r_get(brcdapi_util.bfs_did, self.r_get('brocade-fabric/fabric-switch/domain-id'))
-        if hex and did is not None:
+        if hex_did and did is not None:
             return hex(did)
         return did
 
@@ -574,11 +576,10 @@ class SwitchObj:
         :rtype: PortObj, None
         """
         pid = in_pid.replace('0x', '')
-        if isinstance(pid, str):
-            for port_obj in self.r_port_objects():
-                port_pid = port_obj.r_get(brcdapi_util.fc_fcid_hex)
-                if isinstance(port_pid, str) and port_pid.replace('0x', '') == pid:
-                    return port_obj
+        for port_obj in self.r_port_objects():
+            port_pid = port_obj.r_get(brcdapi_util.fc_fcid_hex)
+            if isinstance(port_pid, str) and port_pid.replace('0x', '') == pid:
+                return port_obj
         return None
 
     def c_trunk_map(self):

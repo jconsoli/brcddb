@@ -29,15 +29,17 @@ Defines the port object, PortObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 06 Dec 2024   | Added r_did()                                                                         |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 26 Dec 2024   | Fixed confusion over duplicate use of "hex"                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -86,7 +88,7 @@ class PortObj:
         :rtype: bool
         """
         try:
-            return brcddb_common.port_conversion_tbl[k][self.r_get(k)]
+            return brcddb_common.port_conversion_tbl[k][self.r_get(k, False)]
         except (ValueError, KeyError):
             pass
         return False
@@ -340,10 +342,10 @@ class PortObj:
     def r_is_enabled(self):
         """Determines if the port is enabled
 
-        :return: True: Port is enabled. False: Port is not enabled
+        :return: True: Port is enabled. False: Port is not enabled or state is unknown
         :rtype: bool
         """
-        return self._i_port_flags('fibrechannel/is-enabled-state')
+        return self.r_get(brcdapi_util.fc_enabled, False)
 
     def r_is_dport(self):
         """Determines if the diagnostic port (D-Port) is enabled
@@ -633,14 +635,14 @@ class PortObj:
         """
         return self.r_get(brcdapi_util.fc_fcid_hex)
 
-    def r_did(self, hex=False):
+    def r_did(self, hex_did=False):
         """Returns the domain ID, in decimal
-        :param hex: If True, return the DID in hex.
-        :return: Domain ID as an int if hex is False. Otherwise a string. None if unavailable
+        :param hex_did: If True, return the DID in hex.
+        :return: Domain ID as an int if hex is False. Otherwise, a string. None if unavailable
         :rtype: int, str, None
         """
         try:
-            return self.r_switch_obj().r_did(hex=hex)
+            return self.r_switch_obj().r_did(hex_did=hex_did)
         except TypeError:
             # Just future proofing. The port object always belonged to a switch object when this was written
             return None
