@@ -45,6 +45,8 @@ is functional.
 +-----------------------+-------------------------------------------------------------------------------------------+
 | css_chpid_to_tag      | Parses a CSS(x,y)chpid into the equivalent tag                                            |
 +-----------------------+-------------------------------------------------------------------------------------------+
+| find_chpid            | Finds the port object matching a CEC S/N and CHPID tag                                    |
++-----------------------+-------------------------------------------------------------------------------------------+
 | generic_dev_type      | Returns a generic 4 character device type.                                                |
 +-----------------------+-------------------------------------------------------------------------------------------+
 | generic_device_type   | Returns the generic device type, such as DASD, Tape, CEC, CTC                             |
@@ -75,15 +77,17 @@ is functional.
 | 4.0.2     | 06 Dec 2024   | Check for link address FE in parse_iocp() before reporting bad link address. Added    |
 |           |               | generic_dev_type() and generic_device_type()                                          |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 26 Dec 2024   | Added find_chpid()                                                                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -212,17 +216,17 @@ def generic_dev_type(dev_type):
         return ''
 
     # Sometimes the device type has leading '0' or it is hyphenated with additional detail that is not in _ibm_type
-    generic_device_type = str(dev_type)
-    while len(generic_device_type) > 4 and generic_device_type not in _ibm_type:
-        x = generic_device_type.find('-')
+    dev_type_str = str(dev_type)
+    while len(dev_type_str) > 4 and dev_type_str not in _ibm_type:
+        x = dev_type_str.find('-')
         if x > 0:  # See if the hyphen is messing things up
-            generic_device_type = generic_device_type[0:x]
-        elif generic_device_type[0] == '0':
-            generic_device_type = generic_device_type[1:]
+            dev_type_str = dev_type_str[0:x]
+        elif dev_type_str[0] == '0':
+            dev_type_str = dev_type_str[1:]
         else:
             break
 
-    return generic_device_type
+    return dev_type_str
 
 
 def full_cpc_sn(sn):
@@ -259,14 +263,14 @@ def dev_type_desc(dev_type, inc_dev_type=True, inc_generic=True, inc_desc=True, 
         return ''
 
     # Sometimes the device type has leading '0' or it is hyphenated with additional detail that is not in _ibm_type
-    device_type = str(dev_type)
-    generic_device_type = generic_dev_type(dev_type)
+    dev_type_str = str(dev_type)
+    generic_type = generic_dev_type(dev_type)
 
     # Format the return string
-    r_buf = device_type + ' ' + prepend_text if inc_dev_type else prepend_text
-    d = _ibm_type.get(generic_device_type)
+    r_buf = dev_type_str + ' ' + prepend_text if inc_dev_type else prepend_text
+    d = _ibm_type.get(generic_type)
     if d is None:
-        brcdapi_log.log('RNID Type unknown: ' + device_type, False)
+        brcdapi_log.log('RNID Type unknown: ' + dev_type_str, False)
     if inc_desc or inc_generic:
         if d is None:
             r_buf += 'Unknown'
@@ -290,9 +294,9 @@ def dev_type_to_name(dev_type):
     """
     global _ibm_type
 
-    device_type = str(dev_type)
-    device_type = device_type[0:4] if len(device_type) > 4 else device_type
-    return _ibm_type[device_type]['d'] if device_type in _ibm_type else str(dev_type) + ' Unknown'
+    dev_type_str = str(dev_type)
+    dev_type_str = dev_type_str[0:4] if len(dev_type_str) > 4 else dev_type_str
+    return _ibm_type[dev_type_str]['d'] if dev_type_str in _ibm_type else str(dev_type) + ' Unknown'
 
 
 def _condition_iocp(iocp):
@@ -591,7 +595,6 @@ def _parse_cntlunit(cntlunit):
     r = dict()
     for temp_cntl_macro in cntlunit:
         cntl_macro = temp_cntl_macro.upper()  # Not that I've ever seen lower case, but just in case.
-        link_addr = dict()
         if 'LINK' in cntl_macro:
 
             """HCD allows link addresses to be on a subset of the CSS defined for a CHPID. Below assumes all link
@@ -675,7 +678,8 @@ def parse_iocp(proj_obj, iocp):
 
     # Read in the IOCP definition file and get an IOCP object
     iocp_list = brcdapi_file.read_file(iocp, False, False)
-    iocp_obj = proj_obj.s_add_iocp(iocp.split('/').pop().split('_')[0])
+    buf_l = iocp.replace('\\', '/').split('/')
+    iocp_obj = proj_obj.s_add_iocp(buf_l.pop().split('_')[0])
 
     # Parse the CHPID and CNTLUNIT macros
     chpid_l, cntlunit_l = _condition_iocp(iocp_list)
@@ -811,3 +815,25 @@ def build_rnid_table(proj_obj):
 
     if len(error_l) > 0:
         brcdapi_log.log(error_l, echo=True)
+
+
+def find_chpid(obj, sn, tag):
+    """Finds the port object matching a CEC S/N and CHPID tag
+
+    :param obj: Project, fabric, or switch object
+    :type obj: brcddb.classes.project.ProjectObj, brcddb.classes.fabric.FabricObj, brcddb.classes.switch.SwitchObj
+    :param sn: Sequence number, S/N, of the CPC
+    :type sn: str
+    :param tag: CHPID Tag
+    :type tag: str
+    :return: Port object where CHPID is connected. None if not found
+    :rtype: brcddb.classes.port.PortObj, None
+    """
+    full_sn = full_cpc_sn(sn)
+    for port_obj in obj.r_port_objects():
+        rnid_d = port_obj.r_get('rnid')
+        if isinstance(rnid_d, dict) and rnid_d.get('sequence-number', 'x') == full_sn:
+            if tag.replace('0x', '') == rnid_d.get('tag', 'x').replace('0x', ''):
+                return port_obj
+
+    return None  # The port wasn't found if we get here.

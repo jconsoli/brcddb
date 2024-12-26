@@ -18,35 +18,35 @@ Parses CLI output.
 
 **Public Methods & Data**
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | cfgshow               | Parse cfgshow output                                                                  |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | chassisshow           | Adds a chassis object to a project object from chassisshow output                     |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | defzone               | Parse defzone output                                                                  |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | fabricshow            | Adds a fabric object to a project object from fabricshow output                       |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | ficonshow             | Parse ficonshow output                                                                |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | nsshow                | Parse nsshow outpu                                                                    |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | portbuffershow        | Adds the portbuffershow output to the ports in a switch object                        |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | portcfgshow           | Adds the portcfgshow output to the ports in a switch object                           |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | portstatsshow         | Parse portstatsshow and add to the port objects                                       |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | portstats64show       | Parse portstats64show and add to the port objects                                     |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | sfpshow               | Parse sfpshow output                                                                  |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | slotshow_d576         | Parse slotshow_d576 output                                                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | switchshow            | Adds a switch object to a project object from switchshow output                       |
-    +-----------------------+---------------------------------------------------------------------------------------+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| cfgshow               | Parse cfgshow output                                                                      |
++-----------------------+-------------------------------------------------------------------------------------------+
+| chassisshow           | Adds a chassis object to a project object from chassisshow output                         |
++-----------------------+-------------------------------------------------------------------------------------------+
+| defzone               | Parse defzone output                                                                      |
++-----------------------+-------------------------------------------------------------------------------------------+
+| fabricshow            | Adds a fabric object to a project object from fabricshow output                           |
++-----------------------+-------------------------------------------------------------------------------------------+
+| ficonshow             | Parse ficonshow output                                                                    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| nsshow                | Parse nsshow outpu                                                                        |
++-----------------------+-------------------------------------------------------------------------------------------+
+| portbuffershow        | Adds the portbuffershow output to the ports in a switch object                            |
++-----------------------+-------------------------------------------------------------------------------------------+
+| portcfgshow           | Adds the portcfgshow output to the ports in a switch object                               |
++-----------------------+-------------------------------------------------------------------------------------------+
+| portstatsshow         | Parse portstatsshow and add to the port objects                                           |
++-----------------------+-------------------------------------------------------------------------------------------+
+| portstats64show       | Parse portstats64show and add to the port objects                                         |
++-----------------------+-------------------------------------------------------------------------------------------+
+| sfpshow               | Parse sfpshow output                                                                      |
++-----------------------+-------------------------------------------------------------------------------------------+
+| slotshow_d576         | Parse slotshow_d576 output                                                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| switchshow            | Adds a switch object to a project object from switchshow output                           |
++-----------------------+-------------------------------------------------------------------------------------------+
 
 **Version Control**
 
@@ -57,7 +57,7 @@ Parses CLI output.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.1     | 06 Mar 2024   | Fixed address mode. Added portcfgshow()                                               |
 +-----------+---------------+---------------------------------------------------------------------------------------+
-| 4.0.2     | 03 Apr 2024   | Fixed missed FIDchange in sfpshow. Fixed missing NPIV logins in nsshow()              |
+| 4.0.2     | 03 Apr 2024   | Fixed missed FID change in sfpshow. Fixed missing NPIV logins in nsshow()             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 15 May 2024   | Fixed missed effective zone configuration.                                            |
 +-----------+---------------+---------------------------------------------------------------------------------------+
@@ -65,15 +65,17 @@ Parses CLI output.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 06 Dec 2024   | Added portname_range()                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 26 Dec 2024   | Fixed error when switchshow output is empty or missing.                               |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import re
 import time
@@ -385,7 +387,7 @@ def switchshow(obj, content, append_buf=''):
 
     :param obj: Project object or object with a project object associated with it
     :type obj: brcddb.classes.project.ProjectObj
-    :param content: Begining of switchshow output text
+    :param content: Beginning of switchshow output text
     :type content: list
     :param append_buf: Text to append to the WWN when creating a key
     :type append_buf: str
@@ -394,13 +396,12 @@ def switchshow(obj, content, append_buf=''):
     :return i: Index into content where we left off
     :rtype i: int
     """
-    switch_obj, chassis_obj, proj_obj = None, None, obj.r_project_obj()
+    buf, switch_obj, proj_obj = '', None, obj.r_project_obj()
 
     for buf in content:
         if 'switchWwn:' in buf:
             k, v = _split_parm(buf)
             switch_obj = proj_obj.s_add_switch(v + append_buf)
-            chassis_obj = switch_obj.r_chassis_obj()
             break
     if switch_obj is None:
         brcdapi_log.exception('Could not find switchWwn in', echo=True)
@@ -642,7 +643,8 @@ def portcfgshow(obj, content):
     :param content: List of portcfgshow output text
     :type content: list
     """
-    state, switch_obj = 'idle', obj.r_switch_obj()
+    i, slot, separator_index, ports, buf, state, port_l = 0, '0', 1, '', '', 'idle', list() 
+    switch_obj = obj.r_switch_obj()
 
     for i in range(0, len(content)):
         buf = content[i].rstrip()
@@ -868,7 +870,7 @@ def chassisshow(obj, content):
 
     :param obj: Project object or object with a project object associated with it
     :type obj: brcddb.classes.project.ProjectObj
-    :param content: Begining of chassisshow output text
+    :param content: Beginning of chassisshow output text
     :type content: list
     :return chassis_obj: Chassis object
     :rtype chassis_obj: brcddb.classes.chassis.ChassisObj
@@ -923,7 +925,7 @@ def fabricshow(obj, content):
 
     :param obj: Project object or object with a project object associated with it
     :type obj: brcddb.classes.project.ProjectObj
-    :param content: Begining of fabricshow output text
+    :param content: Beginning of fabricshow output text
     :type content: list
     :return fabric_obj: Fabric object
     :rtype fabric_obj: brcddb.classes.fabric.FabricObj
@@ -933,7 +935,7 @@ def fabricshow(obj, content):
     ri, fab_obj, proj_obj = 0, None, obj.r_project_obj()
 
     # Skip to where the fabric list starts (after the '-----------------------')
-    for buf in content:
+    for ri in range(0, len(content)):
         buf = content[ri]
         ri += 1
         if '-version' in buf or 'no fabric' in buf or 'SS CMD END' in buf:
@@ -1006,7 +1008,7 @@ def nsshow(obj, content):
 
     :param obj: Any object that returns a fabric object, obj.r_fabric_obj(), and switch object, obj.r_switch_obj()
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.port.PortObj
-    :param content: Begining of nsshow output text
+    :param content: Beginning of nsshow output text
     :type content: list
     :return ri: Index into content where we left off
     :rtype ri: int
@@ -1080,7 +1082,7 @@ def sfpshow(obj, content):
 
     :param obj: Switch object or object with a switch object associated with it
     :type obj: brcddb.classes.switch.SwitchObj
-    :param content: Begining of nsshow output text
+    :param content: Beginning of nsshow output text
     :type content: list
     :return ri: Index into content where we left off
     :rtype ri: int
@@ -1324,7 +1326,7 @@ def cfgshow(obj, content):
 
     :param obj: Fabric object or object with a fabric object associated with it
     :type obj: brcddb.classes.fabric.FabricObj
-    :param content: Begining of nsshow output text
+    :param content: Beginning of nsshow output text
     :type content: list
     :return ri: Index into content where we left off
     :rtype ri: int
@@ -1373,7 +1375,7 @@ def ficonshow(obj, content):
 
     :param obj: Switch object or object with a switch object associated with it
     :type obj: brcddb.classes.switch.SwitchObj
-    :param content: Begining of nsshow output text
+    :param content: Beginning of nsshow output text
     :type content: list
     :return ri: Index into content where we left off
     :rtype ri: int
@@ -1479,7 +1481,7 @@ def _slotshow(obj, content, slotshow_d):
 
     :param obj: Chassis object or object with a switch object associated with it
     :type obj: brcddb.classes.chassis.ChassisObj
-    :param content: Begining of slotshow output text
+    :param content: Beginning of slotshow output text
     :type content: list
     :param slotshow_d: Either _slotshow_d576_tbl or _slotshow_m_tbl
     :type slotshow_d: dict
@@ -1514,7 +1516,7 @@ def _slotshow(obj, content, slotshow_d):
             continue
         fru_l, fru_d = _slotshow_get_fru(chassis_obj, unit_d['key'])
         api_d = unit_d['api']
-        d = dict()
+        val, d = None, dict()
         for k, v in api_d.items():
             val = int(cl[v['i']]) if v.get('int') is not None and v.get('int') else cl[v['i']]
             if v.get('c') is not None and v.get('c').get(val) is not None:
@@ -1535,7 +1537,7 @@ def slotshow_d576(obj, content):
 
     :param obj: Chassis object or object with a switch object associated with it
     :type obj: brcddb.classes.chassis.ChassisObj
-    :param content: Begining of slotshow output text
+    :param content: Beginning of slotshow output text
     :type content: list
     :return ri: Index into content where we left off
     :rtype ri: int
@@ -1550,7 +1552,7 @@ def slotshow_m(obj, content):
 
     :param obj: Chassis object or object with a switch object associated with it
     :type obj: brcddb.classes.chassis.ChassisObj
-    :param content: Begining of slotshow output text
+    :param content: Beginning of slotshow output text
     :type content: list
     :return ri: Index into content where we left off
     :rtype ri: int
@@ -1565,7 +1567,7 @@ def defzone(obj, content):
 
     :param obj: Fabric object or object with a fabric object associated with it
     :type obj: brcddb.classes.fabric.FabricObj
-    :param content: Begining of defzone output text
+    :param content: Beginning of defzone output text
     :type content: list
     :return ri: Index into content where we left off
     :rtype ri: int
