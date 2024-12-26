@@ -64,15 +64,17 @@ information in here that is no longer used.
 | 4.0.4     | 20 Oct 2024   | Corrected header for fibrechannel-statistics/remote-fec-uncorrected. Use string   |
 |           |               | type for port type and status first, then old numbered types.                     |
 +-----------+---------------+-----------------------------------------------------------------------------------+
+| 4.0.5     | 26 Dec 2024   | Use URLs in brcdapi.util instead of hard coded URLs                               |
++-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import brcdapi.util as brcdapi_util
 
@@ -418,7 +420,6 @@ class Port:
         brcdapi_util.fc_speed_combo: dict(c=23, d='Speed Combo'),
         brcdapi_util.fc_op_status_str: dict(c=10, d='Status'),
         brcdapi_util.fc_state: dict(c=11, d='State'),
-        brcdapi_util.fc_port_type_str: dict(c=9, d='Port Type'),
         brcdapi_util.fc_rate_limited_en: dict(v=True, c=8, d='Rate Limit'),
         brcdapi_util.fc_speed: dict(v=True, c=6, d='Login Speed Gbps'),
         brcdapi_util.fc_max_speed: dict(v=True, c=6, d='Max Speed Gbps'),
@@ -428,7 +429,7 @@ class Port:
         'fibrechannel/average-transmit-frame-size': dict(v=True, c=8, d='Average Tx Frame Size'),
         'fibrechannel/average-transmit-buffer-usage': dict(v=True, c=8, d='Avg Tx buffer usage'),
         'fibrechannel/average-receive-buffer-usage': dict(v=True, c=8, d='Avg Rx buffer usage'),
-        'fibrechannel/port-type-string': dict(c=15, d='Port Type'),
+        brcdapi_util.fc_port_type_str: dict(c=15, d='Port Type'),
         'fibrechannel/reserved-buffers': dict(v=True, c=8, d='Reserved Buffers'),
         'fibrechannel/authentication-protocol': dict(c=15, d='Authentication Protocol'),
         brcdapi_util.fc_chip_buf_avail: dict(v=True, c=8, d='Chip Buffers Available'),
