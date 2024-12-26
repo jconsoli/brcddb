@@ -35,15 +35,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 06 Dec 2024   | Added "About" page.                                                                   |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 26 Dec 2024   | Removed unused parameter in call to chassis_hidden_port_page()                        |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__date__ = '26 Dec 2024'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import os
 import collections
@@ -440,7 +442,7 @@ def _add_chassis(chassis_obj, wb, sheet_index):
 def _add_hidden_chassis_port_page(chassis_obj, wb, sheet_index):
     """Adds the hidden chassis port page. See _add_fabric_summary() for parameter definitions"""
     control_d = chassis_obj.r_get('report_app/control/chassis_p')
-    report_chassis.chassis_hidden_port_page(wb, control_d['sn'], sheet_index, chassis_obj)
+    report_chassis.chassis_hidden_port_page(wb, sheet_index, chassis_obj)
     return 1
 
 
