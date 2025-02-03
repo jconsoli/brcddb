@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -12,7 +12,9 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`report.zone` - Creates a zoning page to be added to an Excel Workbook
+**Description**
+
+Creates zone database pages to be added to an Excel Workbook
 
 **Public Methods & Data**
 
@@ -45,15 +47,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 26 Dec 2024   | Merge cells for missing IOCPs.                                                        |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 03 Feb 2025   | Added fabric links to the zone pages and fixed header alignment.                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '03 Feb 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -62,6 +66,7 @@ import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
 import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
+import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_port as brcddb_port
 import brcddb.brcddb_zone as brcddb_zone
@@ -305,7 +310,9 @@ _zone_hdr & _zone_group_hdr_d: Key is the column header. Value is a dict as foll
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | Key   | Type      | Description                                                                                   |
 +=======+===========+===============================================================================================+
-| a     | ?         | Alignment type. If not specified, _align_wrap is assumed.                                     |
+| ha    | ?         | Header alignment type. _align_wrap is the default.                                            |
++-------+-----------+-----------------------------------------------------------------------------------------------+
+| a     | ?         | Body alignment type. _align_wrap is the default.                                              |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
 | c     | int       | Column width                                                                                  |
 +-------+-----------+-----------------------------------------------------------------------------------------------+
@@ -321,10 +328,10 @@ _zone_hdr & _zone_group_hdr_d: Key is the column header. Value is a dict as foll
 _zone_hdr = collections.OrderedDict({
     'Comments': dict(c=30, z=_comment_case, m=_mem_comment_case),
     'Zone': dict(c=22, z=_name_case, m=_null_case),
-    'Effective': dict(c=5, a=_align_wrap_c, z=_zone_effective_case, m=_null_case),
-    'Peer': dict(c=5, a=_align_wrap_c, z=_zone_peer_case, m=_null_case),
-    'Target Driven': dict(c=5, a=_align_wrap_c, z=_zone_target_case, m=_null_case),
-    'Principal': dict(c=5, a=_align_wrap_c, z=_null_case, m=_mem_principal_case),
+    'Effective': dict(c=5, ha=_align_wrap_vc, a=_align_wrap_c, z=_zone_effective_case, m=_null_case),
+    'Peer': dict(c=5, ha=_align_wrap_vc, a=_align_wrap_c, z=_zone_peer_case, m=_null_case),
+    'Target Driven': dict(c=5, ha=_align_wrap_vc, a=_align_wrap_c, z=_zone_target_case, m=_null_case),
+    'Principal': dict(c=5, ha=_align_wrap_vc, a=_align_wrap_c, z=_null_case, m=_mem_principal_case),
     'Configurations': dict(c=22, z=_zone_cfg_case, m=_null_case),
     'Member': dict(c=48, z=_zone_member_case, m=_mem_member_case),
     'Member WWN': dict(c=22, z=_zone_member_wwn_case, m=_mem_member_wwn_case),
@@ -333,6 +340,10 @@ _zone_hdr = collections.OrderedDict({
     'Speed Gbps': dict(c=7, z=_null_case, m=_mem_speed_case),
     'Description': dict(c=50, z=_null_case, m=_mem_desc_case)
 })
+for _d in _zone_hdr.values():  # Add default alignment to _zone_hdr
+    for _align_key in ('ha', 'a'):
+        if _align_key not in _d:
+            _d[_align_key] = _align_wrap
 
 # Group headers. The code uses different dictionaries for determining headers and content. At the time this was written,
 # the only difference was the "Zoned To" content. Creating seperate dictionaries was intended to simplify customizing
@@ -413,7 +424,7 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     global _zone_hdr, _link_font, _border_thin, _align_wrap, _hdr1_font, _std_font, _bold_font, _hdr2_font
     global _align_wrap_vc, _align_wrap_c, _lightblue_fill
 
-    # Create the worksheet, add the headers, and set up the column widths
+    # Create the worksheet with a title
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
@@ -422,12 +433,26 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
     excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
-    row, col = row + 2, 1
+
+    # Add the fabric link
+    row, col = row + 1, 1
+    excel_util.cell_update(
+        sheet,
+        row,
+        col,
+        'Fabric: ' + brcddb_fabric.best_fab_name(fab_obj),
+        font=_link_font,
+        border=_border_thin,
+        link=fab_obj.r_get('report_app/hyperlink/fab')
+    )
+    sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+
+    # Add the headers, set the column widths, and freeze the header row.
+    row += 1
     sheet.freeze_panes = sheet['A4']
     for k in _zone_hdr:
         sheet.column_dimensions[xl.get_column_letter(col)].width = _zone_hdr[k]['c']
-        alignment = _align_wrap_vc if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
-        excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=alignment, border=_border_thin)
+        excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=_zone_hdr[k]['ha'], border=_border_thin)
         col += 1
 
     # Fill out all the zoning information
@@ -444,9 +469,16 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         # The zone information
         for k in _zone_hdr:
             font = report_utils.font_type(zone_obj.r_alert_objects()) if k == 'Comments' else _bold_font
-            alignment = _align_wrap_c if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
-            excel_util.cell_update(sheet, row, col, _zone_hdr[k]['z'](zone_obj), font=font, align=alignment,
-                                   border=_border_thin, fill=_lightblue_fill)
+            excel_util.cell_update(
+                sheet,
+                row,
+                col,
+                _zone_hdr[k]['z'](zone_obj),
+                font=font,
+                align=_zone_hdr[k]['a'],
+                border=_border_thin,
+                fill=_lightblue_fill
+            )
             col += 1
 
         # The member information
@@ -473,16 +505,22 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                             port_obj = fobj.r_port_obj(wwn)
                             if port_obj is not None:
                                 break
-                for k in _zone_hdr:
+                for k, d in _zone_hdr.items():
                     # Display font based on alerts associated with the zone only, not members, for a zone object
                     if k == 'Comments':
                         alerts = [a for a in zone_obj.r_alert_objects() if a.is_flag() and a.p0() == wwn]
                         font = report_utils.font_type(alerts)
                     else:
                         font = _std_font
-                    alignment = _align_wrap_c if 'v' in _zone_hdr[k] and _zone_hdr[k]['v'] else _align_wrap
-                    excel_util.cell_update(sheet, row, col, _zone_hdr[k]['m'](zone_obj, mem, wwn, port_obj),
-                                           font=font, align=alignment, border=_border_thin)
+                    excel_util.cell_update(
+                        sheet,
+                        row,
+                        col,
+                        d['m'](zone_obj, mem, wwn, port_obj),
+                        font=font,
+                        align=d['a'],
+                        border=_border_thin
+                    )
                     col += 1
                 row, col = row + 1, 1
 
@@ -561,7 +599,7 @@ def alias_page(obj, tc, wb, sheet_name, sheet_i, sheet_title):
     """
     global _alias_hdr, _hdr1_font, _std_font, _link_font, _hdr2_font, _align_wrap, _border_thin
 
-    # Create the worksheet, add the headers, and set up the column widths
+    # Create the worksheet. Row 1: Add the table of contents link, and add the sheet title.
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
@@ -570,17 +608,33 @@ def alias_page(obj, tc, wb, sheet_name, sheet_i, sheet_title):
         excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
     excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font, border=_border_thin)
-    row, col = row+2, 1
+    row, col = row + 1, 1
+
+    # Row 2: Add the fabric link
+    obj_type_fab = False
+    if str(brcddb_class_util.get_simple_class_type(obj)) == 'FabricObj':
+        excel_util.cell_update(
+            sheet,
+            row,
+            col,
+            'Fabric: ' + brcddb_fabric.best_fab_name(obj),
+            font=_link_font,
+            border=_border_thin,
+            link=obj.r_get('report_app/hyperlink/fab')
+        )
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+        obj_type_fab = True
+    row += 1
+
+    # Freeze the row at the header row and add the header
     sheet.freeze_panes = sheet['A4']
     for k in _alias_hdr:
         sheet.column_dimensions[xl.get_column_letter(col)].width = _alias_hdr[k]['c']
         excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=_align_wrap, border=_border_thin)
         col += 1
 
-    alias_obj_l = obj.r_alias_objects() if str(brcddb_class_util.get_simple_class_type(obj)) == 'FabricObj' else \
-        gen_util.convert_to_list(obj)
-
     # Fill out the alias information
+    alias_obj_l = obj.r_alias_objects() if obj_type_fab else gen_util.convert_to_list(obj)
     for alias_obj in alias_obj_l:
         mem_list = alias_obj.r_members().copy()
         mem = mem_list.pop(0) if len(mem_list) > 0 else None
@@ -731,7 +785,7 @@ def _common_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title, hdr):
     """
     global _hdr2_font, _hdr1_font, _link_font, _align_wrap, _border_thin
 
-    # Create the worksheet, add the headers, and set up the column widths
+    # Create the worksheet with a title
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
@@ -740,13 +794,28 @@ def _common_zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title, hdr):
         excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, align=_align_wrap, link=tc)
         col += 1
     excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
-    row, col = row+2, 1
+
+    # Add a link to the fabric page
+    row, col = row + 1, 1
+    excel_util.cell_update(
+        sheet,
+        row,
+        col,
+        'Fabric: ' + brcddb_fabric.best_fab_name(fab_obj),
+        font=_link_font,
+        border=_border_thin,
+        link=fab_obj.r_get('report_app/hyperlink/fab')
+    )
+    sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+
+    # Add the headers, freeze the header row, and set the column widths
+    row += 1
     sheet.freeze_panes = sheet['A4']
     for k, d in hdr.items():
         sheet.column_dimensions[xl.get_column_letter(col)].width = d['c']
         excel_util.cell_update(sheet, row, col, k, font=_hdr2_font, align=_align_wrap, border=_border_thin)
         col += 1
-    row += 1
+    row, col = row + 1, 1
 
     return sheet, row
 

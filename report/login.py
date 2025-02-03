@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -12,9 +12,11 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.report.login` - Includes methods to create login page
+**Description**
 
-Public Methods & Data::
+Includes methods to create device login page
+
+**Public Methods & Data**
 
     +-----------------------+---------------------------------------------------------------------------------------+
     | Method                | Description                                                                           |
@@ -22,7 +24,7 @@ Public Methods & Data::
     | login_page            | Creates a login detail worksheet for the Excel report.                                |
     +-----------------------+---------------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | Version   | Last Edit     | Description                                                                       |
@@ -31,16 +33,18 @@ Version Control::
     +-----------+---------------+-----------------------------------------------------------------------------------+
     | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
     +-----------+---------------+-----------------------------------------------------------------------------------+
+    | 4.0.2     | 03 Feb 2025   | Added link to fabric page.                                                        |
+    +-----------+---------------+-----------------------------------------------------------------------------------+
 """
 
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '03 Feb 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
@@ -49,6 +53,7 @@ import brcdapi.util as brcdapi_util
 import brcdapi.excel_fonts as excel_fonts
 import brcdapi.excel_util as excel_util
 import brcddb.brcddb_common as brcddb_common
+import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.util.util as brcddb_util
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.utils as report_utils
@@ -253,7 +258,7 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
     login_display_tbl = brcddb_rt.Login.login_display_tbl if in_login_display_tbl is None else in_login_display_tbl
     display = brcddb_rt.Login.login_tbl if in_display is None else in_display
 
-    # Create the worksheet, add the headers, and set up the column widths
+    # Create the worksheet with a title.
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
@@ -262,7 +267,25 @@ def login_page(wb, tc, sheet_name, sheet_i, sheet_title, l_list, in_display=None
         excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
     excel_util.cell_update(sheet, row, col, sheet_title, font=_hdr1_font)
-    sheet.freeze_panes = sheet['A3']
+
+    # Add a link to the fabric
+    row, col = row + 1, 1
+    fab_obj = l_list[0].r_fabric_obj() if len(l_list) > 0 else None
+    if fab_obj is not None:
+        excel_util.cell_update(
+            sheet,
+            row,
+            col,
+            'Fabric: ' + brcddb_fabric.best_fab_name(fab_obj),
+            font=_link_font,
+            border=_border_thin,
+            link=fab_obj.r_get('report_app/hyperlink/fab')
+        )
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+
+    # Add the headers, set the column widths, and freeze the header row.
+    row += 1
+    sheet.freeze_panes = sheet['A4']
     row, col = row + 1, 1
     for k in display:
         buf, align = k, _align_wrap
