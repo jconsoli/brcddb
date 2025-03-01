@@ -3,6 +3,10 @@
 Consoli Solutions, LLC
 jack@consoli-solutions.com
 
+**01 Mar 2025**
+* Added zone clenup worksheet
+* Misc bug fixes
+
 **Update 20 Oct 2024**
 
 Primary changes were to support the new chassis and report pages.
