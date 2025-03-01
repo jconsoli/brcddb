@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -53,15 +53,17 @@ modified if CLI commands are used for data that should be associated with an obj
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 06 Dec 2024   | Removed out dated URI references.                                                     |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 01 Mar 2025   | Removed skip of 'member-entry' in _effective_zonecfg_case()                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '01 Mar 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import http.client
 import brcdapi.brcdapi_rest as brcdapi_rest
@@ -422,13 +424,13 @@ def _effective_zonecfg_case(objx, obj, uri):
         dobj = obj.get('effective-configuration')
         if not isinstance(dobj, dict):
             return
-        _update_brcddb_obj_from_list(fab_obj, dobj, uri, 'enabled-zone')
+        _update_brcddb_obj_from_list(fab_obj, dobj, uri)
         for zobj in gen_util.convert_to_list(dobj.get('enabled-zone')):
             if 'member-entry' in zobj:
                 zone_obj = fab_obj.s_add_eff_zone(zobj.get('zone-name'),
                                                   zobj.get('zone-type'),
-                                                  zobj.get('member-entry').get('entry-name'),
-                                                  zobj.get('member-entry').get('principal-entry-name'))
+                                                  zobj['member-entry'].get('entry-name'),
+                                                  zobj['member-entry'].get('principal-entry-name'))
             else:  # I don't know how there can be items in the enabled-zone without a 'member-entry'. Just in case ...
                 zone_obj = fab_obj.s_add_eff_zone(zobj.get('zone-name'))
             _update_brcddb_obj(zone_obj, zobj, uri)
@@ -719,7 +721,7 @@ def get_batch(session, proj_obj, uri_l, fid=None, no_mask=False):
         brcdapi_log.log(brcdapi_util.mask_ip_addr(session.get('ip_addr')) + ' Chassis not found.', echo=True)
         return False
 
-    # Sort out which KPIs are for the chassis, which are for a logical switch, which are for CLI
+    # Sort out which KPIs are for the chassis: which are for a logical switch, which are for CLI
     fos_cli_l, chassis_uri_l, switch_uri_l = list(), list(), list()
     for uri in gen_util.convert_to_list(uri_l):
         fos_command = fos_cli.parse_cli(uri)
