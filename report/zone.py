@@ -21,15 +21,17 @@ Creates zone database pages to be added to an Excel Workbook
 +-----------------------+-------------------------------------------------------------------------------------------+
 | Method                | Description                                                                               |
 +=======================+===========================================================================================+
-| zone_page             | Creates a zone detail worksheet for the Excel report                                      |
-+-----------------------+-------------------------------------------------------------------------------------------+
 | alias_page            | Creates a port detail worksheet for the Excel report.                                     |
 +-----------------------+-------------------------------------------------------------------------------------------+
 | group_zone_page       | Creates a zone group detail worksheet for the Excel report.                               |
 +-----------------------+-------------------------------------------------------------------------------------------+
+| non_target_zone_page  | Creates a non-target zone detail worksheet for the Excel report.                          |
++-----------------------+-------------------------------------------------------------------------------------------+
 | target_zone_page      | Creates a target zone detail worksheet for the Excel report.                              |
 +-----------------------+-------------------------------------------------------------------------------------------+
-| non_target_zone_page  | Creates a non-target zone detail worksheet for the Excel report.                          |
+| zone_page             | Creates a zone detail worksheet for the Excel report                                      |
++-----------------------+-------------------------------------------------------------------------------------------+
+| zone_clean_page       | Creates a zone cleanup worksheet to be inserted in the workbook used with zon_config.py.  |
 +-----------------------+-------------------------------------------------------------------------------------------+
 
 **Version Control**
@@ -49,15 +51,17 @@ Creates zone database pages to be added to an Excel Workbook
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 03 Feb 2025   | Added fabric links to the zone pages and fixed header alignment.                      |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 01 Mar 2025   | Added zone_clean_page()                                                               |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '03 Feb 2025'
+__date__ = '01 Mar 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -75,6 +79,7 @@ import brcddb.util.iocp as brcddb_iocp
 import brcddb.app_data.alert_tables as al
 import brcddb.util.search as brcddb_search
 import brcddb.util.util as brcddb_util
+import brcddb.util.obj_convert as obj_convert
 import brcddb.report.utils as report_utils
 import brcddb.classes.util as brcddb_class_util
 
@@ -92,6 +97,17 @@ _align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
 _align_wrap_c = excel_fonts.align_type('wrap_center')
 _border_thin = excel_fonts.border_type('thin')
 _lightblue_fill = excel_fonts.fill_type('lightblue')
+
+_zone_clean_hdr_l = [
+    dict(Zone_Object='comment'),  # This row is reserved for the fabric link
+    dict(),
+    dict(
+        Zone_Object='comment',
+        Comments='The intended use of this worksheet is to insert it into the workbook used with zone_config.py. '
+                 'It contains all the instructions to delete unused zones and aliases.'
+    ),
+]
+
 
 ##################################################################
 #
@@ -525,6 +541,90 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                 row, col = row + 1, 1
 
 
+def zone_clean_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
+    """Creates a zone cleanup worksheet to be inserted in the workbook used with zon_config.py.
+
+    :param fab_obj: Fabric object
+    :type fab_obj: brcddb.classes.fabric.FabricObj
+    :param tc: Table of context page. A link to this page is place in cell A1
+    :type tc: str, None
+    :param wb: Workbook object
+    :type wb: class
+    :param sheet_name: Sheet (tab) name
+    :type sheet_name: str
+    :param sheet_i: Sheet index where page is to be placed. Default is 0.
+    :type sheet_i: int, None
+    :param sheet_title: Title to be displayed in large font, hdr_1, at the top of the sheet
+    :type sheet_title: str
+    :rtype: None
+    """
+    global _zone_clean_hdr_l, _link_font, _border_thin
+
+    # Add the header
+    content_l = _zone_clean_hdr_l.copy()
+    fab_obj_copy = brcddb_fabric.copy_fab_obj(fab_obj)
+
+    # Add rows to delete unused aliases
+    content_l.extend([dict(), dict(Zone_Object='comment', Comments='Unused aliases'), dict()])
+    for alias_obj in fab_obj_copy.r_alias_objects():
+        if len(obj_convert.obj_extract(alias_obj, 'ZoneObj')) == 0:
+            buf = ', '.join(alias_obj.r_members())
+            content_l.append(dict(Zone_Object='alias', Action='delete', Name=alias_obj.r_obj_key(), Comments=buf))
+
+    # Add rows to delete unused zones
+    content_l.extend([dict(), dict(Zone_Object='comment', Comments='Unused zones'), dict()])
+    alias_d = dict()  # Used to determine comments (deleted zones that used this alias)
+    del_zone_l = list()
+    for zone_obj in fab_obj_copy.r_zone_objects():
+        if len(obj_convert.obj_extract(zone_obj, 'ZoneCfgObj')) == 0:
+            zone = zone_obj.r_obj_key()
+            del_zone_l.append(zone)
+            for mem in zone_obj.r_members() + zone_obj.r_pmembers():
+                zone_l = alias_d.get(mem)
+                if zone_l is None:
+                    zone_l = list()
+                    alias_d[mem] = zone_l
+                zone_l.append(zone)
+            buf = 'Members: ' + ', '.join(zone_obj.r_members())
+            if len(zone_obj.r_pmembers()) > 0:
+                buf += ' Principal members: ' + ', '.join(zone_obj.r_pmembers())
+            content_l.append(dict(Zone_Object='zone', Action='delete', Name=zone, Comments=buf))
+    fab_obj_copy.s_del_zone(del_zone_l)
+
+    # Add rows to delete aliases no longer used because the zone was deleted
+    content_l.extend([
+        dict(),
+        dict(Zone_Object='comment', Comments='Aliases no longer used after deleting unused zones'),
+        dict(),
+    ])
+    for alias, zone_l in alias_d.items():
+        alias_obj = fab_obj_copy.r_alias_obj(alias)
+        if len(obj_convert.obj_extract(alias_obj, 'ZoneObj')) == 0:
+            buf = ', '.join(alias_obj.r_members()) + ' Was used in: ' + ', '.join(zone_l)
+            content_l.append(dict(Zone_Object='alias', Action='delete', Name=alias, Comments=buf))
+
+    # Insert the worksheet
+    brcddb_zone.add_zone_worksheet(wb, sheet_name, content_l, sheet_i)
+
+    # Insert the fabric link
+    excel_util.cell_update(
+        wb[sheet_name],
+        2,  # row
+        2,  # column
+        'Fabric: ' + brcddb_fabric.best_fab_name(fab_obj),
+        font=_link_font,
+        border=_border_thin,
+        link=fab_obj.r_get('report_app/hyperlink/fab')
+    )
+
+    fab_obj.r_project_obj().s_del_fabric(fab_obj_copy.r_obj_key())
+
+
+#################################################################################
+#                                                                               #
+#                    Case methods for the alias page                            #
+#                                                                               #
+#################################################################################
 def _alias_node_desc_case(obj, mem):
     try:
         return brcddb_login.login_best_node_desc(obj.r_fabric_obj().r_login_obj(mem))
