@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -37,15 +37,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 26 Dec 2024   | Removed unused parameter in call to chassis_hidden_port_page()                        |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 01 Mar 2025   | Added zone configuration cleanup page.                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '01 Mar 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import os
 import collections
@@ -213,6 +215,9 @@ _about_buf_l = (
     '  *   Analyzing enclosure usage (typically storage arrays)',
 )
 
+_zc_comment = 'Zone cleanup for $fab. Copy this zone cleanup worksheet to a zone configuration workbook. See '\
+              '"zone_config_sample.xlsx" and zone_config.py.'
+
 
 def _dashboard(obj, wb, sheet_index):
     """Adds a port performance dashboard. See _add_fabric_summary() for parameter definitions
@@ -364,12 +369,13 @@ def _add_zone_analysis(fab_obj, wb, sheet_index):
     """Adds the Zone Analysis page. See _add_fabric_summary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/za')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
-    report_zone.zone_page(fab_obj,
-                          fab_obj.r_get('report_app/hyperlink/tc'),
-                          wb,
-                          control_d['sn'],
-                          sheet_index,
-                          control_d['t'])
+    report_zone.zone_page(
+        fab_obj,
+        fab_obj.r_get('report_app/hyperlink/tc'),
+        wb,
+        control_d['sn'],
+        sheet_index,
+        control_d['t'])
     return 1
 
 
@@ -377,12 +383,13 @@ def _add_zone_by_target(fab_obj, wb, sheet_index):
     """Adds the Zone by Target page. See _add_fabric_summary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/zt')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
-    report_zone.target_zone_page(fab_obj,
-                                 fab_obj.r_get('report_app/hyperlink/tc'),
-                                 wb,
-                                 control_d['sn'],
-                                 sheet_index,
-                                 control_d['t'])
+    report_zone.target_zone_page(
+        fab_obj,
+        fab_obj.r_get('report_app/hyperlink/tc'),
+        wb,
+        control_d['sn'],
+        sheet_index,
+        control_d['t'])
     return 1
 
 
@@ -390,12 +397,28 @@ def _add_zone_by_non_target(fab_obj, wb, sheet_index):
     """Adds the Zone by Non-Target page. See _add_fabric_summary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/znt')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
-    report_zone.non_target_zone_page(fab_obj,
-                                     fab_obj.r_get('report_app/hyperlink/tc'),
-                                     wb,
-                                     control_d['sn'],
-                                     sheet_index,
-                                     control_d['t'])
+    report_zone.non_target_zone_page(
+        fab_obj,
+        fab_obj.r_get('report_app/hyperlink/tc'),
+        wb,
+        control_d['sn'],
+        sheet_index,
+        control_d['t'])
+    return 1
+
+
+def _add_zone_clean(fab_obj, wb, sheet_index):
+    """Adds the zone cleanup page. See _add_fabric_summary() for parameter definitions"""
+    control_d = fab_obj.r_get('report_app/control/zc')
+    brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
+    report_zone.zone_clean_page(
+        fab_obj,
+        fab_obj.r_get('report_app/hyperlink/tc'),
+        wb,
+        control_d['sn'],
+        sheet_index,
+        control_d['t'])
+
     return 1
 
 
@@ -403,12 +426,13 @@ def _add_alias_detail(fab_obj, wb, sheet_index):
     """Adds the Alias Detail page. See _add_fabric_summary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/ali')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
-    report_zone.alias_page(fab_obj,
-                           fab_obj.r_get('report_app/hyperlink/tc'),
-                           wb,
-                           control_d['sn'],
-                           sheet_index,
-                           control_d['t'])
+    report_zone.alias_page(
+        fab_obj,
+        fab_obj.r_get('report_app/hyperlink/tc'),
+        wb,
+        control_d['sn'],
+        sheet_index,
+        control_d['t'])
     return 1
 
 
@@ -416,12 +440,13 @@ def _add_login_detail(fab_obj, wb, sheet_index):
     """Adds the Logins page. See _add_fabric_summary() for parameter definitions"""
     control_d = fab_obj.r_get('report_app/control/log')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
-    report_login.login_page(wb,
-                            fab_obj.r_get('report_app/hyperlink/tc'),
-                            control_d['sn'],
-                            sheet_index,
-                            control_d['t'],
-                            fab_obj.r_login_objects())
+    report_login.login_page(
+        wb,
+        fab_obj.r_get('report_app/hyperlink/tc'),
+        control_d['sn'],
+        sheet_index,
+        control_d['t'],
+        fab_obj.r_login_objects())
     return 1
 
 
@@ -430,11 +455,12 @@ def _add_chassis(chassis_obj, wb, sheet_index):
     """Adds the chassis page. See _add_fabric_summary() for parameter definitions"""
     control_d = chassis_obj.r_get('report_app/control/chassis')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
-    report_chassis.chassis_page(wb,
-                                chassis_obj.r_get('report_app/hyperlink/tc'),
-                                control_d['sn'],
-                                sheet_index,
-                                chassis_obj)
+    report_chassis.chassis_page(
+        wb,
+        chassis_obj.r_get('report_app/hyperlink/tc'),
+        control_d['sn'],
+        sheet_index,
+        chassis_obj)
     return 1
 
 
@@ -458,14 +484,15 @@ def _add_project_bp(proj_obj, wb, sheet_index):
     """Adds the best practice page. See _add_fabric_summary() for parameter definitions"""
     control_d = proj_obj.r_get('report_app/control/bp')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
-    report_bp.bp_page(wb,
-                      proj_obj.r_get('report_app/hyperlink/tc'),
-                      control_d['sn'],
-                      sheet_index,
-                      control_d['t'],
-                      proj_obj,
-                      rt.BestPractice.bp_tbl,
-                      rt.BestPractice.bp_display_tbl)
+    report_bp.bp_page(
+        wb,
+        proj_obj.r_get('report_app/hyperlink/tc'),
+        control_d['sn'],
+        sheet_index,
+        control_d['t'],
+        proj_obj,
+        rt.BestPractice.bp_tbl,
+        rt.BestPractice.bp_display_tbl)
     return 1
 
 
@@ -477,15 +504,16 @@ def _add_project_dup(proj_obj, wb, sheet_index):
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
     wl = brcddb_project.dup_wwn(proj_obj)
     if len(wl) > 0:
-        report_login.login_page(wb,
-                                proj_obj.r_get('report_app/hyperlink/tc'),
-                                control_d['sn'],
-                                sheet_index,
-                                control_d['t'],
-                                wl,
-                                _dup_login_tbl,
-                                rt.Login.login_display_tbl,
-                                False)
+        report_login.login_page(
+            wb,
+            proj_obj.r_get('report_app/hyperlink/tc'),
+            control_d['sn'],
+            sheet_index,
+            control_d['t'],
+            wl,
+            _dup_login_tbl,
+            rt.Login.login_display_tbl,
+            False)
         return 1
     return 0
 
@@ -497,12 +525,13 @@ def _add_zone_by_group(proj_obj, wb, sheet_index):
 
     control_d = proj_obj.r_get('report_app/control/zg')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
-    report_zone.group_zone_page(proj_obj,
-                                proj_obj.r_get('report_app/hyperlink/tc'),
-                                wb,
-                                control_d['sn'],
-                                sheet_index,
-                                control_d['t'])
+    report_zone.group_zone_page(
+        proj_obj,
+        proj_obj.r_get('report_app/hyperlink/tc'),
+        wb,
+        control_d['sn'],
+        sheet_index,
+        control_d['t'])
 
     return 1
 
@@ -513,13 +542,14 @@ def _add_about(proj_obj, wb, sheet_index):
 
     control_d = proj_obj.r_get('report_app/control/ab')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
-    report_utils.about_page(wb,
-                            sheet_index,
-                            control_d['sn'],
-                            os.path.basename(__file__),
-                            __version__,
-                            _about_buf_l,
-                            tc=proj_obj.r_get('report_app/hyperlink/tc'))
+    report_utils.about_page(
+        wb,
+        sheet_index,
+        control_d['sn'],
+        os.path.basename(__file__),
+        __version__,
+        _about_buf_l,
+        tc=proj_obj.r_get('report_app/hyperlink/tc'))
 
     return 1
 
@@ -578,7 +608,7 @@ def _add_project_tc(proj_obj, wb, sheet_index):
         hyper_d = fab_obj.r_get('report_app/hyperlink')
         sub_content_l = [dict(t=control_d[key]['tc'], l=hyper_d[key]) for key in ('fab', 'db')]
         sub_content_l.extend(
-            [dict(t=control_d[key]['tc'], l=hyper_d[key]) for key in ('pl', 'za', 'zt', 'znt', 'ali', 'log')]
+            [dict(t=control_d[key]['tc'], l=hyper_d[key]) for key in ('pl', 'za', 'zt', 'znt', 'zc', 'ali', 'log')]
         )
         contents_l.append(dict(t=brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True), cl=sub_content_l))
 
@@ -632,12 +662,13 @@ def _add_iocp(iocp_obj, wb, sheet_index):
     """Adds the IOCP pages, if any. See _add_fabric_summary() for parameter definitions"""
     control_d = iocp_obj.r_get('report_app/control/iocp')
     brcdapi_log.log('    Adding ' + control_d['sn'], echo=True)
-    report_iocp.iocp_page(iocp_obj,
-                          iocp_obj.r_get('report_app/hyperlink/tc'),
-                          wb,
-                          control_d['sn'],
-                          sheet_index,
-                          control_d['t'])
+    report_iocp.iocp_page(
+        iocp_obj,
+        iocp_obj.r_get('report_app/hyperlink/tc'),
+        wb,
+        control_d['sn'],
+        sheet_index,
+        control_d['t'])
     return 1
 
 
@@ -697,6 +728,7 @@ _fab_control_d = dict(
     zt=dict(p='zt_', tc='Zone by Target', t='Zone by Target For Fabric: ', u=True, s=True,  a=_add_zone_by_target),
     znt=dict(p='znt_', tc='Zone by Non-Targets', t='Zone by Non-Targets For Fabric: ', u=True, s=True,
              a=_add_zone_by_non_target),
+    zc=dict(p='zc_', tc='Zone Clean', t='', u=True, s=True, a=_add_zone_clean),
     ali=dict(p='ali_', tc='Alias Detail', t='Alias Detail For Fabric: ', u=True, s=True, a=_add_alias_detail),
     log=dict(p='log_', tc='Logins', t='Logins For Fabric: ', u=True, s=True, a=_add_login_detail)
 )
@@ -732,7 +764,7 @@ def _add_sheet_names(proj_obj):
 
     # Set up the control data structures.
     add_l = (
-        dict(obj_l=[proj_obj],  # List of objects to create worksheets for.,
+        dict(obj_l=[proj_obj],  # List of objects to create worksheets for.
              control_d=_proj_control_d,  # Data structure that controls how to set up the worksheet.
              name_m=''),  # Sheet title and sheet name prefix or pointer to function to supply the same.
         dict(obj_l=proj_obj.r_chassis_objects(),
@@ -847,8 +879,8 @@ def report(proj_obj, outf, group_d=None):
     """
     report_l = (
         dict(obj_l=proj_obj.r_fabric_objects(),
-             add_name=('pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'ali', 'log', 'db', 'fab'),
-             order=('pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'ali', 'log', 'db', 'fab'),
+             add_name=('pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'zc', 'ali', 'log', 'db', 'fab'),
+             order=('pc', 'ps', 'pz', 'pr', 'sfp', 'pl', 'za', 'zt', 'znt', 'zc', 'ali', 'log', 'db', 'fab'),
              feedback='Processing fabric: ',
              control=_fab_control_d,
              obj_name=_fabric_name),
