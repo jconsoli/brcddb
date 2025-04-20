@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -31,15 +31,17 @@ Defines the port object, PortObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 26 Dec 2024   | Fixed confusion over duplicate use of "hex"                                           |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 04 Apr 2025   | Use current port user friendly name first in r_port_name() first.                     |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '04 Apr 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -303,11 +305,10 @@ class PortObj:
         :return: Port name
         :rtype: str
         """
-        if class_util.class_getvalue(self, 'fibrechannel/port-user-friendly-name') is not None:
-            return class_util.class_getvalue(self, 'fibrechannel/port-user-friendly-name')
-        else:
-            return '' if class_util.class_getvalue(self, 'fibrechannel/user-friendly-name') is None else \
-                class_util.class_getvalue(self, 'fibrechannel/user-friendly-name')
+        return class_util.class_getvalue(
+            self,
+            'fibrechannel/user-friendly-name',
+            default=class_util.class_getvalue(self, 'fibrechannel/port-user-friendly-name', default=''))
 
     def r_flags(self):
         """Returns flags associated with this object. Flags are defined in brcddb_common.py
