@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -66,15 +66,17 @@ information in here that is no longer used.
 +-----------+---------------+-----------------------------------------------------------------------------------+
 | 4.0.5     | 26 Dec 2024   | Use URLs in brcdapi.util instead of hard coded URLs                               |
 +-----------+---------------+-----------------------------------------------------------------------------------+
+| 4.0.6     | 12 Apr 2025   | FOS 9.2 updates.                                                                  |
++-----------+---------------+-----------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '12 Apr 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import brcdapi.util as brcdapi_util
 
@@ -126,6 +128,16 @@ class Chassis:
         brcdapi_util.bc_max_rest: 'Max Rest Sessions',
         brcdapi_util.bc_https_ka: 'HTTPS Keep Alive Enabled',
         brcdapi_util.bc_https_ka_to: 'HTTPS Keep Alive Timeout',
+        brcdapi_util.bc_https_sys_uptime: 'System Uptime',
+        brcdapi_util.bc_https_sessions: 'User Sessions',
+        brcdapi_util.bc_https_load_1: 'Average CPU Load: 1 Minute',
+        brcdapi_util.bc_https_load_5: 'Average CPU Load: 5 Minutes',
+        brcdapi_util.bc_https_load_15: 'Average CPU Load: 15 Minutes',
+        brcdapi_util.bc_https_total_mem: 'Total Memory',
+        brcdapi_util.bc_https_used_mem: 'Used Memory',
+        brcdapi_util.bc_https_free_mem: 'Free Memory',
+        brcdapi_util.bc_https_shared_mem: 'Shared Memory',
+        brcdapi_util.bc_https_cache_mem: 'Buffer Cache Memory',
         brcdapi_util.fru_blade: {
             'part-number': 'Part Number',
             'serial-number': 'S/N',
