@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -62,15 +62,17 @@ Methods and tables to support the class ChassisObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 26 Dec 2024   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 12 Apr 2025   | FOS 9.2 updates.                                                                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '12 Apr 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import time
 import brcdapi.log as brcdapi_log
@@ -540,12 +542,21 @@ def firmware_version(obj):
     :return: Firmware version as plain text.
     :rtype: str
     """
+    # FOS 9.2 and above
+    firmware = obj.r_chassis_obj().r_get(brcdapi_util.bc_version_fos)
+    if isinstance(firmware, str):
+        kernal = obj.r_chassis_obj().r_get(brcdapi_util.bc_version_kernal, 'Unknown')
+        return firmware + ' (Kernal: ' + kernal + ')'
+
+    # Pre-FOS 9.2
     firmware_l = obj.r_chassis_obj().r_get('brocade-firmware/firmware-history')
     try:
         return firmware_l[len(firmware_l)-1]['firmware-version'].replace('Fabos Version ', '')
     except (IndexError, TypeError, KeyError):
         pass
-    return 'Unknown'
+
+    # Pre-FOS before firmware-history was added
+    return obj.r_chassis_obj().r_get('brocade-fru/blade/firmware-version', 'Unknown')
 
 
 def eos(obj):
