@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -186,15 +186,19 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 26 Dec 2024   | Fixed grammar mistake in help message.                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 04 Jan 2025   | Added Slot_x_Terms is list of sheets to skip reading.                                 |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 12 Apr 2025   | FOS 9.2 updates.                                                                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '12 Apr 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.6'
 
 import collections
 import copy
@@ -220,7 +224,6 @@ import brcddb.classes.util as brcddb_class_util
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_switch as brcddb_switch
 
-_add_comments_debug_i = 0  # Used for debugging add_comments()
 default_stats = 999999999
 highlight_stats_dv = DataValidation(type='whole',
                                     operator='between',
@@ -1046,6 +1049,7 @@ _slot_d_find = {  # See table above
     'Index': dict(k='index', h=False, i=True, s=True, slot=False, p=0, pn=False),
     'Link Addr': dict(k='link_addr', h=False, i=False, s=True, slot=False, p=4, pn=False),
     'FID': dict(k='fid', h=False, i=False, s=False, slot=False, p=0, pn=False),
+    'CLI': dict(k='cli', h=False, i=False, s=False, slot=False, p=0, pn=False),
     'Attached Device': dict(k='desc', h=False, i=False, s=False, slot=False, p=0, pn=False),
     'ICL Description': dict(k='desc', h=False, i=False, s=False, slot=False, p=0, pn=False),
     'Port Name': dict(k='port_name', h=False, i=False, s=False, slot=False, p=0, pn=True),
@@ -1227,7 +1231,7 @@ def parse_switch_file(file):
     chassis_d, port_d, port_name_d, rd = None, dict(), None, dict()
 
     # Load the workbook
-    skip_l = ('About', 'Summary', 'Sheet', 'Instructions', 'CLI_Bind', 'lists', 'VC')
+    skip_l = ('About', 'Summary', 'Sheet', 'Instructions', 'Slot_x_Terms', 'CLI_Bind', 'lists', 'VC')
     error_l, sheet_l = excel_util.read_workbook(file, dm=3, skip_sheets=skip_l)
     if len(error_l) > 0:
         return error_l, chassis_d, list()
@@ -1631,7 +1635,7 @@ def cell_content(obj, col_d, old_bool=False):
     :return: List of dictionaries with the comments, parameter, and setting values.
     :rtype: list
     """
-    global _p_display_d, _std_font, _align_wrap_r, _border_thin
+    global _p_display_d, _std_font, _align_wrap_r, _border_thin, _lookup_d
 
     comment_l, font = alert_eval(obj, col_d)
     key, span_l = col_d['key'], span_to_list(col_d.get('span'))
@@ -1778,7 +1782,7 @@ def add_contents(obj, contents_l):
     :param contents_l: List of dictionaries defining the contents. See brcddb.report.switch._contents for definition
     :type contents_l: list
     """
-    global _yellow_fill, _add_comments_debug_i
+    global _yellow_fill
 
     col = 1
     sheet_d = obj.r_get('report_app/worksheet')
@@ -1789,8 +1793,6 @@ def add_contents(obj, contents_l):
 
     # Add the contents
     for row_item in contents_l:
-        _add_comments_debug_i += 1
-
         for row_l in row_item(obj, None) if callable(row_item) else [row_item]:
             for col_item_d in row_l:
                 action = col_item_d.get('a')
@@ -1807,7 +1809,12 @@ def add_contents(obj, contents_l):
                     elif isinstance(buf_item, (str, int, float)):
                         buf = buf_item
                     elif buf_item is not None:
-                        brcdapi_log.exception('Unexpected type, ' + str(type(buf_item)), echo=True)
+                        brcdapi_log.exception('Unexpected type, ' + str(type(buf_item)), echo=False)
+                        try:
+                            buf = str(type(buf_item))
+                        except BaseException as e:
+                            brcdapi_log.exception(['Could not convert buf_item to string.', e], echo=True)
+                            buf = None  # IDK why it wouldn't be None. This is just to be certain.
 
                     # Is there any conditional formatting?
                     rule, rule_key = None, None

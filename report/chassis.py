@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -43,15 +43,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 26 Dec 2024   | Removed unused parameter in chassis_hidden_port_page()                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 12 Apr 2025   | Added new chassis parameters in 9.2                                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '12 Apr 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack@consoli-solutions.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import collections
 import copy
@@ -600,6 +602,16 @@ _contents = [  # Search for **add_contents()** in brcddb.report.utils for an exp
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_max_rest)],
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_ka)],
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_ka_to)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_sys_uptime)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_sessions)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_load_1)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_load_5)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_load_15)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_total_mem)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_used_mem)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_free_mem)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_shared_mem)],
+    [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_https_cache_mem)],
     list(),
     [dict(buf='Summary of Alerts', font=_bold_font, border=None, span=0)],
     report_utils.alert_summary,
