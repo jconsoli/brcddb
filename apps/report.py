@@ -39,15 +39,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 01 Mar 2025   | Added zone configuration cleanup page.                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '01 Mar 2025'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import os
 import collections
@@ -126,6 +128,8 @@ dictionaries defined as follows:
 |           | ali   | Fabric    | Alias Detail                                                                      |
 +-----------+-------+-----------+-----------------------------------------------------------------------------------+
 |           | log   | Fabric    | Logins                                                                            |
++-----------+-------+-----------+-----------------------------------------------------------------------------------+
+| group_d   |       | Project   | The group dictionary determined in the report.py application, function _groups()  |
 +-----------+-------+-----------+-----------------------------------------------------------------------------------+
 | link      |       |           | Cell references. These are used to create hyperlinks in the Workbook.             |
 +-----------+-------+-----------+-----------------------------------------------------------------------------------+
@@ -629,7 +633,7 @@ def _add_project_tc(proj_obj, wb, sheet_index):
         excel_util.cell_update(sheet, row, 1, d['t'], font=_hdr2_font, align=_align_wrap)
         row += 1
         for obj in d['cl']:
-            if bool(d.get('zg')) and len(proj_obj.r_get('report_app/group_d')) == 0:
+            if d.get('zg', False) and len(proj_obj.r_get('report_app/group_d')) == 0:
                 continue
             sheet.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
             excel_util.cell_update(sheet, row, 2, obj['t'], font=_link_font if 'l' in obj else _std_font,
@@ -853,7 +857,6 @@ def report(proj_obj, outf, group_d=None):
     # Set up the workbook and give all the major objects (Project, Chassis, Fabric, and Switch) sheet names
     sheet_index, wb, working_group_d = 0, excel_util.new_report(), dict() if group_d is None else group_d
     _add_sheet_names(proj_obj)
-    brcddb_util.add_to_obj(proj_obj, 'report_app/group_d', working_group_d)
 
     """report_l is a list of dictionaries in the order they are to be processed. The dictionaries control sheet creation
     as follows:
