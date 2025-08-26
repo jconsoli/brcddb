@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -12,44 +12,47 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`maps` - Adds MAPS policy, group, and rules pages to a workbook
+**Description**
 
-Public Methods::
+Adds MAPS policy, group, and rules pages to a workbook
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | maps_policy           | Creates a MAPS policy page                                                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | maps_groups           | Creates a MAPS groups page                                                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | maps_rules            | Creates a MAPS groups page                                                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | maps_rules            | Creates a MAPS rules page                                                             |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | read_maps             | Reads a MAPS workbook (same format as output from maps_report.py) and adds            |
-    |                       |'brocade-maps' to each LS with minimal switch attributes (FID and switch name)         |
-    +-----------------------+---------------------------------------------------------------------------------------+
+**Public Methods**
 
-Version Control::
++-----------------------+---------------------------------------------------------------------------------------+
+| Method                | Description                                                                           |
++=======================+=======================================================================================+
+| maps_policy           | Creates a MAPS policy page                                                            |
++-----------------------+---------------------------------------------------------------------------------------+
+| maps_groups           | Creates a MAPS groups page                                                            |
++-----------------------+---------------------------------------------------------------------------------------+
+| maps_rules            | Creates a MAPS groups page                                                            |
++-----------------------+---------------------------------------------------------------------------------------+
+| maps_rules            | Creates a MAPS rules page                                                             |
++-----------------------+---------------------------------------------------------------------------------------+
+| read_maps             | Reads a MAPS workbook (same format as output from maps_report.py) and adds            |
+|                       |'brocade-maps' to each LS with minimal switch attributes (FID and switch name)         |
++-----------------------+---------------------------------------------------------------------------------------+
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | xx xxx 2023   | Initial launch                                                                    |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | xx xxx 2023   | Initial launch                                                                        |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -88,7 +91,7 @@ def _simple_val_act(switch_obj, d, key):
 
 
 def _tf_to_check(switch_obj, d, key):
-    return '\u221A' if bool(d.get(key)) else ''
+    return '\u221A' if d.get(key, False) else ''
 
 
 def _csv_list(d, key, sub_key):
@@ -423,7 +426,7 @@ def read_maps(proj_obj, maps_file, non_def_only=False, echo=False):
                 d = dict()
                 for col_hdr, item_key in reverse_d.items():
                     v = row_l[header_d[col_hdr]]
-                    if bool(_hdr_d[policy_key][item_key].get('bt')):
+                    if _hdr_d[policy_key][item_key].get('bt', False):
                         v = True if isinstance(v, str) and len(v) > 0 else False
                         if non_def_only and v and 'is-predefined' in item_key:
                             raise Skip

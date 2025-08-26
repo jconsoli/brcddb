@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -37,15 +37,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 26 Dec 2024   | Documentation updates only                                                            |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 25 Aug 2025   | Added SCC_POLICY.                                                                     |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import openpyxl.utils.cell as xl
 import copy
@@ -55,6 +57,7 @@ import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.utils as report_utils
+import brcddb.app_data.alert_tables as alert_table
 
 # Below is for efficiency
 _std_font = excel_fonts.font_type('std')
@@ -193,7 +196,47 @@ def _conv_to_bool(switch_obj, col_d):
     return report_utils.cell_content(switch_obj, col_d, old_bool=True)
 
 
+def _defined_scc_policy(switch_obj, col_d):
+    span_l = report_utils.span_to_list(col_d.get('span'))
+    return report_utils.add_content_defaults(
+        [
+            [
+                dict(buf=None, span=span_l[0]),
+                dict(buf='Defined SC_POLICY', align=_align_wrap, span=span_l[1]),
+                dict(buf='\n'.join(switch_obj.r_defined_scc(list())), span=span_l[2]),
+            ],
+        ],
+        dict(font=col_d.get('font'), align=col_d.get('align'), border=col_d.get('border'))
+    )[0]
+
+
+def _active_scc_policy(switch_obj, col_d):
+    global _std_font
+
+    span_l = report_utils.span_to_list(col_d.get('span'))
+    active_scc_l = switch_obj.r_active_scc(list())
+    alert_obj = switch_obj.r_alert_obj(alert_table.ALERT_NUM.SWITCH_SCC_MATCH)
+    if alert_obj is None:
+        font = col_d.get('font')
+        comment = None
+    else:
+        font = report_utils.alert_font_d.get(alert_obj.sev(), _std_font)
+        comment = alert_obj.fmt_msg()
+
+    return report_utils.add_content_defaults(
+        [
+            [
+                dict(buf=comment, span=span_l[0]),
+                dict(buf='Active SC_POLICY', align=_align_wrap, span=span_l[1]),
+                dict(buf='\n'.join(active_scc_l), span=span_l[2]),
+            ],
+        ],
+        dict(font=font, align=col_d.get('align'), border=col_d.get('border'))
+    )[0]
+
+
 _contents = [  # Search for **add_contents()** in brcddb.report.utils for an explanation
+    # Links, switch name with DID and WWN, summary of alerts, and login banner at the top of the page.
     list(),
     _links,
     list(),
@@ -203,7 +246,7 @@ _contents = [  # Search for **add_contents()** in brcddb.report.utils for an exp
     [dict(buf='Switch Login Banner', font=_bold_font, border=None, span=0)],
     [dict(buf=None, key=brcdapi_util.bfs_banner, font=_std_font, border=None, span=0)],
     list(),
-    [
+    [  # Column headers for the remaining parameters
         dict(buf='Comment', font=_bold_font, span=_SWITCH_PARAM_C),
         dict(buf='Parameter', font=_bold_font, span=_SWITCH_PARAM_P),
         dict(buf='Setting', font=_bold_font, span=_SWITCH_PARAM_V),
@@ -212,17 +255,17 @@ _contents = [  # Search for **add_contents()** in brcddb.report.utils for an exp
         dict(buf='Parameter', font=_bold_font, span=_SWITCH_PARAM_P),
         dict(buf='Setting', font=_bold_font, span=_SWITCH_PARAM_V),
     ],
-    [
+    [  # Insistent Domain ID, Status
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfc_idid),
         dict(font=None, align=None, border=None),
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfs_op_status_str),
     ],
-    [
+    [  # Switch Type, Access Gateway Mode
         dict(a=_switch_type, span=_cell_span_l, key='_open_switch'),
         dict(font=None, align=None, border=None),
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfs_ag_mode_str),
     ],
-    [
+    [  # Fabric Principal,
         dict(a=_conv_to_bool, span=_cell_span_l, key=brcdapi_util.bfs_principal),
         dict(font=None, align=None, border=None),
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfc_port_id_mode),
@@ -314,7 +357,7 @@ _contents = [  # Search for **add_contents()** in brcddb.report.utils for an exp
         dict(font=None, align=None, border=None),
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfs_edge_hold)
     ],
-    [dict(buf='FICON CUP', font=_bold_font, border=None, span=0)],
+    [dict(buf='FICON CUP & SCC_POLICY', font=_bold_font, border=None, span=0)],
     [
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.ficon_cup_en),
         dict(font=None, align=None, border=None),
@@ -339,6 +382,11 @@ _contents = [  # Search for **add_contents()** in brcddb.report.utils for an exp
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.ficon_uam_invalid_attach),
         dict(font=None, align=None, border=None),
         dict(font=None, align=None, border=None),
+    ],
+    [
+        dict(a=_defined_scc_policy, span=_cell_span_l, key=None),
+        dict(font=None, align=None, border=None),
+        dict(a=_active_scc_policy, span=_cell_span_l, key=None),
     ],
     [dict(buf='RNID', font=_bold_font, border=None, span=0)],
     [

@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -39,15 +39,17 @@ Contains functions to create port page and performance dashboard Excel worksheet
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 26 Dec 2024   | Documentation updates only.                                                           |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import datetime
 import collections
@@ -441,8 +443,8 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
             col_width = port_display_tbl[k].get('c')
             if isinstance(col_width, int):
                 sheet.column_dimensions[xl.get_column_letter(col)].width = col_width
-            buf = port_display_tbl[k]['d'] if bool(port_display_tbl[k].get('d')) else k
-            alignment = _align_wrap_vc if bool(port_display_tbl[k].get('v')) else _align_wrap
+            buf = port_display_tbl[k]['d'] if port_display_tbl[k].get('d', False) else k
+            alignment = _align_wrap_vc if port_display_tbl[k].get('v', False) else _align_wrap
         else:
             brcdapi_log.exception('Item ' + k + ' not in port_display_tbl.', echo=True)
             alignment = _align_wrap
@@ -472,7 +474,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
                 continue
             if len(login) > 1:
                 addl_row.update({k: col})
-            alignment = _align_wrap_c if k in port_display_tbl and bool(port_display_tbl[k].get('m')) else _align_wrap
+            alignment = _align_wrap_c if k in port_display_tbl and port_display_tbl[k].get('m', False) else _align_wrap
             link = None
             if k in _port_case:
                 font = calc_font

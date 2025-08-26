@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -33,15 +33,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 20 Oct 2024   | PEP 8 corrections to login speeds in brcddb.util.search.login_xxx                     |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 25 Aug 2025   | Added the active SCC policy.                                                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -283,6 +285,74 @@ def _fabric_statistics(sheet, row, fabric_obj):
     return row+1
 
 
+def _scc_policy(sheet, row, fabric_obj):
+    """Adds the active SCC policy to the worksheet.
+
+    :param sheet: Workbook sheet object
+    :type sheet: worksheet
+    :param row: Starting row number
+    :param row: int
+    :param fabric_obj: Fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :return: Next row number
+    :rtype: int
+    """
+    global _hdr, _zone_key_conv, _border_thin, _align_wrap, _bold_font, _std_font, _link_font
+
+    obj = fabric_obj.r_eff_zone_cfg_obj()
+
+    # Add the sub-header
+    row, col = row+2, 1
+    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr)+1)
+    excel_util.cell_update(sheet, row, col, 'Active SCC Policy', font=_bold_font, align=_align_wrap)
+    row += 1
+    for buf in ('Name', 'WWN', 'DID'):
+        excel_util.cell_update(
+            sheet,
+            row,
+            col,
+            buf,
+            font=_bold_font,
+            align=_align_wrap,
+            border=_border_thin
+        )
+        col += 1
+
+    # Active SCC Policy
+    row, col = row+1, 1
+    scc_d_l = fabric_obj.r_get('brocade-security/active-scc-policy-member-list', list())
+    if len(scc_d_l) == 0:
+        excel_util.cell_update(sheet, row, col, 'None', font=_std_font)
+    else:
+        # A little extra checking in case FOS returns something invalid
+        for scc_d in scc_d_l:
+            scc_switch_obj = fabric_obj.r_switch_obj(scc_d.get('switch-wwn', 'Undefined'))
+            link = None if scc_switch_obj is None else scc_switch_obj.r_get('report_app/hyperlink/switch')
+            excel_util.cell_update(
+                sheet,
+                row,
+                col,
+                scc_d.get('switch-name'),
+                font=_std_font if link is None else _link_font,
+                link=link,
+                align=_align_wrap,
+                border=_border_thin
+            )
+            for key in ('switch-wwn', 'domain-id'):
+                col += 1
+                excel_util.cell_update(
+                    sheet,
+                    row,
+                    col,
+                    scc_d.get(key, 'Undefined'),
+                    font=_std_font,
+                    align=_align_wrap,
+                    border=_border_thin
+                )
+
+    return row + 1
+
+
 def _zone_configuration(sheet, row, fabric_obj):
     """Adds the zone configuration summary to the worksheet.
 
@@ -330,6 +400,7 @@ def _zone_configuration(sheet, row, fabric_obj):
     for d in (dict(t=fabric_obj.r_get('report_app/control/za/tc'), l=fabric_obj.r_get('report_app/hyperlink/za')),
               dict(t=fabric_obj.r_get('report_app/control/zt/tc'), l=fabric_obj.r_get('report_app/hyperlink/zt')),
               dict(t=fabric_obj.r_get('report_app/control/znt/tc'), l=fabric_obj.r_get('report_app/hyperlink/znt')),
+              dict(t=fabric_obj.r_get('report_app/control/zc/tc'), l=fabric_obj.r_get('report_app/hyperlink/zc')),
               dict(t=fabric_obj.r_get('report_app/control/log/tc'), l=fabric_obj.r_get('report_app/hyperlink/log'))):
         if d['l'] is not None:
             sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
@@ -338,7 +409,7 @@ def _zone_configuration(sheet, row, fabric_obj):
 
     # Zone configuration summary
     if obj is not None:
-        row, col = row+1, 1
+        row, col = row+2, 1
         sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
         excel_util.cell_update(sheet, row, col, 'Zone Configuration Summary', font=_bold_font)
         ec_obj = fabric_obj.r_get('brocade-zone/effective-configuration')
@@ -411,7 +482,7 @@ def fabric_page(wb, tc, sheet_i, sheet_name, sheet_title, fabric_obj):
 
     # Set up the worksheet and add the sections to the fabric sheet
     sheet, row = _setup_worksheet(wb, tc, 0 if sheet_i is None else sheet_i, sheet_name, sheet_title)
-    for method in (_fabric_summary, _maps_dashboard, _zone_configuration, _fabric_statistics):
+    for method in (_fabric_summary, _maps_dashboard, _scc_policy, _zone_configuration, _fabric_statistics):
         row = method(sheet, row+1, fabric_obj)
 
     return

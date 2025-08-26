@@ -53,15 +53,17 @@ Creates zone database pages to be added to an Excel Workbook
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 01 Mar 2025   | Added zone_clean_page()                                                               |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '01 Mar 2025'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -542,7 +544,7 @@ def zone_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
 
 def zone_clean_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
-    """Creates a zone cleanup worksheet to be inserted in the workbook used with zon_config.py.
+    """Creates a zone cleanup worksheet to be inserted in the workbook used with zone_config.py.
 
     :param fab_obj: Fabric object
     :type fab_obj: brcddb.classes.fabric.FabricObj

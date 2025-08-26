@@ -190,15 +190,17 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 12 Apr 2025   | FOS 9.2 updates.                                                                      |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 25 Aug 2025   | Made _alert_font_d public (changed to alert_font_d).                                  |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '12 Apr 2025'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import collections
 import copy
@@ -1313,8 +1315,8 @@ _alert_d = {
     brcdapi_util.bfc_idid: {al_table.ALERT_NUM.SWITCH_IDID: True},
     brcdapi_util.bfc_fport_enforce_login_str: {al_table.ALERT_NUM.HANDLE_DUP_WWN: True},
 }
-# _alert_font_d is used to determine the font
-_alert_font_d = {
+# alert_font_d is used to determine the font
+alert_font_d = {
     # alert_class.ALERT_SEV.GENERAL: _std_font,
     alert_class.ALERT_SEV.WARN: _warn_font,
     alert_class.ALERT_SEV.ERROR: _error_font,
@@ -1648,6 +1650,8 @@ def cell_content(obj, col_d, old_bool=False):
             value = bool(value)
         if isinstance(value, bool):
             value = str(value)
+    if isinstance(value, list):
+        value = '\n'.join(value)
     try:
         parameter = _p_display_d[key]['b']
     except KeyError:
@@ -1707,7 +1711,7 @@ def alert_eval(obj, col_d):
     :return font: Font type for the cell
     :rtype: tuple
     """
-    global _alert_d, _alert_font_d
+    global _alert_d, alert_font_d
 
     comment_l, alert_level = list(), alert_class.ALERT_SEV.GENERAL
     for alert_obj in obj.r_alert_objects():
@@ -1715,7 +1719,7 @@ def alert_eval(obj, col_d):
             comment_l.append(alert_obj.fmt_msg())
             alert_level = max(alert_level, alert_obj.sev())
 
-    return comment_l, _alert_font_d.get(alert_level, col_d.get('font'))
+    return comment_l, alert_font_d.get(alert_level, col_d.get('font'))
 
 
 def seconds_to_days(obj, col_d):

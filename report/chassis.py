@@ -45,15 +45,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 12 Apr 2025   | Added new chassis parameters in 9.2                                                   |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 25 Aug 2025   | Add the management IP address and subnet mask to chassis report.                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '12 Apr 2025'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import collections
 import copy
@@ -73,6 +75,11 @@ import brcddb.app_data.alert_tables as al
 import brcddb.classes.alert as alert_class
 import brcddb.util.obj_convert as obj_convert
 import brcddb.util.iocp as brcddb_iocp
+
+
+class Found(Exception):
+    pass
+
 
 _std_font = excel_fonts.font_type('std')
 _bold_font = excel_fonts.font_type('bold')
@@ -271,10 +278,6 @@ _port_legend = [  # Used in add_port_map()
         dict(buf='Not in this logical switch', font=_std_font, align=_align_wrap, span=_port_legend_span),
     ],
 ]
-
-
-class Found(Exception):
-    pass
 
 
 def _insert_port(chassis_obj, port_obj, span):
@@ -551,6 +554,58 @@ def _conditional_highlight(chassis_obj, col_d):
     return report_utils.conditional_highlight(chassis_obj, _conditional_c)
 
 
+def _management_interface(chassis_obj, col_d):
+    """Returns list of columns for the management interface IP address.
+
+    :param chassis_obj: Chassis object
+    :type chassis_obj: brcddb.class.chassis.ChassisObj
+    :param col_d: This is for the column definition dictionaries but since this function works on rows, its None.
+    :type col_d: None
+    :return: Row list of column list of dictionaries to insert while processing _contents
+    :rtype: list
+    """
+    global _comment_span, _parameter_span, _setting_span, _common_default_d
+
+    ip_addr, subnet_mask, gateway = brcddb_chassis.static_mgmt_addr(chassis_obj, default_ip='')
+
+    return report_utils.add_content_defaults(
+        [
+            [
+                dict(buf=None, span=_comment_span),
+                dict(buf='Management Interface', span=_parameter_span),
+                dict(buf=ip_addr, span=_setting_span),
+            ]
+        ],
+        _common_default_d
+        )
+
+
+def _subnet_mask(chassis_obj, col_d):
+    """Returns list of columns for the management interface subnet mask.
+
+    :param chassis_obj: Chassis object
+    :type chassis_obj: brcddb.class.chassis.ChassisObj
+    :param col_d: This is for the column definition dictionaries but since this function works on rows, its None.
+    :type col_d: None
+    :return: Row list of column list of dictionaries to insert while processing _contents
+    :rtype: list
+    """
+    global _comment_span, _parameter_span, _setting_span, _common_default_d
+
+    ip_addr, subnet_mask, gateway = brcddb_chassis.static_mgmt_addr(chassis_obj, default_subnet_mask='')
+
+    return report_utils.add_content_defaults(
+        [
+            [
+                dict(buf=None, span=_comment_span),
+                dict(buf='Subnet Mask', span=_parameter_span),
+                dict(buf=subnet_mask, span=_setting_span),
+            ]
+        ],
+        _common_default_d
+        )
+
+
 _contents = [  # Search for **add_contents()** in brcddb.report.utils for an explanation
     list(),
     [dict(buf='Logical Switches', font=_bold_font, border=None, span=0)],
@@ -564,6 +619,8 @@ _contents = [  # Search for **add_contents()** in brcddb.report.utils for an exp
     _firmware_version,
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_license_id)],
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_mfg)],
+    _management_interface,
+    _subnet_mask,
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_org_name)],
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_org_reg_date)],
     [dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bc_pn)],
