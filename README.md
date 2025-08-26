@@ -2,6 +2,12 @@
 
 Consoli Solutions, LLC
 jack@consoli-solutions.com
+jack_consoli@yahoo.com
+
+**25 August 2025**
+* Added scc policy to switch report
+* Added defined vs active SCC_POLICY to best practice check
+* Added different speed logins for groups to best practice check
 
 **01 Mar 2025**
 * Added zone clenup worksheet
