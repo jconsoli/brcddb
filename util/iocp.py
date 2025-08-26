@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -79,15 +79,17 @@ is functional.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 26 Dec 2024   | Added find_chpid()                                                                    |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 25 Aug 2025   | Added z17 machine type. Renamed _condition_iocp to condition_iocp (made public)       |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -122,6 +124,8 @@ _ibm_type = {
     '8562': dict(d='z15 T02', t='CPU'),
     '3931': dict(d='z16', t='CPU'),
     '3932': dict(d='z16s', t='CPU'),  # An educated guess
+    '9175': dict(d='z17', t='CPU'),
+    '9176': dict(d='z17s', t='CPU'),  # An educated guess
 
     # CTC
     'FCTC': dict(d='CTC', t='CTC'),
@@ -140,6 +144,10 @@ _ibm_type = {
     '2423': dict(d='DS8870', t='DASD'),
     '2424': dict(d='DS8870', t='DASD'),
     '5332': dict(d='DS8900F', t='DASD'),
+
+    # Storage Constroller
+    '3880': dict(d='3880', t='SC'),
+    '3881': dict(d='3880', t='SC'),
 
     # Tape - I think the RNID login is as represented in this table
     '3480': dict(d='3480', t='Tape'),
@@ -299,7 +307,7 @@ def dev_type_to_name(dev_type):
     return _ibm_type[dev_type_str]['d'] if dev_type_str in _ibm_type else str(dev_type) + ' Unknown'
 
 
-def _condition_iocp(iocp):
+def condition_iocp(iocp):
     """Puts all commands on a single line, strips out comments, extraneous white space, and any macro that is not CHPID
     or CNTLUNIT
 
@@ -674,7 +682,7 @@ def parse_iocp(proj_obj, iocp):
     :param iocp: Name of the IOCP file to parse
     :type iocp: str
     """
-    brcdapi_log.log('Parsing: ' + iocp, True)
+    brcdapi_log.log('Parsing: ' + iocp, echo=True)
 
     # Read in the IOCP definition file and get an IOCP object
     iocp_list = brcdapi_file.read_file(iocp, False, False)
@@ -682,7 +690,7 @@ def parse_iocp(proj_obj, iocp):
     iocp_obj = proj_obj.s_add_iocp(buf_l.pop().split('_')[0])
 
     # Parse the CHPID and CNTLUNIT macros
-    chpid_l, cntlunit_l = _condition_iocp(iocp_list)
+    chpid_l, cntlunit_l = condition_iocp(iocp_list)
 
     # Create all the CHPID objects
     for chpid in chpid_l:

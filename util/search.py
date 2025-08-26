@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -12,28 +12,28 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.util.search` - Contains search and threshold compare methods.
+**Description**
 
-Public Methods & Data::
+Contains search and threshold compare methods.
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | test_threshold        | Filters a list of objects based on a number (int or float) and test condition         |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | match                 | Performs a regex match/search or wild card search in dict or brcddb class object(s).  |
-    |                       | If search_key is a list of more than one, OR logic applies. Performs an iterative     |
-    |                       | search on any list, tuple, dict, or brcddb object found after the last search key. If |
-    |                       | a list is encountered, an iterative search is performed on the list. If the search    |
-    |                       | keys have not been exhausted, then the remaining search keys are applied to the       |
-    |                       | iterative searches.                                                                   |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | match_test            | Performs a pre-defined complex test using match() and test_threshold. Any key         |
-    |                       | collected from the API and put into an object can be evaluated for an exact match,    |
-    |                       | a regex match, a regex search, and wild card match on str value types. Numbers can    |
-    |                       | use comparative operators >, <, >=, <=, !=, and ==. Types bool can only be evaluated  |
-    |                       | for True or False.                                                                     |
-    +-----------------------+---------------------------------------------------------------------------------------+
+**Public Methods & Data**
+
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| test_threshold        | Filters a list of objects based on a number (int or float) and test condition             |
++-----------------------+-------------------------------------------------------------------------------------------+
+| match                 | Performs a regex match/search or wild card search in dict or brcddb class object(s). If   |
+|                       | search_key is a list of more than one, OR logic applies. Performs an iterative search on  |
+|                       | any list, tuple, dict, or brcddb object found after the last search key. If a list is     |
+|                       | encountered, an iterative search is performed on the list. If the search keys have not    |
+|                       | been exhausted, then the remaining search keys are applied to the iterative searches.     |
++-----------------------+-------------------------------------------------------------------------------------------+
+| match_test            | Performs a pre-defined complex test using match() and test_threshold. Any key collected   |
+|                       | from the API and put into an object can be evaluated for an exact match, a regex match, a |
+|                       | regex search, and wild card match on str value types. Numbers can use comparative         |
+|                       | operators >, <, >=, <=, !=, and ==. Types bool can only be evaluated for True or False.   |
++-----------------------+-------------------------------------------------------------------------------------------+
 
 **Summary of wild card strings**
 
@@ -91,15 +91,17 @@ abc…          Letters
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 20 Oct 2024   | PEP 8 corrections to login speeds in brcddb.util.search.login_xxx                     |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import re
 import fnmatch

@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -67,15 +67,17 @@ Parses CLI output.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 26 Dec 2024   | Fixed error when switchshow output is empty or missing.                               |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import re
 import time

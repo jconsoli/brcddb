@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -12,54 +12,55 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`maps.py` - Utility functions to simplify MAPS
+**Description**
+
+Utility functions to simplify MAPS
 
 **Public Methods**
 
-  +-----------------------------+-----------------------------------------------------------------------------------|
-  | Method                      | Description                                                                       |
-  +=============================+===================================================================================+
-  | build_maps_alerts           | WIP. Does nothing. Features in FOS 9.1 and above should be available to complete  |
-  |                             | this. It hasn't been touched since 2019.                                          |
-  +-----------------------------+-----------------------------------------------------------------------------------|
-  | maps_dashboard_alerts       | WIP. Performs some rudimentary MAPS dashboard checking. Intended for reports.     |
-  |                             | Features in FOS 9.1 and above should be available to complete this. It hasn't     |
-  |                             | been touched since 2019.                                                          |
-  +-----------------------------+-----------------------------------------------------------------------------------|
-  | update_maps                 | Adds and optionally deletes MAPS rules, groups, and policies to match a reference |
-  |                             | switch. The intended use is for creating custom MAPS rules, groups, and policies  |
-  |                             | as a template and applying that template to other switches. For examples:         |
-  |                             | brocade-rest-api-applications/maps_config.py defines MAPS parameters from an      |
-  |                             | Excel Workbook. brocade-rest-api-applications/restore.py reads MAPS configuration |
-  |                             | parameters from another switch.                                                   |
-  |                             |                                                                                   |
-  |                             | In addition to simplifying MAPS configuration, this module breaks up API requests |
-  |                             | into pieces that should take no more than 20 seconds to complete.                 |
-  +-----------------------------+-----------------------------------------------------------------------------------|
++---------------------------+---------------------------------------------------------------------------------------+
+| Method or Data            | Description                                                                           |
++===========================+=======================================================================================+
+| build_maps_alerts         | WIP. Does nothing. Features in FOS 9.1 and above should be available to complete      |
+|                           | this. It hasn't been touched since 2019.                                              |
++---------------------------+---------------------------------------------------------------------------------------+
+| maps_dashboard_alerts     | WIP. Performs some rudimentary MAPS dashboard checking. Intended for reports.         |
+|                           | Features in FOS 9.1 and above should be available to complete this. It hasn't         |
+|                           | been touched since 2019.                                                              |
++---------------------------+---------------------------------------------------------------------------------------+
+| update_maps               | Adds and optionally deletes MAPS rules, groups, and policies to match a reference     |
+|                           | switch. The intended use is for creating custom MAPS rules, groups, and policies as a |
+|                           | template and applying that template to other switches. Examples:                      |
+|                           |                                                                                       |
+|                           | * brocade-rest-api-applications/maps_config.py defines MAPS parameters from an Excel  |
+|                           |   Workbook.                                                                           |
+|                           | * brocade-rest-api-applications/restore.py reads MAPS configuration parameters from   |
+|                           |    another switch.                                                                    |
+|                           |                                                                                       |
+|                           | In addition to simplifying MAPS configuration, this module breaks up API requests     |
+|                           | into pieces that should take no more than 20 seconds to complete.                     |
++---------------------------+---------------------------------------------------------------------------------------+
 
-**Description**
+**Version Control**
 
-Version Control::
-
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Added update_maps().                                                              |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Added update_maps().                                                                  |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 25 Aug 2025   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 from deepdiff import DeepDiff
 import collections
@@ -293,7 +294,7 @@ def _add_maps(session, fid, s_switch_d, t_switch_d, key_table, value_table, maps
         if len(content_l) == 0 or len(content_l[len(content_l) - 1]) >= _MAX_CHANGES:
             content_l.append(list())
         d = collections.OrderedDict()  # Some API requests require an ordered dictionary
-        for key in [k for k in key_table if not bool(_ro_keys_d.get(k))]:
+        for key in [k for k in key_table if not _ro_keys_d.get(k, False)]:
             val = value_table[key](s_switch_d[k].get(key))
             if val is not None:
                 d.update({key: val})
