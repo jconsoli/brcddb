@@ -55,15 +55,17 @@ modified if CLI commands are used for data that should be associated with an obj
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 01 Mar 2025   | Removed skip of 'member-entry' in _effective_zonecfg_case()                           |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 25 Aug 2025   | Added additional error checking to logout()                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '01 Mar 2025'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import http.client
 import brcdapi.brcdapi_rest as brcdapi_rest
@@ -234,8 +236,12 @@ def logout(session):
         else:
             rl.append('API logout succeeded')
     except (http.client.CannotSendRequest, http.client.ResponseNotReady):
-        rl.extend(['Could not logout. You may need to terminate this session via the CLI',
-                   'mgmtapp --showsessions, mgmtapp --terminate'])
+        rl.append('Could not logout. You may need to terminate this session via the CLI',
+                   'mgmtapp --showsessions, mgmtapp --terminate')
+    except BaseException as e:
+        buf = 'Unknown error occured while attempting to logout of the switch at '
+        buf += brcdapi_util.mask_ip_addr(session.get('ip_addr'))
+        rl.extend([buf, str(type(e)) + ': ' + str(e)])
 
     return rl
 
@@ -335,7 +341,7 @@ def _update_brcddb_obj_from_list(objx, obj, uri, skip_list=None):
         _mask_ip_addr(obj, keep_last=True)
         working_obj = obj[obj_key] if obj_key in obj else obj
         for k, v in working_obj.items():
-            if not bool(skip_d.get(k)):
+            if not skip_d.get(k, False):
                 brcddb_util.add_to_obj(objx, key + '/' + k, v)
     except BaseException as e:
         e_buf = str(type(e)) + ': ' + str(e)
@@ -698,6 +704,7 @@ def get_batch(session, proj_obj, uri_l, fid=None, no_mask=False):
     If any warnings or errors are encountered, the log is updated and the appropriate flag bits for the proj_obj are
     set. Search for _project_warn in brcddb_common.py for additional information. Again, search for _project_warn in
     brcddb.classes for object methods to set and check these bits.
+
     :param session: Session object, or list of session objects, returned from brcdapi.fos_auth.login()
     :type session: dict
     :param proj_obj: Project object
