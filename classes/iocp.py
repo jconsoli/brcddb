@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -30,15 +30,17 @@ Defines the IOCP class IOCPObj
 | 4.0.3     | 06 Dec 2024   | Fixed wrong value returned in r_link_addresses_d(). Accounted for leading "0x" in FC  |
 |           |               | addresses and single-byte addressing in r_has_link_addr().                            |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import brcddb.classes.alert as alert_class
 import brcddb.classes.util as class_util

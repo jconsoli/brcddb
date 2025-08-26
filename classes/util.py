@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -21,7 +21,21 @@ Includes methods common to class methods.
 +-----------------------+-------------------------------------------------------------------------------------------+
 | Method                | Description                                                                               |
 +=======================+===========================================================================================+
+| class_getkeys         | Returns a list of keys added to this object.                                              |
++-----------------------+-------------------------------------------------------------------------------------------+
+| class_getvalue        | Returns the value associated with a key. Key may be multiple keys using "/" notation      |
++-----------------------+-------------------------------------------------------------------------------------------+
+| format_obj            | Intended for error reporting brcddb objects but will format anything into a               |
+|                       | human-readable format.                                                                    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| get_or_add            | Gets a value for a key, k, in slash notation. If the key doesn't exist it is added with   |
+|                       | the input value, v.                                                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
+| get_reserved          | A common method for r_get_reserved() in all classes.                                      |
++-----------------------+-------------------------------------------------------------------------------------------+
 | get_simple_class_type | Returns a simple 'ProjectObj', 'SwitchObj', ... for brcddb.classes.* types                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| s_new_key_for_class   | Creates a new key/value pair in a brcddb object.                                          |
 +-----------------------+-------------------------------------------------------------------------------------------+
 
 **Version Control**
@@ -35,15 +49,17 @@ Includes methods common to class methods.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 20 Oct 2024   | Added default value to class_getvalue()                                               |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 25 Aug 2025   | Added all_types option to get_simple_class_type()                                     |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -56,20 +72,24 @@ simple_class_type = ('AlertObj', 'AliasObj', 'ChassisObj', 'FabricObj', 'LoginOb
 
 
 # Used in class_getvalue():
-def get_simple_class_type(obj):
+def get_simple_class_type(obj, all_types=False):
     """Returns a simple 'ProjectObj', 'SwitchObj', ... for brcddb.classes.* types
 
     :param obj: Any brcddb object.
     :type obj: All brcddb.classes
-    :return: Simple class type
+    :param all_types: If False, return None if it's not a brocade class. If True, return whatever the type is
+    :type all_types: bool
+    :return: Simple class type. None if not a Brocade class unless all_types is True.
     :rtype: str, None
     """
     global simple_class_type
 
+    obj_type_str = str(type(obj)).replace("<class '", '').replace("'>", '')
     for k in simple_class_type:
-        if k in str(type(obj)):
+        if k in obj_type_str:
             return k
-    return None  # It's not a brcddb class object
+
+    return obj_type_str if all_types else None  # It's not a brcddb class object
 
 
 # Case statements for reserved words in
@@ -292,7 +312,7 @@ def _special_key_scr(obj, k, v, v1):
     return None
 
 
-def special_key_lower(obj, k, v, v1):
+def _special_key_lower(obj, k, v, v1):
     """Case for keys who's lower int value should take precedence.
 
     :param obj: brcddb object.
@@ -311,7 +331,7 @@ def special_key_lower(obj, k, v, v1):
     return None
 
 
-def special_key_higher(obj, k, v, v1):
+def _special_key_higher(obj, k, v, v1):
     """Case for keys who's higher int value should take precedence.
 
     :param obj: brcddb object.
@@ -330,7 +350,7 @@ def special_key_higher(obj, k, v, v1):
     return None
 
 
-def special_key_ignore(obj, k, v, v1):
+def _special_key_ignore(obj, k, v, v1):
     """Case for keys whose values and value types may change.
 
     To Do: Choose the preferred format.
@@ -405,13 +425,13 @@ def _add_to_list(from_list, to_list):
 
 _special = {
     'state-change-registration': _special_key_scr,
-    'firmware-version': special_key_ignore,
-    'dns-servers': special_key_ignore,
-    'ip-static-gateway-list': special_key_ignore,
-    'ip-address': special_key_ignore,
-    'db-avail': special_key_lower,
-    'db-max': special_key_lower,
-    'db-chassis-wide-committed': special_key_higher,
+    'firmware-version': _special_key_ignore,
+    'dns-servers': _special_key_ignore,
+    'ip-static-gateway-list': _special_key_ignore,
+    'ip-address': _special_key_ignore,
+    'db-avail': _special_key_lower,
+    'db-max': _special_key_lower,
+    'db-chassis-wide-committed': _special_key_higher,
 }
 
 
@@ -575,7 +595,7 @@ def get_reserved(rd, k):
 
 
 def get_or_add(obj, k, v):
-    """Gets a value for a key, k. The key may be in slash notation. If the key doesn't exist it is added with value. v
+    """Gets a value for a key, k, in slash notation. If the key doesn't exist it is added with the input value, v.
 
     :param obj: Any brcddb.classes object
     :type obj: ChassisObj, FabricObj, LoginObj, FdmiNodeObj, FdmiPortObj, PortObj, ProjectObj, SwitchObj, ZoneCfgObj \

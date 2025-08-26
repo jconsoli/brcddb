@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -28,15 +28,17 @@ Defines the project object, ProjectObj.
 | 4.0.2     | 20 Oct 2024   | Added default value to r_get() and r_alert_obj(). Added r_ge_port_objects(),          |
 |           |               | r_ve_port_objects(), r_all_port_objects().                                            |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcddb.brcddb_common as brcddb_common
 import brcddb.classes.alert as alert_class

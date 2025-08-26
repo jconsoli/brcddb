@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -36,15 +36,18 @@ is some way to determine this case but it being such a rare scenario, no code wa
 | 4.0.2     | 20 Oct 2024   | Added default value to r_get() and r_alert_obj(). Added r_ge_port_keys(),             |
 |           |               | r_ge_port_objects(), r_ve_port_objects(), and r_all_port_objects()                    |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 25 Aug 2025   | Added ability to not set the fabric key in s_add_switch. This is useful when copying  |
+|           |               | fabrics.                                                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
@@ -234,18 +237,21 @@ class FabricObj:
         self._flags &= bits
         return self._flags
 
-    def s_add_switch(self, wwn):
+    def s_add_switch(self, wwn, add_fab_key=True):
         """Adds a switch to the project if it doesn't already exist and then adds it to fabric if not already added
 
         :param wwn: WWN of logical switch
         :type wwn: str
+        :param add_fab_key: If True, add the fabric key to the switch object.
+        :type add_fab_key: bool
         :return: Switch object
         :rtype: brcddb.classes.zone.SwitchObj
         """
         if wwn not in self._switch_keys:
             self._switch_keys.append(wwn)
-        switch_obj = self.r_project_obj().s_add_switch(wwn)  # I need the switch_obj to add the fab key
-        switch_obj.s_fabric_key(self.r_obj_key())
+        switch_obj = self.r_project_obj().s_add_switch(wwn)
+        if add_fab_key:
+            switch_obj.s_fabric_key(self.r_obj_key())
         return switch_obj
 
     def s_del_switch(self, wwn):

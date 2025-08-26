@@ -31,15 +31,17 @@ Defines the zone classes ZoneCfgObj, ZoneObj, and AliasObj
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 04 Feb 2025   | Added ability to resolve aliases in ZoneCfgObj.s_copy()                               |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '04 Feb 2025'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util

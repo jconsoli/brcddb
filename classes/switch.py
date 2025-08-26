@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -30,15 +30,17 @@ Defines the switch object, SwitchObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 26 Dec 2024   | Fixed bug in r_port_obj_for_pid() when PID does not have leading '0x'                 |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 25 Aug 2025   | Added r_defined_scc() and r_active_scc()                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '26 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
@@ -224,35 +226,35 @@ class SwitchObj:
 
     def r_is_base(self):
         """Test to determine is switch is defined as a base switch, 'fibrechannel-switch/base-switch-enabled'
-        :return: True: Switch is the fabric principal switch. False: Switch is not the fabric principal switch
+        :return: If True, the switch is defined as a base switch.
         :rtype: bool
         """
-        return bool(self.r_get(brcdapi_util.bfls_base_sw_en))
+        return self.r_get(brcdapi_util.bfls_base_sw_en, False)
 
     def r_is_default(self):
         """Test to determine if switch is the default switch, 'fibrechannel-switch/default-switch-status'
-        :return: True: Switch is the default switch. False: Switch is not the default switch
+        :return: If True, the switch is the default switch.
         :rtype: bool
         """
-        return bool(self.r_get(brcdapi_util.bfls_def_sw_status))
+        return self.r_get(brcdapi_util.bfls_def_sw_status, False)
 
     def r_is_ficon(self):
         """Test to determine if switch is defined as FICON
-        :return: True: Switch is the default switch. False: Switch is not the default switch
+        :return: If True, the switch is defined as a FICON switch.
         :rtype: bool
         """
-        return bool(self.r_get(brcdapi_util.bfls_ficon_mode_en))
+        return self.r_get(brcdapi_util.bfls_ficon_mode_en, False)
 
     def r_is_enabled(self):
         """Determines if a switch is enabled
         :return: True if enabled, False if not enabled or unknown
         :rtype: bool
         """
-        return bool(self.r_get(brcdapi_util.bfs_enabled_state))
+        return self.r_get(brcdapi_util.bfs_enabled_state, False)
 
     def r_is_principal(self):
         """Test to determine is switch is the principal switch in the fabric
-        :return: True: Switch is the fabric principal switch. False: Switch is not the fabric principal switch
+        :return: If True, this is the fabric principal switch.
         :rtype: bool
         """
         p = self.r_get(brcdapi_util.bfs_isprincipal)
@@ -273,7 +275,7 @@ class SwitchObj:
         :return: True: Switch is configured for FICON. False: Switch is not configured for FICON
         :rtype: bool
         """
-        return bool(self.r_get(brcdapi_util.bfls_ficon_mode_en))
+        return self.r_get(brcdapi_util.bfls_ficon_mode_en, False)
 
     def r_did(self, hex_did=False):
         """Returns the domain ID, in decimal
@@ -321,6 +323,28 @@ class SwitchObj:
         proj_obj = self.r_project_obj()
         # The switch is not in a fabric if the switch is offline of fabric information wasn't polled
         return None if self._fabric_key is None else proj_obj.r_fabric_obj(self._fabric_key)
+
+    def r_defined_scc(self, default=None):
+        """Returns the defined SCC_POLICY membership list.
+
+        :param default: Value to return if key is not found
+        :type default: None, list
+        :return: Defined SCC member
+        :rtype: None, list
+        """
+        scc_d = self.r_get('brocade-security/defined-scc-policy-member-list')
+        return default if scc_d is None else [d['switch-wwn'] for d in scc_d if isinstance(d.get('switch-wwn'), str)]
+
+    def r_active_scc(self, default=None):
+        """Returns the active SCC_POLICY membership list.
+
+        :param default: Value to return if key is not found
+        :type default: None, list
+        :return: Defined SCC member
+        :rtype: None, list
+        """
+        scc_d = self.r_get('brocade-security/active-scc-policy-member-list')
+        return default if scc_d is None else [d['switch-wwn'] for d in scc_d if isinstance(d.get('switch-wwn'), str)]
 
     def s_add_port(self, port):
         """Add a port to the switch
@@ -633,7 +657,7 @@ class SwitchObj:
         :type k: str, int
         :param v: Value to be added. Although any type should be valid, it has only been tested with the types below.
         :type v: str, int, list, dict
-        :param f: If True, don't check to see if the key exists. Allows users to change an existing key.
+        :param f: If True, don't check to see if the key exists. Allows users to change an existing value.
         :type f: bool
         :return: True if the add succeeded or is redundant.
         :rtype: bool
