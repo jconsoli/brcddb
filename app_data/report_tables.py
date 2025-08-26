@@ -23,60 +23,62 @@ information in here that is no longer used.
 **Important Classes**
 
 +---------------+-----------------------+-----------------------------------------------------------------------+
-| Class         | Sub-class             | Description                                                           |
+| Class         | Sub-class             | Description                                                               |
 +===============+=======================+=======================================================================+
-| Chassis       | chassis_display_tbl   | Determines what fields to display and the column header               |
-|               |                       | Used with brcddb.report.chassis.chassis_page()                        |
+| Chassis       | chassis_display_tbl   | Determines what fields to display and the column header. Used with        |
+|               |                       | brcddb.report.chassis.chassis_page().                                     |
 +---------------+-----------------------+-----------------------------------------------------------------------+
-| Switch       | switch_display_tbl     | Determines what fields to display and the column header               |
-|               |                       | Used with brcddb.report.switch.switch_page()                          |
+| Switch        | switch_display_tbl    | Determines what fields to display and the column header. Used with        |
+|               |                       | brcddb.report.switch.switch_page().                                       |
 +---------------+-----------------------+-----------------------------------------------------------------------+
-| Port          | port_display_tbl      | Determines how data is to be displayed                                |
-|               |                       | Used with brcddb.report.port.port_page()                              |
+| Port          | port_display_tbl      | Determines how data is to be displayed. Used with                         |
+|               |                       | brcddb.report.port.port_page().                                           |
 +---------------+-----------------------+-----------------------------------------------------------------------+
-| Port          | port_config_tbl       | Determines what fields to display. Tailored for port configurations   |
-|               |                       | Used with brcddb.report.chassis.chassis_page()                        |
+| Port          | port_config_tbl       | Determines what fields to display. Tailored for port configurations. Used |
+|               |                       | with brcddb.report.chassis.chassis_page()                                 |
 +---------------+-----------------------+-----------------------------------------------------------------------+
-| Port          | port_stats_tbl        | Determines what fields to display. Tailored for port statistics       |
-|               |                       | Used with brcddb.report.chassis.chassis_page()                        |
+| Port          | port_stats_tbl        | Determines what fields to display. Tailored for port statistics. Used     |
+|               |                       | with brcddb.report.chassis.chassis_page().                                |
 +---------------+-----------------------+-----------------------------------------------------------------------+
-| Port          | port_stats1_tbl       | Determines what fields to display. Tailored for port statistics       |
-|               |                       | from a single port.                                                   |
+| Port          | port_stats1_tbl       | Determines what fields to display. Tailored for port statistics. from a   |
+|               |                       | single port.                                                              |
 +---------------+-----------------------+-----------------------------------------------------------------------+
-| Port          | port_sfp_tbl          | Determines what fields to display. Tailored for SFPs                  |
-|               |                       | Used with brcddb.report.chassis.chassis_page()                        |
+| Port          | port_sfp_tbl          | Determines what fields to display. Tailored for SFPs. Used with           |
+|               |                       | brcddb.report.chassis.chassis_page()                                      |
 +---------------+-----------------------+-----------------------------------------------------------------------+
 
 **Version Control**
 
-+-----------+---------------+-----------------------------------------------------------------------------------+
-| Version   | Last Edit     | Description                                                                       |
-+===========+===============+===================================================================================+
-| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-+-----------+---------------+-----------------------------------------------------------------------------------+
-| 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff. Added FCR to chassis and switch reports. Fixed       |
-|           |               | firmware version header.                                                          |
-+-----------+---------------+-----------------------------------------------------------------------------------+
-| 4.0.2     | 03 Apr 2024   | Added Fabric and more MAPS stuff.                                                 |
-+-----------+---------------+-----------------------------------------------------------------------------------+
-| 4.0.3     | 26 Jun 2024   | Added _FIRMWARE_VERSION                                                           |
-+-----------+---------------+-----------------------------------------------------------------------------------+
-| 4.0.4     | 20 Oct 2024   | Corrected header for fibrechannel-statistics/remote-fec-uncorrected. Use string   |
-|           |               | type for port type and status first, then old numbered types.                     |
-+-----------+---------------+-----------------------------------------------------------------------------------+
-| 4.0.5     | 26 Dec 2024   | Use URLs in brcdapi.util instead of hard coded URLs                               |
-+-----------+---------------+-----------------------------------------------------------------------------------+
-| 4.0.6     | 12 Apr 2025   | FOS 9.2 updates.                                                                  |
-+-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Removed obsolete MAPS stuff. Added FCR to chassis and switch reports. Fixed. firmware |
+|           |               | version header.                                                                       |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 03 Apr 2024   | Added Fabric and more MAPS stuff.                                                     |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 26 Jun 2024   | Added _FIRMWARE_VERSION                                                               |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 20 Oct 2024   | Corrected header for fibrechannel-statistics/remote-fec-uncorrected. Use string type  |
+|           |               | for port type and status first, then old numbered types.                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 26 Dec 2024   | Use URLs in brcdapi.util instead of hard coded URLs                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 12 Apr 2025   | FOS 9.2 updates.                                                                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 25 Aug 2025   | Added IP address to Chassis. Added SCC_POLICY                                         |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '12 Apr 2025'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import brcdapi.util as brcdapi_util
 
@@ -297,6 +299,9 @@ class Switch:
         brcdapi_util.bfr_stats_pds_in_use: 'Proxy Device Slots In Use',
         brcdapi_util.bfr_stats_mpd: 'Maximum Proxy Devices',
         brcdapi_util.bfr_stats_max_nr: 'Maximum NR Ports',
+        # Security
+        'brocade-security/defined-scc-policy-member-list': 'Defined SCC_POLICY',
+        'brocade-security/active-scc-policy-member-list': 'Active SCC_POLICY',
     }
 
 

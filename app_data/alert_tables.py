@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -12,12 +12,11 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`alert_tables` - Alert definitions for class AlertTable
-
 **Description**
 
-Defines how alerts are displayed. It could probably be reduced to one simple dictionary. It started as something more
-complicated. I left it this way because other code references the class herein. Adding lookup_d was an afterthought.
+Alert definitions for class AlertTable. Defines how alerts are displayed. It could probably be reduced to one simple
+dictionary. It started as something more complicated. I left it this way because other code references the class herein.
+Adding lookup_d was an afterthought.
 
 **Version Control**
 
@@ -32,15 +31,17 @@ complicated. I left it this way because other code references the class herein. 
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 06 Dec 2024   | Made LOGIN_FDMI_NOT_ENABLED a port level alert, PORT_FDMI_NOT_ENABLED                 |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 25 Aug 2025   | Added ZONE_WWN_IN_ZONE and SWITCH_SCC_MATCH                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import brcddb.classes.alert as al
 
@@ -73,6 +74,7 @@ class ALERT_NUM:
     SWITCH_ISL_BW = SWITCH_ISL_IMBALANCE + 1
     SWITCH_ISL_FRU = SWITCH_ISL_BW + 1
     SWITCH_ISL_REDUNDANT = SWITCH_ISL_FRU + 1
+    SWITCH_SCC_MATCH = SWITCH_ISL_REDUNDANT + 1
 
     # Port level alerts
     PORT_BASE = 400
@@ -133,7 +135,8 @@ class ALERT_NUM:
     REMOTE_PORT_L_TEMP_A = REMOTE_PORT_L_TEMP_W + 1
     LOGIN_SPEED_NOT_MAX_W = REMOTE_PORT_L_TEMP_A + 1
     SWITCH_LIMITED_SPEED = LOGIN_SPEED_NOT_MAX_W + 1
-    PORT_SFP_HAA_F16_32_P8 = SWITCH_LIMITED_SPEED + 1
+    GROUP_SPEED_NOT_MAX = SWITCH_LIMITED_SPEED + 1
+    PORT_SFP_HAA_F16_32_P8 = GROUP_SPEED_NOT_MAX + 1
     PORT_TXC3_DISCARD = PORT_SFP_HAA_F16_32_P8 + 1
     PORT_RXC3_DISCARD = PORT_TXC3_DISCARD + 1
     PORT_LOGICAL_ERRORS = PORT_RXC3_DISCARD + 1
@@ -169,7 +172,8 @@ class ALERT_NUM:
     ZONE_MISMATCH = ZONE_NOT_USED + 1
     ZONE_MIXED = ZONE_MISMATCH + 1
     ZONE_WWN_ALIAS = ZONE_MIXED + 1
-    ZONE_BASE_ZONED = ZONE_WWN_ALIAS + 1
+    ZONE_WWN_IN_ZONE = ZONE_WWN_ALIAS + 1
+    ZONE_BASE_ZONED = ZONE_WWN_IN_ZONE + 1
     ZONE_MAX_PARTICIPATION = ZONE_BASE_ZONED + 1
     ZONE_DUP_ALIAS = ZONE_MAX_PARTICIPATION + 1
     ZONE_NULL_ALIAS = ZONE_DUP_ALIAS + 1
@@ -233,43 +237,44 @@ class AlertTable:
         ALERT_NUM.PROJ_FAILED_LOGIN: dict(m='Login to xxx.xxx.xxx.$p0 failed. $p1', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.PROJ_CHASSIS_API_ERROR: dict(m='API error to chassis $p0. $p1', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.PROJ_SWITCH_API_ERROR: dict(m='API error to switch $p0. $p1', s=al.ALERT_SEV.ERROR),
-        ALERT_NUM.PROJ_PROGRAM_ERROR: dict(m='Programming error encountered. Check the log for details. $p0 $p1',
-                                           s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.PROJ_PROGRAM_ERROR: \
+            dict(m='Programming error encountered. Check the log for details. $p0 $p1', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.PROJ_USER_ERROR: dict(m='Invalid user supplied data. $p0 $p1', s=al.ALERT_SEV.ERROR),
 
         # Fabric
 
         # Switch
-        ALERT_NUM.SWITCH_IDID: dict(m='Insistent Domain ID not set', s=al.ALERT_SEV.WARN,
-                                    k='insistent-domain-id-enabled'),
+        ALERT_NUM.SWITCH_IDID: \
+            dict(m='Insistent Domain ID not set', s=al.ALERT_SEV.WARN, k='insistent-domain-id-enabled'),
         ALERT_NUM.SWITCH_FIRMWARE_8_2: dict(m='Firmware is $p0. It should be v8.2.1c or higher', s=al.ALERT_SEV.ERROR,
                                             k='firmware-version'),  # Deprecated 6 Dec 2022
-        ALERT_NUM.HANDLE_DUP_WWN: dict(m='Login enforcement must be 2. Refer to $key', s=al.ALERT_SEV.ERROR,
-                                       k='f-port-login-settings/enforce-login'),
+        ALERT_NUM.HANDLE_DUP_WWN: \
+            dict(m='Login enforcement must be 2. Refer to $key', s=al.ALERT_SEV.ERROR, k='f-port-login-settings/enforce-login'),
         ALERT_NUM.SWITCH_ISL_IMBALANCE: dict(m='ISL imbalance from $p0 to $p1', s=al.ALERT_SEV.ERROR, k='_isl'),
-        ALERT_NUM.SWITCH_ISL_BW: dict(m='ISL trunks with different speeds from $p0 to $p1', s=al.ALERT_SEV.ERROR,
-                                      k='_isl'),
+        ALERT_NUM.SWITCH_ISL_BW: \
+            dict(m='ISL trunks with different speeds from $p0 to $p1', s=al.ALERT_SEV.ERROR, k='_isl'),
         ALERT_NUM.SWITCH_ISL_FRU: dict(m='ISLs on same slot from $p0 to $p1', s=al.ALERT_SEV.WARN, k='_isl'),
-        ALERT_NUM.SWITCH_ISL_REDUNDANT: dict(m='Non-redundant ISL trunks from $p0 to $p1', s=al.ALERT_SEV.ERROR,
-                                             k='_isl'),
+        ALERT_NUM.SWITCH_ISL_REDUNDANT: \
+            dict(m='Non-redundant ISL trunks from $p0 to $p1', s=al.ALERT_SEV.ERROR, k='_isl'),
+        ALERT_NUM.SWITCH_SCC_MATCH: dict(m='SCC_POLICY mismatch', s=al.ALERT_SEV.ERROR),
 
         # Port
-        ALERT_NUM.PORT_ENABLED_NO_LIGHT: dict(m='Enabled port has no logins', s=al.ALERT_SEV.GENERAL,
-                                              k='fibrechannel/enabled-state'),
-        ALERT_NUM.PORT_C3_DISCARD: dict(m='$p0 C3 discards on this port', s=al.ALERT_SEV.ERROR,
-                                        k='fibrechannel-statistics/class-3-discards'),
-        ALERT_NUM.PORT_TXC3_DISCARD: dict(m='$p0 TxC3 discards on this port', s=al.ALERT_SEV.ERROR,
-                                          k='fibrechannel-statistics/class-3-discards'),
-        ALERT_NUM.PORT_RXC3_DISCARD: dict(m='$p0 RxC3 discards on this port', s=al.ALERT_SEV.ERROR,
-                                          k='fibrechannel-statistics/class-3-discards'),
-        ALERT_NUM.PORT_LOGICAL_ERRORS: dict(m='$p0 Logical errors.',
-                                            s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
-        ALERT_NUM.PORT_BIT_ERRORS: dict(m='$p0 Bit errors.',
-                                        s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
-        ALERT_NUM.PORT_FRAME_ERRORS: dict(m='$p0 Framing errors.',
-                                          s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
-        ALERT_NUM.PORT_F_ZERO_CREDIT: dict(m='F-Port with $p0 zero credits', s=al.ALERT_SEV.WARN,
-                                           k='fibrechannel-statistics/bb-credit-zero'),
+        ALERT_NUM.PORT_ENABLED_NO_LIGHT: \
+            dict(m='Enabled port has no logins', s=al.ALERT_SEV.GENERAL, k='fibrechannel/enabled-state'),
+        ALERT_NUM.PORT_C3_DISCARD: \
+            dict(m='$p0 C3 discards on this port', s=al.ALERT_SEV.ERROR, k='fibrechannel-statistics/class-3-discards'),
+        ALERT_NUM.PORT_TXC3_DISCARD: \
+            dict(m='$p0 TxC3 discards on this port', s=al.ALERT_SEV.ERROR, k='fibrechannel-statistics/class-3-discards'),
+        ALERT_NUM.PORT_RXC3_DISCARD: \
+            dict(m='$p0 RxC3 discards on this port', s=al.ALERT_SEV.ERROR, k='fibrechannel-statistics/class-3-discards'),
+        ALERT_NUM.PORT_LOGICAL_ERRORS: \
+            dict(m='$p0 Logical errors.', s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
+        ALERT_NUM.PORT_BIT_ERRORS: \
+            dict(m='$p0 Bit errors.', s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
+        ALERT_NUM.PORT_FRAME_ERRORS: \
+            dict(m='$p0 Framing errors.', s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
+        ALERT_NUM.PORT_F_ZERO_CREDIT: \
+            dict(m='F-Port with $p0 zero credits', s=al.ALERT_SEV.WARN, k='fibrechannel-statistics/bb-credit-zero'),
         ALERT_NUM.PORT_TSB_2019_274_WARN: dict(m='Potential bad SFP per TSB 2019-274', s=al.ALERT_SEV.WARN),
         ALERT_NUM.PORT_TSB_2019_274_ALERT: dict(m='Bad SFP per TSB 2019-274. Low Tx Power: $p0', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.PORT_TSB_2019_276: dict(m='Potential bad SFP per TSB 2019-276', s=al.ALERT_SEV.WARN),
@@ -296,8 +301,8 @@ class AlertTable:
         ALERT_NUM.PORT_FAULT: dict(m='Port fault: $p0', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.PORT_SEGMENTED: dict(m='Segmented port', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.PORT_QSFP_BRKOUT_ASN: dict(m='ASN not supported on breakout QSFP', s=al.ALERT_SEV.ERROR),
-        ALERT_NUM.PORT_FDMI_NOT_ENABLED: dict(m='FDMI on attached HBA is not enabled. Switch $p0. Port: $p1',
-                                              s=al.ALERT_SEV.GENERAL),
+        ALERT_NUM.PORT_FDMI_NOT_ENABLED: \
+            dict(m='FDMI on attached HBA is not enabled. Switch $p0. Port: $p1', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.REMOTE_PORT_H_TXP_A: dict(m='Remote Tx power' + _power_above_threshold, s=al.ALERT_SEV.ERROR),
         ALERT_NUM.REMOTE_PORT_H_TXP_W: dict(m='Remote Tx power' + _power_above_threshold, s=al.ALERT_SEV.WARN),
         ALERT_NUM.REMOTE_PORT_L_TXP_A: dict(m='Remote Tx power' + _power_below_threshold, s=al.ALERT_SEV.ERROR),
@@ -318,29 +323,31 @@ class AlertTable:
         ALERT_NUM.REMOTE_PORT_H_TEMP_W: dict(m='Remote SFP Temperature' + _temp_above_threshold, s=al.ALERT_SEV.WARN),
         ALERT_NUM.REMOTE_PORT_L_TEMP_A: dict(m='Remote SFP Temperature' + _temp_below_threshold, s=al.ALERT_SEV.ERROR),
         ALERT_NUM.REMOTE_PORT_L_TEMP_W: dict(m='Remote SFP Temperature' + _temp_below_threshold, s=al.ALERT_SEV.WARN),
-        ALERT_NUM.LOGIN_SPEED_NOT_MAX_W: dict(m='Port login speed is $p0G but link is capable of $p1G',
-                                              s=al.ALERT_SEV.WARN),
-        ALERT_NUM.SWITCH_LIMITED_SPEED: dict(m='Attached device is capable of $p0G but switch SFP is limited to $p1G',
-                                             s=al.ALERT_SEV.WARN),
+        ALERT_NUM.LOGIN_SPEED_NOT_MAX_W: \
+            dict(m='Port login speed is $p0G but link is capable of $p1G', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.SWITCH_LIMITED_SPEED: \
+            dict(m='Attached device is capable of $p0G but switch SFP is limited to $p1G', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.GROUP_SPEED_NOT_MAX: \
+            dict(m='Login speed, $p0, is less than maximum speed of group $p1', s=al.ALERT_SEV.WARN),
 
         # Login
         ALERT_NUM.LOGIN_DUP_LOGIN: dict(m='Duplicate WWN. Found in ', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.LOGIN_NOT_ZONED: dict(m='Inaccessible. Not in any zone.', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_BASE_ZONED: dict(m='Base NPIV login address in zone', s=al.ALERT_SEV.WARN),
-        ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION: dict(m='$p1 devices zoned to this target. Maximum allowed is $p0.',
-                                                     s=al.ALERT_SEV.WARN),
+        ALERT_NUM.LOGIN_MAX_ZONE_PARTICIPATION: \
+            dict(m='$p1 devices zoned to this target. Maximum allowed is $p0.', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_SIM: dict(m='SIM port', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_AMP: dict(m='AMP', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.LOGIN_MIXED_SPEED_T: dict(m='Mixed server login speeds zoned to this target.', s=al.ALERT_SEV.WARN),
         ALERT_NUM.LOGIN_FASTER_S: dict(m='Faster server(s) zoned to this target.', s=al.ALERT_SEV.WARN),
         # Deprecated
-        ALERT_NUM.LOGIN_SPEED_DIFF_W: dict(m='$p0 logged in at slower speed also zoned to target(s): $p1.',
-                                           s=al.ALERT_SEV.WARN),
-        ALERT_NUM.LOGIN_SPEED_DIFF_E: dict(m='$p0 logged in at slower speed also zoned to target(s): $p1.',
-                                           s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.LOGIN_SPEED_DIFF_W: \
+            dict(m='$p0 logged in at slower speed also zoned to target(s): $p1.', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.LOGIN_SPEED_DIFF_E: \
+            dict(m='$p0 logged in at slower speed also zoned to target(s): $p1.', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.LOGIN_SPEED_IMP_W: dict(m='Mixed server login speeds zoned to this target.', s=al.ALERT_SEV.WARN),
-        ALERT_NUM.LOGIN_SPEED_IMP_E: dict(m='Mixed speeds zoned to this target. Search for $p0 and $p1',
-                                          s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.LOGIN_SPEED_IMP_E: \
+            dict(m='Mixed speeds zoned to this target. Search for $p0 and $p1', s=al.ALERT_SEV.ERROR),
 
         # Zoning
         # Zones
@@ -349,21 +356,22 @@ class AlertTable:
         ALERT_NUM.ZONE_PEER_NO_PMEM: dict(m='Peer zone with no principle members', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.ZONE_PEER_NO_NMEM: dict(m='Peer zone with no members', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.ZONE_MIXED: dict(m='Mixed WWN and d,i zone', s=al.ALERT_SEV.ERROR),
-        ALERT_NUM.ZONE_WWN_ALIAS: dict(m='Mixed use of WWN and alias in zone', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.ZONE_WWN_ALIAS: dict(m='Mixed use of WWN and alias in zone', s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.ZONE_WWN_IN_ZONE: dict(m='WWN used in zone', s=al.ALERT_SEV.WARN),
         ALERT_NUM.ZONE_NOT_USED: dict(m='Not used', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.ZONE_MISMATCH: dict(m='Effective zone does not match defined zone', s=al.ALERT_SEV.WARN),
-        ALERT_NUM.ZONE_PEER_PROPERTY: dict(m='Peer property WWN, $p0, should not be included in the zone definition',
-                                           s=al.ALERT_SEV.GENERAL),
+        ALERT_NUM.ZONE_PEER_PROPERTY: \
+            dict(m='Peer property WWN, $p0, should not be included in the zone definition', s=al.ALERT_SEV.GENERAL),
         # In ZONE_LINK_ADDR below: $p0 - CPC serial (sequence) number, $p1 CHPID tag
         ALERT_NUM.ZONE_LINK_ADDR: dict(m='Not in same zone for CPC $p0 CHPID $p1', s=al.ALERT_SEV.ERROR),
-        ALERT_NUM.ZONE_LINK_NO_ADDR: dict(m='Matching link address $p0 in path CPC $p1 not in fabric',
-                                          s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.ZONE_LINK_NO_ADDR: \
+            dict(m='Matching link address $p0 in path CPC $p1 not in fabric', s=al.ALERT_SEV.ERROR),
 
         # Zone members. In all cases, p0 must be the WWN because that is how the report associates an alert with a
         # member rather than the zone itself. 'f' = True is used to indicate the alert is relevant to the member.
         ALERT_NUM.ZONE_ALIAS_USE: dict(m='Consider using alias $p1', s=al.ALERT_SEV.WARN, f=True),
-        ALERT_NUM.ZONE_PROB_AMP: dict(m='SIM Port or AMP trunk link', s=al.ALERT_SEV.GENERAL,
-                                      f=True),
+        ALERT_NUM.ZONE_PROB_AMP: \
+            dict(m='SIM Port or AMP trunk link', s=al.ALERT_SEV.GENERAL, f=True),
         ALERT_NUM.ZONE_DIFF_FABRIC: dict(m='Zone member $p0 found in $p1.', s=al.ALERT_SEV.ERROR, f=True),
         ALERT_NUM.ZONE_NOT_FOUND: dict(m='Not found', s=al.ALERT_SEV.GENERAL, f=True),
         ALERT_NUM.ZONE_BASE_ZONED: dict(m='Base NPIV zoned', s=al.ALERT_SEV.ERROR, f=True),
@@ -378,13 +386,12 @@ class AlertTable:
         ALERT_NUM.ZONE_KEPT: dict(m='Kept. $p0', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.ZONE_REMOVED: dict(m='Removed. $p0', s=al.ALERT_SEV.GENERAL),
         ALERT_NUM.ZONE_UNDEFINED_ALIAS: dict(m='Alias $p0 used in zone $p1 does not exist.', s=al.ALERT_SEV.ERROR),
-        ALERT_NUM.ALIAS_INITIATOR_UPPER: dict(m='Alias for initiator contains uppercase characters.',
-                                              s=al.ALERT_SEV.WARN),
+        ALERT_NUM.ALIAS_INITIATOR_UPPER: \
+            dict(m='Alias for initiator contains uppercase characters.', s=al.ALERT_SEV.WARN),
 
         # Chassis
-        ALERT_NUM.PORT_SFP_HAA_F16_32_P8: dict(
-            m='SFP with S/N HAA* in port 8 of pre-2016 FC16-48 should be HAF type',
-            s=al.ALERT_SEV.ERROR),
+        ALERT_NUM.PORT_SFP_HAA_F16_32_P8: \
+            dict(m='SFP with S/N HAA* in port 8 of pre-2016 FC16-48 should be HAF type', s=al.ALERT_SEV.ERROR),
         ALERT_NUM.CHASSIS_FRU: dict(m='FRU $p0. State: $p1', s=al.ALERT_SEV.ERROR),
         # Warn or Error severity for CHASSIS_TEMP is set in brcddb_bp._chassis_temp_check()
         ALERT_NUM.CHASSIS_TEMP_ERROR: dict(m='Sensor $p0 temperature $p1', s=al.ALERT_SEV.ERROR),
@@ -392,8 +399,8 @@ class AlertTable:
         ALERT_NUM.CHASSIS_FIRMWARE: dict(m='Required minimum firmware is $p0. Actual is $p1', s=al.ALERT_SEV.ERROR),
 
         # IOCP
-        ALERT_NUM.IOCP_MIXED_CU_TYPES: dict(
-            m='Mixed control unit types on the same CHPID, $p0. Control unit types: $p1', s=al.ALERT_SEV.WARN),
+        ALERT_NUM.IOCP_MIXED_CU_TYPES: \
+            dict(m='Mixed control unit types on the same CHPID, $p0. Control unit types: $p1', s=al.ALERT_SEV.WARN),
 
         # General & customer alerts
         # f=True is used in brcddb.report.zone to determine if login or port alerts should be displayed
@@ -435,6 +442,7 @@ lookup_d = dict(
     SWITCH_ISL_BW=ALERT_NUM.SWITCH_ISL_BW,
     SWITCH_ISL_FRU=ALERT_NUM.SWITCH_ISL_FRU,
     SWITCH_ISL_REDUNDANT=ALERT_NUM.SWITCH_ISL_REDUNDANT,
+    SWITCH_SCC_MATCH=ALERT_NUM.SWITCH_SCC_MATCH,
 
     # Port
     PORT_ENABLED_NO_LIGHT=ALERT_NUM.PORT_ENABLED_NO_LIGHT,
@@ -494,6 +502,7 @@ lookup_d = dict(
     REMOTE_PORT_L_TEMP_W=ALERT_NUM.REMOTE_PORT_L_TEMP_W,
     LOGIN_SPEED_NOT_MAX_W=ALERT_NUM.LOGIN_SPEED_NOT_MAX_W,
     SWITCH_LIMITED_SPEED=ALERT_NUM.SWITCH_LIMITED_SPEED,
+    GROUP_SPEED_NOT_MAX=ALERT_NUM.GROUP_SPEED_NOT_MAX,
 
     # Login
     LOGIN_DUP_LOGIN=ALERT_NUM.LOGIN_DUP_LOGIN,
