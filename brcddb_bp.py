@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -52,15 +52,18 @@ imported by applications uses the brcddb libraries not no any of the library mod
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 20 Oct 2024   | Added more error checking.                                                            |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 25 Aug 2025   | Added support for checking zones with WWN members, wwn_in_zone. Added _scc_match()    |
+|           |               | which checks to see if the defined == active SCC_POLICY                               |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -77,8 +80,9 @@ import brcddb.app_data.alert_tables as al
 import brcddb.util.maps as brcddb_maps
 import brcddb.brcddb_project as brcddb_project
 import brcddb.brcddb_fabric as brcddb_fabric
+import brcddb.util.compare as brcddb_compare
 
-_high_temp_error, _high_temp_warn = 1000, 1000
+_high_temp_error, _high_temp_warn = 1000, 1000  # Default. Effectively disables high temp checking.
 _sfp_rules, _sfp_file = None, None
 _alert_tbl_d = dict()
 
@@ -323,6 +327,15 @@ def _isl_redundant(rule, switch_obj_l, t_obj):
                                        k='trunk',
                                        p0=brcddb_switch.best_switch_name(switch_obj),
                                        p1=brcddb_switch.best_switch_name(proj_obj.r_switch_obj(k)))
+
+
+def _scc_match(rule, switch_obj_l, t_obj):
+    """Check to see if the defined and active SCC_POLICY matches"""
+    global _alert_tbl_d
+
+    for switch_obj in switch_obj_l:
+        if not gen_util.compare_lists(switch_obj.r_active_scc(list()), switch_obj.r_defined_scc(list())):
+            switch_obj.s_add_alert(_alert_tbl_d, al.ALERT_NUM.SWITCH_SCC_MATCH)
 
 
 def _fc16_48_haa_p8(rule, chassis_obj_l, t_obj):
@@ -571,6 +584,26 @@ def _set_high_temp_warn(rule, obj_list, test_list):
         brcdapi_log.log('Rule ' + str(rule) + ' is not valid.', echo=True)
 
 
+def _group_speed(rule, obj_l, test_list):
+    """Make sure all ports of a group logged in at the same speed. See _isl_num_links() for parameters"""
+
+    global _alert_tbl_d
+    for proj_obj in obj_l:  # When written, there could only be one project in this list.
+        for group_name, sub_group_d in proj_obj.r_get('report_app/group_d', dict()).items():
+            max_group_speed_l = [obj.r_get(brcdapi_util.fc_speed) for obj in sub_group_d['port_obj_l']]
+            if len(max_group_speed_l) > 0:
+                max_group_speed = max(max_group_speed_l)
+                for port_obj in sub_group_d['port_obj_l']:
+                    port_speed = port_obj.r_get(brcdapi_util.fc_speed)
+                    if port_speed != max_group_speed:
+                        port_obj.s_add_alert(
+                            _alert_tbl_d,
+                            al.ALERT_NUM.GROUP_SPEED_NOT_MAX,
+                            p0=port_speed,
+                            p1=group_name
+                        )
+
+
 def _max_zone_participation(rule, obj_l, t_obj):
     """Sets the maximum zone participation value in brcddb_fabric. See _isl_num_links() for parameters"""
     brcddb_fabric.set_bp_check(rule, True)
@@ -734,6 +767,7 @@ _bp_tbl_d = {
     'dup_wwn': dict(a=_set_dup_wwn, d='ProjectObj'),
     'high_temp_error': dict(a=_set_high_temp_error, d='ProjectObj'),
     'high_temp_warn': dict(a=_set_high_temp_warn, d='ProjectObj'),
+    'group_speed': dict(a=_group_speed, d='ProjectObj'),
 
     # Chassis
     'chassis_fru_check': dict(a=_chassis_fru_check, d='ChassisObj'),
@@ -749,6 +783,7 @@ _bp_tbl_d = {
     'zone_mismatch': dict(a=_set_zone_check_property, d='ProjectObj'),
     'zone_alias_use': dict(a=_set_zone_check_property, d='ProjectObj'),
     'wwn_alias_zone': dict(a=_set_zone_check_property, d='ProjectObj'),
+    'wwn_in_zone': dict(a=_set_zone_check_property, d='ProjectObj'),
     'multi_initiator': dict(a=_set_zone_check_property, d='ProjectObj'),
     'max_zone_participation': dict(a=_max_zone_participation, d='ProjectObj'),
 
@@ -768,6 +803,7 @@ _bp_tbl_d = {
     'isl_bw': dict(a=_isl_bw, d='SwitchObj'),
     'isl_fru': dict(a=_isl_fru, d='SwitchObj'),
     'isl_redundant': dict(a=_isl_redundant, d='SwitchObj'),
+    'scc_match': dict(a=_scc_match, d='SwitchObj'),
 
     # Ports
     'sfp_health_check': dict(a=_check_sfps, d='PortObj'),

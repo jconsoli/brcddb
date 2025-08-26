@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -72,15 +72,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 06 Dec 2024   | Removed duplicate formatting of CEC serial number.                                    |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 25 Aug 2025   | Added support for checking zones with WWN members, wwn_in_zone.                       |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
@@ -97,9 +99,10 @@ import brcddb.brcddb_zone as brcddb_zone
 _check_d = dict(peer_property=False,
                 zone_mismatch=False,
                 wwn_alias_zone=False,
+                wwn_in_zone=False,
                 zone_alias_use=False,
                 multi_initiator=False,
-                max_zone_participation=1000)
+                max_zone_participation=10000)  # Effectively no max zone participation by default
 
 # _speed_to_gen converts the brocade-name-server/link-speed to a fibre channel generation.
 _speed_to_gen = {'1G': 0, '2G': 2, '4G': 3, '8G': 4, '16G': 5, '32G': 6, '64G': 7, '128G': 8}
@@ -348,12 +351,12 @@ def zone_analysis(fab_obj):
     _DI_IN_ZONE = _ALIAS_IN_ZONE << 1  # The zone contains a d,i member
     _IN_DEFINED_ZONECFG = _DI_IN_ZONE << 1  # Zone found in defined zone
     _ZONE_MISMATCH = _IN_DEFINED_ZONECFG << 1  # The effective zone does not match the defined zone
+    flag = 0b0  # Bit flags. See _WWN_MEM, etc, above for specific bit definitions.
 
     # We'll need to figure out where all the logins are so build a table to cross-reference all the neighbor WWNs
     brcddb_util.build_login_port_map(fab_obj.r_project_obj())
     other_fabrics = fab_obj.r_project_obj().r_fabric_objects()
     other_fabrics.remove(fab_obj)
-    flag = 0b0
 
     # Zone analysis
     for zone_obj in fab_obj.r_zone_objects():
@@ -369,9 +372,10 @@ def zone_analysis(fab_obj):
         for i in range(0, 2):   # 0 - Get the members, 1 - get the principal members
             mem_list = list()
             zmem_list = zone_obj.r_members() if i == 0 else zone_obj.r_pmembers()
+
             for zmem in zmem_list:
                 if gen_util.is_wwn(zmem, full_check=False):
-                    flag |= _WWN_MEM
+                    flag |= _WWN_MEM | _WWN_IN_ZONE
                     mem_list.append(zmem)
                     if _check_d['zone_alias_use'] and len(fab_obj.r_alias_for_wwn(zmem)) > 0:
                         # An alias was defined for this WWN, but the WWN was used to define the zone
@@ -409,7 +413,6 @@ def zone_analysis(fab_obj):
                             pass
 
                 elif gen_util.is_wwn(mem, full_check=False):
-                    flag |= _WWN_IN_ZONE
                     if _check_d['peer_property'] and not gen_util.is_wwn(mem, full_check=True):
                         zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_PROPERTY, None, zmem, None)
                     # Is the member in this fabric?
@@ -471,6 +474,10 @@ def zone_analysis(fab_obj):
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_MIXED)
         if _check_d['wwn_alias_zone'] and flag & _WWN_MEM and flag & _ALIAS_IN_ZONE:
             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_WWN_ALIAS)
+
+        # Check for zones with WWN members
+        if _check_d['wwn_in_zone'] and flag & _WWN_IN_ZONE:
+            zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_WWN_IN_ZONE)
 
         # Make sure the defined zone matches the effective zone
         if _check_d['zone_mismatch']:
@@ -564,12 +571,13 @@ def copy_fab_obj(fab_obj, fab_key=None, full_copy=False, skip_zone=False, skip_z
     :return: Copy of fabric object
     :rtype: brcddb.classes.fabric.FabricObj
     """
+    # ToDo - Add ability to copy the switch objects
     proj_obj = fab_obj.r_project_obj()
     new_key = fab_obj.r_obj_key() + '_copy' if fab_key is None else fab_key
     fab_obj_copy = proj_obj.s_add_fabric(new_key, add_switch=False)
     fab_obj_copy.s_or_flags(fab_obj.r_flags())
     for key in fab_obj.r_switch_keys():
-        fab_obj_copy.s_add_switch(key)
+        fab_obj_copy.s_add_switch(key, add_fab_key=False)
     for obj in fab_obj.r_login_objects():
         login_obj_copy = fab_obj_copy.s_add_login(obj.r_obj_key())
         if full_copy:

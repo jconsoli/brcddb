@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -12,51 +12,54 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb.brcddb_switch` - Methods and tables to support the class SwitchObj.
+**Descrition**
 
-Public Methods::
+Methods and tables to support the class SwitchObj.
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | add_rest_port_data    | Adds port statistics from rest request 'brocade-interface/fibrechannel-statistics' to |
-    |                       | each port object                                                                      |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | best_switch_name      | Returns the user friendly switch name, optionally with the switch WWN in parenthesis. |
-    |                       | If the switch is not named, ust the switch WWN is returned                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | copy_switch_obj       | Makes a copy of a switch object                                                       |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | port_obj_for_index    | Returns the port object matching port_index                                           |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | switch_fid            | Returns the switch FID as an integer                                                  |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | switch_ge_ports       | Returns the list of GE ports in the switch                                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | switch_ports          | Returns the list of ports in the switch                                               |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | switch_type           | Returns the switch type: Default, FICON, Base, FCP                                    |
-    +-----------------------+---------------------------------------------------------------------------------------+
+**Public Methods**
 
-Version Control::
++-----------------------+---------------------------------------------------------------------------------------+
+| Method                | Description                                                                           |
++=======================+=======================================================================================+
+| add_rest_port_data    | Adds port statistics from rest request 'brocade-interface/fibrechannel-statistics' to |
+|                       | each port object                                                                      |
++-----------------------+---------------------------------------------------------------------------------------+
+| best_switch_name      | Returns the user friendly switch name, optionally with the switch WWN in parenthesis. |
+|                       | If the switch is not named, ust the switch WWN is returned                            |
++-----------------------+---------------------------------------------------------------------------------------+
+| copy_switch_obj       | Makes a copy of a switch object                                                       |
++-----------------------+---------------------------------------------------------------------------------------+
+| port_obj_for_index    | Returns the port object matching port_index                                           |
++-----------------------+---------------------------------------------------------------------------------------+
+| switch_fid            | Returns the switch FID as an integer                                                  |
++-----------------------+---------------------------------------------------------------------------------------+
+| switch_ge_ports       | Returns the list of GE ports in the switch                                            |
++-----------------------+---------------------------------------------------------------------------------------+
+| switch_ports          | Returns the list of ports in the switch                                               |
++-----------------------+---------------------------------------------------------------------------------------+
+| switch_type           | Returns the switch type: Default, FICON, Base, FCP                                    |
++-----------------------+---------------------------------------------------------------------------------------+
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import time
 import brcdapi.util as brcdapi_util

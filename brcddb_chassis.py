@@ -64,19 +64,26 @@ Methods and tables to support the class ChassisObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 12 Apr 2025   | FOS 9.2 updates.                                                                      |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 25 Aug 2025   | Added static_mgmt_addr()                                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '12 Apr 2025'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import time
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
+
+
+class Found(Exception):
+    pass
+
 
 _MIN_SYMB_LEN = 10
 
@@ -625,3 +632,39 @@ def chassis_speed(obj):
     :rtype: int
     """
     return chassis_type_d[_chassis_type(obj.r_chassis_obj())]['spd']
+
+
+def static_mgmt_addr(obj, default_ip=None, default_subnet_mask=None, default_gateway=None):
+    """Returns the static management IP address, subnet mask, and gateway.
+
+    $ToDo - Fishout the gateway.
+
+    :param obj: Any object that returns a chassis object: Chassis, switch, port, or login object
+    :type obj: brcddb.class.chassis.ChassisObj, brcddb.class.switch.SwitchObj
+    :param default_ip: The value to return if the management IP address cannot be found
+    :type default_ip: str, None
+    :param default_subnet_mask: The value to return if the management subnet mask cannot be found
+    :type default_subnet_mask: str, None
+    :param default_gateway: The value to return if the gateway address cannot be found
+    :type default_gateway: str, None
+    :return ip_addr: Management IP address
+    :rtype ip_addr: str, None
+    :return subnet_mask: Subnet mask
+    :rtype subnet_mask: str, None
+    :return gateway: The gateway address
+    """
+    ip_d = dict()
+    try:
+        chassis_obj = obj.r_chassis_obj()
+        for ip_d in chassis_obj.r_get('brocade-chassis/management-ethernet-interface', list()):
+            for flag in ip_d['ethernet-status-flags']['flag']:
+                if flag == 'master':
+                    raise Found
+    except TypeError:
+        brcdapi_log.exception('Invalid object parameter: ')
+    except (TypeError, KeyError, Found):
+        # A TypeError occurs when the chassis_obj couldn't be resolved.
+        pass
+
+    return ip_d.get('inet-address', default_ip), ip_d.get('subnet-mask', default_subnet_mask), default_gateway
+

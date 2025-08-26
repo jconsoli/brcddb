@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -12,51 +12,53 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`brcddb_login` - Login level utilities.
+**Description**
 
-Public Methods::
+Login level utilities.
 
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | Method                | Description                                                                           |
-    +=======================+=======================================================================================+
-    | fdmi_node_name        | Returns the FDMI node symbolic name                                                   |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | ns_node_name          | Returns the Name Server node symbolic name                                            |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | login_best_node_desc  | Finds the first descriptor for what's attached to the port. See module header for     |
-    |                       | details                                                                               |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | login_best_port_desc  | Finds the first descriptor for this login using the FDMI port descriptor, name        |
-    |                       | server, and FDMI node descriptor.                                                     |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | best_login_name       | Returns the alias, WWN, or d,i for the name parameter                                 |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | login_type            | Returns the login type, if available. Otherwise, ''                                    |
-    +-----------------------+---------------------------------------------------------------------------------------+
-    | login_features        | Returns the FC-4 features as returned from the API. Returns '' if unavailable.        |
-    +-----------------------+---------------------------------------------------------------------------------------+
+**Public Methods**
 
-Version Control::
++-----------------------+-------------------------------------------------------------------------------------------+
+| Method                | Description                                                                               |
++=======================+===========================================================================================+
+| fdmi_node_name        | Returns the FDMI node symbolic name                                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
+| ns_node_name          | Returns the Name Server node symbolic name                                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| login_best_node_desc  | Finds the first descriptor for what's attached to the port. See module header for details |
++-----------------------+-------------------------------------------------------------------------------------------+
+| login_best_port_desc  | Finds the first descriptor for this login using the FDMI port descriptor, name server,    |
+|   `                   | and FDMI node descriptor.                                                                 |
++-----------------------+-------------------------------------------------------------------------------------------+
+| best_login_name       | Returns the alias, WWN, or d,i for the name parameter                                     |
++-----------------------+-------------------------------------------------------------------------------------------+
+| login_type            | Returns the login type, if available. Otherwise, ''                                       |
++-----------------------+-------------------------------------------------------------------------------------------+
+| login_features        | Returns the FC-4 features as returned from the API. Returns '' if unavailable.            |
++-----------------------+-------------------------------------------------------------------------------------------+
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.2     | 20 Oct 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
+**Version Control**
+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 20 Oct 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '20 Oct 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.3'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util

@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -61,15 +61,17 @@ Support for project level operations.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 06 Dec 2024   | Added the FID number to the logical switch in scan()                                  |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 25 Aug 2025   | Added SCC policy to scan().                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Dec 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.file as brcdapi_file
@@ -317,15 +319,28 @@ def _scan_fabric(fab_obj, in_prefix=None, logical_switch=False):
     ml = ['',
           brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True),
           '',
-          '  Zone Configurations:']
+          '  SCC Policy:']
+
+    # SCC Policy
+    scc_d_l = fab_obj.r_get('brocade-security/active-scc-policy-member-list', list())
+    if len(scc_d_l) == 0:
+        ml.append('    None')
+    for scc_d in scc_d_l:
+        ml.append(
+            '    ' + ', '.join([str(scc_d.get(k, 'Unknown')) for k in ('switch-name', 'switch-wwn', 'domain-id')])
+        )
 
     # Zone Configurations
+    ml.extend(['', '  Zone Configurations (* denotes the effective zone configuration):'])
     eff_zonecfg = fab_obj.r_defined_eff_zonecfg_key()
-    for buf in [str(b) for b in fab_obj.r_zonecfg_keys()]:
+    zonecfg_l = [str(key) for key in fab_obj.r_zonecfg_keys() if key != '_effective_zone_cfg']
+    if len(zonecfg_l) == 0:
+        ml.append('    None')
+    for buf in zonecfg_l:
         if isinstance(eff_zonecfg, str) and eff_zonecfg == buf:
-            ml.append('  *' + buf)
-        elif buf != '_effective_zone_cfg':
-            ml.append('  ' + buf)
+            ml.append('    *' + buf)
+        else:
+            ml.append('    ' + buf)
 
     # Logical switches
     if logical_switch:
@@ -333,7 +348,7 @@ def _scan_fabric(fab_obj, in_prefix=None, logical_switch=False):
         for switch_obj in fab_obj.r_switch_objects():
             ml.append('    ' + brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True, fid=True))
 
-    return [pbuf + buf for buf in ml]
+    return ml if len(pbuf) == 0 else [pbuf + b for b in ml]
 
 
 def scan(proj_obj, fab_only=False, logical_switch=False):
@@ -350,10 +365,17 @@ def scan(proj_obj, fab_only=False, logical_switch=False):
     """
     rl = list()
 
-    if fab_only:
-        for fab_obj in proj_obj.r_fabric_objects():
-            rl.extend(_scan_fabric(fab_obj, logical_switch=logical_switch))
-    else:
+    if proj_obj is None:
+        rl.append('Invalid Project Object. Nothing to scan.')
+        return rl
+
+    # By chassis
+    if not fab_only:
+        rl.extend(
+            ['By Chassis & Logical Switch',
+             '---------------------------',
+             '*See "By Fabric" section for SCC policy and zone configurations']
+        )
         for chassis_obj in proj_obj.r_chassis_objects():
             rl.extend(['Chassis: ' + brcddb_chassis.best_chassis_name(chassis_obj, wwn=True), ''])
             for switch_obj in chassis_obj.r_switch_objects():
@@ -375,4 +397,10 @@ def scan(proj_obj, fab_only=False, logical_switch=False):
                     zonecfg_l.append('      None')
                 rl.extend(zonecfg_l)
                 rl.append('')
+
+    # By fabric
+    rl.extend(['', 'By Fabric', '---------------------------'])
+    for fab_obj in proj_obj.r_fabric_objects():
+        rl.extend(_scan_fabric(fab_obj, logical_switch=logical_switch))
+
     return rl

@@ -1,8 +1,8 @@
 """
-Copyright 2023, 2024 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
-the License. You may also obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
@@ -12,60 +12,61 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
 details.
 
-:mod:`parse_nx` - Parses output from NX OS (Cisco CLI output).
-
 **Description**
 
-    The methods herein convert NX-OS command output to the equivalent JSON produced when piping commands to json. The
-    intended use was for handling commands on older versions of NX-OS that do not support "| json". Methods were
-    written on an as needed basis. Only a limited number of commands are covered in this module. Since they were written
-    as needed, little thought went into coding style and consistency.
+Parses output from NX OS (Cisco CLI output).
 
-    VSANs are interpreted as FIDs. The "show fcdomain" output, show_fcdomain(), must be performed first so as to pick up
-    all the VSANs.
+The methods herein convert NX-OS command output to the equivalent JSON produced when piping commands to json. The
+intended use was for handling commands on older versions of NX-OS that do not support "| json". Methods were written on
+an as needed basis. Only a limited number of commands are covered in this module. Since they were written as needed,
+little thought went into coding style and consistency.
+
+VSANs are interpreted as FIDs. The "show fcdomain" output, show_fcdomain(), must be performed first so as to pick up all
+the VSANs.
 
 **WARNINGS**
 
-    * Intended for internal Broadcom use only
+    * Intended for internal Consoli-Solutions use only
     * Smart zoning has not been implemented.
     * This was a hack when I ran into some command output that didn't support | JSON. The comments are off.
 
 **Public Methods & Data**
 
-    +-------------------------------+-------------------------------------------------------------------------------+
-    | Method                        | Description                                                                   |
-    +===============================+===============================================================================+
-    | show_device_alias_database    | Parses "show device-alias database" output into the equivalent of             |
-    |                               | json.loads("show device-alias database | json")                               |
-    +-------------------------------+-------------------------------------------------------------------------------+
-    | show_interface_brief          | Parses "show interface brief" output into the equivalent of                   |
-    |                               | json.loads("show interface brief | json | no-more")                           |
-    +-------------------------------+-------------------------------------------------------------------------------+
-    | show_zoneset                  | Parses the output of "show zoneset" into brcddb objects                       |
-    +-------------------------------+-------------------------------------------------------------------------------+
-    | show_fcdomain                 | Parses "show zoneset" output into the equivalent of                           |
-    |                               | json.loads("show fcdomain | json | no-more")                                  |
-    +-------------------------------+-------------------------------------------------------------------------------+
++-------------------------------+-------------------------------------------------------------------------------+
+| Method                        | Description                                                                   |
++===============================+===============================================================================+
+| show_device_alias_database    | Parses "show device-alias database" output into the equivalent of             |
+|                               | json.loads("show device-alias database | json")                               |
++-------------------------------+-------------------------------------------------------------------------------+
+| show_interface_brief          | Parses "show interface brief" output into the equivalent of                   |
+|                               | json.loads("show interface brief | json | no-more")                           |
++-------------------------------+-------------------------------------------------------------------------------+
+| show_zoneset                  | Parses the output of "show zoneset" into brcddb objects                       |
++-------------------------------+-------------------------------------------------------------------------------+
+| show_fcdomain                 | Parses "show zoneset" output into the equivalent of                           |
+|                               | json.loads("show fcdomain | json | no-more")                                  |
++-------------------------------+-------------------------------------------------------------------------------+
 
-Version Control::
+**Version Control**
 
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | Version   | Last Edit     | Description                                                                       |
-    +===========+===============+===================================================================================+
-    | 4.0.0     | 04 Aug 2023   | Re-Launch                                                                         |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
-    | 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                       |
-    +-----------+---------------+-----------------------------------------------------------------------------------+
++-----------+---------------+---------------------------------------------------------------------------------------+
+| Version   | Last Edit     | Description                                                                           |
++===========+===============+=======================================================================================+
+| 4.0.0     | 04 Aug 2023   | Re-Launch                                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.1     | 06 Mar 2024   | Documentation updates only.                                                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.2     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
-
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024 Consoli Solutions, LLC'
-__date__ = '06 Mar 2024'
+__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.1'
+__version__ = '4.0.2'
 
 import re
 import time

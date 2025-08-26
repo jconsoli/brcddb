@@ -56,15 +56,17 @@ Zone utilities.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.3     | 01 Mar 2025   | Updated "Instructions" sheet. Added support for 'Comments' in add_zone_worksheet()    |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '01 Mar 2025'
+__date__ = '25 Aug 2025'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'jack@consoli-solutions.com'
+__email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.3'
+__version__ = '4.0.4'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -570,7 +572,7 @@ def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=Fals
             if mem == wwn or mem in rd:
                 continue
             if all_types:
-                rd.update({mem: [m for m in fab_obj.r_eff_zones_for_wwn(mem) if bool(zones_for_wwn_d.get(m))]})
+                rd.update({mem: [m for m in fab_obj.r_eff_zones_for_wwn(mem) if zones_for_wwn_d.get(m, False)]})
                 continue
             login_obj = fab_obj.r_login_obj(mem)
             if login_obj is None:
@@ -579,9 +581,9 @@ def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=Fals
             if fc4 is None:
                 continue
             if target and 'target' in fc4.lower():
-                rd.update({mem: [m for m in fab_obj.r_eff_zones_for_wwn(mem) if bool(zones_for_wwn_d.get(m))]})
+                rd.update({mem: [m for m in fab_obj.r_eff_zones_for_wwn(mem) if zones_for_wwn_d.get(m, False)]})
             elif initiator and 'initiator' in fc4.lower():
                 # Used "elif" because if both target & initiator was specified, it will already be in rd
-                rd.update({mem: [m for m in fab_obj.r_eff_zones_for_wwn(mem) if bool(zones_for_wwn_d.get(m))]})
+                rd.update({mem: [m for m in fab_obj.r_eff_zones_for_wwn(mem) if zones_for_wwn_d.get(m, False)]})
 
     return rd
