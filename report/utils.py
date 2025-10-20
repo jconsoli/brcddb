@@ -9,7 +9,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 language governing permissions and limitations under the License.
 
 The license is free for single customer use (internal applications). Use of this module in the production,
-redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+redistribution, or service delivery for commerce requires an additional license. Contact jack_consoli@yahoo.com for
 details.
 
 **Description**
@@ -192,15 +192,17 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 25 Aug 2025   | Made _alert_font_d public (changed to alert_font_d).                                  |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 19 Oct 2025   | Updated comments only.                                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '25 Aug 2025'
+__date__ = '19 Oct 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import collections
 import copy
@@ -288,7 +290,7 @@ _about_sheet_l = (
     dict(f=_link_font, l='https://youtu.be/x1OvuRZRdA8', t='FOS API Zoning'),
     dict(f=_link_font, l='https://youtu.be/WGxXZrvhG2E', t='Chassis, Switch, Fabric, and Port Configuration'),
     None,
-    dict(f=_std_font, t='email: jack@consoli-solutions.com'),
+    dict(f=_std_font, t='email: jack_consoli@yahoo.com'),
     None,
     dict(f=_hdr1_font, t='Disclaimer'),
     None,
