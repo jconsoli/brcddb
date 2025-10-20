@@ -9,7 +9,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 language governing permissions and limitations under the License.
 
 The license is free for single customer use (internal applications). Use of this module in the production,
-redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+redistribution, or service delivery for commerce requires an additional license. Contact jack_consoli@yahoo.com for
 details.
 
 **Description**
@@ -70,15 +70,17 @@ information in here that is no longer used.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 25 Aug 2025   | Added IP address to Chassis. Added SCC_POLICY                                         |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 19 Oct 2025   | Updated comments only.                                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '25 Aug 2025'
+__copyright__ = 'Copyright 2024, 2025 Consoli Solutions, LLC'
+__date__ = '19 Oct 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import brcdapi.util as brcdapi_util
 
