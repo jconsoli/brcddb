@@ -4,6 +4,10 @@ Consoli Solutions, LLC
 jack@consoli-solutions.com
 jack_consoli@yahoo.com
 
+**19 Oct 2025**
+* Added support for scan.py
+* Added support for additional RNID reporting
+
 **25 August 2025**
 * Added scc policy to switch report
 * Added defined vs active SCC_POLICY to best practice check
