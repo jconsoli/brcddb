@@ -59,15 +59,17 @@ modified if CLI commands are used for data that should be associated with an obj
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 04 Dec 2025   | Fixed error with logout message when ^C to exit.                                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__date__ = '04 Dec 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import http.client
 import brcdapi.brcdapi_rest as brcdapi_rest
@@ -238,8 +240,8 @@ def logout(session):
         else:
             rl.append('API logout succeeded')
     except (http.client.CannotSendRequest, http.client.ResponseNotReady):
-        rl.append('Could not logout. You may need to terminate this session via the CLI',
-                   'mgmtapp --showsessions, mgmtapp --terminate')
+        rl.extend(['Could not logout. You may need to terminate this session via the CLI',
+                   'mgmtapp --showsessions, mgmtapp --terminate'])
     except BaseException as e:
         buf = 'Unknown error occured while attempting to logout of the switch at '
         buf += brcdapi_util.mask_ip_addr(session.get('ip_addr'))
