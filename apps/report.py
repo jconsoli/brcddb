@@ -43,15 +43,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 04 Dec 2025   | Added port summary.                                                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__date__ = '04 Dec 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import os
 import collections
@@ -300,6 +302,14 @@ def _add_switch_page(switch_obj, wb, sheet_index):
 def _add_switch_ports(switch_obj, wb, sheet_index):
     """Adds the port map. See _add_fabric_summary() for parameter definitions"""
     report_switch.add_port_map(switch_obj)
+
+    return 0
+
+
+def _add_switch_port_summary(switch_obj, wb, sheet_index):
+    """Adds the port summary. See _add_fabric_summary() for parameter definitions"""
+    switch_obj.r_get('report_app/worksheet')['row'] += 1
+    report_switch.port_summary(switch_obj)
 
     return 0
 
@@ -757,7 +767,9 @@ _switch_control_d = dict(
 _switch_ports_control_d = dict(
     switch=dict(a=_add_switch_ports)
 )
-
+_switch_ports_summary_control_d = dict(
+    switch=dict(a=_add_switch_port_summary)
+)
 
 def _add_sheet_names(proj_obj):
     """Adds sheet names to the major objects so that pages can be created with links to pages not yet created.
@@ -921,6 +933,13 @@ def report(proj_obj, outf, group_d=None):
              order=('switch',),
              feedback='Adding port map to switch: ',
              control=_switch_ports_control_d,
+             obj_name=_switch_name,
+             rs=True),
+        dict(obj_l=proj_obj.r_switch_objects(),
+             add_name=('switch',),
+             order=('switch',),
+             feedback='Adding port summary to switch: ',
+             control=_switch_ports_summary_control_d,
              obj_name=_switch_name,
              rs=True),
         dict(obj_l=[proj_obj],
