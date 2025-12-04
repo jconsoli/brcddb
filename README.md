@@ -4,6 +4,10 @@ Consoli Solutions, LLC
 jack@consoli-solutions.com
 jack_consoli@yahoo.com
 
+**04 Dec 2025**
+* Added port summary by port use to switch report
+* Miscellaneous messaging improvements
+  
 **19 Oct 2025**
 * Added support for scan.py
 * Added support for additional RNID reporting
