@@ -37,15 +37,18 @@ Defines the port object, PortObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 04 Dec 2025   | Used brcddb.brocade_common.port_conversion_tbl.brcdapi_util.fc_port_type in           |
+|           |               | c_login_type(). Simillarly for r_status().                                            |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__date__ = '04 Dec 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -583,18 +586,16 @@ class PortObj:
         return self._i_port_flags('fibrechannel/non-dfe-enabled')
 
     def r_status(self):
-        """Returns the port status using FOS 9.0 string type first. Old converted integer if string type not found.
+        """Returns the port status in human readable format which is also a consistent format.
 
         :return: Port status
         :rtype: str
         """
+        port_status = self.r_get(brcdapi_util.fc_op_status_str, self.r_get(brcdapi_util.fc_op_status))
         try:
-            return self.r_get(
-                brcdapi_util.fc_op_status_str,
-                brcddb_common.port_conversion_tbl[brcdapi_util.fc_op_status][self.r_get(brcdapi_util.fc_op_status)]
-            )
-        except (KeyError, ValueError, IndexError):
-            return 'Unknown'
+            return brcddb_common.port_conversion_tbl[brcdapi_util.fc_op_status][port_status]
+        except (ValueError, KeyError, TypeError):
+            return brcddb_common.port_conversion_tbl[brcdapi_util.port_status][0]
 
     def r_is_online(self):
         """Determines if the port is online
@@ -602,7 +603,7 @@ class PortObj:
         :return: True: port is online. False: port is offline.
         :rtype: bool
         """
-        return True if self.r_status().lower() == 'online' else False
+        return True if self.r_status().lower() == 'Online' else False
 
     def r_is_icl(self):
         """Determines if the port is on a core blade
@@ -666,13 +667,11 @@ class PortObj:
         :return: Port type
         :rtype: str
         """
+        port_type = self.r_get(brcdapi_util.fc_port_type_str, self.r_get(brcdapi_util.fc_port_type))
         try:
-            return self.r_get(
-                brcdapi_util.fc_port_type_str,
-                brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][self.r_get(brcdapi_util.fc_port_type)]
-            )
-        except (IndexError, ValueError, KeyError):
-            return 'Unknown'
+            return brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type][port_type]
+        except (ValueError, KeyError, TypeError):
+            return brcddb_common.port_conversion_tbl[brcdapi_util.fc_port_type]['unknown-port']
 
     def c_power_on_time_days(self):
         """Converts the power on time to days
