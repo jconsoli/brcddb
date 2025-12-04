@@ -12,14 +12,27 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack_consoli@yahoo.com for
 details.
 
-:mod:`brcddb.report.switch` - Creates a switch page to be added to an Excel Workbook
+**To Add Port Highlighting**
+
+Conditional highlighting is setup in brcddb.report.chassis.chassis_page(). Search for "_conditional_highlight". The
+switch page, brcddb.report.switch.switch_page() is called first so that the links for the switch pages are known and
+added to the chassis page. The switch page, however, leverages the port highlighting setup on the chassis page. This
+circular conundrum was an "Oh crap" moment.
+
+Processing pages and the order they are processed in is in brcddb.apps.report._add_chassis(). The pointer to
+_add_chassis is loaded into brcddb.apps.report._chassis_control_d. The dictionary _chassis_control_d is loaded into a
+list, report_l, in brcddb.apps.report.report().
+
+The easiest thing to do is probably to insert a step that sets up the chassis page first, then go back and add the
+switch page links. Perhaps it will make more sense to just copy and paste the chassis code to the switch page. I have
+not fully thought this out yet.
 
 **Public Methods & Data**
 
 +-----------------------+-------------------------------------------------------------------------------------------+
 | Method                | Description                                                                               |
 +=======================+===========================================================================================+
-| add_port_map          | Adds the port map to chassis page                                                         |
+| add_port_map          | Adds the port map to the switch page                                                      |
 +---------------------------+---------------------------------------------------------------------------------------+
 | switch_page           | Creates a switch detail worksheet for the Excel report.                                   |
 +-----------------------+-------------------------------------------------------------------------------------------+
@@ -41,25 +54,31 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 04 Dec 2025   | Added note referencing the port page for port highlighting.                           |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__date__ = '04 Dec 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import openpyxl.utils.cell as xl
 import copy
+import collections
+import brcddb.brcddb_common as brcddb_common
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
 import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
+import brcdapi.port as brcdapi_port
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.utils as report_utils
 import brcddb.app_data.alert_tables as alert_table
+import brcddb.util.util as brcddb_util
 
 # Below is for efficiency
 _std_font = excel_fonts.font_type('std')
@@ -82,6 +101,7 @@ _SWITCH_LINK_C = 7  # Number of columns for the links at the top of the sheet
 _PORT_SPEED = 4  # Number of columns for the port login speed.
 _CONDITIONAL_C = 4  # Number of columns for the conditional port formatting
 _PORT_COLS = 2  # Number of columns for the port map display
+_PORT_SUM_C = 4  # Number of columns for the ports in the "Port Summary"
 _common_width = 3  # The switch worksheet uses a single common column width
 
 # _extra_columns: I forgot that the ports are inserted in brcddb.report.utils.port_map(). The port_map() utility,
@@ -472,10 +492,142 @@ def add_port_map(switch_obj):
                         temp_d.update(dict(buf=col_d['buf'], span=col_d['span'], comments=col_d['comments']))
                         col_l.append(temp_d)
                 else:
-                    # There may be scenarios where a port
                     col_l.append(col_d)
 
     report_utils.add_contents(switch_obj, content_l)
+
+
+def _all_ports(port_obj, port_l):
+    """Adds the port number to port_l
+
+    :param port_obj: Port object
+    :type port_obj: brcddb.classes.port.PortObject
+    :param port_l: The list the matching port number should be added to.
+    :type port_l: list
+    """
+    port_l.append(port_obj.r_obj_key())
+
+
+def _enabled_logins(port_obj, port_l):
+    """If the port is enabled with logins, the port number is added to port_l. See _all_ports() for parameters."""
+    if port_obj.r_is_enabled() and len(port_obj.r_login_keys()) > 0:
+        port_l.append(port_obj.r_obj_key())
+
+
+def _enabled_no_logins(port_obj, port_l):
+    """If the port is enabled with no logins, the port number is added to port_l. See _all_ports() for parameters."""
+    if port_obj.r_is_enabled() and len(port_obj.r_login_keys()) == 0:
+        port_l.append(port_obj.r_obj_key())
+
+
+def _disabled(port_obj, port_l):
+    """If the port is enabled with no logins, the port number is added to port_l. See _all_ports() for parameters."""
+    if not port_obj.r_is_enabled():
+        port_l.append(port_obj.r_obj_key())
+
+
+def _e_port(port_obj, port_l):
+    """If the port is an E-Port (ISL), the port number is added to port_l. See _all_ports() for parameters."""
+    if port_obj.c_login_type() == 'E-Port':
+        port_l.append(port_obj.r_obj_key())
+
+
+def _f_port(port_obj, port_l):
+    """If the port is an F-Port, the port number is added to port_l. See _all_ports() for parameters."""
+    if port_obj.c_login_type() == 'F-Port':
+        port_l.append(port_obj.r_obj_key())
+
+
+def _u_or_n_port(port_obj, port_l):
+    """If the port is a U-Port or N-Port, the port number is added to port_l. See _all_ports() for parameters."""
+    port_type = port_obj.c_login_type()
+    if port_type == 'U-Port' or port_type == 'N-Port':
+        port_l.append(port_obj.r_obj_key())
+
+
+def _fc4_target(port_obj, port_l):
+    """If the attached device is storage, the port number is added to port_l. See _all_ports() for parameters."""
+    attach_type = port_obj.r_get(brcdapi_util.bns_fc4_features)
+    if isinstance(attach_type, str) and 'Target' in attach_type and 'Initiator' not in attach_type:
+        port_l.append(port_obj.r_obj_key())
+
+
+def _fc4_initiator(port_obj, port_l):
+    """If the attached device is storage, the port number is added to port_l. See _all_ports() for parameters."""
+    attach_type = port_obj.r_get(brcdapi_util.bns_fc4_features)
+    if isinstance(attach_type, str) and 'Initiator' in attach_type and 'Target' not in attach_type:
+        port_l.append(port_obj.r_obj_key())
+
+
+def _fc4_mixed(port_obj, port_l):
+    """If the attached device is storage, the port number is added to port_l. See _all_ports() for parameters."""
+    attach_type = port_obj.r_get(brcdapi_util.bns_fc4_features)
+    if isinstance(attach_type, str) and 'Initiator' in attach_type and 'Target' in attach_type:
+        port_l.append(port_obj.r_obj_key())
+
+
+def _fc4_other(port_obj, port_l):
+    """If the attached device is storage, the port number is added to port_l. See _all_ports() for parameters."""
+    attach_type = port_obj.r_get(brcdapi_util.bns_fc4_features)
+    if isinstance(attach_type, str) and 'Initiator' not in attach_type and 'Target' not in attach_type:
+        port_l.append(port_obj.r_obj_key())
+
+
+def port_summary(switch_obj):
+    """Returns the conditional highlighting to insert in _contents. See _links() for parameter definitions."""
+    global _extra_columns, _std_font, _bold_font, _align_wrap_c, _align_wrap, _border_thin, _PORT_SUM_C
+    global _common_default_d
+
+    # Get a list of each port parameter type
+    port_d = collections.OrderedDict()  # Key is the header. Value is the list of port numbers
+    port_d['All'] = dict(l=list(),a=_all_ports)
+    port_d['Enabled Logins'] = dict(l=list(),a=_enabled_logins)
+    port_d['Enabled No Logins'] = dict(l=list(),a=_enabled_no_logins)
+    port_d['Disabled'] = dict(l=list(),a=_disabled)
+    port_d['E-Port'] = dict(l=list(),a=_e_port)
+    port_d['F-Port'] = dict(l=list(),a=_f_port)
+    port_d['U or N Port'] = dict(l=list(),a=_u_or_n_port)
+    port_d['FC4 Storage'] = dict(l=list(),a=_fc4_target)
+    port_d['FC4 Server'] = dict(l=list(),a=_fc4_initiator)
+    port_d['Mixed FC4'] = dict(l=list(),a=_fc4_mixed)
+    port_d['Other FC4'] = dict(l=list(),a=_all_ports)
+    for port_obj in switch_obj.r_port_objects():
+        for hdr, d in port_d.items():
+            d['a'](port_obj, d['l'])
+
+    # Add the headers to the worksheet
+    # The Main Header
+    full_span = switch_obj.r_get('report_app/worksheet/num_columns', _extra_columns)
+    content_l = [
+        [dict(buf='Port Summary', font=_bold_font, align=_align_wrap, border=None, span=full_span)],
+        list()
+    ]
+    # Add the sub-headers
+    row_l = list()
+    for hdr in [str(k) for k in port_d.keys()]:
+        row_l.append(dict(buf=hdr, font=_bold_font, align=_align_wrap_c, border=_border_thin, span=_PORT_SUM_C))
+    content_l.append(row_l)
+    # Update the worksheet
+    report_utils.add_contents(switch_obj, content_l)
+
+    # The ports should be in sorted order and 'All' should be the max. Below is future proofing. It also removes
+    # duplicate port numbers. Duplicate port numbers shouldn't be in here either, so that is also future proofing.
+    max_ports = 0
+    for d in port_d.values():
+        d['l'] = brcdapi_port.sort_ports(d['l'])
+        max_ports = max(max_ports, len(d['l']))
+
+    # Add the port numbers
+    content_l = list()
+    for i in range(0, max_ports):
+        row_l = list()
+        for d in port_d.values():
+            try:
+                row_l.append(dict(buf=d['l'][i], span=_PORT_SUM_C))
+            except IndexError:
+                row_l.append(dict(buf=None, span=_PORT_SUM_C))
+        content_l.append(row_l)
+    report_utils.add_contents(switch_obj, report_utils.add_content_defaults(content_l, _common_default_d))
 
 
 def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, switch_obj, in_display=None):

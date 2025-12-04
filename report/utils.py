@@ -149,8 +149,6 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-------------------------------+-----------------------------------------------------------------------------------+
 | parse_switch_file             | Parses Excel switch configuration Workbook.                                       |
 +-------------------------------+-----------------------------------------------------------------------------------+
-| port_map                      | Adds the port map.                                                                |
-+-------------------------------+-----------------------------------------------------------------------------------+
 | port_statistics               | Adds port statistics for the worksheet.                                           |
 +-------------------------------+-----------------------------------------------------------------------------------+
 | seconds_to_days               | Converts a value in seconds to days. Returns the comments, parameter, and value   |
@@ -194,15 +192,17 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.8     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.9     | 04 Dec 2025   | Added clearer language regarding port highlighting.                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__date__ = '04 Dec 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.8'
+__version__ = '4.0.9'
 
 import collections
 import copy
@@ -1446,22 +1446,25 @@ _conditional_test_1_d['Alias FIND'] = dict(
     border=_border_thin)
 _conditional_highlight_l = [
     [dict(buf='Port Highlighting', font=_bold_font, align=_align_wrap)],
-    [],
-    [dict(
-        buf='To highlight ports with zones and aliases using the EXACT or FIND functions in Excel, enter the zone '
-            'object name in the box below. EXACT and FIND are case sensitive. A FIND in Excel is equivalent to '
-            '*zone_name*. For all other highlighting options, enter an integer in the range 0 - 999,999,999. Numeric '
-            'comparisons are greater than, ">". Highlighting is determined by a logical OR of all high lighting '
-            'filters.',
+    list(),
+    [dict(buf='To highlight ports with zones and aliases using the EXACT or FIND functions in Excel, enter the zone '
+            'object name in the box below. EXACT and FIND',
+          font=_std_font,
+          align=_align_wrap)],
+    [dict(buf='are case sensitive. A FIND in Excel is equivalent to *zone_name*. For all other highlighting options, '
+              'enter an integer in the range ',
+          font=_std_font,
+          align=_align_wrap)],
+    [dict(buf='0 - 999,999,999. Numeric comparisons are greater than, ">". Highlighting is determined by a logical '
+              'OR of all high lighting filters.',
         font=_std_font,
-        align=_align_wrap
-    )],
-    [],
+        align=_align_wrap)],
+    list(),
 ]
 
 
 def conditional_highlight(obj, span):
-    """Adds the port highlighting filters.
+    """Returns a list of dictionaries for the "Port Highlighting" section. For use with add_contents().
 
     :param obj: Switch or chassis object
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.chassis.ChassisObj
@@ -1508,25 +1511,105 @@ def conditional_highlight(obj, span):
                 col += span
             row += 2
     else:
+        buf = 'Port highlighting is only available on the chassis page at this time. Port highlighting allows you to '
+        buf += 'highlight ports with certain bit errors, with logins in certain zones or matching certain aliases, and '
+        buf += 'more. Click on the chassis link at the top of the page.'
         rl = [
             [dict(buf='Port Highlighting', font=_bold_font, align=_align_wrap, span=num_columns)],
-            list(),
-            [dict(
-                buf='Port highlighting is only supported on chassis sheets at this time.',
-                font=_std_font,
-                align=_align_wrap,
-                span=num_columns
-            )],
+            [dict(buf='Port highlighting is only available on the chassis page at this time. Port highlighting allows '
+                      'you to highlight ports with certain bit errors, with logins in certain zones or matching')],
+            [dict(buf='certain aliases, and more. Click on the chassis link at the top of the page.')]
         ]
+        add_content_defaults(rl, dict(font=_std_font, align=_align_wrap, span=num_columns))
 
     return rl
 
 
 def port_statistics(obj, type_span, speed_span):
-    """Adds port statistics for the worksheet.
+    """Returns a list of port statistics formatted for use with add_contents().
 
-    :param obj: Switch or chassis object
-    :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.chassis.ChassisObj
+    :param obj: Project, fabric, chassis, or switch object
+    :type obj: brcddb.classes.project.ProjectObj, brcddb.classes.switch.SwitchObj, brcddb.classes.chassis.ChassisObj, \
+        brcddb.classes.fabric.FabricObj
+    :param type_span: Number of columns to span when displaying the number of ports by login type
+    :type type_span: int
+    :param speed_span: Number of columns to span when displaying the number of ports by login speed
+    :type speed_span: int
+    :return: List of lists containing dictionaries to insert while processing _contents
+    :rtype: list
+    """
+    global _border_thin, _align_wrap, _bold_font, _align_wrap_r
+
+    # Figure out what to put in the statistics summary section
+    port_obj_l = brcddb_search.match_test(obj.r_port_objects(), brcddb_search.port_online)
+    sum_logins = 0
+    for port_obj in brcddb_search.match_test(port_obj_l, brcddb_search.f_ports):
+        sum_logins += len(port_obj.r_login_keys())
+    sheet_d = obj.r_get('report_app/worksheet')
+
+    # Add the ports by login type
+    return [
+        [dict(buf='Ports by Login Type', font=_bold_font, align=_align_wrap, span=sheet_d['num_columns'])],
+        [
+            dict(buf='Physical Ports', font=_std_font, align=_align_wrap_r, border=_border_thin, span=type_span),
+            dict(buf='ICL-Ports', font=_std_font, align=_align_wrap_r, border=_border_thin, span=type_span),
+            dict(buf='ISL (E-Ports)', font=_std_font, align=_align_wrap_r, border=_border_thin, span=type_span),
+            dict(buf='FC-Lag Ports', font=_std_font, align=_align_wrap_r, border=_border_thin, span=type_span),
+            dict(buf='Name Server Logins', font=_std_font, align=_align_wrap_r, border=_border_thin,
+                 span=type_span),
+        ],
+        [
+            dict(buf=len(obj.r_port_objects()),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=type_span),
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.icl_ports)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=type_span),
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.e_ports)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=type_span),
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.fc_lag_ports)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=type_span),
+            dict(buf=sum_logins, font=_std_font, align=_align_wrap_r, border=_border_thin, span=type_span),
+        ],
+        [],
+
+        # Add the ports by speed: Headers
+        [dict(buf='Ports by Login Speed', font=_bold_font, align=_align_wrap, span=sheet_d['num_columns'])],
+        [
+            dict(buf='1G', font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf='2G', font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf='4G', font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf='8G', font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf='16G', font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf='32G', font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf='64G', font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf='128G', font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+        ],
+        [  # Add the ports by speed: The values
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.login_1g)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.login_2g)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.login_4g)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.login_8g)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.login_16g)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.login_32g)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.login_64g)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+            dict(buf=len(brcddb_search.match_test(port_obj_l, brcddb_search.login_128g)),
+                 font=_std_font, align=_align_wrap_r, border=_border_thin, span=speed_span),
+        ],
+    ]
+
+
+def enabled_no_login(obj, type_span, speed_span):
+    """Returns a list of enabled ports with no logins formatted for use with add_contents().
+
+    :param obj: Project, fabric, chassis, or switch object
+    :type obj: brcddb.classes.project.ProjectObj, brcddb.classes.switch.SwitchObj, brcddb.classes.chassis.ChassisObj, \
+        brcddb.classes.fabric.FabricObj
     :param type_span: Number of columns to span when displaying the number of ports by login type
     :type type_span: int
     :param speed_span: Number of columns to span when displaying the number of ports by login speed

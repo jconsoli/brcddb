@@ -49,15 +49,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.8     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.9     | 04 Dec 2025   | Changed _port_legend_span from 12 to 24                                               |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__date__ = '04 Dec 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.8'
+__version__ = '4.0.9'
 
 import collections
 import copy
@@ -245,7 +247,7 @@ _fill_d = {  # Used in _insert_port() to determine the fill color
     'FC-LAG': _fill_lightblue,
     'LB-Port': _fill_lightgold,
 }
-_port_legend_span = 12
+_port_legend_span = 24
 _port_legend = [  # Used in add_port_map()
     [
         dict(buf='x', font=_std_font, align=_align_wrap_c, border=_border_thin, fill=_fill_lightgreen),

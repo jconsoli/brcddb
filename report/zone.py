@@ -1259,7 +1259,11 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         excel_util.cell_update(sheet, row, col, buf, fill=_lightblue_fill, font=_bold_font, border=_border_thin)
         sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(_zone_group_hdr_d))
         row += 1
-        for rnid_d in [obj.r_get('rnid') for obj in missing_cpu_l]:
+        for port_obj in missing_cpu_l:
+            rnid_d = port_obj.r_get('rnid')
+            if not isinstance(rnid_d, dict):
+                brcdapi_log.exception('Missing expected RNID data.', echo=True)
+                continue  # Something is messed up with FOS if this happens
             buf_l = [
                 'Mfg: ' + rnid_d.get('manufacturer', ''),
                 'Model: ' + rnid_d.get('model-number', ''),
