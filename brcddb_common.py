@@ -32,15 +32,19 @@ associated with.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 04 Dec 2025   | Merged port_conversion_tbl.fc_port_type_str into port_conversion_tbl.fc_port_type .   |
+|           |               | Similarly, brcdapi_util.fc_op_status_str was rolled into                              |
+|           |               | port_conversion_tbl.fc_op_status.                                                     |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__date__ = '04 Dec 2025'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import brcdapi.util as brcdapi_util
 
@@ -254,6 +258,7 @@ switch_conversion_tbl = {
 #################################################################################
 #                                       Port                                    #
 #################################################################################
+# These are the values for the legacy "port-type-type". See port_conversion_tbl for additional notes.
 PORT_TYPE_UNKNOWN = 0
 PORT_TYPE_UNKONWN = 0  # Just in case a method is using the misspelled port type
 PORT_TYPE_E = 7
@@ -277,45 +282,67 @@ PORT_TYPE_FC_LAG = 33
 PORT_TYPE_LB = 32768
 
 port_conversion_tbl = {
-    brcdapi_util.fc_port_type: {
+    brcdapi_util.fc_port_type: {  # Also includes "brcdapi_util.fc_port_type_str"
+        # Old port-type was fibrechannel/port-type (an integer). Now it's fibrechannel/port-type-string (a string). The
+        # values are human readable text, typically used for report headers.
         PORT_TYPE_UNKNOWN: 'Unknown',
+        'unknown-port': 'Unknown',
         PORT_TYPE_E: 'E-Port',
-        PORT_TYPE_G: 'G-Port',
-        PORT_TYPE_U: 'U-Port',
-        PORT_TYPE_F: 'F-Port',
-        PORT_TYPE_L: 'L-Port',
-        PORT_TYPE_FCOE: 'FCoE-Port',
-        PORT_TYPE_EX: 'EX-Port,',
-        PORT_TYPE_D: 'D-Port',
-        PORT_TYPE_SIM: 'SIM-Port',
-        PORT_TYPE_AF: 'AF-Port',
-        PORT_TYPE_AE: 'AE-Port',
-        PORT_TYPE_VE: 'VE-Port',
-        PORT_TYPE_ETH_FLEX: 'Ethernet Flex Port',
-        PORT_TYPE_FLEX: 'Flex Port',
-        PORT_TYPE_N: 'N-Port',
-        PORT_TYPE_MIRROR: 'Mirror',
-        PORT_TYPE_ICL: 'ICL',
-        PORT_TYPE_FC_LAG: 'FC-LAG',
-        PORT_TYPE_LB: 'LB-Port',
-    },
-    brcdapi_util.fc_port_type_str: {
-        'n-port': 'N-Port',
-        'nl-port': 'NL-Port',
-        'f/nl-port': 'F/NL-Port',
-        'nx-port': 'NX-Port',
-        'f-port': 'F-Port',
-        'fl-port': 'FL_Port',
         'e-port': 'E-Port',
-        'b-port': 'B-Port',
-        'a-port': 'A-Port',
+        PORT_TYPE_G: 'G-Port',
+        'g-port': 'G-Port',
+        PORT_TYPE_U: 'U-Port',
+        'universal-port': 'U-Port',  # universal-port is in the documentation, but I've only seen U-Port
+        'U-Port': 'U-Port',
+        PORT_TYPE_F: 'F-Port',
+        'f-port': 'F-Port',
+        PORT_TYPE_L: 'L-Port',
+        'l-port': 'L-Port',
+        PORT_TYPE_FCOE: 'FCoE-Port',
+        'fcoe-port': 'FCoE-Port',
+        PORT_TYPE_EX: 'EX-Port,',
+        'ex-port': 'EX-Port,',
+        PORT_TYPE_D: 'D-Port',
+        'd-port': 'D-Port',
+        PORT_TYPE_SIM: 'SIM-Port',
+        'sim-port': 'SIM-Port',
+        PORT_TYPE_AF: 'AF-Port',  # AMP switch
+        'af-port': 'AF-Port',  # AMP switch
+        PORT_TYPE_AE: 'AE-Port',  # AMP switch
+        'ae-port': 'AE-Port',  # AMP switch
+        PORT_TYPE_VE: 'VE-Port',
+        've-port': 'VE-Port',
+        PORT_TYPE_ETH_FLEX: 'Ethernet Flex Port',
+        'ethernet-port': 'Ethernet Flex Port',
+        PORT_TYPE_FLEX: 'Flex Port',
+        'flex-port': 'Flex Port',
+        PORT_TYPE_N: 'N-Port',
+        'n-port': 'N-Port',
+        PORT_TYPE_MIRROR: 'Mirror',
+        'mirror-port': 'Mirror',
+        PORT_TYPE_ICL: 'ICL',
+        'icl-port': 'ICL',
+        PORT_TYPE_FC_LAG: 'FC-LAG',
+        'fc-lag-port': 'FC-LAG',
+        PORT_TYPE_LB: 'LB-Port',
+        'loopback-port': 'Loopback',
+        # New
+        'encryption-support-port': 'Encryption',
     },
-    brcdapi_util.fc_op_status: {
+
+    brcdapi_util.fc_op_status: {  # Integers keys are fc_op_status. String keys are fc_op_status_str
         0: 'Undefined',
-        2: 'Online',
-        3: 'Offline',
+        2: 'Enabled',  # I think this is only valid for switches.
+        'enabled': 'Enabled',
+        3: 'Disabled',  # I think this is only valid for switches.
+        'disabled': 'Disabled',
         5: 'Faulty',
+        'undefined': 'Faulty',
         6: 'Testing',
+        'testing': 'Testing',
+        # New in fc_op_status_str
+        'offline': 'Offline',  # Ports only. Means the port is disabled.
+        'online': 'Online',  # Ports only. Means the port is enabled.
     },
     'fibrechannel/long-distance': {
         0: 'Disabled',
