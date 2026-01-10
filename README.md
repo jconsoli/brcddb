@@ -1,8 +1,10 @@
 # brcddb
 
 Consoli Solutions, LLC
-jack@consoli-solutions.com
 jack_consoli@yahoo.com
+
+**10 Jan 2025**
+* Corrected port name for zoned to data in zone group page.
 
 **04 Dec 2025**
 * Added port summary by port use to switch report
