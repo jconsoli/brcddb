@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025, 2026 Consoli Solutions, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -57,15 +57,17 @@ Creates zone database pages to be added to an Excel Workbook
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.8     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.9     | 10 Jan 2026   | Corrected wrong port name for zoned to logins in group_zone_page().                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__copyright__ = 'Copyright 2024, 2025, 2026 Consoli Solutions, LLC'
+__date__ = '10 Jan 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.8'
+__version__ = '4.0.9'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -1237,7 +1239,7 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
 
                     col = 1
                     for d in sub_hdr_d.values():
-                        buf, link = d['m'](lz_obj, None, lwwn, port_obj, zl)
+                        buf, link = d['m'](lz_obj, None, lwwn, lz_obj.r_port_obj(), zl)
                         excel_util.cell_update(sheet,
                                                row,
                                                col,
