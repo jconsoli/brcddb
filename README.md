@@ -1,7 +1,12 @@
 # brcddb
 
-Consoli Solutions, LLC
+Jack Consoli
 jack_consoli@yahoo.com
+
+**20 Feb 2026**
+* Updated copyright notice
+* Added ability to collect, stats_c.py, and graph, stats_g.py, from multiple switches
+* Miscellaneous bug fixes
 
 **10 Jan 2025**
 * Corrected port name for zoned to data in zone group page.
