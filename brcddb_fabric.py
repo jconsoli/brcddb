@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025, 2026 Jack Consoli.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -76,15 +76,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.8     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.9     | 20 Feb 2026   | Added additional debug information for exceptions.                                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
+__date__ = '20 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.8'
+__version__ = '4.0.9'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
@@ -97,6 +99,7 @@ import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_port as brcddb_port
 import brcddb.util.iocp as brcddb_iocp
 import brcddb.brcddb_zone as brcddb_zone
+import brcddb.brcddb_fabric as brcddb_fabric
 
 _check_d = dict(peer_property=False,
                 zone_mismatch=False,
@@ -362,7 +365,7 @@ def zone_analysis(fab_obj):
 
     # Zone analysis
     for zone_obj in fab_obj.r_zone_objects():
-        pmem_list = list()  # pmem_list and nmem_list was an afterthought to save time resolving them again in the
+        pmem_list = list()  # pmem_list and nmem_list was an after thought to save time resolving them again in the
         nmem_list = list()  # effective zone to defined zone comparison. These are the aliases converted to WWN
         flag &= ~(_IN_DEFINED_ZONECFG | _WWN_IN_ZONE | _ALIAS_IN_ZONE | _DI_IN_ZONE | _WWN_MEM)
 
@@ -372,8 +375,8 @@ def zone_analysis(fab_obj):
 
         # Check for mixed d,i & WWN zones and make sure the member is in the fabric
         for i in range(0, 2):   # 0 - Get the members, 1 - get the principal members
-            mem_list = list()
-            zmem_list = zone_obj.r_members() if i == 0 else zone_obj.r_pmembers()
+            mem_list = list()  # Alias members converted to WWNs or d,i
+            zmem_list = zone_obj.r_members() if i == 0 else zone_obj.r_pmembers()  # Defined zone members
 
             for zmem in zmem_list:
                 if gen_util.is_wwn(zmem, full_check=False):
@@ -389,8 +392,13 @@ def zone_analysis(fab_obj):
                     flag |= _ALIAS_IN_ZONE
                     a_obj = fab_obj.r_alias_obj(zmem)
                     if a_obj is None:
-                        zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_UNDEFINED_ALIAS, None, zmem,
-                                             zone_obj.r_obj_key())
+                        zone_obj.s_add_alert(
+                            al.AlertTable.alertTbl,
+                            al.ALERT_NUM.ZONE_UNDEFINED_ALIAS,
+                            None,
+                            zmem,
+                            zone_obj.r_obj_key()
+                        )
                     else:
                         mem_list.extend(a_obj.r_members())
 
@@ -433,7 +441,11 @@ def zone_analysis(fab_obj):
                         if len(port_list) == 0:
                             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_FOUND, None, mem)
                 else:
-                    brcdapi_log.exception('Zone member type undetermined: ' + str(mem), echo=True)
+                    buf = brcddb_fabric.best_fab_name(fab_obj, wwn=True) + ': ' + 'Standard' if i == 0 else 'Principal'
+                    buf += ' member, ' + str(mem) + ', is not valid in zone ' + zone_obj.r_obj_key()
+                    if a_obj is not None:
+                        buf += '. Last working alias: ' + str(a_obj.r_obj_key())
+                    brcdapi_log.exception(buf, echo=True)
 
         # Do all the zone membership count checks
         if zone_obj.r_is_peer():  # It's a peer zone

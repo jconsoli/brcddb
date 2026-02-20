@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025, 2026 Jack Consoli.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -60,15 +60,17 @@ Methods and tables to support the class ChassisObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 20 Feb 2026   | Updated copyright notice.                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
+__date__ = '20 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -273,3 +275,40 @@ def port_objects_for_name(obj, name, search='exact'):
         obj.r_port_objects(),
         dict(k=brcdapi_util.fc_user_name, t=search, v=name, i=False)
     )
+
+
+def sort_by_stat(port_obj_l, stat, sort_by):
+    """Sort a list of port objects by one of the statistics in brocade-interface/fibrechannel-statistics
+
+    sort_by:
+
+    +-----------+-----------------------------------------------------------------------+
+    | sort_by   | Description                                                           |
+    +===========+=======================================================================+
+    | high      | Sorts ports by the port with the highest value for the stat first     |
+    +-----------+-----------------------------------------------------------------------+
+    | low       | Sorts ports by the port with the lowest value for the stat first
+    +-----------+-----------------------------------------------------------------------+
+    | highavg   | Sorts ports by the port with the highest average for the stat first
+    +-----------+-----------------------------------------------------------------------+
+    | lowavg    | Sorts ports by the port with the lowest average for the stat first
+    +-----------+-----------------------------------------------------------------------+
+
+    :param port_obj_l: List of port objects
+    :type port_obj_l: list
+    :param stat: Statistic to sort on
+    :type stat: str
+    :param sort_by: "high"
+    :type sort_by: str
+    :return: List of sorted port objects. If None, the statistic was not found.
+    :rtype: list, None
+    """
+    sort_d = dict()  # Key is a hash of the switch WWN and the port number. Value as determined by sort_by
+    track_d = dict()  # Key is a hash of the switch WWN and the port number. Value is the port object
+    for port_obj in port_obj_l:
+        stat_val = port_obj.r_get(brcdapi_util.stats_uri)
+        if stat_val is not None:
+            port_key = port_obj.r_switch_obj.r_obj_key() + port_obj.r_obj_key()
+            sort_d[port_key] = stat_val
+            track_d[port_key] = port_obj
+
