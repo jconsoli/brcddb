@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025, 2026 Jack Consoli, LLC.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -43,15 +43,17 @@ Contains functions to create port page and performance dashboard Excel worksheet
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 20 Feb 2026   | Added port_stats()                                                                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
+__date__ = '20 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import datetime
 import collections
@@ -527,3 +529,148 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
                 row += 1
 
     return sheet
+
+
+def port_stats(wb, tc_page, sname, title, sheet_i, stats_l, time_format=None, sub_hdr=None, time_hdr=None):
+    """Add a worksheet with port statistics. Returns the following dictionary:
+
+    +-------+-----------+-------------------------------------------------------------------------------------------+
+    | Key   | Type      | Description                                                                               |
+    +=======+===========+===========================================================================================+
+    | row   | dict      | Key: start. Value: starting row number (int). Includes the header row.                    |
+    |       |           | Key: end.   Value: ending row number (int)                                                |
+    +-------+-----------+-------------------------------------------------------------------------------------------+
+    | col   | dict      | Keys are the leaf names in fibrechannel-statistics. Values are the column numbers (int)   |
+    +-------+-----------+-------------------------------------------------------------------------------------------+
+    | sheet | Worksheet | Excel Worksheet object for the sheet created.                                             |
+    +-------+-----------+-------------------------------------------------------------------------------------------+
+
+    :param wb: Excel workbook object
+    :type wb: Workbook object
+    :param tc_page: Name of table of contents page
+    :type tc_page: str
+    :param title: Title. Displayed at the top of the page
+    :type title: str
+    :param sheet_i: Where to insert the sheet.
+    :type sheet_i: int
+    :param stats_l: List of dictionaries as returned from brocade-interface/fibrechannel-statistics
+    :type stats_l: list
+    :param time_format: Applies to time-generated only. If None, the value for time-generated is not formatted, which is
+        epoch time as an integer. Typically 'HH:MM:SS;@'. Note that without ";@" the cell is formatted as "custom".
+        following the time format with ";@" formats the cell as "time". Similarly, a date format, such as
+        'DD MM YYYY;@', would be recognized as a date format and the cell would be formatted as "date". For other
+        options, search "python openpyxl format cell number date"
+    :param sub_hdr: Displayed in each cell below the stats header. Typically the port number so that graphing can
+        reference the column using the first cell as the series label.
+    :type sub_hdr: str, None
+    :param time_hdr: epoch time for the first column sub header. Only used if sub_hdr is not None.
+    :type time_hdr: int, None
+    :return: See description in method docstring
+    :rtype: dict
+    """
+    global _hdr1_font, _link_font, _bold_font, _align_wrap_vc, _align_wrap, _std_font
+
+    stats_uri = brcdapi_util.stats_uri + '/'
+    cell_map_d = dict(sheet=None, row=dict(), col=dict())
+
+    if len(stats_l) == 0:
+        return cell_map_d
+
+    # Create the worksheet
+    sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sname)
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
+    sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
+    cell_map_d['sheet'] = sheet
+
+    # Figure out what the headers should be
+    hdr_l = [brcdapi_util.stats_time]  # To ensure the time stamp is always in the first column
+    hdr_l.extend([stats_uri + str(k) for k in stats_l[0].keys() if k != 'time-generated'])
+
+    # Set up the column widths and add the title
+    row, col = 1, 1
+    for key in hdr_l:
+        sheet.column_dimensions[xl.get_column_letter(col)].width = rt.Port.port_display_tbl.get(key, dict(c=12))['c']
+        cell_map_d['col'][key.replace('fibrechannel-statistics/', '')] = col
+        col += 1
+    col = 1
+    if isinstance(tc_page, str):
+        excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc_page)
+    col += 1
+    sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(hdr_l))
+    excel_util.cell_update(sheet, row, col, title, font=_hdr1_font)
+
+    # Add the column headers
+    row, col = row + 1, 1
+    for key in hdr_l:
+        excel_util.cell_update(
+            sheet,
+            row,
+            col,
+            rt.Port.port_display_tbl.get(key, dict(d=key))['d'],
+            font=_bold_font,
+            border=_border_thin,
+            align=_align_wrap_vc if rt.Port.port_display_tbl.get(key, dict()).get('v', False) else _align_wrap
+        )
+        col += 1
+    sheet.freeze_panes = sheet['A3']
+
+    # Add the sub-header
+    if isinstance(sub_hdr, str):
+        row, buf, cell_number_format = row + 1, 'Time', None
+
+        # Sub header for time, first column, is special.
+        if isinstance(time_format, str) and isinstance(time_hdr, int):
+            buf = str(datetime.datetime.fromtimestamp(time_hdr).strftime('%H:%M:%S'))
+            cell_number_format = time_format
+        excel_util.cell_update(
+            sheet,
+            row,
+            1,
+            buf,
+            font=_std_font,
+            border=_border_thin,
+            align=_align_wrap,
+            number_format=cell_number_format,
+        )
+
+        # All the remaining columns
+        for col in range(2, len(hdr_l) + 1):
+            excel_util.cell_update(
+                sheet,
+                row,
+                col,
+                sub_hdr,
+                font=_std_font,
+                border=_border_thin,
+                align=_align_wrap,
+                number_format=cell_number_format,
+            )
+
+    # Add the data
+    cell_map_d['row']['start'] = row
+    row += 1
+    for stat_d in stats_l:
+        for stat, val in stat_d.items():
+            if stat == 'time-generated' and isinstance(time_format, str):
+                cell_val = datetime.datetime.fromtimestamp(val)
+                cell_number_format = time_format
+            else:
+                cell_val = val
+                cell_number_format = None
+            excel_util.cell_update(
+                sheet,
+                row,
+                cell_map_d['col'][stat],
+                cell_val,
+                font=_std_font,
+                border=_border_thin,
+                align=_align_wrap,
+                number_format=cell_number_format,
+            )
+        row += 1
+
+    cell_map_d['row']['end'] = row
+
+    return cell_map_d
+
+

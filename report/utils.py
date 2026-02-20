@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025, 2026 Jack Consoli.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -194,15 +194,17 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.9     | 04 Dec 2025   | Added clearer language regarding port highlighting.                                   |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.0     | 20 Feb 2026   | Updated disclaimer in _about_sheet_l.                                                 |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '04 Dec 2025'
+__copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
+__date__ = '20 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.9'
+__version__ = '4.1.0'
 
 import collections
 import copy
@@ -217,6 +219,7 @@ import brcdapi.gen_util as gen_util
 import brcdapi.excel_util as excel_util
 import brcdapi.excel_fonts as excel_fonts
 import brcdapi.port as brcdapi_port
+import brcddb.util.obj_convert as brcddb_conv
 import brcddb.brcddb_port as brcddb_port
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.brcddb_login as brcddb_login
@@ -227,6 +230,7 @@ import brcddb.classes.alert as alert_class
 import brcddb.classes.util as brcddb_class_util
 import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_switch as brcddb_switch
+import brcddb.report.zone as zone_report
 
 default_stats = 999999999
 highlight_stats_dv = DataValidation(type='whole',
@@ -300,10 +304,15 @@ _about_sheet_l = (
     None,
     dict(f=_std_font,
          t='The accuracy and completness of information contained herein are dependant of the FOS version, data '
-           'collection method, and other factors. Consoli-Solutions does not assume any liability arising out of the '
-           'application or use of this information, nor the application or use of any product or software described '
-           'herein, neither does it convey any license under its patent rights nor the rights of others.'),
+           'collection method, and other factors. Consoli-Solutions and Jack Consoli do not assume any liability '
+           'arising out of the application or use of this information, nor the application or use of any product or '
+           'software described herein, neither does it convey any license under its patent rights nor the rights of '
+           'others.'),
 )
+
+
+class Found(Exception):
+    pass
 
 
 #########################################################################
@@ -1991,3 +2000,313 @@ def about_page(wb, sheet_i, sheet_name, file_name, version, description, tc=None
                 row += 1
         else:
             row += 1
+
+#################################################
+#                                               #
+#       Methods for determining groups          #
+#                                               #
+#################################################
+
+def _filter_wwn(proj_obj, filter_val, search):
+    """Returns a list of port objects with logins that have WWNs matching the search criteria
+
+    :param proj_obj: Project object
+    :type proj_obj: brcddb.classes.project.ProjectObj
+    :param filter_val: Value from the "Filter" column of the workbook
+    :type filter_val: str, None
+    :param search: The search type. Value from the "Operator" column of the workbook
+    :type search: str, None
+    """
+
+    return brcddb_conv.obj_extract(
+        brcddb_search.match_test(
+            brcddb_conv.obj_extract(proj_obj, 'LoginObj'),
+            dict(k='_obj_key', t=search, v=filter_val, i=True)),
+        'PortObj')
+
+
+def _filter_alias(proj_obj, filter_val, search):
+    """Returns a list of port objects with logins that have aliases matching the search criteria. See _filter_wwn()"""
+    return brcddb_conv.obj_extract(
+        brcddb_search.match_test(brcddb_conv.obj_extract(proj_obj, 'AliasObj'),
+                                 dict(k='_obj_key', t=search, v=filter_val, i=True)),
+        'PortObj'
+    )
+
+
+def _filter_switch_port(proj_obj, filter_val, search):
+    """Returns a list of port objects for the switch(es) and port(s) specified in filter_val. See _filter_wwn()"""
+    switch_l, rl = list(), list()
+    tl = filter_val.split(';') if isinstance(filter_val, str) else list()
+    if len(tl) >= 2:
+        for switch in tl[0].split(','):
+            switch_l.extend([proj_obj.r_switch_obj(switch)] if gen_util.is_wwn(switch)
+                            else brcddb_project.switch_obj_for_user_name(proj_obj, switch, match_type=search))
+        port_l = brcdapi_port.port_range_to_list(tl[1])
+        for switch_obj in switch_l:
+            rl.extend([switch_obj.r_port_obj(p) for p in port_l if switch_obj.r_port_obj(p) is not None])
+    else:
+        brcdapi_log.exception('Invalid filter_val. Type: ' + str(type(filter_val)) + ', Val: ' + str(filter_val),
+                              echo=True)
+
+    return rl
+
+
+def _filter_switch_port_name(proj_obj, filter_val, search):
+    """Returns a list of port objects for the switch(es) and port(s) specified in filter_val. See _filter_wwn()"""
+    switch_l, rl = list(), list()
+    tl = filter_val.split(';') if isinstance(filter_val, str) else list()
+    if len(tl) >= 2:
+        for switch in tl[0].split(','):
+            switch_l.extend([proj_obj.r_switch_obj(switch)] if gen_util.is_wwn(switch)
+                            else brcddb_project.switch_obj_for_user_name(proj_obj, switch))
+        for switch_obj in switch_l:
+            for name in tl[1].split(','):
+                rl.extend(brcddb_port.port_objects_for_name(switch_obj, name, search=search))
+    else:
+        brcdapi_log.log('**ERROR** Missing port in ' + str(filter_val), echo=True)
+
+    return rl
+
+
+def _filter_isl(proj_obj, filter_val, search):
+    """Returns a dictionary whose key is the ISL group name (switch_x_to_switch_y). The value is a list of port objects
+    associated with the ISLs for the pairs. See _filter_wwn()"""
+    rd = dict()
+
+    # Figure out all the E-Ports
+    e_port_l = [obj for obj in proj_obj.r_port_objects() if obj.r_get(brcdapi_util.fc_port_type_str) == 'e-port']
+
+    # The neighbor is going to be the WWN of the remote port, so build a table of remote ports and the associated switch
+    port_to_switch_d = dict()
+    for switch_obj in proj_obj.r_switch_objects():
+        switch_wwn = switch_obj.r_obj_key()
+        for port_wwn in [obj.r_get(brcdapi_util.fc_wwn) for obj in e_port_l]:
+            port_to_switch_d[port_wwn] = switch_wwn
+
+    # Figure out groups of ISLs between switches
+    isl_group_d = dict()  # Key is switch_name_1_to_switch_name_2. This can break if someone uses duplicate switch names
+    for switch_obj in proj_obj.r_switch_objects():
+        switch_wwn = switch_obj.r_obj_key()
+        for port_obj in e_port_l:
+            for remote_port_wwn in port_obj.r_get(brcdapi_util.fc_neighbor_wwn, list()):  # Should always be a list of 1
+                temp_l = [switch_wwn, port_to_switch_d[remote_port_wwn]]
+                temp_l.sort()  # So that I'm looking at the same ISL pair from either direction.
+                group_name = brcddb_switch.best_switch_name(proj_obj.r_switch_obj(temp_l[0])) + '_to_'
+                group_name += brcddb_switch.best_switch_name(proj_obj.r_switch_obj(temp_l[1]))
+                if group_name not in isl_group_d:
+                    isl_group_d[group_name] = list()
+                isl_d[group_name].append(port_obj)
+
+    return rd
+
+
+def _filter_zone(proj_obj, filter_val, search):
+    """Returns a list of alias objects in proj_obj. See _filter_wwn()"""
+    return brcddb_conv.obj_extract(
+        brcddb_search.match_test(
+            brcddb_conv.obj_extract(proj_obj, 'ZoneObj'),
+            dict(k='_obj_key', t=search, v=filter_val, i=True)),
+        'PortObj'
+    )
+
+
+# Valid group filters for processing the groups workbook.
+_group_filter_d = {
+    'WWN': _filter_wwn,
+    'Alias': _filter_alias,
+    'switch;port': _filter_switch_port,
+    'switch;port_name': _filter_switch_port_name,
+    'Zone': _filter_zone,
+    'ISL': _filter_isl,
+}
+
+def groups(proj_obj, group_file):
+    """Parses the group definition file
+
+    The dictionary for each group is as follows:
+
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | Key           | Type  | Description                                                                           |
+    +===============+=======+=======================================================================================+
+    | group_wwn_d   | dict  | A dictionary of each login for each port in port_obj_l. The key is the login WWN. The |
+    |               |       | value is True or False. It is intended to be used as a simple check to determine if a |
+    |               |       | login is a member of the group.                                                       |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | port_obj_l    | list  | List of port objects associated with the group.                                       |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+
+    :param proj_obj: Project object
+    :type proj_obj: brcddb.classes.project.ProjectObj
+    :param group_file: File name of group definition file, -group.
+    :type group_file: str
+    :return group_d: Dictionary whose key is the group name and the value is as described in the method header
+    :rtype group_d: dict
+    :return el: List of str error messages
+    :rtype el: list
+    """
+    global _group_filter_d
+
+    el, group_l, ungrouped_initiator_l, ungrouped_target_l = list(), list(), list(), list()
+    grouped_d, group_d = dict(), collections.OrderedDict()
+    previous_group_name = None
+
+    # Read the group definition file.
+    if group_file is not None:  # Group group_file
+        el, worksheet_data_l = excel_util.read_workbook(group_file, dm=3, sheets='parameters')
+        if len(el) > 0:
+            return group_d, el
+        try:
+            group_l = worksheet_data_l[0]['al']
+            if len(group_l) < 2:
+                el.append('No Filters defined in ' + group_file)
+                return group_d, el
+        except (IndexError, KeyError):
+            el.append('"parameters" sheet not found in ' + group_file)
+            return group_d, el
+
+    # Determine what's in each group and start building the return dictionary
+    if len(group_l) > 0:
+
+        # Find the column headers
+        col_d = excel_util.find_headers(group_l[0])
+        for key in ('Group', 'Filter', 'Operand', 'Operator'):
+            if key not in col_d:
+                el.append(key + ' missing in ' + group_file)
+        if len(el) > 0:
+            return group_d, el
+        isl_check_l = (col_d['Group'], col_d['Operand'], col_d['Operator'])
+        non_isl_check_l = (col_d['Filter'], col_d['Operand'], col_d['Operator'])
+        full_check_l = (col_d['Group'], col_d['Filter'], col_d['Operand'], col_d['Operator'])
+
+        # Figure out what's in each group
+        row = 1
+        for row_l in group_l[1:]:
+            row += 1
+
+            # Validate the row data
+            try:
+                for i in full_check_l:
+                    if row_l[i] is not None:
+                        raise Found
+                continue  # It's a blank line
+            except Found:
+                pass
+
+            # If it's an ISL group, everything other than the Filter cell should be empty
+            if isinstance(row_l[col_d['Filter']], str) and row_l[col_d['Filter']] == 'ISL':
+                group_name = previous_group_name = None
+                try:
+                    for i in isl_check_l:
+                        if row_l[i] is not None:
+                            raise Found
+                except Found:
+                    el.append('Only the Filter cell should contain data when "ISL" is the filter at row ' + str(row))
+                    continue
+
+            # If it's not an ISL group, make sure everything is filled out.
+            else:
+                group_name = previous_group_name if row_l[col_d['Group']] is None else row_l[col_d['Group']].strip()
+                previous_group_name = group_name
+                if group_name is None:
+                    el.append('Cannot determine the group name at row ' + str(row))
+                    continue
+                try:
+                    for i in non_isl_check_l:
+                        if not isinstance(row_l[i], str):
+                            raise Found
+                except Found:
+                    el.append('The Filter, Operand, and Operator cells must contain valid data at row ' + str(row))
+                    continue
+
+            # The row data is valid if we got this far. Start processing each group
+            g_filter = row_l[col_d['Filter']]
+            if not isinstance(g_filter, str) or g_filter not in _group_filter_d:
+                el.append('Unknown Filter, ' + str(g_filter) + ', at row ' + str(row))
+                continue
+            operand = row_l[col_d['Operand']]
+            if isinstance(operand, str):
+                operand = operand.strip()
+            processed_row = _group_filter_d[g_filter](proj_obj, operand, row_l[col_d['Operator']])
+            if isinstance(processed_row, list):
+                sub_group_d = group_d.get(group_name)
+                if sub_group_d is None:
+                    sub_group_d = dict(group_wwn_d=dict(), port_obj_l=list())
+                    group_d[group_name] = sub_group_d
+                sub_group_d['port_obj_l'].extend(processed_row)
+            else:  # Its an ISL group if we get here.
+                for group_name, port_obj_l in processed_row.items():
+                    group_d[group_name] = port_obj_l
+
+        # Zone groups are typically used for storage enclosures. It's not uncommon to use standard zones with multiple
+        # target WWNs in the same zone. Below probably could have been more efficient. I didn't think of this until
+        # after the first test, so I just shoe horned it in. It adds a dictionary of login WWNs that are part of the
+        # group. This dictionary is used in the report zone page to skip logins zoned to this group that are already
+        # part of the group.
+        for sub_group_d in group_d.values():
+            for port_obj in sub_group_d['port_obj_l']:
+                for wwn in port_obj.r_login_keys():
+                    sub_group_d['group_wwn_d'].update({wwn: True})
+                # Keep track of ports already grouped:
+                grouped_d.update({port_obj.r_switch_key()+port_obj.r_obj_key(): True})
+
+    # Another after thought: find all the logins that are not grouped and get all groups by RNID Sequence number
+    # rnid_d: Key is the generic device type. Value is a dict whose key is the sequence number. Value is list of port
+    # objects. Sorting by generic device type was done to display groups in order of the device type.
+    rnid_d = dict()  # See comment above
+    for port_obj in [obj for obj in proj_obj.r_port_objects() if obj.r_is_online()]:
+
+        # Mainframe Groups
+        port_rnid_d = port_obj.r_get('rnid')
+        if isinstance(port_rnid_d, dict):
+            generic_type = brcddb_iocp.generic_device_type(port_rnid_d.get('type-number'))
+            port_rnid_seq = port_rnid_d.get('sequence-number', '000000000000')
+
+            # Get the generic device type dictionary from rnid_d. If it hasn't been added yet, add it.
+            generic_type_d = rnid_d.get(generic_type)
+            if not isinstance(generic_type_d, dict):
+                generic_type_d = dict()
+                rnid_d.update({generic_type: generic_type_d})
+
+            # Get the port object list for this sequence number
+            port_obj_l = generic_type_d.get(port_rnid_seq)
+            if not isinstance(port_obj_l, list):
+                port_obj_l = list()
+                generic_type_d.update({port_rnid_seq: port_obj_l})
+
+            # Add the port object
+            port_obj_l.append(port_obj)
+
+        # Determine what hasn't been grouped. This is just for displaying helpful information in reports
+        elif not bool(grouped_d.get(port_obj.r_switch_key()+port_obj.r_obj_key())):
+            login_obj_l = port_obj.r_login_objects()
+            if len(login_obj_l) > 0:
+                fc4_features = login_obj_l[0].r_get(brcdapi_util.bns_fc4_features)
+                if isinstance(fc4_features, str):
+                    if 'initiator' in fc4_features.lower():
+                        ungrouped_initiator_l.append(port_obj)
+                    else:
+                        ungrouped_target_l.append(port_obj)
+
+    # Sort out the mainframe groups in order of storage followed by CHPID
+    for key in ('DASD', 'Tape', 'CUP', 'CTC', 'Switch', 'IDG', 'Test', 'UNKN', 'CPU'):
+        for sub_key, port_obj_l in rnid_d.get(key, dict()).items():
+            if len(port_obj_l) > 0:
+                group_d[key + '_' + sub_key] = dict(mf_group=key, port_obj_l=port_obj_l)
+
+    # Are there any missing CPUs?
+    missing_cpu_l, missing_cpu_d = list(), dict()
+    for port_obj in proj_obj.r_port_objects():
+        port_rnid_d = port_obj.r_get('rnid')
+        if isinstance(port_rnid_d, dict):
+            if brcddb_iocp.generic_device_type(port_rnid_d.get('type-number')) == 'CPU':
+                sn = port_rnid_d.get('sequence-number', '').upper()
+                if sn not in rnid_d.get('CPU', list()) and sn not in missing_cpu_d:
+                    missing_cpu_d[sn] = True
+                    missing_cpu_l.append(port_obj)
+
+    group_d[zone_report.UNGROUPED_TARGET] = dict(port_obj_l=ungrouped_target_l)
+    group_d[zone_report.UNGROUPED_INITIATOR] = dict(port_obj_l=ungrouped_initiator_l)
+    group_d[zone_report.MISSING_CPU] = dict(port_obj_l=missing_cpu_l)
+
+    return group_d, el
