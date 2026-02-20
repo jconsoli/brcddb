@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025, 2026 Jack Consoli.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -72,15 +72,17 @@ information in here that is no longer used.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.8     | 19 Oct 2025   | Updated comments only.                                                                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.9     | 20 Feb 2026   | Added 'fibrechannel-statistics/link-level-interrupts'                                 |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2024, 2025 Consoli Solutions, LLC'
-__date__ = '19 Oct 2025'
+__copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
+__date__ = '20 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.8'
+__version__ = '4.0.9'
 
 import brcdapi.util as brcdapi_util
 
@@ -560,6 +562,7 @@ class Port:
         brcdapi_util.stats_fpr: dict(v=True, c=8, d='Frames Processing Required'),
         brcdapi_util.stats_to: dict(v=True, c=8, d='Frames Timed Out'),
         brcdapi_util.stats_trans: dict(v=True, c=8, d='Tx Unavailable Errors'),
+        'fibrechannel-statistics/link-level-interrupts': dict(v=True, c=8, d='Link Level Interrupts'),
         # Media (media-rdp)
         'media-rdp/connector': dict(v=True, c=6, d='Connector Type'),
         brcdapi_util.sfp_wave: dict(v=True, c=8, d='Wavelength'),
