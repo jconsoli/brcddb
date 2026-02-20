@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025, 2026 Jack Consoli.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -40,15 +40,17 @@ Defines the port object, PortObj.
 | 4.0.8     | 04 Dec 2025   | Used brcddb.brocade_common.port_conversion_tbl.brcdapi_util.fc_port_type in           |
 |           |               | c_login_type(). Simillarly for r_status().                                            |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.9     | 02 Feb 2026   | Bug fix in r_status() when the fibrechannel branch was not polled.                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2024, 2025 Consoli Solutions, LLC'
-__date__ = '04 Dec 2025'
+__copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
+__date__ = '02 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.8'
+__version__ = '4.0.9'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -595,7 +597,7 @@ class PortObj:
         try:
             return brcddb_common.port_conversion_tbl[brcdapi_util.fc_op_status][port_status]
         except (ValueError, KeyError, TypeError):
-            return brcddb_common.port_conversion_tbl[brcdapi_util.port_status][0]
+            return port_status if isinstance(port_status, str) else 'Unknown'
 
     def r_is_online(self):
         """Determines if the port is online
@@ -603,7 +605,7 @@ class PortObj:
         :return: True: port is online. False: port is offline.
         :rtype: bool
         """
-        return True if self.r_status().lower() == 'Online' else False
+        return True if self.r_status().lower() == 'online' else False
 
     def r_is_icl(self):
         """Determines if the port is on a core blade
