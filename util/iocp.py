@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025, 2026 Jack Consoli.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -9,7 +9,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 language governing permissions and limitations under the License.
 
 The license is free for single customer use (internal applications). Use of this module in the production,
-redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+redistribution, or service delivery for commerce requires an additional license. Contact jack_consoli@yahoo.com for
 details.
 
 **Description**
@@ -81,15 +81,19 @@ is functional.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 25 Aug 2025   | Added z17 machine type. Renamed _condition_iocp to condition_iocp (made public)       |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 19 Oct 2025   | Updated comments only.                                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 20 Feb 2026   | Updated copyright notice.                                                             |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '25 Aug 2025'
+__copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
+__date__ = '20 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.6'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -259,9 +263,8 @@ def dev_type_desc(dev_type, inc_dev_type=True, inc_generic=True, inc_desc=True, 
     :type inc_generic: bool
     :param inc_desc: If True, include the generic description, 'd' in _ibm_type
     :type inc_desc: bool
-    :param prepend_text: Text to prepend to the description. Typically, ' (' when inc_dev_type is True
-    :type prepend_text: str
-    :param append_text: Text to append to the description. Typically, ')' when inc_dev_type is True
+    :param prepend_text: Text to prepend to the description.
+    :param append_text: Text to append to the description.
     :return: Device type followed by description
     :rtype: str
     """

@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025, 2026 Jack Consoli.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -9,7 +9,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 language governing permissions and limitations under the License.
 
 The license is free for single customer use (internal applications). Use of this module in the production,
-redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+redistribution, or service delivery for commerce requires an additional license. Contact jack_consoli@yahoo.com for
 details.
 
 ** Description**
@@ -41,20 +41,24 @@ Contains brcddb class object copy methods
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.2     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.3     | 19 Oct 2025   | Updated comments only.                                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.4     | 20 Feb 2026   | Fixed case when a key was added to an object with a value of None.                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '25 Aug 2025'
+__copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
+__date__ = '20 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.2'
+__version__ = '4.0.4'
 
 import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
 
-_default_skip_list = [
+default_skip_list = [
     '_alerts',
     '_project_obj',
     '_zonecfg',
@@ -79,11 +83,12 @@ def object_copy(obj, objx, flag_obj=None, skip_list=None):
     if skip_list is None:
         skip_list = list()
     # Programmer’s Tip: Note that the rest object and brcddb object are reversed. My humble apologies for that.
+
     if isinstance(obj, dict):
         for k in obj.keys():
             if k not in skip_list:
                 v = obj.get(k)
-                if isinstance(v, (str, int, float)):  # Remember that bool is a subclass of int
+                if isinstance(v, (str, int, float)) or v is None:  # Remember that bool is a subclass of int
                     if flag_obj is None:
                         if isinstance(objx, dict):
                             objx.update({k: v})
@@ -173,9 +178,8 @@ def brcddb_to_plain_copy(objx, obj, flag_obj=None, skip_list=None):
     :type skip_list: list, tuple
     :rtype: None
     """
-
     if skip_list is None:
-        skip_list = _default_skip_list
+        skip_list = default_skip_list
     # Copy all the reserved keys
     if hasattr(objx, 'r_reserved_keys') and callable(getattr(objx, 'r_reserved_keys')) and \
             hasattr(objx, 'r_keys') and callable(getattr(objx, 'r_keys')):
@@ -436,7 +440,6 @@ def plain_copy_to_brcddb(obj, objx):
     :rtype: None
     """
     global _r_key_table
-
     if objx is None:
         return
     if isinstance(obj, dict):

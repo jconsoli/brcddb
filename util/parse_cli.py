@@ -1,5 +1,5 @@
 """
-Copyright 2023, 2024, 2025 Consoli Solutions, LLC.  All rights reserved.
+Copyright 2023, 2024, 2025, 2026 Jack Consoli.  All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with
 the License. You may also obtain a copy of the License at https://www.apache.org/licenses/LICENSE-2.0
@@ -9,7 +9,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 language governing permissions and limitations under the License.
 
 The license is free for single customer use (internal applications). Use of this module in the production,
-redistribution, or service delivery for commerce requires an additional license. Contact jack@consoli-solutions.com for
+redistribution, or service delivery for commerce requires an additional license. Contact jack_consoli@yahoo.com for
 details.
 
 **Description**
@@ -69,15 +69,20 @@ Parses CLI output.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 25 Aug 2025   | Updated email address in __email__ only.                                              |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 19 Oct 2025   | In cfgshow output, newer versions of FOS do not have a space between the ':' after a  |
+|           |               | key word and the operand. Fixed this by stuffing a space after ':'.                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.9     | 20 Feb 2026   | Changed from fibrechannel/port-type to fibrechannel/port-type-string                  |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
-__copyright__ = 'Copyright 2023, 2024, 2025 Consoli Solutions, LLC'
-__date__ = '25 Aug 2025'
+__copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
+__date__ = '20 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.9'
 
 import re
 import time
@@ -398,6 +403,8 @@ def switchshow(obj, content, append_buf=''):
     :return i: Index into content where we left off
     :rtype i: int
     """
+    global _physical_pbs_port_type
+
     buf, switch_obj, proj_obj = '', None, obj.r_project_obj()
 
     for buf in content:
@@ -508,12 +515,12 @@ def switchshow(obj, content, append_buf=''):
                 'physical-state': 'unknown' if physical_state is None else physical_state,
                 'neighbor': dict(wwn=list()),
             }
+            port_type = 'unknown-port'  # A port type should always be found below, but just in case ...
             for k, v in _physical_pbs_port_type.items():
                 if k in port_desc:
-                    port_d.update(({'port-type': v}))
+                    port_type = v
                     break
-            if port_d.get('port-type') is None:
-                port_d.update({'port-type': brcddb_common.PORT_TYPE_U})  # Typical of an offline port
+            port_d.update(({'port-type-string': v}))
             port_obj = switch_obj.s_add_port(port_num) if proto == 'FC' \
                 else switch_obj.s_add_ve_port(port_num) if proto == 'VE' \
                 else switch_obj.s_add_ge_port(port_num) if proto == 'FCIP' \
@@ -1285,12 +1292,12 @@ def _cfgshow_process(state, buf):
     :type buf: str
     :return state: Next state
     :rtype state: int
-    :return operand: Opperand (name of configuration, zone, or alias). None if not present
+    :return operand: Operand (name of configuration, zone, or alias). None if not present
     :rtype operand: str, None
     :return rl: List of members associated with the operand
     :rtype rl: list()
     """
-    global _cfgshow_state_eff, _cfgshow_state_exit, _cfgshow_operand_tbl
+    global _cfgshow_state_eff, _cfgshow_state_exit, _cfgshow_operand_tbl, _cfgshow_clean_buf
 
     operand, rl, next_state, t_buf, key = None, list(), None, buf, None
 
@@ -1343,6 +1350,7 @@ def cfgshow(obj, content):
 
     # Parse the cfgshow output
     for buf in content:
+
         state, key, operand, mem_l = _cfgshow_process(state, buf)
         if state is not None and state == _cfgshow_state_exit:
             break
@@ -1358,7 +1366,7 @@ def cfgshow(obj, content):
         else:
             active_d['mem_l'].extend(mem_l)
         ri += 1
-    active_l.append(active_d.copy())
+    active_l.append(active_d.copy())  # IDK why I made this a copy, but I'm not fixing working code.
 
     # Process (add to brcddb objects) the parsed data. Note that an alias must be unbundled, see comments in
     # cfgshow_zone_gen(), before evaluating peer zone. Hence, the order below.
