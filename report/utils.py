@@ -196,15 +196,17 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.1.0     | 20 Feb 2026   | Updated disclaimer in _about_sheet_l.                                                 |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.1     | 21 Feb 2026   | Removed debug code.                                                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '21 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.1.0'
+__version__ = '4.1.1'
 
 import collections
 import copy
@@ -2058,8 +2060,12 @@ def _filter_switch_port_name(proj_obj, filter_val, search):
     tl = filter_val.split(';') if isinstance(filter_val, str) else list()
     if len(tl) >= 2:
         for switch in tl[0].split(','):
-            switch_l.extend([proj_obj.r_switch_obj(switch)] if gen_util.is_wwn(switch)
-                            else brcddb_project.switch_obj_for_user_name(proj_obj, switch))
+            switch_obj = proj_obj.r_switch_obj(switch) if gen_util.is_wwn(switch) \
+                else brcddb_project.switch_obj_for_user_name(proj_obj, switch)
+            if switch_obj is None:
+                brcdapi_log.log('**ERROR** Switch ' + switch + ' not found', echo=True)
+            else:
+                switch_l.append(switch_obj)
         for switch_obj in switch_l:
             for name in tl[1].split(','):
                 rl.extend(brcddb_port.port_objects_for_name(switch_obj, name, search=search))

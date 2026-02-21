@@ -41,15 +41,17 @@ Creates a worksheet with a graph
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 20 Feb 2026   | Added supported_chart_types(). Set the chart size in graph()                          |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 21 Feb 2026   | Removed debug code.                                                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '21 Feb 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 from openpyxl.chart import AreaChart, AreaChart3D, BarChart, BarChart3D, LineChart, LineChart3D, Reference
 from openpyxl.chart.axis import DateAxis
@@ -64,39 +66,15 @@ _align_wrap = excel_fonts.align_type('wrap')
 _chart_width = 22
 _chart_height = 15
 
-
-def _area_chart():
-    return AreaChart()
-
-
-def _area_3d_chart():
-    return AreaChart3D()
-
-
-def _bar_chart():
-    return BarChart()
-
-
-def _bar_3d_chart():
-    return BarChart3D()
-
-
-def _line_chart():
-    return LineChart()
-
-
-def _line_3d_chart():
-    return LineChart3D()
-
-
 _chart_types = dict(
-    area=_area_chart,
-    area_3d=_area_3d_chart,
-    bar=_bar_chart,
-    bar_3d=_bar_3d_chart,
-    line=_line_chart,
-    line_3d=_line_3d_chart,
+    area=AreaChart,
+    area_3d=AreaChart3D,
+    bar=BarChart,
+    bar_3d=BarChart3D,
+    line=LineChart,
+    line_3d=LineChart3D,
 )
+
 
 def supported_chart_types():
     """Returns a list of strings representing the supported chart types.
