@@ -67,15 +67,17 @@ Support for project level operations.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 10 Mar 2026   | Consolidated error messages for reading and interprting project files.                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '10 Mar 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.file as brcdapi_file
@@ -154,18 +156,33 @@ def read_from(inf):
 
     :param inf: Input file name written with brcdapi_file.write_dump()
     :type inf: str
-    :return: Project object
+    :return: Project object. None if an error was encountered.
     :rtype: None, brcddb.classes.project.ProjectObj
     """
-    obj = brcdapi_file.read_dump(inf)
+    if not isinstance(inf, str):
+        brcdapi_log.exception('Input file name must be type str. Got ' + str(type(inf)) + ' instead.', echo=True)
 
-    if not isinstance(obj, dict) or obj.get('_obj_key') is None or obj.get('_date') is None:
+    # Read the project file.
+    obj = brcdapi_file.read_dump(inf)
+    if obj is None:
+        return None
+
+    # Validate the file
+    proj_key = obj.get('_obj_key')
+    proj_date = obj.get('_date')
+    if not isinstance(obj, dict) or not isinstance(proj_key, str) or not isinstance(proj_date, str):
         brcdapi_log.log(inf + ' is not a valid project file.', echo=True)
         return None
-    # Make sure there is a valid Excel tab name.
-    proj_obj = new(obj.get('_obj_key').replace(' ', '_').replace(':', '').replace('-', '_')[:32], obj.get('_date'))
-    brcddb_copy.plain_copy_to_brcddb(obj, proj_obj)
-    return proj_obj
+
+    # Make sure there is a valid project key, make the copy, and return.
+    try:
+        proj_obj = new(proj_key.replace(' ', '_').replace(':', '').replace('-', '_')[:32], obj.get('_date'))
+        brcddb_copy.plain_copy_to_brcddb(obj, proj_obj)
+        return proj_obj
+    except BaseException as e:
+        brcdapi_log.exception(['Programming error encountered.', str(type(e)) + ': ' + str(e)], echo=True)
+
+    return None
 
 
 def build_xref(proj_obj):
@@ -174,9 +191,20 @@ def build_xref(proj_obj):
 
     :param proj_obj: Project object
     :type proj_obj: brcddb.classes.project.ProjectObj
+    :return: True if successful, False otherwise. If False, the error flag is also set in proj_obj.
+    :rtype: bool
     """
     # We'll need to figure out where all the logins are so build a table to cross-reference all the neighbor WWNs
-    brcddb_util.build_login_port_map(proj_obj)
+    try:
+        brcddb_util.build_login_port_map(proj_obj)
+        return True
+    except BaseException as e:
+        proj_obj.s_error_flag()
+        buf = 'Unknown error interpreting project file. This typically occurs when it is not a valid JSON formatted '
+        buf += 'file. Error message is:'
+        brcdapi_log.log([buf, str(type(e)) + ': ' + str(e)], echo=True)
+
+    return False
 
 
 def add_custom_search_terms(proj_obj):
