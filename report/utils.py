@@ -198,15 +198,17 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.1.1     | 21 Feb 2026   | Removed debug code.                                                                   |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.2     | 10 Mar 2026   | Added more error checking and more user friendly error messages.                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '21 Feb 2026'
+__date__ = '10 Mar 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.1.1'
+__version__ = '4.1.2'
 
 import collections
 import copy
@@ -541,18 +543,18 @@ def title_page(wb, tc, sheet_name, sheet_i, sheet_title, content, col_width):
     if isinstance(content, (list, tuple)):
         for obj in content:
             if isinstance(obj, dict):
-                display = list()
+                display_l = list()
                 if 'disp' in obj:
                     if isinstance(obj.get('disp'), (str, int, float)):
-                        display.append(obj.get('disp'))
+                        display_l.append(obj.get('disp'))
                     elif isinstance(obj.get('disp'), (list, tuple)):
-                        display = obj.get('disp')
+                        display_l = obj.get('disp')
                     elif obj.get('disp') is None:
                         pass
                     else:
                         brcdapi_log.exception('Unknown disp type, ' + str(type((obj.get('disp')))) + ', at row ' +
                                               str(row), echo=True)
-                for buf in display:
+                for buf in display_l:
                     excel_util.cell_update(sheet, row, col, buf,
                                            link=obj.get('hyper'),
                                            font=excel_fonts.font_type(obj.get('font')),
@@ -1253,31 +1255,38 @@ def parse_switch_file(file):
 
     # Parse the "Chassis", "Sheet_x", and "Slot x" worksheets
     for sheet_d in sheet_l:
-        title = sheet_d['sheet']
-        if fnmatch.fnmatch(title, 'Chassis*'):
-            ml, chassis_d = _parse_chassis_sheet(sheet_d)
-            error_l.extend(ml)
-        elif fnmatch.fnmatch(title, 'Switch*'):
-            ml, d = _parse_switch_sheet(sheet_d)
-            error_l.extend(ml)
-            gen_util.add_to_obj(d, 'switch_info/sheet_name', title)
-            fid = d['switch_info']['fid']
-            if fid in rd:
-                error_l.append('Duplicate FID, ' + str(fid) + '. Appears in ' + title + ' and ' +
-                               rd[fid]['switch_info']['sheet_name'])
-            else:
-                rd.update({fid: d})
-        elif fnmatch.fnmatch(title, 'Slot ?*'):
-            if not isinstance(port_name_d, dict):
-                # This could have been more elegant. I forgot that some port naming modes want all ports not explicitly
-                # named to be set to an empty string. Furthermore, ficon port names need to be truncated to a maximum of
-                # 24 characters, so I jammed this in and made a hack in _parse_slot_sheet() to set the names correctly.
-                port_name_d = dict()
-                for fid, temp_switch_d in rd.items():
-                    port_name_d.update({fid: temp_switch_d['switch_info']['port_name']})
-            ml, d = _parse_slot_sheet(sheet_d, port_name_d)
-            error_l.extend(ml)
-            port_d.update(d)
+        buf = file + ' does not look like a valid switch configuration workbook. Use X7-8_Switch_Configuration.xlsx '
+        buf += 'as an example.'
+        try:
+            title = sheet_d['sheet']
+            if fnmatch.fnmatch(title, 'Chassis*'):
+                ml, chassis_d = _parse_chassis_sheet(sheet_d)
+                error_l.extend(ml)
+            elif fnmatch.fnmatch(title, 'Switch*'):
+                ml, d = _parse_switch_sheet(sheet_d)
+                error_l.extend(ml)
+                gen_util.add_to_obj(d, 'switch_info/sheet_name', title)
+                fid = d['switch_info']['fid']
+                if fid in rd:
+                    error_l.append('Duplicate FID, ' + str(fid) + '. Appears in ' + title + ' and ' +
+                                   rd[fid]['switch_info']['sheet_name'])
+                else:
+                    rd.update({fid: d})
+            elif fnmatch.fnmatch(title, 'Slot ?*'):
+                if not isinstance(port_name_d, dict):
+                    # This could have been more elegant. I forgot that some port naming modes want all ports not
+                    # explicitly named to be set to an empty string. Furthermore, ficon port names need to be truncated
+                    # to a maximum of 24 characters, so I jammed this in and made a hack in _parse_slot_sheet() to set
+                    # the names correctly.
+                    port_name_d = dict()
+                    for fid, temp_switch_d in rd.items():
+                        port_name_d.update({fid: temp_switch_d['switch_info']['port_name']})
+                ml, d = _parse_slot_sheet(sheet_d, port_name_d)
+                error_l.extend(ml)
+                port_d.update(d)
+        except (TypeError, ValueError, IndexError):
+            error_l.append(buf)
+            break
 
     # Add all the ports to the switch in the return dictionary, rd. I did it this way in case someone rearranged the
     # sheets such that a "Slot x" worksheet came before the corresponding "Switch x" worksheet.
@@ -1297,7 +1306,7 @@ def parse_switch_file(file):
 
             switch_d['port_d'].update({k: d})
 
-    return error_l, chassis_d, [switch_d for switch_d in rd.values()]
+    return error_l, chassis_d, rd.values()
 
 
 #####################################################################################
