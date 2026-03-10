@@ -85,15 +85,17 @@ is functional.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 10 Mar 2026   | Consolidated project read and Excel error messaging.                                  |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '10 Mar 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -689,6 +691,8 @@ def parse_iocp(proj_obj, iocp):
 
     # Read in the IOCP definition file and get an IOCP object
     iocp_list = brcdapi_file.read_file(iocp, False, False)
+    if not isinstance(iocp_list, list):
+        return
     buf_l = iocp.replace('\\', '/').split('/')
     iocp_obj = proj_obj.s_add_iocp(buf_l.pop().split('_')[0])
 

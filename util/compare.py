@@ -80,15 +80,17 @@ Will return:
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 10 Mar 2026   | Fixed potential defect when comparing two brcddb objects when a control table is used |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '10 Mar 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import copy
 import re
@@ -100,13 +102,11 @@ import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.brcddb_switch as brcddb_switch
 
-_REMOVED = 'Removed'
-_NEW = 'Added'
-_CHANGED = 'Changed'
-_MISMATCH = 'Different types'
-_INVALID_REF = 'Programming error. Invalid reference. Check the log for details.'
-
-_brcddb_control_tables = dict()
+REMOVED = 'Removed'
+NEW = 'Added'
+CHANGED = 'Changed'
+MISMATCH = 'Different types'
+INVALID_REF = 'Programming error. Invalid reference. Check the log for details.'
 
 
 def _check_control(in_ref, control_tbl):
@@ -147,7 +147,7 @@ def _check_control(in_ref, control_tbl):
     return skip_flag, lt, gt
 
 
-def _str_compare(r_obj, ref, b_str, c_str, control_tbl):
+def _str_compare(r_obj, ref, b_str, c_str, control_tbl, brcddb_control_tbl):
     """Generic string compare
 
     :param r_obj: Return object - Dictionary of changes
@@ -158,48 +158,31 @@ def _str_compare(r_obj, ref, b_str, c_str, control_tbl):
     :type b_str: brcddb.classes - chassis, fabric, login, port, project, switch, zone
     :param c_str: Compare object
     :type c_str: brcddb.classes - chassis, fabric, login, port, project, switch, zone
+    :param brcddb_control_tbl: Same function as control_tbl but for brcddb class objects.
+    :type brcddb_control_tbl: dict, None
     :param control_tbl: Control table.
     :type control_tbl: dict
     :return: Change counter
     :rtype: int
     """
-    global _REMOVED, _CHANGED
+    global REMOVED, CHANGED
 
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
         return 0
 
     if c_str is None:
-        brcddb_util.add_to_obj(r_obj, ref, dict(b=b_str, c='', r=_REMOVED))
+        brcddb_util.add_to_obj(r_obj, ref, dict(b=b_str, c='', r=REMOVED))
         return 1
     if b_str != c_str:
-        brcddb_util.add_to_obj(r_obj, ref, dict(b=b_str, c=c_str, r=_CHANGED))
+        brcddb_util.add_to_obj(r_obj, ref, dict(b=b_str, c=c_str, r=CHANGED))
         return 1
 
     return 0
 
 
-def _bool_compare(r_obj, ref, b_flag, c_flag, control_tbl):
-    """int or float compare. See _str_compare() for parameter definitions"""
-    global _REMOVED
-
-    skip_flag, lt, gt = _check_control(ref, control_tbl)
-    if skip_flag:
-        return 0
-    if c_flag is None:
-        brcddb_util.add_to_obj(r_obj, ref, dict(b=str(b_flag), c='', r=_REMOVED))
-        return 1
-    if c_flag != b_flag:
-        brcddb_util.add_to_obj(r_obj, ref, dict(b=str(b_flag), c=str(c_flag), r=_CHANGED))
-        return 1
-
-    return 0
-
-
-def _num_compare(r_obj, ref, b_num, c_num, control_tbl):
-    """int or float compare. See _str_compare() for parameter definitions"""
-    global _REMOVED
-
+def _num_compare(r_obj, ref, b_num, c_num, control_tbl, brcddb_control_tbl):
+    """int or float compare. Note that bool is a type of int. See _str_compare() for parameter definitions"""
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
         return 0
@@ -216,9 +199,9 @@ def _num_compare(r_obj, ref, b_num, c_num, control_tbl):
     return 0
 
 
-def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
+def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl, brcddb_control_tbl):
     """Compares two brcddb objects. See _str_compare() for parameter definitions"""
-    global _NEW
+    global NEW
 
     c = 0
 
@@ -227,26 +210,30 @@ def _brcddb_internal_compare(r_obj, ref, b_obj, c_obj, control_tbl):
         new_ref = ref + '/' + k if len(ref) > 0 else k
         skip_flag, lt, gt = _check_control(new_ref, control_tbl)
         if not skip_flag:
-            c += _compare(r_obj, new_ref, b_obj.r_get_reserved(k), c_obj.r_get_reserved(k), control_tbl)
+            c += _compare(
+                r_obj,
+                new_ref,
+                b_obj.r_get_reserved(k),
+                c_obj.r_get_reserved(k),
+                control_tbl,
+                brcddb_control_tbl)
 
     # Compare all the added objects
     tl = b_obj.r_keys()
     for k in tl:
-        c += _compare(r_obj, ref + '/' + k, b_obj.r_get(k), c_obj.r_get(k), control_tbl)
+        c += _compare(r_obj, ref + '/' + k, b_obj.r_get(k), c_obj.r_get(k), control_tbl, brcddb_control_tbl)
 
     # Check for added objects
     for k in c_obj.r_keys():
         if k not in tl:
-            brcddb_util.add_to_obj(r_obj, ref, dict(b='', c=k, r=_NEW))
+            brcddb_util.add_to_obj(r_obj, ref, dict(b='', c=k, r=NEW))
             c += 1
 
     return c
 
 
-def _brcddb_compare(r_obj, ref, b_obj, c_obj, control_tbl):
+def _brcddb_compare(r_obj, ref, b_obj, c_obj, control_tbl, brcddb_control_tbl):
     """Compares two brcddb objects. See _str_compare() for parameter definitions"""
-    global _brcddb_control_tables
-
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
         return 0
@@ -256,13 +243,14 @@ def _brcddb_compare(r_obj, ref, b_obj, c_obj, control_tbl):
         ref,
         b_obj,
         c_obj,
-        _brcddb_control_tables.get(class_util.get_simple_class_type(b_obj), None)
+        brcddb_control_tbl.get(class_util.get_simple_class_type(b_obj), None),
+        brcddb_control_tbl
     )
 
 
-def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
+def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl, brcddb_control_tbl):
     """Compare dictionary objects. See _str_compare() for parameter definitions"""
-    global _REMOVED, _NEW
+    global REMOVED, NEW
 
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
@@ -277,10 +265,10 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
         if c_obj_r is None:
             skip_flag_0, lt_0, gt_0 = _check_control(new_ref, control_tbl)
             if not skip_flag_0:
-                brcddb_util.add_to_obj(r_obj, new_ref, dict(b=k, c='', r=_REMOVED))
+                brcddb_util.add_to_obj(r_obj, new_ref, dict(b=k, c='', r=REMOVED))
                 c += 1
         else:
-            c += _compare(r_obj, new_ref, b_obj_r, c_obj_r, control_tbl)
+            c += _compare(r_obj, new_ref, b_obj_r, c_obj_r, control_tbl, brcddb_control_tbl)
 
     # No need to compare values again. Just check to see if anything was added.
     for k, c_obj_r in c_obj.items():
@@ -288,15 +276,15 @@ def _dict_compare(r_obj, ref, b_obj, c_obj, control_tbl):
         if k not in b_obj:
             skip_flag_0, lt_0, gt_0 = _check_control(new_ref, control_tbl)
             if not skip_flag_0:
-                brcddb_util.add_to_obj(r_obj, new_ref, dict(b='', c=k, r=_NEW))
+                brcddb_util.add_to_obj(r_obj, new_ref, dict(b='', c=k, r=NEW))
             c += 1
 
     return c
 
 
-def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
+def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl, brcddb_control_tbl):
     """Compare list or tuple objects. See _str_compare() for parameter definitions"""
-    global _REMOVED, _NEW, _MISMATCH, _CHANGED
+    global CHANGED
 
     skip_flag, lt, gt = _check_control(ref, control_tbl)
     if skip_flag:
@@ -307,23 +295,23 @@ def _list_compare(r_obj, ref, b_obj, c_obj, control_tbl):
     if len_b_obj == 0 and len_c_obj == 0:
         return 0
     if len_b_obj != len_c_obj:
-        brcddb_util.add_to_obj(r_obj, ref, dict(b='length ' + str(len_b_obj), c='length ' + str(len_c_obj), r=_CHANGED))
+        brcddb_util.add_to_obj(r_obj, ref, dict(b='length ' + str(len_b_obj), c='length ' + str(len_c_obj), r=CHANGED))
         return 1
 
     c = 0
     for i in range(0, len_b_obj):
-        c += _compare(r_obj, ref+'['+str(i)+']', b_obj[i], c_obj[i], control_tbl)
+        c += _compare(r_obj, ref+'['+str(i)+']', b_obj[i], c_obj[i], control_tbl, brcddb_control_tbl)
 
     return c
 
 
-def _unknown_compare(r_obj, ref, b_obj, c_obj, control_tbl):
+def _unknown_compare(r_obj, ref, b_obj, c_obj, control_tbl, brcddb_control_tbl):
     """Compare list objects. See _str_compare() for parameter definitions"""
-    global _INVALID_REF
+    global INVALID_REF
 
     buf = str(type(b_obj))
     brcdapi_log.exception(['Unknown base object type: ' + buf, ''], echo=True)
-    brcddb_util.add_to_obj(r_obj, ref, dict(b=buf, c='', r=_INVALID_REF))
+    brcddb_util.add_to_obj(r_obj, ref, dict(b=buf, c='', r=INVALID_REF))
 
     return 1
 
@@ -341,7 +329,7 @@ _obj_type_action = dict(
     ZoneCfgObj=_brcddb_compare,
     ZoneObj=_brcddb_compare,
     AliasObj=_brcddb_compare,
-    # AlertObj=null_compare,
+    # AlertObj=_brcddb_compare,  # I don't recall why I commented this out.
     dict=_dict_compare,
     bool=_num_compare,
     int=_num_compare,
@@ -360,13 +348,15 @@ def _simple_type(obj):
     return obj_type if obj_type in _obj_type_action else 'unknown'
 
 
-_compare_feedback_d = dict(ProjectObj=brcddb_project.best_project_name,
-                           ChassisObj=brcddb_chassis.best_chassis_name,
-                           FabricObj=brcddb_fabric.best_fab_name,
-                           SwitchObj=brcddb_switch.best_switch_name)
+_compare_feedback_d = dict(
+    ProjectObj=brcddb_project.best_project_name,
+    ChassisObj=brcddb_chassis.best_chassis_name,
+    FabricObj=brcddb_fabric.best_fab_name,
+    SwitchObj=brcddb_switch.best_switch_name,
+)
 
 
-def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
+def _compare(r_obj, ref, b_obj, c_obj, control_tbl, brcddb_control_tbl):
     """Compares two dict, list, tuple, or brcddb.classes objects
 
     :param r_obj: Return object - Dictionary or list of changes
@@ -377,12 +367,14 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
     :type b_obj: dict, list, tuple, brcddb.classes.*
     :param c_obj: Compare object
     :type c_obj: dict, list, tuple, brcddb.classes.*
+    :param brcddb_control_tbl: Same function as control_tbl but for brcddb class objects.
+    :type brcddb_control_tbl: dict, None
     :param control_tbl: Control table.
     :type control_tbl: dict
     :return: Number of mismatches found
     :rtype: int
     """
-    global _obj_type_action, _REMOVED, _NEW, _MISMATCH, _INVALID_REF
+    global _obj_type_action, REMOVED, NEW, MISMATCH, _compare_feedback_d
 
     b_type, c_type = _simple_type(b_obj), _simple_type(c_obj)
 
@@ -398,20 +390,20 @@ def _compare(r_obj, ref, b_obj, c_obj, control_tbl):
 
     # Does the base object exist?
     if b_obj is None:
-        brcddb_util.add_to_obj(r_obj, ref, dict(b=ref, c='', r=_NEW))
+        brcddb_util.add_to_obj(r_obj, ref, dict(b=ref, c='', r=NEW))
         return 1
 
     # Does the compare object exist?
     if c_obj is None:
-        brcddb_util.add_to_obj(r_obj, ref, dict(b=ref, c='', r=_REMOVED))
+        brcddb_util.add_to_obj(r_obj, ref, dict(b=ref, c='', r=REMOVED))
         return 1
 
     # Are we comparing the same types?
     if b_type != c_type:
-        brcddb_util.add_to_obj(r_obj, ref, dict(b=b_type, c=c_type, r=_MISMATCH))
+        brcddb_util.add_to_obj(r_obj, ref, dict(b=b_type, c=c_type, r=MISMATCH))
         return 1
 
-    return _obj_type_action[b_type](r_obj, ref, b_obj, c_obj, control_tbl)
+    return _obj_type_action[b_type](r_obj, ref, b_obj, c_obj, control_tbl, brcddb_control_tbl)
 
 
 def compare(b_obj, c_obj, control_tbl=None, brcddb_control_tbl=None):
@@ -430,10 +422,7 @@ def compare(b_obj, c_obj, control_tbl=None, brcddb_control_tbl=None):
     :return change_d: Change structure as described in the Description section of the module header block
     :rtype change_d: dict, list
     """
-    global _brcddb_control_tables
-
-    if isinstance(brcddb_control_tbl, dict):
-        _brcddb_control_tables = brcddb_control_tbl
+    int_brcd_cntl_d = brcddb_control_tbl if isinstance(brcddb_control_tbl, dict) else dict()
     r_obj = dict()
 
-    return _compare(r_obj, '', b_obj, c_obj, control_tbl), r_obj
+    return _compare(r_obj, '', b_obj, c_obj, control_tbl, brcddb_control_tbl), r_obj
