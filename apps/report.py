@@ -47,15 +47,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.9     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.0     | 10 Mar 2026   | Added error handling for excel_util.save_report().                                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '10 Mar 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.9'
+__version__ = '4.1.0'
 
 import os
 import collections
@@ -972,14 +974,7 @@ def report(proj_obj, outf, group_d=None):
 
     # Save the report.
     brcdapi_log.log('Saving ' + outf, echo=True)
-    try:
-        excel_util.save_report(wb, outf)
-    except PermissionError:
-        brcdapi_log.log(['', 'Permission error writing ' + outf + '. File may be open in another application.'],
-                        echo=True)
-        proj_obj.s_error_flag()
-    except FileNotFoundError:
-        brcdapi_log.log(['', 'Write report failed. Folder in ' + outf + ' does not exist.'], echo=True)
+    if not excel_util.save_report(wb, outf):
         proj_obj.s_error_flag()
 
     return
