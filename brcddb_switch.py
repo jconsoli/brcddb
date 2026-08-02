@@ -31,8 +31,6 @@ Methods and tables to support the class SwitchObj.
 +-----------------------+---------------------------------------------------------------------------------------+
 | port_obj_for_index    | Returns the port object matching port_index                                           |
 +-----------------------+---------------------------------------------------------------------------------------+
-| switch_fid            | Returns the switch FID as an integer                                                  |
-+-----------------------+---------------------------------------------------------------------------------------+
 | switch_ge_ports       | Returns the list of GE ports in the switch                                            |
 +-----------------------+---------------------------------------------------------------------------------------+
 | switch_ports          | Returns the list of ports in the switch                                               |
@@ -55,15 +53,17 @@ Methods and tables to support the class SwitchObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 01 Aug 2026   | Modified best_switch_name() to accept switch, port, or login objects.                 |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '01 Aug 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import time
 import brcdapi.util as brcdapi_util
@@ -75,6 +75,7 @@ area_mode = {
     1: ' Zero-based area assignment',
     2: ' Port-based area assignment',
 }
+_user_friendly_switch_type_d = dict(default='Default', ficon='FICON', base='Base', open='FCP')
 
 
 def add_rest_port_data(switch_obj, pobj, flag_obj=None, in_skip_list=None):
@@ -112,44 +113,46 @@ def add_rest_port_data(switch_obj, pobj, flag_obj=None, in_skip_list=None):
                     fab_obj.s_add_login(wwn)
 
 
-def best_switch_name(switch_obj, wwn=False, did=False, fid=False):
+def best_switch_name(class_obj, wwn=False, did=False, did_hex=False, fid=False):
     """Returns the user-friendly switch name, optionally with the switch WWN in parentheses. If the switch is not named,
        just the switch WWN is returned
 
-    :param switch_obj: Switch object
-    :type switch_obj: brcddb.classes.switch.SwitchObj
+    :param class_obj: Switch, port, or login object
+    :type class_obj: brcddb.classes.switch.SwitchObj, brcddb.classes.port.PortObj, brcddb.classes.login.LoginObj
     :param wwn: If True, append (wwn) to the switch name
     :type wwn: bool
     :param did: If True, append (DID) to the switch name
     :type did: bool
+    :param did_hex: If True, append DID in hex. I did is also True, the hex value is enclosed in parenthesis
+    :type did_hex: bool
     :param fid: If Ture, append (FID) to switch name
     :type fid: bool
     :return: Switch name
     :rtype: str
     """
-    wwn_f = wwn
-    if switch_obj is None:
+    if class_obj is None:
         return 'Unknown'
-    buf = switch_obj.r_get(brcdapi_util.bfs_sw_user_name)
-    if buf is None:
-        buf = switch_obj.r_get(brcdapi_util.bf_sw_user_name)
-    if buf is None:
-        buf = ''
-        wwn_f = True
+    switch_obj = class_obj.r_switch_obj()
+    buf = switch_obj.r_get(brcdapi_util.bfs_sw_user_name, 'Unknown')
+    wwn_f = True if buf == 'Unknown' else wwn
+    did_num = switch_obj.r_get(brcdapi_util.bfs_did, 0)
+    hex_did = hex(did_num).upper().replace('X', 'x')
+    if len(hex_did) == 3:
+        hex_did = hex_did.replace('0x', '0x0')
     if fid:
         fid_num = switch_obj.r_get(brcdapi_util.bfls_fid)
         if fid_num is not None:
             buf += ' FID: ' + str(fid_num)
     if did:
-        did_num = switch_obj.r_get(brcdapi_util.bfs_did)
-        if did_num is None:
-            did_num = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
-        if did_num is not None:
-            buf += ' DID: ' + str(did_num)
+        buf += ' DID: ' + str(did_num)
+        if did_hex:
+            buf += ' (' + hex_did + ') '
+    elif did_hex:
+        buf += ' ' + hex_did + ' '
     if wwn_f:
         buf += ' (' + switch_obj.r_obj_key() + ')'
 
-    return buf
+    return buf.rstrip()
 
 
 def switch_type(switch_obj):
@@ -160,26 +163,7 @@ def switch_type(switch_obj):
     :return: Switch type. None if switch_obj is None
     :rtype: str, None
     """
-    if switch_obj is None:
-        return None
-    if switch_obj.r_get(brcdapi_util.bfls_def_sw_status):
-        return 'Default'
-    if switch_obj.r_get(brcdapi_util.bfls_ficon_mode_en):
-        return 'FICON'
-    if switch_obj.r_get(brcdapi_util.bfls_base_sw_en):
-        return 'Base'
-    return 'FCP'
-
-
-def switch_fid(switch_obj):
-    """Returns the switch FID as an integer
-
-    :param switch_obj: Switch object
-    :type switch_obj: brcddb.classes.switch.SwitchObj
-    :return: Switch FID. Returns None if non-VF, logical switch data not yet captured, or  or switch_obj is None
-    :rtype: int, None
-    """
-    return None if switch_obj is None else switch_obj.r_get(brcdapi_util.bfls_fid)
+    return _user_friendly_switch_type_d[switch_obj.c_switch_type()]
 
 
 def switch_ports(switch_obj):

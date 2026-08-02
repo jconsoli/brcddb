@@ -78,15 +78,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.9     | 20 Feb 2026   | Added additional debug information for exceptions.                                    |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.0     | 01 Aug 2026   | Modified best_fab_name() to accept fabric, switch, port, or login objects.            |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '01 Aug 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.9'
+__version__ = '4.1.0'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
@@ -138,12 +140,13 @@ def set_bp_check(key, val):
         brcdapi_log.exception('Invalid key: ' + str(val))
 
 
-def best_fab_name(fab_obj, wwn=False, fid=False):
+def best_fab_name(class_obj, wwn=False, fid=False):
     """Returns the user-friendly fabric name, optionally with the WWN of just the WWN if a user-friendly name wasn't
     defined.
 
-    :param fab_obj: Fabric object
-    :type fab_obj: FabricObj
+    :param class_obj: Fabric, switch, port, or login object
+    :type class_obj: brcddb.classes.fabric.FabricObj, brcddb.classes.switch.SwitchObj, brcddb.classes.port.PortObj,
+                     brcddb.classes.login.LoginObj
     :param wwn: If True, append (wwn) to the fabric name
     :type wwn: bool
     :param fid: If True, append (fid) to the fabric name
@@ -151,8 +154,9 @@ def best_fab_name(fab_obj, wwn=False, fid=False):
     :return: Fabric name
     :rtype: str, None
     """
-    if fab_obj is None:
+    if class_obj is None:
         return 'Unknown'
+    fab_obj = class_obj.r_fabric_obj()
     rbuf = fab_obj.r_obj_key()
     for switch_obj in fab_obj.r_switch_objects():  # The fabric information is stored with the switch
         buf = switch_obj.r_get(brcdapi_util.bfs_fab_user_name)
@@ -430,8 +434,8 @@ def zone_analysis(fab_obj):
                         # Is it in a different fabric?
                         port_list = brcddb_util.global_port_list(other_fabrics, mem)
                         for port_obj in port_list:
-                            buf = 'fabric ' + best_fab_name(port_obj.r_fabric_obj()) + ', switch ' +\
-                                  brcddb_switch.best_switch_name(port_obj.r_switch_obj()) + ', port ' +\
+                            buf = 'fabric ' + best_fab_name(port_obj) + ', switch ' +\
+                                  brcddb_switch.best_switch_name(port_obj) + ', port ' +\
                                   port_obj.r_obj_key()
                             zone_obj.s_add_alert(al.AlertTable.alertTbl,
                                                  al.ALERT_NUM.ZONE_DIFF_FABRIC,

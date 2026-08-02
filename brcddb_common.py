@@ -38,15 +38,17 @@ associated with.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 01 Aug 2026   | Removed deprecated enforce-login. -v2 versions of some URLs.                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '04 Dec 2025'
+__date__ = '01 Aug 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import brcdapi.util as brcdapi_util
 
@@ -218,11 +220,6 @@ switch_flag_polled = 0b1  # Fibre channel switch was polled.
 switch_flag_next_avail = switch_flag_polled << 1
 
 switch_conversion_tbl = {
-    brcdapi_util.bfc_fport_enforce_login: {
-        0: '0 - First login takes precedence',
-        1: '1 - Second login takes precedence',
-        2: '2 - First FLOGI takes precedence, second FDISC (NPIV) takes precedence',
-    },
     brcdapi_util.bfs_ag_mode: {
         0: 'Not supported',
         1: 'Supported, not enabled',
@@ -238,7 +235,7 @@ switch_conversion_tbl = {
         0: 'No',
         1: 'Yes',
     },
-    brcdapi_util.bfls_base_sw_en: {
+    brcdapi_util.bfls_base_sw_en.replace('-v2', ''): {
         0: 'No',
         1: 'Yes',
     },
@@ -246,7 +243,7 @@ switch_conversion_tbl = {
         0: 'No',
         1: 'Yes',
     },
-    brcdapi_util.bfls_isl_enabled: {
+    brcdapi_util.bfls_isl_enabled.replace('-v2', ''): {
         0: 'No',
         1: 'Yes',
     },
@@ -286,7 +283,7 @@ PORT_TYPE_LB = 32768
 port_conversion_tbl = {
     brcdapi_util.fc_port_type: {  # Also includes "brcdapi_util.fc_port_type_str"
         # Old port-type was fibrechannel/port-type (an integer). Now it's fibrechannel/port-type-string (a string). The
-        # values are human readable text, typically used for report headers.
+        # values are human-readable text, typically used for report headers.
         PORT_TYPE_UNKNOWN: 'Unknown',
         'unknown-port': 'Unknown',
         PORT_TYPE_E: 'E-Port',
@@ -294,8 +291,8 @@ port_conversion_tbl = {
         PORT_TYPE_G: 'G-Port',
         'g-port': 'G-Port',
         PORT_TYPE_U: 'U-Port',
-        'universal-port': 'U-Port',  # universal-port is in the documentation, but I've only seen U-Port
-        'U-Port': 'U-Port',
+        'universal-port': 'U-Port',
+        'U-Port': 'U-Port',  # I think this was a bug in one of the 9.0, or perhaps 9.1, code paths.
         PORT_TYPE_F: 'F-Port',
         'f-port': 'F-Port',
         PORT_TYPE_L: 'L-Port',

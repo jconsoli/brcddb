@@ -59,15 +59,17 @@ imported by applications uses the brcddb libraries not no any of the library mod
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 01 Aug 2026   | Modified to use new brcddb_switch.best_switch_name() format.                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '01 Aug 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -671,7 +673,7 @@ def _fdmi_enabled(rule, obj_l, t_obj):
                 port_obj.s_add_alert(
                     _alert_tbl_d,
                     al.ALERT_NUM.PORT_FDMI_NOT_ENABLED,
-                    p0=brcddb_switch.best_switch_name(port_obj.r_switch_obj()),
+                    p0=brcddb_switch.best_switch_name(port_obj),
                     p1=port_obj.r_obj_key()
                 )
 

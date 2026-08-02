@@ -69,15 +69,18 @@ Support for project level operations.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.8     | 10 Mar 2026   | Consolidated error messages for reading and interprting project files.                |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.9     | 01 Aug 2026   | Modified to use new brcddb_switch.best_switch_name() format. Removed obsolete         |
+|           |               | fab_obj_for_fid().                                                                    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '10 Mar 2026'
+__date__ = '01 Aug 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.8'
+__version__ = '4.0.9'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.file as brcdapi_file
@@ -143,7 +146,7 @@ def dup_wwn(proj_obj):
             proj_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.PROJ_DUP_LOGIN, None, wwn)
             temp_l = list()
             for login_obj in login_l:
-                temp_l.append('Switch: ' + brcddb_switch.best_switch_name(login_obj.r_switch_obj(), wwn=True) +
+                temp_l.append('Switch: ' + brcddb_switch.best_switch_name(login_obj, wwn=True) +
                               ' Port: ' + login_obj.r_port_obj().r_obj_key())
             for login_obj in login_l:
                 login_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.LOGIN_DUP_LOGIN, p0='; '.join(temp_l))
@@ -379,7 +382,7 @@ def _scan_fabric(fab_obj, in_prefix=None, logical_switch=False):
     if logical_switch:
         ml.extend(['', '  Logical Switches:'])
         for switch_obj in fab_obj.r_switch_objects():
-            ml.append('    ' + brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True, fid=True))
+            ml.append('    ' + brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True, did_hex=True, fid=True))
 
     return ml if len(pbuf) == 0 else [pbuf + b for b in ml]
 
@@ -412,6 +415,7 @@ def scan(proj_obj, fab_only=False, logical_switch=False):
         for chassis_obj in proj_obj.r_chassis_objects():
             rl.extend(['Chassis: ' + brcddb_chassis.best_chassis_name(chassis_obj, wwn=True), ''])
             for switch_obj in chassis_obj.r_switch_objects():
+                switch_name = brcddb_switch.best_switch_name(switch_obj, did=True, did_hex=True, wwn=True, fid=True)
                 fab_obj = switch_obj.r_fabric_obj()
                 zonecfg_l = list()
                 if fab_obj is not None:
@@ -422,7 +426,7 @@ def scan(proj_obj, fab_only=False, logical_switch=False):
                                 buf += ' (effective zone configuration)'
                             zonecfg_l.append(buf)
                 rl.extend([
-                    '  Switch: ' + brcddb_switch.best_switch_name(switch_obj, did=True, wwn=True, fid=True),
+                    '  Switch: ' + switch_name,
                     '    Member of Fabric: ' + brcddb_fabric.best_fab_name(fab_obj, wwn=True, fid=True),
                     '    Zone Configurations: ',
                 ])

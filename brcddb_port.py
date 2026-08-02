@@ -62,15 +62,17 @@ Methods and tables to support the class ChassisObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 01 Aug 2026   | Modified to use new brcddb_switch.best_switch_name() format.                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '01 Aug 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -80,7 +82,7 @@ import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_login as brcddb_login
 import brcddb.util.search as brcddb_search
 import brcddb.util.iocp as brcddb_iocp
-
+from brcddb.classes.port import PortObj
 
 # _rnid_keys is used in port_best_desc() to add additional RNID data. This is not a complete list of RNID data
 _rnid_keys = ('manufacturer', 'model-number', 'sequence-number', 'tag', 'flags')
@@ -122,7 +124,7 @@ def port_best_desc(port_obj):
     if port_obj.c_login_type() in ('E-Port', 'AE-Port'):
         brcddb_util.build_login_port_map(fab_obj.r_project_obj())
         pobj = fab_obj.r_get('_port_map').get(wwn_list[0])
-        return '' if pobj is None else brcddb_switch.best_switch_name(pobj.r_switch_obj()) + ' port ' + pobj.r_obj_key()
+        return '' if pobj is None else brcddb_switch.best_switch_name(pobj) + ' port ' + pobj.r_obj_key()
 
     # Try Node, then port
     login_obj = fab_obj.r_login_obj(wwn_list[0])
@@ -158,15 +160,16 @@ def port_obj_for_index(obj, index):
     :param obj: Object with port objects, obj.r_port_objects()
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
                 brcddb.classes.chassis.ChassisObj
-    :param index: Port index
-    :type index: int
+    :param index: Port index. None is allowed to simplify coding when the index can't be found
+    :type index: int, None
     :return: Port object. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
-    for port_obj in obj.r_port_objects():
-        port_index = port_obj.r_get(brcdapi_util.fc_index)
-        if port_index is not None and port_index == index:
-            return port_obj
+    if isinstance(index, int):
+        for port_obj in obj.r_port_objects():
+            port_index = port_obj.r_get(brcdapi_util.fc_index)
+            if port_index is not None and port_index == index:
+                return port_obj
 
     return None  # If we got this far, we didn't find it.
 
@@ -177,8 +180,8 @@ def port_obj_for_wwn(obj, wwn):
     :param obj: Object with port objects, obj.r_port_objects()
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.fabric.FabricObj, brcddb.classes.project.ProjectObj,
                 brcddb.classes.chassis.ChassisObj
-    :param wwn: Login WWN
-    :type wwn: str
+    :param wwn: Login WWN. None is allowed to simplify coding when the WWN can't be found
+    :type wwn: str, None
     :return: Port object. None if not found
     :rtype: brcddb.classes.port.PortObj, None
     """
