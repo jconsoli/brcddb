@@ -3,6 +3,12 @@
 Jack Consoli
 jack_consoli@yahoo.com
 
+**02 Aug 2026**
+
+* Added z17
+* Updates for FOS 10, Gen 8
+* Added CLI for switches and chassis
+
 **10 Mar 2026**
 * Additional error check
 * Improved error feedback
