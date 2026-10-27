@@ -175,15 +175,17 @@ Data is returned in a dictionary as follows:
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 26 Oct 2026   | Replaced deprecated zone-type with zone-type-string                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import sys
 import datetime
@@ -249,7 +251,7 @@ def _format_cmd_for_brcdapi(cmd):
         name=cmd['operand'],
         members=cmd['p0'],
         pmembers=cmd['p1'],
-        type=brcddb_common.ZONE_USER_PEER if cmd['peer'] else brcddb_common.ZONE_STANDARD_ZONE,
+        type='user-created-peer-zone' if cmd['peer'] else 'zone',
     )
 
 
@@ -1077,10 +1079,10 @@ def _zone_create(session, cmd, fid):
 
     # Validate the command and operands
     if cmd['peer']:
-        zone_type = brcddb_common.ZONE_USER_PEER
+        zone_type = 'user-created-peer-zone'
         obj, zone, p0, p1 = _p1_check(cmd)
     else:
-        zone_type = brcddb_common.ZONE_STANDARD_ZONE
+        zone_type = 'zone'
         obj, zone, p0, p1 = _p0_check(cmd, True)
     if obj is not None:
         return obj
