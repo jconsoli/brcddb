@@ -66,15 +66,17 @@ Typically, only replace_zoning() and enable_zonecfg() are called externally.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | xx xxx 2026   | Replaced deprecated zone-type with zone-type-string                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = 'xx xxx 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import copy
 import sys
@@ -140,8 +142,8 @@ def build_zone_content(fab_obj):
     # Add the zones
     zone_l = list()
     for obj in fab_obj.r_zone_objects():
-        if obj.r_get('zone-type') is not brcddb_common.ZONE_TARGET_PEER:
-            d = {'zone-name': obj.r_obj_key(), 'zone-type': obj.r_type(), 'member-entry': dict()}
+        if obj.r_get('zone-type-string') != 'target-created-peer-zone':
+            d = {'zone-name': obj.r_obj_key(), 'zone-type-string': obj.r_type(), 'member-entry': dict()}
             me = d.get('member-entry')
             members = obj.r_members()
             if len(members) > 0:
@@ -251,14 +253,14 @@ def plus_effective_zone_alias(session, fab_obj, fid):
 
 
 def replace_zoning(session, fab_obj, fid, eff=None):
-    """Replaces the zoning database in a fabric and, optionally, enables a zone configuration. Keep in mind that FOS
+    """ Replaces the zoning database in a fabric and, optionally, enables a zone configuration. Keep in mind that FOS
         does not allow zones that are in the effective zone to be deleted. As a result, none of the aliases in those
         zones can be deleted. This function preserves zones and associated aliases that are in the effective zone
         configuration. If eff is set, that zone configuration is enabled and then the preserved zones and aliases are
         deleted.
 
      Relevant resource: 'zoning/defined-configuration'
-     An error is returned if there is no zone database in the fab_obj. Use clear_zoning() to clear out zoning.
+     An error is returned if there is no zone database in the fab_obj.
 
     :param session: Login session object from brcdapi.brcdapi_rest.login()
     :type session: dict
