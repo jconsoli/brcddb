@@ -3,6 +3,11 @@
 Jack Consoli
 jack_consoli@yahoo.com
 
+**26 Oct 2026**
+* Added more error checking
+* Added more verbose error messages
+* Modified report utilities to read revised switch configuration workbooks
+
 **02 Aug 2026**
 
 * Added z17
