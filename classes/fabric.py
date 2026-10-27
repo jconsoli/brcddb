@@ -43,15 +43,17 @@ is some way to determine this case but it being such a rare scenario, no code wa
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 26 Oct 2026   | Updated comments only.                                                                |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
@@ -439,8 +441,8 @@ class FabricObj:
     def r_eff_zone_cfg_obj(self):
         """Returns the zone configuration object for the effective zone.
 
-        :return: Zone configuration object for the effective zone configuration
-        :rtype: brcddb.classes.zone.ZoneCfgObj
+        :return: Zone configuration object for the effective zone configuration. None if no effective zone configuration
+        :rtype: None, brcddb.classes.zone.ZoneCfgObj
         """
         return self.r_zonecfg_obj('_effective_zone_cfg')
 
@@ -449,8 +451,8 @@ class FabricObj:
 
         :param name: Zone name
         :type name: str
-        :param zone_type: Zone type
-        :type zone_type: int
+        :param zone_type: zone-type-string-type (from the FOS API Guide)
+        :type zone_type: str
         :param mem: Zone members
         :type mem: list, str, None
         :param pmem: Principal zone members (relevant to peer zones only)
@@ -461,7 +463,7 @@ class FabricObj:
         zone_obj = self.r_zone_obj(name)
         if zone_obj is None:
             zone_obj = zone_class.ZoneObj(name, zone_type, self.r_project_obj(), self.r_obj_key())
-            self._zone_objs.update({name: zone_obj})
+            self._zone_objs[name] = zone_obj
         if zone_type is not None:
             zone_obj.s_type(zone_type)  # This is redundant when creating a zone for the first time
         zone_obj.s_add_member(mem)

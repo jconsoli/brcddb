@@ -37,15 +37,17 @@ Defines the zone classes ZoneCfgObj, ZoneObj, and AliasObj
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 26 Oct 2026   | Replaced deprecated zone-type with zone-type-string                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
@@ -371,11 +373,12 @@ class ZoneObj:
     Attributes:
         _obj_key (str): Name of the zone.
         _flags (int): Flags for each class are defined in brcddb.brcddb_common
-        _project_obj (ProjectObj): The project object this fabric belongs to.
         _members (list): List of zone members.
         _pmembers (list): List of principal zone members.
-        _fabric_key (str): WWN of fabric this zone configuration belongs to.
         _alerts (list): List of AlertObj objects associated with this object.
+        _type (str): zone-type-string-type (from the FOS API Guide)
+        _fabric_key (str): WWN of fabric this zone configuration belongs to.
+        _project_obj (ProjectObj): The project object this fabric belongs to.
     """
 
     def __init__(self, name, zone_type, project_obj, fabric_key):
@@ -384,7 +387,7 @@ class ZoneObj:
         self._members = list()  # 'member-entry' - Zone members
         self._pmembers = list()  # 'principal-member-entry' - Principal zone members - for peer zones
         self._alerts = list()
-        self._type = zone_type   # Zone type from brocade-zone/brocade-zone (0 default, 1 user peer, 2 target  peer)
+        self._type = zone_type
         self._fabric_key = fabric_key
         self._project_obj = project_obj
 
@@ -500,26 +503,20 @@ class ZoneObj:
         return self._flags
 
     def r_is_peer(self):
-        """Test to determine if zone is a user defined peer zone, 'brocade-zone/zone-type' == 1
+        """Test to determine if zone is a user defined peer zone
 
-        :return: True: zone is a peer zone, FalseL zone is not a peer zone
+        :return: True: zone is a user defined peer zone, else False
         :rtype: bool
         """
-        zone_type = self.r_type()
-        if isinstance(zone_type, int):
-            return True if zone_type == brcddb_common.ZONE_USER_PEER else False
-        return False
+        return True if str(self.r_type()) == 'user-created-peer-zone' else False
 
     def r_is_target_driven(self):
-        """Test to determine if zone is a target driven peer zone, 'brocade-zone/zone-type' == 2
+        """Test to determine if zone is a target driven peer zone
 
-        :return: True: zone is a peer zone, False zone is not a peer zone
+        :return: True: zone is a target defined peer zone, else False
         :rtype: bool
         """
-        zone_type = self.r_type()
-        if isinstance(zone_type, int):
-            return True if zone_type == brcddb_common.ZONE_TARGET_PEER else False
-        return False
+        return True if str(self.r_type()) == 'target-created-peer-zone:' else False
 
     def r_is_effective(self):
         """Test to determine if the zone object represents an effective zone
@@ -687,7 +684,7 @@ class ZoneObj:
         """Returns zone type
 
         :return: Zone type
-        :rtype: int
+        :rtype: str
         """
         return self._type
 
@@ -695,7 +692,7 @@ class ZoneObj:
         """Set the zone type
 
         :return: Zone type
-        :rtype: int
+        :rtype: str
         """
         self._type = zone_type
 
