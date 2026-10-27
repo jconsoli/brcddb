@@ -74,15 +74,19 @@ Parses CLI output.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.9     | 20 Feb 2026   | Changed from fibrechannel/port-type to fibrechannel/port-type-string                  |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.0     | 01 Aug 2026   | Fixed bug in portbuffershow()                                                         |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.1     | 26 Oct 2026   | Replaced deprecated zone-type with zone-type-string. Fixed bug in portcfgshow().      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.9'
+__version__ = '4.1.1'
 
 import re
 import time
@@ -93,8 +97,16 @@ import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
 import brcddb.util.util as brcddb_util
+import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_port as brcddb_port
 import brcddb.classes.util as brcddb_class_util
+
+
+#####################################################
+#                                                   #
+#   Conversion functions used in _nsshow_to_api_d   #
+#                                                   #
+#####################################################
 
 
 def _conv_to_int(buf):
@@ -254,11 +266,6 @@ _sfp_to_api_1 = {
     'Voltage': dict(p=1, id=brcdapi_util.sfp_volt, type='float'),
     'Wavelength': dict(p=1, id=brcdapi_util.sfp_wave, type='int'),
 }
-# Used in _pbs_port_type() to interpret the Port Type in portbuffershow output
-_pbs_port_types = dict(
-    E=brcddb_common.PORT_TYPE_E,
-    F=brcddb_common.PORT_TYPE_F,
-)
 # Used in xxx to interpret "Avg Buffer Usage & FrameSize"
 _pbs_avg_buf_conv = (
     'average-transmit-buffer-usage',
@@ -533,84 +540,36 @@ def switchshow(obj, content, append_buf=''):
     return switch_obj, i
 
 
-# Case statement methods in portbuffershow()
-def _pbs_user_port(port_obj, v):
-    brcddb_util.add_to_obj(port_obj, brcdapi_util.fc_index, int(v) if v.isnumeric() else 0)
-
-
-def _pbs_port_type(port_obj, v):
-    port_type = _pbs_port_types.get(v)
-    brcddb_util.add_to_obj(port_obj,
-                           brcdapi_util.fc_port_type,
-                           brcddb_common.PORT_TYPE_UNKONWN if port_type is None else port_type)
-
-
-def _pbs_lx_mode(port_obj, v):
-    brcddb_util.add_to_obj(port_obj, 'fos_cli/portbuffershow/lx_mode', v)
-
-
-def _pbs_max_resv(port_obj, v):
-    brcddb_util.add_to_obj(port_obj, 'fos_cli/portbuffershow/max_resv', int(v)) if v.isnumeric() else 0
-
-
-def _pbs_avg_buffer_usage(port_obj, v):
-    tl = v.replace('-', '0').replace(' ', '').replace(')', '(').split('(')
-    for i in range(0, len(_pbs_avg_buf_conv)):
-        try:
-            val = int(tl[i])
-        except (IndexError, ValueError):
-            val = 0
-        brcddb_util.add_to_obj(port_obj, 'fibrechannel/' + _pbs_avg_buf_conv[i], val)
-
-
-def _pbs_buffer_usage(port_obj, v):
-    brcddb_util.add_to_obj(port_obj, 'fibrechannel/current-buffer-usage', int(v) if v.isnumeric() else 0)
-
-
-def _pbs_needed_buffers(port_obj, v):
-    return  # $ToDo: _pbs_needed_buffers() - is this 'reserved-buffers'? I don't think so but what?
-
-
-def _pbs_link_distance(port_obj, v):
-    return  # $ToDo: _pbs_link_distance() - Finish
-
-
-def _pbs_remaining_buffers(port_obj, v):
-    return  # $ToDo: Finish _pbs_remaining_buffers()
-
-
-# The starting alignment for the header denoted with ---- doesn't always align with the values. This is to correct it.
-_portbuffer_show_adj_d = dict(max_resv=-2)
-
-
-def portbuffershow(obj, content):
+def portbuffershow(obj, content_l):
     """Adds the portbuffershow output to the ports in a switch object
 
     :param obj: Switch object or object with a switch object associated with it
     :type obj: brcddb.classes.switch.SwitchObj
-    :param content: List of portbuffershow output text
-    :type content: list
+    :param content_l: List of portbuffershow output text
+    :type content_l: list
     """
-    global _portbuffer_show_adj_d
+    if len(content_l) < 4:
+        return
 
     switch_obj = obj.r_switch_obj()
 
-    # The output is formatted for a human, so we have to figure out the beginning and end of each item
-    # Create a dictionary to put the start and end indices in. The starting alignment for the header denoted with ----
-    # doesn't always align with the values. 's' is to correct it.
+    # The output is formatted for a human, so we have to figure out the beginning and end of each item.
+    # Create a dictionary to put the start, 's', and end, 'e', indices in. The starting alignment for the header denoted
+    # with ---- doesn't always align with the values. The dictionary is pre-filled with 's' to correct it. The key 'e',
+    # is added.
     port_buf_d = collections.OrderedDict()
-    port_buf_d['user_port'] = dict(a=_pbs_user_port, s=0)
-    port_buf_d['port_type'] = dict(a=_pbs_port_type, s=0)
-    port_buf_d['lx_mode'] = dict(a=_pbs_lx_mode, s=-2)
-    port_buf_d['max_resv'] = dict(a=_pbs_max_resv, s=-2)
-    port_buf_d['avg_pbs_buffer_usage'] = dict(a=_pbs_avg_buffer_usage, s=0)
-    port_buf_d['buffer_usage'] = dict(a=_pbs_buffer_usage, s=0)
-    port_buf_d['needed_buffers'] = dict(a=_pbs_needed_buffers, s=0)
-    port_buf_d['link_distance'] = dict(a=_pbs_link_distance, s=0)
-    port_buf_d['remaining_buffers'] = dict(a=_pbs_remaining_buffers, s=0)
+    port_buf_d['user_port'] = dict(s=0)
+    port_buf_d['port_type'] = dict(s=0)
+    port_buf_d['lx_mode'] = dict(s=-2)
+    port_buf_d['max_resv'] = dict(s=-2)
+    port_buf_d['avg_pbs_buffer_usage'] = dict(s=0)
+    port_buf_d['buffer_usage'] = dict(s=0)
+    port_buf_d['needed_buffers'] = dict(s=0)
+    port_buf_d['link_distance'] = dict(s=0)
+    port_buf_d['remaining_buffers'] = dict(s=0)
 
-    # Figure out where everything aligns. $ToDo - Parse Remaining Buffers
-    buf_l = [content.pop(0) for i in range(0, 3)]
+    # Figure out where everything aligns (set 's' and 'e' in port_buf_d. ToDo - Parse Remaining Buffers
+    buf_l = content_l[0:3]
     key_l = list(port_buf_d.keys())
     active_d = port_buf_d[key_l.pop(0)]
     last_d, state, i = None, 0, 0
@@ -632,40 +591,44 @@ def portbuffershow(obj, content):
     active_d.update(e=len(buf_l[2])-1)
 
     # Now parse the portbuffershow output
-    for buf in [b.rstrip() for b in content]:
+    for buf in [b.rstrip() for b in content_l[3:]]:
         if len(buf) == 0:
             break
+        portbuffer_d = dict()
         for k, d in port_buf_d.items():
             v = buf[port_buf_d[k]['s']:port_buf_d[k]['e']].strip()
-            if k == 'user_port':
-                port_obj = brcddb_port.port_obj_for_index(switch_obj, int(v))
-                d['a'](port_obj, v)
+            portbuffer_d[k] = int(v) if v.isdigit() else v
+        port_index = portbuffer_d.get('user_port')
+        try:
+            brcddb_port.port_obj_for_index(switch_obj, int(port_index)).rs_key('fos_cli/portbuffershow', portbuffer_d)
+        except (TypeError, KeyError, ValueError):
+            brcdapi_log.log('ERROR: User Port, ' + str(port_index) + ' is invalid in portbuffershow output', echo=True)
 
     return
 
 
-def portcfgshow(obj, content):
+def portcfgshow(obj, content_l):
     """Adds the portcfgshow output to the port objects in a switch object
 
     :param obj: Switch object or object with a switch object associated with it
     :type obj: brcddb.classes.switch.SwitchObj
-    :param content: List of portcfgshow output text
-    :type content: list
+    :param content_l: List of portcfgshow output text
+    :type content_l: list
     """
     i, slot, separator_index, ports, buf, state, port_l = 0, '0', 1, '', '', 'idle', list() 
     switch_obj = obj.r_switch_obj()
 
-    for i in range(0, len(content)):
-        buf = content[i].rstrip()
+    for i in range(0, len(content_l)):
+        buf = content_l[i].rstrip()
         if 'where AE:QoSAutoEnable' in buf:
             break
         if state == 'idle':
             if 'No ports found' in buf:
                 break
             if 'Ports of Slot' in buf:
-                temp_l = buf.split(' ')
-                if len(temp_l) > 3:
-                    slot = temp_l[3]
+                temp_l = buf.replace('Ports of Slot', '').strip().split(' ')
+                if len(temp_l) > 0:
+                    slot = temp_l[0]
                     ports = buf
                     state = 'separator'
         elif state == 'separator':
@@ -685,9 +648,15 @@ def portcfgshow(obj, content):
                     port = slot + '/' + port_l[x]
                     port_obj = switch_obj.r_port_obj(port)
                     if port_obj is None:
-                        brcdapi_log.exception('Could not find port ' + port, echo=True)
+                        buf_l = [
+                            'Could not find port ' + port + ' in ' + brcddb_switch.best_switch_name(switch_obj),
+                            'This typically occurs when a supportshow doesn\'t have any active fabrics',
+                            'or the supportshow output was incomplete.'
+                            ]
+
+                        brcdapi_log.log(buf_l, echo=True)
                     else:
-                        brcddb_class_util.get_or_add(port_obj, key, vl[x])
+                        port_obj.rs_key(key, vl[x])
 
     return i + 1
 
@@ -717,19 +686,19 @@ _portstatsshow_special = dict(
 )
 
 
-def portstatsshow(obj, content):
+def portstatsshow(obj, content_l):
     """Parse portstatsshow and add to the port objects
 
     :param obj: Switch object or object with a switch object associated with it
     :type obj: brcddb.classes.switch.SwitchObj
-    :param content: List of portstatsshow output text
-    :type content: list
+    :param content_l: List of portstatsshow output text
+    :type content_l: list
     """
     global _portstats_to_api
 
     port_obj, port_stats_d, switch_obj = None, None, obj.r_switch_obj()
 
-    for buf in content:
+    for buf in content_l:
         buf = buf.replace('er_single_credit_loss', 'er_single_credit_loss ')
         buf = buf.replace('er_multi_credit_loss', 'er_multi_credit_loss ')
         buf = buf.replace('fec_corrected_rate', 'fec_corrected_rate ')
@@ -757,23 +726,23 @@ def portstatsshow(obj, content):
                 port_stats_d.update({key: int(tl[1])})
 
 
-def portstats64show(obj, content):
+def portstats64show(obj, content_l):
     """Parse portstats64show and add to the port objects
 
     :param obj: Chassis object or object with a chassis object associated with it
     :type obj: brcddb.classes.chassis.ChassisObj
-    :param content: List of portstats64show output text
-    :type content: list
-    :return i: Index into content where we left off
+    :param content_l: List of portstats64show output text
+    :type content_l: list
+    :return i: Index into content_l where we left off
     :rtype i: int
     """
     global _portstats_to_api
 
     i, x, chassis_obj = 0, len('portstats64show'), obj.r_chassis_obj()
-    while len(content) > i:
+    while len(content_l) > i:
 
         # Get the port object
-        buf = gen_util.remove_duplicate_char(content[i].replace('\t', ' '), ' ')
+        buf = gen_util.remove_duplicate_char(content_l[i].replace('\t', ' '), ' ')
         if len(buf) == 0:
             i += 1
             continue
@@ -783,7 +752,8 @@ def portstats64show(obj, content):
         port_obj = brcddb_port.port_obj_for_index(chassis_obj, int(buf.split(' ')[1]))
         if port_obj is None:
             brcdapi_log.exception('Could not find port matching: ' + buf, echo=False)  # Just so it gets in the log
-            raise Exception('Could not find port matching: ' + buf)
+            i += 1
+            continue
         port_stats_d = port_obj.r_get(brcdapi_util.stats_uri)
         if port_stats_d is None:
             port_stats_d = dict()
@@ -791,14 +761,14 @@ def portstats64show(obj, content):
 
         # Parse the port statistics
         i += 1
-        while len(content) > i and len(content[i]) > 0:
-            buf = gen_util.remove_duplicate_char(content[i].replace('\t', ' '), ' ')
+        while len(content_l) > i and len(content_l[i]) > 0:
+            buf = gen_util.remove_duplicate_char(content_l[i].replace('\t', ' '), ' ')
             cl = buf.split(' ')
             key = _portstats_to_api.get(cl[0])
             if key is not None:
                 if 'top_int :' in buf:
                     i += 1
-                    lv = int(gen_util.remove_duplicate_char(content[i].replace('\t', ' ').strip().split(' ')[0], ' '))
+                    lv = int(gen_util.remove_duplicate_char(content_l[i].replace('\t', ' ').strip().split(' ')[0], ' '))
                     v = int('{:x}'.format(int(cl[1])) + '{:08x}'.format(lv), 16)
                 else:
                     v = int(cl[1])
@@ -811,9 +781,9 @@ def portstats64show(obj, content):
 """Cases for chassisshow. All parameters are as follows:
 chassis_obj The chassis object in _parsed_ss
 cl          Current line parsed into a list, .split(':)
-i           Index into content for the current line
+i           Index into content_l for the current line
 n           If not None, the API branch & leaf associated with the value
-return      Index into content for the next line to be processed"""
+return      Index into content_l for the next line to be processed"""
 
 _chassis_to_api = {  # supportshow names converted to API names
     'System AirFlow': 'airflow-direction',
@@ -826,7 +796,7 @@ _chassis_to_api = {  # supportshow names converted to API names
 }
 
 
-def _chassishow_unit_parse(chassis_obj, content, cl, i, n, d):
+def _chassishow_unit_parse(chassis_obj, content_l, cl, i, n, d):
     x = i
     while len(cl) > 1:
         if cl[0] in _chassis_to_api:
@@ -835,26 +805,26 @@ def _chassishow_unit_parse(chassis_obj, content, cl, i, n, d):
             else:
                 d.update({_chassis_to_api[cl[0]]: cl[1]})
         x += 1
-        cl = [p.strip() for p in gen_util.remove_duplicate_char(content[x].replace('\t', ' '), ' ').split(':')]
+        cl = [p.strip() for p in gen_util.remove_duplicate_char(content_l[x].replace('\t', ' '), ' ').split(':')]
 
     return x
 
 
-def _chassisshow_add(chassis_obj, content, cl, i, n):
+def _chassisshow_add(chassis_obj, content_l, cl, i, n):
     brcddb_util.add_to_obj(chassis_obj, n, cl[1])
     return i + 1
 
 
-def _chassisshow_add_int(chassis_obj, content, cl, i, n):
+def _chassisshow_add_int(chassis_obj, content_l, cl, i, n):
     brcddb_util.add_to_obj(chassis_obj, n, int(gen_util.non_decimal.sub('', cl[1])))
     return i + 1
 
 
-def _chassishow_unit(chassis_obj, content, cl, i, key):
+def _chassishow_unit(chassis_obj, content_l, cl, i, key):
     # Get this object entry - we may have captured this blade already with slotshow
     try:
         obj = _chassis_unit_obj(chassis_obj, key, _unit_conv_tbl[cl[0]]['unit'], int(cl[1]))
-        return _chassishow_unit_parse(chassis_obj, content, cl, i, key, obj)
+        return _chassishow_unit_parse(chassis_obj, content_l, cl, i, key, obj)
     except ValueError:
         return i + 1  # This happens when there is an * by the unit number which is typical of faulty components
 
@@ -874,21 +844,21 @@ _chassisshow_actions = {
 }
 
 
-def chassisshow(obj, content):
+def chassisshow(obj, content_l):
     """Adds a chassis object to a project object from chassisshow output
 
     :param obj: Project object or object with a project object associated with it
     :type obj: brcddb.classes.project.ProjectObj
-    :param content: Beginning of chassisshow output text
-    :type content: list
+    :param content_l: Beginning of chassisshow output text
+    :type content_l: list
     :return chassis_obj: Chassis object
     :rtype chassis_obj: brcddb.classes.chassis.ChassisObj
-    :return ri: Index into content where we left off
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     ri, chassis_obj, proj_obj = 0, None, obj.r_project_obj()
 
-    for buf in content:
+    for buf in content_l:
         if 'Chassis Factory Serial Num:' in buf:
             chassis_obj = proj_obj.s_add_chassis(buf.split(':')[1].strip())
             break
@@ -896,14 +866,14 @@ def chassisshow(obj, content):
     if chassis_obj is None:
         # If we haven't found it yet, pick the first WWN card. Get a chassis S/N by first finding "WWN  Unit:", then
         # look for Factory Serial Num:
-        for buf in content:
+        for buf in content_l:
             ri += 1
             if 'WWN  Unit:' in buf:
                 break
             elif 'timeout' in buf:
                 return chassis_obj, ri
 
-        for buf in content[ri:]:
+        for buf in content_l[ri:]:
             ri += 1
             if 'Factory Serial Num:' in buf:
                 chassis_obj = proj_obj.s_add_chassis(buf.split(':')[1].strip())
@@ -913,7 +883,7 @@ def chassisshow(obj, content):
 
     # Parse the chassis data and add to the chassis object
     if chassis_obj is not None:
-        tl = content[0:ri]
+        tl = content_l[0:ri]
         i = 1
         while len(tl) > i:
             buf = tl[i]
@@ -929,23 +899,23 @@ def chassisshow(obj, content):
     return chassis_obj, ri
 
 
-def fabricshow(obj, content):
+def fabricshow(obj, content_l):
     """Adds a fabric object to a project object from fabricshow output
 
     :param obj: Project object or object with a project object associated with it
     :type obj: brcddb.classes.project.ProjectObj
-    :param content: Beginning of fabricshow output text
-    :type content: list
+    :param content_l: Beginning of fabricshow output text
+    :type content_l: list
     :return fabric_obj: Fabric object
     :rtype fabric_obj: brcddb.classes.fabric.FabricObj
-    :return ri: Index into content where we left off
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     ri, fab_obj, proj_obj = 0, None, obj.r_project_obj()
 
     # Skip to where the fabric list starts (after the '-----------------------')
-    for ri in range(0, len(content)):
-        buf = content[ri]
+    for ri in range(0, len(content_l)):
+        buf = content_l[ri]
         ri += 1
         if '-version' in buf or 'no fabric' in buf or 'SS CMD END' in buf:
             return fab_obj, ri
@@ -953,8 +923,8 @@ def fabricshow(obj, content):
             break
 
     brocade_fabric = list()
-    while len(content) > ri:
-        buf = content[ri]
+    while len(content_l) > ri:
+        buf = content_l[ri]
         ri += 1
         if len(buf) == 0 or 'The Fabric has' in buf or 'Fabric had' in buf or 'SS CMD END' in buf:
             break
@@ -994,7 +964,7 @@ is as follow:
 |           |               | been coded.                                                                           |
 +-----------+---------------+---------------------------------------------------------------------------------------+
 """
-_nsshow_to_api = {
+_nsshow_to_api_d = {
     'SCR': dict(uri=brcdapi_util.bns_scr),
     'PortSymb': dict(uri=brcdapi_util.bns_port_symbol),
     'NodeSymb': dict(uri=brcdapi_util.bns_node_symbol),
@@ -1012,27 +982,27 @@ _nsshow_to_api = {
 }
 
 
-def nsshow(obj, content):
+def nsshow(obj, content_l):
     """Parse nsshow output
 
     :param obj: Any object that returns a fabric object, obj.r_fabric_obj(), and switch object, obj.r_switch_obj()
     :type obj: brcddb.classes.switch.SwitchObj, brcddb.classes.port.PortObj
-    :param content: Beginning of nsshow output text
-    :type content: list
-    :return ri: Index into content where we left off
+    :param content_l: Beginning of nsshow output text
+    :type content_l: list
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     fab_obj, switch_obj, port_obj, ri = obj.r_fabric_obj(), obj.r_switch_obj(), None, 0
 
-    buf = content[ri]
+    buf = content_l[ri]
     if 'nsshow' in buf:
         ri += 1
-        buf = content[ri]  # Skip past the invocation line
+        buf = content_l[ri]  # Skip past the invocation line
     if len(buf) == 0 or 'There is no entry' in buf:
         return ri + 1
 
-    while len(content) > ri:
-        buf = content[ri]
+    while len(content_l) > ri:
+        buf = content_l[ri]
         ri += 1
         # Are we done processing nshsow output?
         if len(buf) == 0 or '}' in buf:
@@ -1048,7 +1018,7 @@ def nsshow(obj, content):
 
             else:
                 cl = [b.strip() for b in buf.split(':', 1)]
-                cntl_d = _nsshow_to_api.get(cl[0])
+                cntl_d = _nsshow_to_api_d.get(cl[0])
                 if isinstance(cntl_d, dict):
                     api_k = cntl_d['uri']
                     if api_k is not None:
@@ -1086,14 +1056,14 @@ _sfp_clean_port = re.compile(r'(Slot|Port|:|\t| )')
 _sfp_end_match = re.compile(r'(-tuning|SS CMD END)', re.IGNORECASE)
 
 
-def sfpshow(obj, content):
+def sfpshow(obj, content_l):
     """Parse sfpshow output
 
     :param obj: Switch object or object with a switch object associated with it
     :type obj: brcddb.classes.switch.SwitchObj
-    :param content: Beginning of nsshow output text
-    :type content: list
-    :return ri: Index into content where we left off
+    :param content_l: Beginning of nsshow output text
+    :type content_l: list
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     global _sfp_sep, _sfp_sep_len, _sfpshow_state_start, _sfpshow_state_port, _sfpshow_state_1st_sep, _sfp_start_match
@@ -1101,7 +1071,7 @@ def sfpshow(obj, content):
 
     switch_obj, state, port_num, port_obj, ri = obj.r_switch_obj(), _sfpshow_state_start, None, None, 0
 
-    for buf in content:
+    for buf in content_l:
         buf = gen_util.remove_duplicate_char(buf.replace('\t', ' '), ' ')
 
         if _sfp_end_match.search(buf):
@@ -1192,7 +1162,10 @@ def sfpshow(obj, content):
 
 
 def cfgshow_zone_gen(fab_obj, member_l):
-    zone_type, peer_mem_l, pmem_l = brcddb_common.ZONE_STANDARD_ZONE, list(), list()
+    zone_type, peer_mem_l, pmem_l = 'zone', list(), list()
+
+    if brcddb_class_util.get_simple_class_type(fab_obj, all_types=True) != 'FabricObj':
+        return zone_type, peer_mem_l, pmem_l  # This happens when the fabric data wasn't collected
 
     if len(member_l) > 0 and gen_util.is_wwn(member_l[0], full_check=False) and member_l[0].split(':')[0] == '00':
         """It's a peer zone. Note that a WWN with a leading '00' is not a valid WWN so this is used to indicate that the
@@ -1202,17 +1175,17 @@ def cfgshow_zone_gen(fab_obj, member_l):
         
         The only bytes I ever look at are the first byte and the last byte of the WWN. Breaking the WWN down:
         
-        00          This indicates it's a peer zone and that this WWN is a peer zone property member (not an actual
-                    zone member)
+        00          If the first byte is 00, it's a peer zone. Therefore, this WWN is a peer zone property member
+                    (not an actual zone member)
         02:00:00:00 Not relevant
-        03:01       I can take a guess but I don't use this. Since I don't use, my example may not be correct.
+        03:01       I can take a guess but I don't use this. Since I don't use it, my example may not be correct.
         02          The last byte is the number of principal WWN members, not the number of aliases that follow. Keep in
                     mind that an alias can have multiple WWNs. Assuming each alias represents a single WWN, this means
                     the next two members are the principal members. All remaining members therefore are the peer members
                     
         Keep in mind that all bytes in a WWN, including the property member described above, are hex values.
         """
-        zone_type, p, i, pc = brcddb_common.ZONE_USER_PEER, int(member_l[0].split(':')[7], 16), 1, 0
+        zone_type, p, i, pc = 'user-created-peer-zone', int(member_l[0].split(':')[7], 16), 1, 0
         while pc < p:
             alias_obj = fab_obj.r_alias_obj(member_l[i])
             pc += 1 if alias_obj is None else len(alias_obj.r_members())
@@ -1306,7 +1279,7 @@ def _cfgshow_process(state, buf):
         t_buf = t_buf.replace(tl[0], tl[1])
     tl = [b.strip() for b in gen_util.remove_duplicate_char(t_buf.strip(), ' ').split(' ') if len(b.strip()) > 0]
 
-    # Figure out what the key, operand, and content is
+    # Figure out what the key, operand, and content_l is
     k = tl[0] if len(tl) > 0 else None
     if k is not None and k in _cfgshow_operand_tbl:
         operand = tl[1] if len(tl) > 1 else None
@@ -1330,14 +1303,14 @@ def _cfgshow_process(state, buf):
 _cfgshow_template_d = dict(key='null', operand=None, mem_l=list())
 
 
-def cfgshow(obj, content):
+def cfgshow(obj, content_l):
     """Parse cfgshow output
 
     :param obj: Fabric object or object with a fabric object associated with it
     :type obj: brcddb.classes.fabric.FabricObj
-    :param content: Beginning of nsshow output text
-    :type content: list
-    :return ri: Index into content where we left off
+    :param content_l: Beginning of nsshow output text
+    :type content_l: list
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     global _cfgshow_state_exit, _cfgshow_state_start
@@ -1349,7 +1322,7 @@ def cfgshow(obj, content):
     active_l = def_l
 
     # Parse the cfgshow output
-    for buf in content:
+    for buf in content_l:
 
         state, key, operand, mem_l = _cfgshow_process(state, buf)
         if state is not None and state == _cfgshow_state_exit:
@@ -1373,27 +1346,27 @@ def cfgshow(obj, content):
     for action_key, active_l in dict(da=def_l, ea=eff_l).items():
         for cfg_key in ('alias:', 'zone:', 'cfg:'):
             action = _cfgshow_operand_tbl[cfg_key].get(action_key)
-            if callable(action):
+            if brcddb_class_util.get_simple_class_type(fab_obj, all_types=True) == 'FabricObj' and callable(action):
                 for active_d in [d for d in active_l if d['key'] == cfg_key]:
                     action(fab_obj, active_d['operand'], active_d['mem_l'])
 
     return ri
 
 
-def ficonshow(obj, content):
+def ficonshow(obj, content_l):
     """Parse ficonshow output
 
     :param obj: Switch object or object with a switch object associated with it
     :type obj: brcddb.classes.switch.SwitchObj
-    :param content: Beginning of nsshow output text
-    :type content: list
-    :return ri: Index into content where we left off
+    :param content_l: Beginning of nsshow output text
+    :type content_l: list
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     switch_obj, ri = obj.r_switch_obj(), 0
 
     # Find where the first entry is by searching for 'Sequence#' in the header
-    for buf in content:
+    for buf in content_l:
         ri += 1
         if '}' in buf:
             return ri
@@ -1401,7 +1374,7 @@ def ficonshow(obj, content):
             break
 
     # Process all the entries
-    for buf in content[ri:]:
+    for buf in content_l[ri:]:
         ri += 1
 
         if '}' in buf:
@@ -1486,16 +1459,16 @@ def _slotshow_get_fru(chassis_obj, api_key):
     return rl, rd
 
 
-def _slotshow(obj, content, slotshow_d):
+def _slotshow(obj, content_l, slotshow_d):
     """Parse slotshow -d576 output
 
     :param obj: Chassis object or object with a switch object associated with it
     :type obj: brcddb.classes.chassis.ChassisObj
-    :param content: Beginning of slotshow output text
-    :type content: list
+    :param content_l: Beginning of slotshow output text
+    :type content_l: list
     :param slotshow_d: Either _slotshow_d576_tbl or _slotshow_m_tbl
     :type slotshow_d: dict
-    :return ri: Index into content where we left off
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     global _slotshow_d576_clean
@@ -1503,13 +1476,13 @@ def _slotshow(obj, content, slotshow_d):
     chassis_obj, ri = obj.r_chassis_obj(), 0
 
     # Skip past the header
-    for buf in content:
+    for buf in content_l:
         ri += 1
         if '--------' in buf:
             break
 
     # Parse the output
-    for buf in content[ri:]:
+    for buf in content_l[ri:]:
         ri += 1
         for tl in _slotshow_d576_clean:
             buf = buf.replace(tl[0], tl[1])
@@ -1542,49 +1515,51 @@ def _slotshow(obj, content, slotshow_d):
     return ri
 
 
-def slotshow_d576(obj, content):
+def slotshow_d576(obj, content_l):
     """Parse slotshow -d576 output
 
     :param obj: Chassis object or object with a switch object associated with it
     :type obj: brcddb.classes.chassis.ChassisObj
-    :param content: Beginning of slotshow output text
-    :type content: list
-    :return ri: Index into content where we left off
+    :param content_l: Beginning of slotshow output text
+    :type content_l: list
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     global _slotshow_d576_tbl
 
-    return _slotshow(obj, content, _slotshow_d576_tbl)
+    return _slotshow(obj, content_l, _slotshow_d576_tbl)
 
 
-def slotshow_m(obj, content):
+def slotshow_m(obj, content_l):
     """Parse slotshow -m output
 
     :param obj: Chassis object or object with a switch object associated with it
     :type obj: brcddb.classes.chassis.ChassisObj
-    :param content: Beginning of slotshow output text
-    :type content: list
-    :return ri: Index into content where we left off
+    :param content_l: Beginning of slotshow output text
+    :type content_l: list
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     global _slotshow_m_tbl
 
-    return _slotshow(obj, content, _slotshow_m_tbl)
+    return _slotshow(obj, content_l, _slotshow_m_tbl)
 
 
-def defzone(obj, content):
+def defzone(obj, content_l):
     """Parse defzone output
 
     :param obj: Fabric object or object with a fabric object associated with it
     :type obj: brcddb.classes.fabric.FabricObj
-    :param content: Beginning of defzone output text
-    :type content: list
-    :return ri: Index into content where we left off
+    :param content_l: Beginning of defzone output text
+    :type content_l: list
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     ri, fabric_obj = 0, obj.r_fabric_obj()
+    if brcddb_class_util.get_simple_class_type(fabric_obj, all_types=True) != 'FabricObj':
+        return ri + 1  # This happens when no fabrics were active in the chassis
     all_access = fabric_obj.r_get(brcdapi_util.bz_eff_default_zone)
-    for buf in content:
+    for buf in content_l:
         ri += 1
         if 'committed' in buf:
             if all_access is None:
@@ -1592,26 +1567,26 @@ def defzone(obj, content):
                 brcddb_util.add_to_obj(fabric_obj, brcdapi_util.bz_eff_default_zone, access)
             break
         elif 'zone --show' in buf and 'defzone' not in buf:
-            brcdapi_log.exception(['Could not find in "committed" in:'] + content[0:7], echo=True)
+            brcdapi_log.exception(['Could not find in "committed" in:'] + content_l[0:7], echo=True)
             ri = max(0, ri-1)
             break
 
     return ri
 
 
-def portname_range(obj, content):
+def portname_range(obj, content_l):
     """Adds the port name to each associated port object
 
     :param obj: Object with a chassis object associated with it
     :type obj: brcddb.classes.chassis.ChassisObj, brcddb.classes.port.PortObj, brcddb.classes.switch.SwitchObj
-    :param content: List of portname output when a range is selected for the portname command
-    :type content: list
-    :return ri: Index into content where we left off
+    :param content_l: List of portname output when a range is selected for the portname command
+    :type content_l: list
+    :return ri: Index into content_l where we left off
     :rtype ri: int
     """
     ri, chassis_obj = 0, obj.r_chassis_obj()
 
-    for buf in content:
+    for buf in content_l:
         ri += 1
         if 'CURRENT CONTEXT' in buf or 'portname' in buf:
             pass
@@ -1624,6 +1599,8 @@ def portname_range(obj, content):
             except (IndexError, TypeError, ValueError):
                 brcdapi_log.exception('Invalid format for port name: ' + buf, echo=True)
                 break
+            except AttributeError:
+                pass  # This happens when the fabric or switch obect wasn't collected.
         else:
             break
 

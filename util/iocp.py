@@ -87,15 +87,17 @@ is functional.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 10 Mar 2026   | Consolidated project read and Excel error messaging.                                  |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 26 Oct 2026   | Fixed case where the IOCP file does not contain '_'.                                  |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '10 Mar 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -694,7 +696,7 @@ def parse_iocp(proj_obj, iocp):
     if not isinstance(iocp_list, list):
         return
     buf_l = iocp.replace('\\', '/').split('/')
-    iocp_obj = proj_obj.s_add_iocp(buf_l.pop().split('_')[0])
+    iocp_obj = proj_obj.s_add_iocp(buf_l.pop().split('_')[0].split(('.'))[0])
 
     # Parse the CHPID and CNTLUNIT macros
     chpid_l, cntlunit_l = condition_iocp(iocp_list)
@@ -847,6 +849,11 @@ def find_chpid(obj, sn, tag):
     full_sn = full_cpc_sn(sn)
     for port_obj in obj.r_port_objects():
         rnid_d = port_obj.r_get('rnid')
+
+        # Debug
+        if isinstance(rnid_d, dict):
+            print('TP_100')
+
         if isinstance(rnid_d, dict) and rnid_d.get('sequence-number', 'x') == full_sn:
             if tag.replace('0x', '') == rnid_d.get('tag', 'x').replace('0x', ''):
                 return port_obj

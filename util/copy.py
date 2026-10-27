@@ -45,15 +45,17 @@ Contains brcddb class object copy methods
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.4     | 20 Feb 2026   | Fixed case when a key was added to an object with a value of None.                    |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.5     | 26 Oct 2026   | Added return error status code to plain_copy_to_brcddb()                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.4'
+__version__ = '4.0.5'
 
 import brcddb.brcddb_common as brcddb_common
 import brcdapi.log as brcdapi_log
@@ -250,78 +252,108 @@ def brcddb_to_plain_copy(objx, obj, flag_obj=None, skip_list=None):
 
 # The functions below effectively make up a C case statement for the reserved words in the brcddb classes
 def _brcddb_null(obj=None, objx=None):
-    return
+    return brcddb_common.EXIT_STATUS_OK
 
 
 def _brcddb_flags_key(obj, objx):  # All
     objx.s_or_flags(obj)
 
+    return brcddb_common.EXIT_STATUS_OK
+
 
 def _brcddb_date_key(obj, objx):  # project and hopefully port someday
     objx._date = obj
+
+    return brcddb_common.EXIT_STATUS_OK
 
 
 def _brcddb_python_version_key(obj, objx):  # project
     objx.s_python_version(obj)
 
+    return brcddb_common.EXIT_STATUS_OK
+
 
 def _brcddb_description_key(obj, objx):  # project
     objx.s_description(obj)
 
-
-def brcddb_fabrics_key(obj, objx):  # project
-    for fkey in obj:
-        plain_copy_to_brcddb(obj.get(fkey), objx.s_add_fabric(fkey))
+    return brcddb_common.EXIT_STATUS_OK
 
 
 def _brcddb_chassis_objs_key(obj, objx):  # project
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj:
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_chassis(k))
+        el.append(plain_copy_to_brcddb(obj.get(k), objx.s_add_chassis(k)))
+
+    return max(el)
 
 
 def _brcddb_switch_objs_key(obj, objx):  # project
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj:
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_switch(k))
+        el.append(plain_copy_to_brcddb(obj.get(k), objx.s_add_switch(k)))
+
+    return max(el)
 
 
 def _brcddb_switch_keys_key(obj, objx):  # fabric, chassis
     for k in obj:
         objx.s_add_switch(k)
 
+    return brcddb_common.EXIT_STATUS_OK
+
 
 def _brcddb_port_objs_key(obj, objx):  # switch
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj.keys():
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_port(k))
+        ec = plain_copy_to_brcddb(obj.get(k), objx.s_add_port(k))
+
+    return max(el)
 
 
 def _brcddb_ge_port_objs_key(obj, objx):  # switch
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj.keys():
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_ge_port(k))
+        el.append(plain_copy_to_brcddb(obj.get(k), objx.s_add_ge_port(k)))
+
+    return max(el)
 
 
 def _brcddb_ve_port_objs_key(obj, objx):  # switch
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj.keys():
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_ve_port(k))
+        el.append(plain_copy_to_brcddb(obj.get(k), objx.s_add_ve_port(k)))
+
+    return max(el)
 
 
 def _brcddb_fabric_key(obj, objx):  # Many
     if hasattr(objx, 's_fabric_key') and callable(getattr(objx, 's_new_key')):
         objx.s_fabric_key(obj)
 
+    return brcddb_common.EXIT_STATUS_OK
+
 
 def _brcddb_login_objs_key(obj, objx):  # fabric
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj.keys():
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_login(k))
+        el.append(plain_copy_to_brcddb(obj.get(k), objx.s_add_login(k)))
+
+    return max(el)
 
 
 def _brcddb_fabric_objs_key(obj, objx):  # fabric
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj.keys():
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_fabric(k))
+        el.append(plain_copy_to_brcddb(obj.get(k), objx.s_add_fabric(k)))
+
+    return max(el)
 
 
 def _brcddb_login_keys_key(obj, objx):  # port
     for v in obj:
         objx.s_add_login(v)
+
+    return brcddb_common.EXIT_STATUS_OK
 
 
 def _brcddb_eff_zone_objs_key(obj, objx):  # fabric
@@ -332,19 +364,27 @@ def _brcddb_eff_zone_objs_key(obj, objx):  # fabric
         if isinstance(flags, int):
             new_obj.s_or_flags(flags)
 
+    return brcddb_common.EXIT_STATUS_OK
+
 
 def _brcddb_eff_zonecfg_key(obj, objx):  # fabric
-    plain_copy_to_brcddb(obj, objx.s_add_eff_zonecfg(obj.get('_name')))
+    return plain_copy_to_brcddb(obj, objx.s_add_eff_zonecfg(obj.get('_name')))
 
 
 def _brcddb_alias_objs_key(obj, objx):  # fabric
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj.keys():
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_alias(k))
+        el.append(plain_copy_to_brcddb(obj.get(k), objx.s_add_alias(k)))
+
+    return max(el)
 
 
 def _brcddb_zonecfg_objs_key(obj, objx):  # fabric
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj.keys():
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_zonecfg(k))
+        el.append(plain_copy_to_brcddb(obj.get(k), objx.s_add_zonecfg(k)))
+
+    return max(el)
 
 
 def _brcddb_zone_objs_key(obj, objx):  # fabric
@@ -355,37 +395,53 @@ def _brcddb_zone_objs_key(obj, objx):  # fabric
         if isinstance(flags, int):
             new_obj.s_or_flags(flags)
 
+    return brcddb_common.EXIT_STATUS_OK
+
 
 def _brcddb_switch_key(obj, objx):  # port
-    pass
+    return brcddb_common.EXIT_STATUS_OK
 
 
 def _brcddb_members_key(obj, objx):  # All zoning classes
     for v in obj:
         objx.s_add_member(v)
 
+    return brcddb_common.EXIT_STATUS_OK
+
 
 def _brcddb_pmembers_key(obj, objx):  # zone
     for v in obj:
         objx.s_add_pmember(v)
 
+    return brcddb_common.EXIT_STATUS_OK
+
 
 def _brcddb_chassis_key_key(obj, objx):  # Chassis WWN
     objx.s_chassis_key(obj)
+
+    return brcddb_common.EXIT_STATUS_OK
 
 
 def _brcddb_fdmi_port_obj_key(obj, objx):    # LoginObj
     objx.s_add_fdmi_port_obj(obj.get('_fdmiPortObj'))
 
+    return brcddb_common.EXIT_STATUS_OK
+
 
 def _brcddb_fdmi_node_objs_key(obj, objx):  # FabricObj
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj.keys():
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_fdmi_node(k))
+        el.append(plain_copy_to_brcddb(obj.get(k), objx.s_add_fdmi_node(k)))
+
+    return max(el)
 
 
 def _brcddb_fdmi_port_objs_key(obj, objx):  # FabricObj
+    el = [brcddb_common.EXIT_STATUS_OK]
     for k in obj.keys():
-        plain_copy_to_brcddb(obj.get(k), objx.s_add_fdmi_port(k))
+        el.append(plain_copy_to_brcddb(obj.get(k), objx.s_add_fdmi_port(k)))
+
+    return max(el)
 
 
 _r_key_table = dict(
@@ -437,16 +493,20 @@ def plain_copy_to_brcddb(obj, objx):
     :type obj: dict, list, tuple
     :param objx: Destination Object
     :type objx: brcddb class object
-    :rtype: None
+    :return: Status code. See EXIT_STATUS_* in brcddb.brcddb_common.py for details
+    :rtype: int
     """
     global _r_key_table
+
     if objx is None:
-        return
+        return brcddb_common.EXIT_STATUS_OK
     if isinstance(obj, dict):
         for k in obj.keys():
             v = obj.get(k)
             if k in _r_key_table:
-                _r_key_table[k](v, objx)
+                ec = _r_key_table[k](v, objx)
+                if ec != brcddb_common.EXIT_STATUS_OK:
+                    return ec
             elif isinstance(v, (str, int, float, list)) or v is None:
                 if hasattr(objx, 's_new_key') and callable(getattr(objx, 's_new_key')):
                     objx.s_new_key(k, v)
@@ -455,11 +515,16 @@ def plain_copy_to_brcddb(obj, objx):
             elif isinstance(v, dict):
                 if hasattr(objx, 's_new_key') and callable(getattr(objx, 's_new_key')):
                     objx.s_new_key(k, dict())
-                    plain_copy_to_brcddb(v, objx.r_get(k))
+                    ec = plain_copy_to_brcddb(v, objx.r_get(k))
+                    if ec != brcddb_common.EXIT_STATUS_OK:
+                        return ec
                 else:
                     d = dict()
-                    plain_copy_to_brcddb(v, d)
-                    objx.update({k: d})
+                    ec = plain_copy_to_brcddb(v, d)
+                    if ec == brcddb_common.EXIT_STATUS_OK:
+                        objx.update({k: d})
+                    else:
+                        return ec
             else:
                 brcdapi_log.exception('Unknown v type. Key is: ' + k + ', type is: ' + str(type(v)), True)
                 
@@ -468,36 +533,53 @@ def plain_copy_to_brcddb(obj, objx):
             for v in obj:
                 if isinstance(v, dict):
                     d = dict()
-                    plain_copy_to_brcddb(v, d)
-                    objx.append(d)
+                    ec = plain_copy_to_brcddb(v, d)
+                    if ec == brcddb_common.EXIT_STATUS_OK:
+                        objx.append(d)
+                    else:
+                        return ec
                 elif isinstance(v, (list, tuple)):
                     d = list()
-                    plain_copy_to_brcddb(v, d)
-                    objx.append(d)
+                    ec = plain_copy_to_brcddb(v, d)
+                    if ec == brcdapi_common.EXIT_STATUS_OK:
+                        objx.append(d)
+                    else:
+                        return ec
                 elif isinstance(v, (str, int, float)):
                     objx.append(v)
                 else:
                     # This is a code bug. objx should always be a list by the time we get here
                     brcdapi_log.exception('Type of v is unknown. Type is: ' + str(type(v)), True)
-                    return
+                    return brcddb_common.EXIT_STATUS_ERROR
         else:
             for v in obj:
                 if isinstance(v, (str, int, float)):
                     if v in _r_key_table:
-                        _r_key_table[v](obj, objx)
+                        ec = _r_key_table[v](obj, objx)
+                        if ec != brcddb_common.EXIT_STATUS_OK:
+                            return ec
                     else:
                         objx.append(v)
                 elif isinstance(v, dict):
                     d = dict()
-                    plain_copy_to_brcddb(v, d)
-                    objx.append(d)
+                    ec = plain_copy_to_brcddb(v, d)
+                    if ec == brcddb_common.EXIT_STATUS_OK:
+                        objx.append(d)
+                    else:
+                        return ec
                 elif isinstance(v, (list, tuple)):
                     d = list()
-                    plain_copy_to_brcddb(v, d)
-                    objx.append(d)
+                    ec = plain_copy_to_brcddb(v, d)
+                    if ec == brcdapi_common.EXIT_STATUS_OK:
+                        objx.append(d)
+                    else:
+                        return ec
                 else:
                     # This is a code bug.
                     brcdapi_log.exception('Type of v is unknown. Type is: ' + str(type(v)), True)
-                    return
+                    return brcddb_common.EXIT_STATUS_ERROR
     else:
         brcdapi_log.exception('Unknown obj type, ' + str(type(obj)), True)
+        return brcddb_common.EXIT_STATUS_ERROR
+
+    return brcddb_common.EXIT_STATUS_OK
