@@ -25,22 +25,22 @@ Zone utilities.
 +-----------------------+-------------------------------------------------------------------------------------------+
 | alias_compare         | Compares two aliases                                                                      |
 +-----------------------+-------------------------------------------------------------------------------------------+
-| create_zone_workbook  | Creates an Excel workbook with the Instructions sheet.                                    |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| is_alias_match        | Simple True/False comparison between two aliases                                          |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| zone_compare          | Compares two zones                                                                        |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| is_zone_match         | Simple True/False comparison between two zones                                            |
-+-----------------------+-------------------------------------------------------------------------------------------+
 | cfg_compare           | Compares two zone configurations. Validates membership only. Does not compare             |
 |                       | individual members                                                                        |
 +-----------------------+-------------------------------------------------------------------------------------------+
-| is_cfg_match          | Simple True/False comparison between two configurations                                   |
-+-----------------------+-------------------------------------------------------------------------------------------+
-| zone_type             | Returns the zone type (User defined peer, Target driven peer, or Standard) in plain text  |
+| create_zone_workbook  | Creates an Excel workbook with the Instructions sheet.                                    |
 +-----------------------+-------------------------------------------------------------------------------------------+
 | eff_zoned_to_wwn      | Finds all WWNs in the effective zone that are zoned to wwn.                               |
++-----------------------+-------------------------------------------------------------------------------------------+
+| is_alias_match        | Simple True/False comparison between two aliases                                          |
++-----------------------+-------------------------------------------------------------------------------------------+
+| is_cfg_match          | Simple True/False comparison between two configurations                                   |
++-----------------------+-------------------------------------------------------------------------------------------+
+| is_zone_match         | Simple True/False comparison between two zones                                            |
++-----------------------+-------------------------------------------------------------------------------------------+
+| zone_compare          | Compares two zones                                                                        |
++-----------------------+-------------------------------------------------------------------------------------------+
+| zone_type             | Returns the zone type (User defined peer, Target driven peer, or Standard) in plain text  |
 +-----------------------+-------------------------------------------------------------------------------------------+
 
 **Version Control**
@@ -62,15 +62,17 @@ Zone utilities.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 26 Oct 2026   | Replace depracated zone-type with zone-type-string.                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -301,7 +303,7 @@ def add_zone_worksheet(wb, sheet_name, content_l, sheet_i=0):
     +-------------------+-------------------+-----------------------------------------------------------------------+
     | Principal Member  | str, list, None   | Value(s) for "Principal Member" column                                |
     +-------------------+-------------------+-----------------------------------------------------------------------+
-    | Comments          | str, None         | Value(s) for "Comments" column                                        |
+    | Comments          | list, None         | Value(s) for "Comments" column                                        |
     +-------------------+-------------------+-----------------------------------------------------------------------+
 
     :param wb: Excel workbook
@@ -309,7 +311,7 @@ def add_zone_worksheet(wb, sheet_name, content_l, sheet_i=0):
     :param sheet_name: Name of the worksheet
     :type sheet_name: str
     :param content_l: Content of the worksheet. See function description for details
-    :type content_l: dict
+    :type content_l: list
     :param sheet_i: Index where sheet is to be inserted
     :rtype: None
     """
@@ -386,7 +388,7 @@ def add_zone_worksheet(wb, sheet_name, content_l, sheet_i=0):
 
 def alias_compare(base_alias_obj, comp_alias_obj):
     """Compares two aliases
-    
+
     :param base_alias_obj: Alias object to compare against
     :type base_alias_obj: brcddb.classes.zone.AliasObj
     :param comp_alias_obj: New alias object
@@ -478,7 +480,7 @@ def zone_compare(base_zone_obj, comp_zone_obj):
         [mem for mem in bl if mem not in cl], \
         [mem for mem in pcl if mem not in pbl], \
         [mem for mem in pbl if mem not in pcl]
-            
+
 
 def is_zone_match(base_zone_obj, comp_zone_obj):
     """Simple True/False comparison between two zones
@@ -534,12 +536,8 @@ def zone_type(zone_obj, num_flag=False):
     :return: Zone type
     :rtype: str
     """
-    z_type = zone_obj.r_type()
-    try:
-        buf = brcddb_common.zone_conversion_tbl['zone-type'][z_type]
-        return buf + '(' + str(z_type) + ')' if num_flag else buf
-    except KeyError:
-        return 'Unknown (' + str(z_type) + ')'
+    buf = brcddb_common.zone_conversion_tbl['zone-type-string'].get(zone_obj.r_type(), 'Unknown')
+    return buf + ' (' + str(z_type) + ')'
 
 
 def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=False):
@@ -568,7 +566,7 @@ def eff_zoned_to_wwn(fab_obj, wwn, target=False, initiator=False, all_types=Fals
         zones_for_wwn_d.update({zone: True})
 
     for zone_obj in fab_obj.r_eff_zone_objects_for_wwn(wwn):
-        if zone_obj.r_type() == brcddb_common.ZONE_STANDARD_ZONE:
+        if zone_obj.r_type() == 'zone':
             mem_l = zone_obj.r_members()
         else:
             mem_l = zone_obj.r_members() if wwn in zone_obj.r_pmembers() else zone_obj.r_pmembers()

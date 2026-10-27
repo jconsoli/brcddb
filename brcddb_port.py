@@ -64,16 +64,19 @@ Methods and tables to support the class ChassisObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.8     | 01 Aug 2026   | Modified to use new brcddb_switch.best_switch_name() format.                          |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.9     | 26 Oct 2026   | Add option to include additional switch and port information in port_best_desc()      |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '01 Aug 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.8'
+__version__ = '4.0.9'
 
+import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
 import brcddb.brcddb_common as brcddb_common
@@ -82,13 +85,14 @@ import brcddb.brcddb_switch as brcddb_switch
 import brcddb.brcddb_login as brcddb_login
 import brcddb.util.search as brcddb_search
 import brcddb.util.iocp as brcddb_iocp
+import brcddb.classes.util as class_util
 from brcddb.classes.port import PortObj
 
 # _rnid_keys is used in port_best_desc() to add additional RNID data. This is not a complete list of RNID data
 _rnid_keys = ('manufacturer', 'model-number', 'sequence-number', 'tag', 'flags')
 
 
-def port_best_desc(port_obj):
+def port_best_desc(port_obj, switch_name=False, fid=False, did=False, did_hex=False, port_num=False, port_name=False):
     """Finds the first descriptor for what's attached to the port in this order:
         1   RNID data if RNID data is present
         2   If E-Port, the upstream switch & port
@@ -99,41 +103,74 @@ def port_best_desc(port_obj):
 
     :param port_obj: Port Object
     :type port_obj: brcddb.classes.port.PortObj
-    :return: desc
+    :param switch_name: If true, description includes the switch name
+    :type switch_name: bool
+    :param fid: Only relevant if switch_name is True. Description includes the switch FID number
+    :type fid: bool
+    :param did: Only relevant if switch_name is True. Description includes the did
+    :type did: bool
+    :param did_hex: Only relevant if switch_name is True. Description includes the DID in hexadecimal format
+    :type did_hex: bool
+    :param port_num: If True, description includes the port number
+    :type port_num: bool
+    :param port_name: If True, description include the port name in the returned description
+    :type port_name: bool
+    :return: Port description
     :rtype: str
     """
     global _rnid_keys
 
+    # Validate the input
     if port_obj is None:
-        return 'Unknown'
+        return r_desc + 'Unknown'
+    class_type = class_util.get_simple_class_type(port_obj, all_types=True)
+    if class_type != 'PortObj':
+        brcdapi_log.exception('Expected type brcddb.classes.port.PortObj, got ' + class_type + ' instead.', echo=True)
+
+    # Initialize data
+    port_type = port_obj.c_login_type()
+    r_desc = ''
+    if switch_name:
+        r_desc += brcddb_switch.best_switch_name(port_obj.r_switch_obj(), fid=fid, did=did, did_hex=did_hex)
+    r_desc = port_obj.r_obj_key() if port_num else ''
+    if port_name:
+        buf = port_obj.r_get(brcdapi_util.fc_user_name)
+        if isinstance(buf, str):
+            r_desc += ' (' + buf + ')'
+    if len(r_desc) > 0:
+        r_desc += ': '
+    r_desc += port_type
 
     # Try RNID data
     rnid_d = port_obj.r_get('rnid')
     if isinstance(rnid_d, dict) and 'type-number' in rnid_d:
-        return (brcddb_iocp.dev_type_desc(rnid_d['type-number']) + ' ' +
-                ' '.join([rnid_d.get(k, '') for k in _rnid_keys]))
+        r_desc += ' ' + brcddb_iocp.dev_type_desc(rnid_d['type-number']) + ' '
+        r_desc += ' '.join([rnid_d.get(k, '') for k in _rnid_keys])
+        return r_desc
 
     wwn_list = port_obj.r_get(brcdapi_util.fc_neighbor_wwn, list())
     if len(wwn_list) == 0:
-        return ''
+        return r_desc
 
     # Try E-Port
     fab_obj = port_obj.r_fabric_obj()
     if fab_obj is None:
-        return ''
-    if port_obj.c_login_type() in ('E-Port', 'AE-Port'):
+        return r_desc
+    if port_type in ('E-Port', 'AE-Port'):
         brcddb_util.build_login_port_map(fab_obj.r_project_obj())
         pobj = fab_obj.r_get('_port_map').get(wwn_list[0])
-        return '' if pobj is None else brcddb_switch.best_switch_name(pobj) + ' port ' + pobj.r_obj_key()
+        if pobj is not None:
+            r_desc += ' ' + brcddb_switch.best_switch_name(pobj) + ' port ' + pobj.r_obj_key()
+        return r_desc
 
     # Try Node, then port
     login_obj = fab_obj.r_login_obj(wwn_list[0])
     if login_obj is None:
-        return ''
+        return r_desc
     buf = brcddb_login.login_best_node_desc(login_obj)
-    if len(buf) > 2:
-        return buf
-    return brcddb_login.login_best_port_desc(login_obj)
+    r_desc += ' ' + buf if len(buf) > 2 else brcddb_login.login_best_port_desc(login_obj)
+
+    return r_desc
 
 
 def best_port_name(port_obj, port_num=False):
@@ -290,11 +327,11 @@ def sort_by_stat(port_obj_l, stat, sort_by):
     +===========+=======================================================================+
     | high      | Sorts ports by the port with the highest value for the stat first     |
     +-----------+-----------------------------------------------------------------------+
-    | low       | Sorts ports by the port with the lowest value for the stat first
+    | low       | Sorts ports by the port with the lowest value for the stat first      |
     +-----------+-----------------------------------------------------------------------+
-    | highavg   | Sorts ports by the port with the highest average for the stat first
+    | highavg   | Sorts ports by the port with the highest average for the stat first   |
     +-----------+-----------------------------------------------------------------------+
-    | lowavg    | Sorts ports by the port with the lowest average for the stat first
+    | lowavg    | Sorts ports by the port with the lowest average for the stat first    |
     +-----------+-----------------------------------------------------------------------+
 
     :param port_obj_l: List of port objects

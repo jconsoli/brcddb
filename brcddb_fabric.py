@@ -12,6 +12,78 @@ The license is free for single customer use (internal applications). Use of this
 redistribution, or service delivery for commerce requires an additional license. Contact jack_consoli@yahoo.com for
 details.
 
+**Description**
+
+Common fabric related functions.
+
+Important note about FICON zones:
+
+The zone_* functions were originally private functions in mf_zone.py, which is used to build a zone configuration
+workbook for use with zone_config.py. See zone_config_sample.xlsx. I later needed to be able to create zones without
+zone_config.py. The workbook therefore isn't always needed. Rather than modify working code, I left everything as is.
+This is also why the dictionaries contain keys with upper case letters and spaces. Those keys are used as headers in the
+workbooks and decision trees. DO NOT CHANGE KEY NAMES!
+
+The zone_* functions return a list of dictionaries as described below. The list can be passed directly to
+brcddb.brcddb_zone.add_zone_worksheet(). Keys that are unused or not applicable for the Zone_Object may not be present,
+so use .get() to retrieve the values. Zone_Object is the only required key.
+
++-------------------+-----------+-----------------------------------------------------------------------------------+
+| Key               | Type      | Description                                                                       |
++===================+===========+===================================================================================+
+| Action            | None,str  | As of September 2026, "create" was the only action used or tested. Intended for   |
+|                   |           | the following actions:                                                            |
+|                   |           | Action        Intended Purpose                                                    |
+|                   |           | add_mem       Adds a member to an alias, zone, or zone configuration membership   |
+|                   |           |               list.                                                               |
+|                   |           | copy          Copies an alias, zone, or zone configuration. "Member" is the name  |
+|                   |           |               of the zone object to copy.                                         |
+|                   |           | create        Creates an alias, zone, or zone configuration.                      |
+|                   |           | delete        Deletes an alias, zone, or zone configuration. The effective zone   |
+|                   |           |               configuration cannot be deleted.                                    |
+|                   |           | full_purge    Performs a "purge" action. Any empty zone or zone configuration     |
+|                   |           |               that is not the effective zone configuration as a result of the     |
+|                   |           |               purge is also deleted.                                              |
+|                   |           | ignore        If the Zone_Object is alias, replaces all instances of the alias    |
+|                   |           |               (WWN or d,i) specified in the "Member" cell with what is specified  |
+|                   |           |               in the "Principal Member" cell in every zone where used. Similarly, |
+|                   |           |               if the Zone_Object is zone, zones are replaced in every zone        |
+|                   |           |               configuration where used.                                           |
+|                   |           | purge         Supported for alias and zone Zone_Object only. The value in the     |
+|                   |           |               "Member" cell is used to define the alias or zone for the purge     |
+|                   |           |               action to act on. This is the equivalent to the CLI                 |
+|                   |           |               zoneobjectexpunge command. The advantage is that wild card and      |
+|                   |           |               regex matching can be used which make it convenient for             |
+|                   |           |               decommissioning servers and storage arrays.                         |
+|                   |           | remove_mem    Removes members from the zone object. The same rules regarding      |
+|                   |           |               "Members" and "Principal Members" in add_mem apply.                 |
+|                   |           | rename        Future consideration. Not implemented yet. Rename the zone object   |
+|                   |           |               in the "Name" cell with the name in the "Member" cell.              |
+|                   |           | replace       For alias, replaces all instances of the alias (WWN or d,i)         |
+|                   |           |               specified in the "Member" cell with what is specified in the        |
+|                   |           |               "Principal Member" cell in every zone where used. Similarly, zones  |
+|                   |           |               are replaced in every zone configuration where used.                |
++-------------------+-----------+-----------------------------------------------------------------------------------+
+| Comments          | None,str, | Additional detail about the zone object. As of September 2026, comments were only |
+|                   | list      | used in the zone configuration workbooks generated by mf_zone.py.                 |
++-------------------+-----------+-----------------------------------------------------------------------------------+
+| Zone_Object       | str       | The zone object type as follows:
+|                   |           | Zone Object   Description                                                         |
+|                   |           | alias         Alias. Members are in "Members".                                    |
+|                   |           | comment       Comments only associated with the zone object specified in "Name".  |
+|                   |           |               All other keys are ignored.                                         |
+|                   |           | peer_zone     Peer zone. Members are in "Members". Principal members are in       |
+|                   |           |               "Principal Members"                                                 |
+|                   |           | zone          Standard zone. Members are in "Members".                            |
+|                   |           | zone_cfg      Zone configuration. Members are in "Members"                        |
++-------------------+-----------+-----------------------------------------------------------------------------------+
+| Name              | str       | The name of the zone object.                                                      |
++-------------------+-----------+-----------------------------------------------------------------------------------+
+| Member            | list      | The members of the zone object.                                                   |
++-------------------+-----------+-----------------------------------------------------------------------------------+
+| Principal Member  | list      | The principal members of the zone object. Only relevant for peer zones.           |
++-------------------+-----------+-----------------------------------------------------------------------------------+
+
 **Public Methods & Data**
 
 +-----------------------+-------------------------------------------------------------------------------------------+
@@ -39,7 +111,28 @@ details.
 +-----------------------+-------------------------------------------------------------------------------------------+
 | fab_obj_for_name      | Finds the first fabric matching the user friendly fabric name                             |
 +-----------------------+-------------------------------------------------------------------------------------------+
+| ficon_zone_all        | FICON. Returns a list with a single zone dictionary including all ports except ICL ports. |
++-----------------------+-------------------------------------------------------------------------------------------+
+| ficon_zone_all_f      | FICON. Returns a zone dictionary with a single zone that includes all F ports.            |
++-----------------------+-------------------------------------------------------------------------------------------+
+| ficon_zone_by_device  | FICON. Returns a list of zones for each CHPID with access to all control units.           |
++-----------------------+-------------------------------------------------------------------------------------------+
+| ficon_zone_by_channel | FICON. Returns a list of zones for each CHPID with access to only to the link addresses,  |
+|                       | LINK=.                                                                                    |
++-----------------------+-------------------------------------------------------------------------------------------+
+| ficon_zone_fab_obj    | Adds zoning information in zdb_l to the fabric object, fab_obj, for use with              |
+|                       | brcddb.api.zone.replace_zoning()                                                          |
++-----------------------+-------------------------------------------------------------------------------------------+
 | switch_for_did        | Returns the switch object in a fabric for a specified DID.                                |
++-----------------------+-------------------------------------------------------------------------------------------+
+| rnid_groups           | Sorts out the mainframe attachments by control unit and channel.                          |
++-----------------------+-------------------------------------------------------------------------------------------+
+| unique_alias_name     | Ensure that an alias name is unique by appending a number if a alias name is already used |
++-----------------------+-------------------------------------------------------------------------------------------+
+| unique_zone_name      | Ensure that a zone name is unique by appending a number if a zone name is already used.   |
++-----------------------+-------------------------------------------------------------------------------------------+
+| unique_zonecfg_name   | Ensure that a zone configuration name is unique by appending a number if a zonecfg name   |
+|                       | is already used.                                                                          |
 +-----------------------+-------------------------------------------------------------------------------------------+
 | zone_analysis         | Analyzes zoning. Finds where all members are. Adds an alert if any issues found. See      |
 |                       | method header for details of what checks are preformed.                                   |
@@ -80,15 +173,18 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.1.0     | 01 Aug 2026   | Modified best_fab_name() to accept fabric, switch, port, or login objects.            |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.1     | 26 Oct 2026   | Moved private functions from mf_zone.py to here so that they could be used by other   |
+|           |               | modules. Added ficon_zone_fab_obj()                                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '01 Aug 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.1.0'
+__version__ = '4.1.1'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
@@ -101,7 +197,6 @@ import brcddb.app_data.alert_tables as al
 import brcddb.brcddb_port as brcddb_port
 import brcddb.util.iocp as brcddb_iocp
 import brcddb.brcddb_zone as brcddb_zone
-import brcddb.brcddb_fabric as brcddb_fabric
 
 _check_d = dict(peer_property=False,
                 zone_mismatch=False,
@@ -137,7 +232,7 @@ def set_bp_check(key, val):
     try:
         _check_d[key] = val
     except KeyError:
-        brcdapi_log.exception('Invalid key: ' + str(val))
+        brcdapi_log.exception('ERROR: Invalid key: ' + str(val))
 
 
 def best_fab_name(class_obj, wwn=False, fid=False):
@@ -445,11 +540,11 @@ def zone_analysis(fab_obj):
                         if len(port_list) == 0:
                             zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NOT_FOUND, None, mem)
                 else:
-                    buf = brcddb_fabric.best_fab_name(fab_obj, wwn=True) + ': ' + 'Standard' if i == 0 else 'Principal'
+                    buf = best_fab_name(fab_obj, wwn=True) + ': ' + 'Standard' if i == 0 else 'Principal'
                     buf += ' member, ' + str(mem) + ', is not valid in zone ' + zone_obj.r_obj_key()
                     if a_obj is not None:
                         buf += '. Last working alias: ' + str(a_obj.r_obj_key())
-                    brcdapi_log.exception(buf, echo=True)
+                    brcdapi_log.exception('ERROR: ' + buf, echo=True)
 
         # Do all the zone membership count checks
         if zone_obj.r_is_peer():  # It's a peer zone
@@ -458,7 +553,7 @@ def zone_analysis(fab_obj):
                 zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_NO_PMEM)
             if len(nmem_list) == 0:
                 zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_PEER_NO_NMEM)
-        else:  # It's an old style zone (not a peer zone)
+        else:  # It's a standard zone (not a peer zone)
             # Make sure there are at least 2 members
             if len(nmem_list) == 0:
                 zone_obj.s_add_alert(al.AlertTable.alertTbl, al.ALERT_NUM.ZONE_NO_MEMBERS)
@@ -573,7 +668,7 @@ def fab_fids(fab_obj):
     )
 
 
-def copy_fab_obj(fab_obj, fab_key=None, full_copy=False, skip_zone=False, skip_zonecfg=False):
+def copy_fab_obj(fab_obj, fab_key=None, full_copy=False, skip_alias=False, skip_zone=False, skip_zonecfg=False):
     """Makes a copy of a fabric object
 
     :param fab_obj: The fabric object to be copied
@@ -582,6 +677,8 @@ def copy_fab_obj(fab_obj, fab_key=None, full_copy=False, skip_zone=False, skip_z
     :type fab_key: str, None
     :param full_copy: If True, copies all data added with s_new_key(). Otherwise, just the private members are copied
     :type full_copy: bool
+    :param skip_alias: If True, copying of aliases is skipped.
+    :type skip_alias: bool
     :param skip_zone: If True, copying of zones is skipped.
     :type skip_zone: bool
     :param skip_zonecfg: If True, copying of zone configurations is skipped.
@@ -601,8 +698,9 @@ def copy_fab_obj(fab_obj, fab_key=None, full_copy=False, skip_zone=False, skip_z
         if full_copy:
             for key in login_obj_copy.r_keys():
                 login_obj_copy.s_new_key(key, obj.r_get(key))
-    for obj in fab_obj.r_alias_objects():
-        fab_obj_copy.s_add_alias(obj.r_obj_key(), obj.r_members())
+    if not skip_alias:
+        for obj in fab_obj.r_alias_objects():
+            fab_obj_copy.s_add_alias(obj.r_obj_key(), obj.r_members())
     if not skip_zone:
         for obj in fab_obj.r_zone_objects():
             fab_obj_copy.s_add_zone(obj.r_obj_key(), obj.r_type(), obj.r_members(), obj.r_pmembers())
@@ -766,3 +864,342 @@ def zone_by_name(fab_obj, search_term_l_in, s_type='exact'):
         rl.extend(brcddb_search.match(search_l, 'z', search_term, ignore_case=False, stype=s_type))
 
     return gen_util.remove_duplicates([d['z'] for d in rl])
+
+
+#####################################################################################
+#                                                                                   #
+# Creat unique alias, zone, and zonecfg names. Currently only used for FICON.       #
+#                                                                                   #
+#####################################################################################
+
+def unique_alias_name(fabric_obj, alias_name):
+    """Ensure that an alias name is unique by appending a number if a alias name is already used
+
+    :param fabric_obj: Fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :param alias_name: Alias name
+    :type alias_name: str
+    :return: Alias name
+    :rtype: str
+    """
+    i, r_alias_name = 0, alias_name
+    while fabric_obj.r_alias_obj(r_alias_name) is not None:
+        i += 1
+        r_alias_name = alias_name + '_' + str(i)
+
+    return r_alias_name
+
+
+def unique_zone_name(fabric_obj, zone_name):
+    """Ensure that a zone name is unique by appending a number if a zone name is already used
+
+    :param fabric_obj: Fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :param zone_name: Zone name
+    :type zone_name: str
+    :return: Zone name
+    :rtype: str
+    """
+    i, r_zone_name = 0, zone_name
+    while fabric_obj.r_zone_obj(r_zone_name) is not None:
+        i += 1
+        r_zone_name = zone_name + '_' + str(i)
+
+    return r_zone_name
+
+
+def unique_zonecfg_name(fabric_obj, zonecfg_name):
+    """Ensure that a zone configuration name is unique by appending a number if a zonecfg name is already used
+
+    :param fabric_obj: Fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :param zonecfg_name: Zone configuration name
+    :type zonecfg_name: str
+    :return: Zone name
+    :rtype: str
+    """
+    i, r_zonecfg_name = 0, zonecfg_name
+    while fabric_obj.r_zonecfg_obj(r_zonecfg_name) is not None:
+        i += 1
+        r_zonecfg_name = zonecfg_name + '_' + str(i)
+
+    return r_zonecfg_name
+
+
+#####################################################################################
+#                                                                                   #
+# FICON Zoning Functions - See "Important note about FICON zones" in module header. #
+#                                                                                   #
+#####################################################################################
+
+def rnid_groups(fabric_obj):
+    """Sorts out the mainframe attachments by control unit and channel
+
+    :param fabric_obj: Fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :return: Dictionary: key - generic device type. Value - dictionary, key - S/N, value - list of port objects
+    :rtype: dict
+    """
+    # Sort out the ports by sequence number (S/N) and generic type.
+    rnid_d = dict()
+
+    for port_obj in [obj for obj in fabric_obj.r_port_objects() if obj.r_is_online()]:
+        port_rnid_d = port_obj.r_get('rnid')
+        if isinstance(port_rnid_d, dict):
+            generic_type = brcddb_iocp.generic_device_type(port_rnid_d.get('type-number'))
+            port_rnid_seq = gen_util.remove_leading_char(port_rnid_d.get('sequence-number', 'FFFFFFFFFFFF'), '0')
+
+            # Get the generic device type dictionary from rnid_d. If it hasn't been added yet, add it.
+            generic_type_d = rnid_d.get(generic_type)
+            if not isinstance(generic_type_d, dict):
+                generic_type_d = dict()
+                rnid_d.update({generic_type: generic_type_d})
+
+            # Get the port object list for this sequence number
+            port_obj_l = generic_type_d.get(port_rnid_seq)
+            if not isinstance(port_obj_l, list):
+                port_obj_l = list()
+                generic_type_d.update({port_rnid_seq: port_obj_l})
+
+            # Add the port object
+            port_obj_l.append(port_obj)
+
+    return rnid_d
+
+
+def ficon_zone_all(fabric_obj, zonecfg, in_notes_l=None):
+    """FICON. Returns a list with a single zone dictionary that includes all ports except ICL ports
+
+    :param fabric_obj: Fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :param zonecfg: Zone configuration name
+    :type zonecfg: str
+    :param in_notes_l: Error and warning messages. Useful for applications with user feedback.
+    :type in_notes_l: None, list
+    :return: Lists of dictionaries as described in "Important note about FICON zones" in the module header.
+             for use with brcddb.brcddb_zone.add_zone_worksheet()
+    :rtype: list
+    """
+    notes_l = in_notes_l if isinstance(in_notes_l, list) else list()
+    buf = best_fab_name(fabric_obj, fid=True)
+    zdb_l = [dict(Zone_Object='comment', Comments='All ports except ICL ports. Fabric: ' + buf)]
+    member_l, comment_l = list(), list()
+    zone_name = unique_zone_name(fabric_obj, 'FICON_zone')
+
+    # Sorting was done for humans reviewing the zoning. It's not necessary for technical reasons.
+    for port_obj in [obj for obj in brcddb_util.sort_ports(fabric_obj.r_all_port_objects()) if not obj.r_is_icl()]:
+        member_l.append(str(port_obj.r_did()) + ',' + str(port_obj.r_index()))
+        comment_l.append(brcddb_port.port_best_desc(port_obj, switch_name=True, did_hex=True, port_num=True))
+    if len(member_l) > 1:
+        zdb_l.append(dict(Zone_Object='zone', Action='create', Name=zone_name, Member=member_l, Comments=comment_l))
+        zdb_l.append(dict(Zone_Object='zone_cfg', Action='create', Name=zonecfg, Member=[zone_name]))
+    else:
+        notes_l.append('Fabric ' + best_fab_name(fabric_obj, fid=True) + ' contains fewer than 2 ports.')
+
+    return zdb_l
+
+
+def ficon_zone_all_f(fabric_obj, zonecfg, in_notes_l=None):
+    """FICON. Returns a zone dictionary with a single zone that includes all F ports.
+
+    :param fabric_obj: Fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :param zonecfg: Zone configuration name
+    :type zonecfg: str
+    :param in_notes_l: Error and warning messages. Useful for applications with user feedback.
+    :type in_notes_l: None, list
+    :return: Dictionaries with zone DB definitions for use with brcddb.brcddb_zone.add_zone_worksheet()
+    :rtype: list
+    """
+    notes_l = in_notes_l if isinstance(in_notes_l, list) else list()
+    buf = best_fab_name(fabric_obj, fid=True)
+    zdb_l = [dict(Zone_Object='comment', Comments='All F-Ports. Fabric: ' + buf)]
+    member_l, comment_l = list(), list()
+    zone_name = unique_zone_name(fabric_obj, 'FICON_zone')
+
+    # Sorting was done for humans reviewing the zoning. It's not necessary for technical reasons.
+    port_obj_l =\
+        [o for o in brcddb_util.sort_ports(fabric_obj.r_all_port_objects()) if o.c_login_type().lower() == 'f-port']
+    for port_obj in port_obj_l:
+        member_l.append(str(port_obj.r_did()) + ',' + str(port_obj.r_index()))
+        comment_l.append(brcddb_port.port_best_desc(port_obj, switch_name=True, did_hex=True, port_num=True))
+    if len(member_l) > 1:
+        zdb_l.append(dict(Zone_Object='zone', Action='create', Name=zone_name, Member=member_l, Comments=comment_l))
+        zdb_l.append(dict(Zone_Object='zone_cfg', Action='create', Name=zonecfg, Member=[zone_name]))
+    else:
+        notes_l.append('No RNID data found attached to fabric ' + best_fab_name(fabric_obj, fid=True))
+
+    return zdb_l
+
+
+def ficon_zone_by_device(fabric_obj, zonecfg, rnid_d, in_notes_l=None):
+    """FICON. Returns a list of zones for each CHPID with access to all control units.
+
+    :param fabric_obj: Fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :param zonecfg: Zone configuration name
+    :type zonecfg: str
+    :param in_notes_l: Error and warning messages. Useful for applications with user feedback.
+    :type in_notes_l: None, list
+    :param rnid_d: RNID dictionary. Output of brcddb_fabric.rnid_groups()
+    :type rnid_d: dict
+    :return: Dictionaries with zone DB definitions for use with brcddb.brcddb_zone.add_zone_worksheet()
+    :rtype: list
+    """
+    notes_l = in_notes_l if isinstance(in_notes_l, list) else list()
+    buf = best_fab_name(fabric_obj, fid=True)
+    zdb_l = [dict(Zone_Object='comment', Comments='Single zone for each CHPID for every control unit. Fabric: ' + buf)]
+    temp_notes_l, zone_l = list(), list()
+
+    # Create an alias for each control unit
+    cu_alias_l = list()
+    for key in ('DASD', 'Tape', 'CUP', 'CTC', 'Switch', 'IDG', 'Test', 'UNKN'):
+        for sub_key, port_obj_l in rnid_d.get(key, dict()).items():
+            member_l, comment_l = list(), list()
+            alias = unique_alias_name(fabric_obj, key + '_' + sub_key + '_alias')
+            cu_alias_l.append(alias)
+            for port_obj in port_obj_l:
+                member_l.append(str(port_obj.r_did()) + ',' + str(port_obj.r_index()))
+                comment_l.append(brcddb_port.port_best_desc(port_obj, switch_name=True, did_hex=True, port_num=True))
+            zdb_l.append(dict(Zone_Object='alias', Action='create', Name=alias, Member=member_l, Comments=comment_l))
+
+    # Create a zone for each CHPID
+    for sub_key, port_obj_l in rnid_d.get('CPU', dict()).items():
+        for port_obj in port_obj_l:
+            tag = port_obj.r_get('rnid/tag')
+            if tag is None:
+                buf = 'Missing tag for switch ' + brcddb_switch.best_switch_name(port_obj) + ', port '
+                buf += port_obj.r_obj_key()
+                temp_notes_l.append(buf)
+            else:
+                for alias in cu_alias_l:
+                    zone_name = 'CHPID_' + sub_key + '_' + tag.replace('0x', '') + '_' + alias.split('_')[1]
+                    zone_name = unique_zone_name(fabric_obj, zone_name)
+                    zone_l.append(zone_name)
+                    zdb_l.append({
+                        'Zone_Object': 'peer_zone',
+                        'Action': 'create',
+                        'Name': zone_name,
+                        'Member': [str(port_obj.r_did()) + ',' + str(port_obj.r_index())],
+                        'Principal Member': [alias]
+                    })
+
+    # Create the zone configuration
+    if len(zone_l) == 0:
+        temp_notes_l.append('Nothing to zone for "By_Device"')
+    else:
+        if len(temp_notes_l) > 0:
+            zdb_l.insert(1, dict(Zone_Object='comment', Comments=temp_notes_l))
+        zdb_l.append(dict(Zone_Object='zone_cfg', Action='create', Name=zonecfg, Member=zone_l))
+    notes_l.extend(temp_notes_l)
+
+    return zdb_l
+
+
+def ficon_zone_by_channel(fabric_obj, zonecfg, in_notes_l=None):
+    """FICON. Returns a list of zones for each CHPID with access to only to the link addresses, LINK=.
+
+    WARNING: This requires the IOCPs, -iocp option in mf_zone.py, to be processed and present in the project object.
+
+    :param fabric_obj: Fabric object
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :param zonecfg: Zone configuration name
+    :type zonecfg: str
+    :param in_notes_l: Error and warning messages. Useful for applications with user feedback.
+    :type in_notes_l: None, list
+    :return: Dictionaries with zone DB definitions for use with brcddb.brcddb_zone.add_zone_worksheet()
+    :rtype: list
+    """
+    notes_l = in_notes_l if isinstance(in_notes_l, list) else list()
+    buf = 'Zone by CHPID with access to defined link addresses only. Fabric: ' + \
+          best_fab_name(fabric_obj, fid=True)
+    zdb_l = [dict(Zone_Object='comment', Comments=buf)]
+    temp_notes_l, zone_l = list(), list()
+
+    # Find all the CHPIDs in this fabric and create a CHPID zone that includes the link addresses
+    for iocp_obj in fabric_obj.r_project_obj().r_iocp_objects():
+        for chpid_obj in iocp_obj.r_path_objects():
+            chpid_port_obj = brcddb_iocp.find_chpid(fabric_obj, iocp_obj.r_obj_key(), chpid_obj.r_obj_key())
+            if chpid_port_obj is not None:
+                comment_l, cu_di_l = list(), list()
+                for addr in [
+                    gen_util.pad_string(brcddb_iocp.link_addr_to_fc_addr(a, did=chpid_port_obj.r_did()), 6, '0')
+                    for a in chpid_obj.r_link_addresses()
+                ]:
+                    cu_port_obj = fabric_obj.r_port_obj_for_pid(addr)
+                    if cu_port_obj is None:
+                        buf = 'Could not find address ' + addr.upper() + ' in fabric '
+                        buf += best_fab_name(fabric_obj, fid=True)
+                        temp_notes_l.append(buf)
+                    else:
+                        cu_di_l.append(str(cu_port_obj.r_did()) + ',' + str(cu_port_obj.r_index()))
+                        comment_l.append(
+                            brcddb_port.port_best_desc(port_obj, switch_name=True, did_hex=True, port_num=True)
+                        )
+                zone_name = unique_zone_name(fabric_obj, 'CHPID_' + iocp_obj.r_obj_key() + '_' + chpid_obj.r_obj_key())
+                zone_l.append(zone_name)
+                zdb_l.append({
+                        'Zone_Object': 'peer_zone',
+                        'Action': 'create',
+                        'Name': zone_name,
+                        'Member': [str(chpid_port_obj.r_did()) + ',' + str(chpid_port_obj.r_index())],
+                        'Principal Member': cu_di_l,
+                        'Comments': comment_l,
+                    })
+
+    # Create the zone configuration
+    if len(zone_l) == 0:
+        notes_l.append('Nothing to zone for "By_Channel"')
+    else:
+        if len(temp_notes_l) > 0:
+            zdb_l.insert(1, dict(Zone_Object='comment', Comments=notes_l))
+        zdb_l.append(dict(Zone_Object='zone_cfg', Action='create', Name=zonecfg, Member=zone_l))
+    notes_l.extend(temp_notes_l)
+
+    return zdb_l
+
+
+def ficon_zone_fab_obj(fabric_obj, zdb_l):
+    """Adds zoning information in zdb_l to the fabric object, fabric_obj, for use with brcddb.api.zone.replace_zoning()
+
+    :param fabric_obj: Fabric object. Typically a copy of the fabric object without any zoning. Example:
+                       copy_fabric_obj(fabric_obj, skip_alias=True, skip_zone=True, skip_zonecfg=True)
+    :type fabric_obj: brcddb.classes.fabric.FabricObj
+    :param zdb_l: List of dictionaries as described in "Important note about FICON zones" in the module header. These
+                  lists are returned from ficon_zone_all(), ficon_zone_all_f(), ficon_zone_by_device() and
+                  ficon_zone_by_channel()
+    :type zdb_l: list
+    :return: Nothing
+    :rtype: None
+    """
+
+    # I can't think of a reason why the database would care what order zoning information is added. Just in case I'm
+    # over looking something, I'll do it in logical order.
+
+    # Add the aliases
+    for zone_def_d in [d for d in zdb_l if d['Zone_Object'] == 'alias' and d.get('Action', 'None') == 'create']:
+        fabric_obj.s_add_alias(zone_def_d['Name'], zone_def_d['Member'])
+
+    # Add the standard zones
+    for zone_def_d in [d for d in zdb_l if d['Zone_Object'] == 'zone' and d.get('Action', 'None') == 'create']:
+        fabric_obj.s_add_zone(
+            zone_def_d['Name'],
+            'zone',
+            zone_def_d.get('Member'),
+            zone_def_d.get('Principal Member')
+        )
+
+    # Add the peer zones
+    for zone_def_d in [d for d in zdb_l if d['Zone_Object'] == 'peer_zone' and d.get('Action', 'None') == 'create']:
+        fabric_obj.s_add_zone(
+            zone_def_d['Name'],
+            'user-created-peer-zone',
+            zone_def_d['Member'],
+            zone_def_d['Principal Member']
+        )
+
+    # Add the zone configurations
+    for zone_def_d in [d for d in zdb_l if d['Zone_Object'] == 'zone_cfg' and d.get('Action', 'None') == 'create']:
+        fabric_obj.s_add_zonecfg(zone_def_d['Name'], zone_def_d['Member'])
+
+    return None

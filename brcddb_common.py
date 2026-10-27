@@ -40,15 +40,17 @@ associated with.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 01 Aug 2026   | Removed deprecated enforce-login. -v2 versions of some URLs.                          |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 26 Oct 2026   | Added zone-type-string to zone_conversion_tbl.                                        |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '01 Aug 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import brcdapi.util as brcdapi_util
 
@@ -112,6 +114,12 @@ user_friendly_exit_codes = {
 #################################################################################
 DEF_ZONE_NOACCESS = 0
 DEF_ZONE_ALLACCESS = 1
+
+# Zone types used in brocade-zone/brocade-zone/zone-type. Depracated. New in 9.1: zone-type-string
+ZONE_STANDARD_ZONE = 0
+ZONE_USER_PEER = 1
+ZONE_TARGET_PEER = 2
+
 CFG_ACTION_READ_NOT_AP = 0  # Read not applicable but what is the action with write?
 CFG_ACTION_SAVE = 1  # Save pending changes
 CFG_ACTION_DISABLE = 2  # Disable the effective zone configuration
@@ -129,10 +137,10 @@ zonecfg_conversion_tbl = {
         CFG_ACTION_CLEAR: 'Clear the entire zone database',
         CFG_ACTION_CLEAR_PEND: 'Clear pending changes',
     },
-    'zone-type': {  # zone-type-type
-        0: 'zone',
-        1: 'user-created-peer-zone',
-        2: 'target-created-peer-zone'
+    'zone-type': {  # zone-type-type. Depracated. New in 9.1: zone-type-string
+        ZONE_STANDARD_ZONE: 'zone',
+        ZONE_USER_PEER: 'user-created-peer-zone',
+        ZONE_TARGET_PEER: 'target-created-peer-zone'
     },
 
 }
@@ -144,14 +152,17 @@ zonecfg_conversion_tbl = {
 # There are no zone flags returned from the Rest API. These only get set if brcddb_fabric.zone_analysis() is called
 zone_flag_effective = 0b1  # This is the effective zone object
 
-ZONE_STANDARD_ZONE = 0
-ZONE_USER_PEER = 1
-ZONE_TARGET_PEER = 2
+# Convert FOS API zone type to human readable text
 zone_conversion_tbl = {
     'zone-type': {
         ZONE_STANDARD_ZONE: 'Standard',
         ZONE_USER_PEER: 'User defined peer',
         ZONE_TARGET_PEER: 'Target driven peer',
+    },
+    'zone-type-string': {
+        'zone': 'Standard',
+        'user-created-peer-zone': 'User defined peer',
+        'target-created-peer-zone': 'Target driven peer',
     },
 }
 

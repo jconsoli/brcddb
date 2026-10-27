@@ -72,17 +72,20 @@ Support for project level operations.
 | 4.0.9     | 01 Aug 2026   | Modified to use new brcddb_switch.best_switch_name() format. Removed obsolete         |
 |           |               | fab_obj_for_fid().                                                                    |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.0     | 26 Oct 2026   | read_from(): return a standard FOS error if an error is encountered.                  |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '01 Aug 2026'
+__date__ = '26 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.9'
+__version__ = '4.1.0'
 
 import brcdapi.log as brcdapi_log
+import brcdapi.fos_auth as fos_auth
 import brcdapi.file as brcdapi_file
 import brcdapi.gen_util as gen_util
 import brcdapi.util as brcdapi_util
@@ -159,33 +162,59 @@ def read_from(inf):
 
     :param inf: Input file name written with brcdapi_file.write_dump()
     :type inf: str
-    :return: Project object. None if an error was encountered.
-    :rtype: None, brcddb.classes.project.ProjectObj
+    :return: Project object. Standard FOS error if an error was encountered.
+    :rtype: dict, brcddb.classes.project.ProjectObj
     """
+    error_msg = 'Unknown'
+
     if not isinstance(inf, str):
-        brcdapi_log.exception('Input file name must be type str. Got ' + str(type(inf)) + ' instead.', echo=True)
+        buf_l = ['Input file name must be type str. Got ' + str(type(inf)) + ' instead.']
+        brcdapi_log.exception(buf_l)
+        buf_l.insert(0, 'Search the log for "EXCEPTION" for additional details.')
+        return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST, 'Invalid file name', buf_l)
 
     # Read the project file.
     obj = brcdapi_file.read_dump(inf)
-    if obj is None:
-        return None
+    if fos_auth.is_error(obj):
+        return obj
 
     # Validate the file
-    proj_key = obj.get('_obj_key')
-    proj_date = obj.get('_date')
+    proj_key, proj_date = obj.get('_obj_key'), obj.get('_date')
     if not isinstance(obj, dict) or not isinstance(proj_key, str) or not isinstance(proj_date, str):
-        brcdapi_log.log(inf + ' is not a valid project file.', echo=True)
-        return None
+        buf_l = [
+            'Input file: ' + str(inf),
+            'obj type: ' + str(type(obj)),
+            'proj_key type: ' + str(type(proj_key)),
+            'proj_date type: ' + str(type(proj_date)),
+        ]
+        brcdapi_log.exception(buf_l)
+        buf_l.insert(0, 'Search the log for "EXCEPTION" for additional details.')
+        return fos_auth.create_error(brcdapi_util.HTTP_BAD_REQUEST, 'Invalid project file.', buf_l)
 
     # Make sure there is a valid project key, make the copy, and return.
     try:
         proj_obj = new(proj_key.replace(' ', '_').replace(':', '').replace('-', '_')[:32], obj.get('_date'))
-        brcddb_copy.plain_copy_to_brcddb(obj, proj_obj)
-        return proj_obj
+        if brcddb_copy.plain_copy_to_brcddb(obj, proj_obj) != brcddb_common.EXIT_STATUS_OK:
+            buf_l = [
+                'Input file: ' + inf,
+                'This error is typically accompanied with "EXCPTION:" messages.',
+                'The input file is either corrupted or not a project file.'
+            ]
+            return fos_auth.create_error(
+                brcdapi_util.HTTP_REQUEST_CONFLICT,
+                'Failed to convert JSON file to Python data structure.',
+                ['Input file: ' + inf, 'This error is typically accompanied with "EXCPTION:" messages.']
+            )
+        else:
+            return proj_obj
     except BaseException as e:
-        brcdapi_log.exception(['Programming error encountered.', str(type(e)) + ': ' + str(e)], echo=True)
+        error_msg = str(e)
 
-    return None
+    buf_l = ['Programming error encountered.', error_msg]
+    brcdapi_log.exception(buf_l)
+    buf_l.insert(0, 'Search the log for "EXCEPTION" for additional details.')
+
+    return fos_auth.create_error(brcdapi_util.HTTP_INT_SERVER_ERROR, 'Programming error', buf_l)
 
 
 def build_xref(proj_obj):
@@ -203,9 +232,9 @@ def build_xref(proj_obj):
         return True
     except BaseException as e:
         proj_obj.s_error_flag()
-        buf = 'Unknown error interpreting project file. This typically occurs when it is not a valid JSON formatted '
-        buf += 'file. Error message is:'
-        brcdapi_log.log([buf, str(type(e)) + ': ' + str(e)], echo=True)
+        buf = 'Unknown error interpreting project file. This typically occurs when the input file is not a valid JSON '
+        buf += 'formatted file. Error message is:'
+        brcdapi_log.exception([buf, str(e)], echo=True)
 
     return False
 
@@ -412,7 +441,9 @@ def scan(proj_obj, fab_only=False, logical_switch=False):
              '---------------------------',
              '*See "By Fabric" section for SCC policy and zone configurations']
         )
+        i = 0
         for chassis_obj in proj_obj.r_chassis_objects():
+            i += 1
             rl.extend(['Chassis: ' + brcddb_chassis.best_chassis_name(chassis_obj, wwn=True), ''])
             for switch_obj in chassis_obj.r_switch_objects():
                 switch_name = brcddb_switch.best_switch_name(switch_obj, did=True, did_hex=True, wwn=True, fid=True)
@@ -434,10 +465,16 @@ def scan(proj_obj, fab_only=False, logical_switch=False):
                     zonecfg_l.append('      None')
                 rl.extend(zonecfg_l)
                 rl.append('')
+        if i == 0:
+            rl.append('  No chassis found')
 
     # By fabric
     rl.extend(['', 'By Fabric', '---------------------------'])
+    i = 0
     for fab_obj in proj_obj.r_fabric_objects():
+        i += 1
         rl.extend(_scan_fabric(fab_obj, logical_switch=logical_switch))
+    if i == 0:
+        rl.append('  No fabrics found')
 
     return rl
