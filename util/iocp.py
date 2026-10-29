@@ -89,15 +89,17 @@ is functional.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.8     | 26 Oct 2026   | Fixed case where the IOCP file does not contain '_'.                                  |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.9     | 29 Oct 2026   | Removed debug code.                                                                   |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '26 Oct 2026'
+__date__ = '29 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.8'
+__version__ = '4.0.9'
 
 import collections
 import brcdapi.log as brcdapi_log
@@ -849,11 +851,6 @@ def find_chpid(obj, sn, tag):
     full_sn = full_cpc_sn(sn)
     for port_obj in obj.r_port_objects():
         rnid_d = port_obj.r_get('rnid')
-
-        # Debug
-        if isinstance(rnid_d, dict):
-            print('TP_100')
-
         if isinstance(rnid_d, dict) and rnid_d.get('sequence-number', 'x') == full_sn:
             if tag.replace('0x', '') == rnid_d.get('tag', 'x').replace('0x', ''):
                 return port_obj
