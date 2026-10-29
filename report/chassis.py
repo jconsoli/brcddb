@@ -53,15 +53,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.1.0     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.1     | 01 Aug 2026   | Modified to use new brcddb_switch.best_switch_name() format.                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '01 Aug 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.1.0'
+__version__ = '4.1.1'
 
 import collections
 import copy
@@ -305,7 +307,7 @@ def _insert_port(chassis_obj, port_obj, span):
     comment_l = [
         'Port:   ' + brcddb_port.best_port_name(port_obj, port_num=True),
         'Status: ' + status,
-        'Switch: ' + brcddb_switch.best_switch_name(port_obj.r_switch_obj(), fid=True),
+        'Switch: ' + brcddb_switch.best_switch_name(port_obj, fid=True),
     ]
     rnid_d = port_obj.r_get('rnid')
     if isinstance(rnid_d, dict):
@@ -455,7 +457,7 @@ def _logical_switches(chassis_obj, col_d):
 
     rl = list()
     for switch_obj in chassis_obj.r_switch_objects():
-        buf = brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True, fid=True)
+        buf = brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True, did_hex=True, fid=True)
         rl.append([dict(
             buf=buf,
             font=_link_font,

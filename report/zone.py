@@ -61,15 +61,19 @@ Creates zone database pages to be added to an Excel Workbook
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.1.0     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.1     | 01 Aug 2026   | Modified to use new brcddb_switch.best_switch_name() format.                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.2     | 29 Oct 2026   | Fixed issue in zone_clean_page() when the data capture is incomplete.                 |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '29 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.1.0'
+__version__ = '4.1.2'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -195,7 +199,7 @@ def _mem_member_wwn_case(obj, mem, wwn, port_obj, obj_l=None):
 
 
 def _mem_switch_case(obj, mem, wwn, port_obj, obj_l=None):
-    return '' if port_obj is None else brcddb_switch.best_switch_name(port_obj.r_switch_obj())
+    return '' if port_obj is None else brcddb_switch.best_switch_name(port_obj)
 
 
 def _mem_port_case(obj, mem, wwn, port_obj, obj_l=None):
@@ -287,7 +291,7 @@ def _group_login_switch_case(obj, mem, wwn, port_obj, obj_l=None):
     if obj is not None:
         switch_obj = obj.r_switch_obj()
         if switch_obj is not None:
-            buf = brcddb_switch.best_switch_name(obj.r_switch_obj())
+            buf = brcddb_switch.best_switch_name(obj)
             link = switch_obj.r_get('report_app/hyperlink/switch')
     return buf, link
 
@@ -587,7 +591,8 @@ def zone_clean_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
         if len(obj_convert.obj_extract(zone_obj, 'ZoneCfgObj')) == 0:
             zone = zone_obj.r_obj_key()
             del_zone_l.append(zone)
-            for mem in zone_obj.r_members() + zone_obj.r_pmembers():
+            for mem in [m for m in zone_obj.r_members() + zone_obj.r_pmembers() if \
+                        not gen_util.is_di(m) and not gen_util.is_wwn(m)]:
                 zone_l = alias_d.get(mem)
                 if zone_l is None:
                     zone_l = list()
@@ -607,9 +612,14 @@ def zone_clean_page(fab_obj, tc, wb, sheet_name, sheet_i, sheet_title):
     ])
     for alias, zone_l in alias_d.items():
         alias_obj = fab_obj_copy.r_alias_obj(alias)
-        if len(obj_convert.obj_extract(alias_obj, 'ZoneObj')) == 0:
-            buf = ', '.join(alias_obj.r_members()) + ' Was used in: ' + ', '.join(zone_l)
-            content_l.append(dict(Zone_Object='alias', Action='delete', Name=alias, Comments=buf))
+        if alias_obj is None:
+            buf = 'Fabric: ' + brcddb_fabric.best_fab_name(fab_obj, wwn=True) + 'Alias: ' + alias
+            buf += ' Alias definition not found. This typically occurs with incomplete data captures.'
+            content_l.append(dict(Zone_Object='comment', Action='delete', Name=alias, Comments=buf))
+        else:
+            if len(obj_convert.obj_extract(alias_obj, 'ZoneObj')) == 0:
+                buf = ', '.join(alias_obj.r_members()) + ' Was used in: ' + ', '.join(zone_l)
+                content_l.append(dict(Zone_Object='alias', Action='delete', Name=alias, Comments=buf))
 
     # Insert the worksheet
     brcddb_zone.add_zone_worksheet(wb, sheet_name, content_l, sheet_i)
@@ -646,7 +656,7 @@ def _alias_mem_member_case(obj, mem):
 
 def _alias_mem_switch_case(obj, mem):
     try:
-        return brcddb_switch.best_switch_name(obj.r_fabric_obj().r_login_obj(mem).r_switch_obj(), False)
+        return brcddb_switch.best_switch_name(obj.r_fabric_obj().r_login_obj(mem))
     except AttributeError:
         return ''
 
@@ -816,7 +826,7 @@ def _tzone_zone_case(wwn, obj, obj2, zone_l, zone_d):
 
 
 def _tzone_switch_case(wwn, obj, obj2, zone_l, zone_d):
-    return wwn if obj is None else brcddb_switch.best_switch_name(obj.r_switch_obj())
+    return wwn if obj is None else brcddb_switch.best_switch_name(obj)
 
 
 def _tzone_port_case(wwn, obj, obj2, zone_l, zone_d):
@@ -1274,7 +1284,7 @@ def group_zone_page(proj_obj, tc, wb, sheet_name, sheet_i, sheet_title):
                 'S/N:   ' + rnid_d.get('sequence-number', ''),
                 'Tag:   ' + rnid_d.get('tag', ''),
                 'Type:  ' + brcddb_iocp.dev_type_desc(rnid_d.get('type-number')),
-                'First found port: ' + brcddb_switch.best_switch_name(port_obj.r_switch_obj()) + port_obj.r_obj_key()
+                'First found port: ' + brcddb_switch.best_switch_name(port_obj) + port_obj.r_obj_key()
             ]
             buf = ', '.join(buf_l)
             excel_util.cell_update(sheet, row, col, buf, font=_std_font, border=_border_thin, align=_align_wrap)

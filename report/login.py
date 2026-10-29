@@ -41,15 +41,17 @@ Includes methods to create device login page
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 01 Aug 2026   | Modified to use new brcddb_switch.best_switch_name() format.                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '01 Aug 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import openpyxl.utils.cell as xl
 import brcdapi.log as brcdapi_log
@@ -98,11 +100,11 @@ def _login_flag(login_obj, k):
 
 
 def _l_switch_name_case(login_obj):
-    return brcddb_switch.best_switch_name(login_obj.r_switch_obj(), False)
+    return brcddb_switch.best_switch_name(login_obj)
 
 
 def _l_switch_name_and_wwn_case(login_obj):
-    return brcddb_switch.best_switch_name(login_obj.r_switch_obj(), True)
+    return brcddb_switch.best_switch_name(login_obj, wwn=True)
 
 
 def _l_switch_wwn_case(login_obj):

@@ -45,15 +45,19 @@ Contains functions to create port page and performance dashboard Excel worksheet
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 20 Feb 2026   | Added port_stats()                                                                    |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 01 Aug 2026   | Modified to use new brcddb_switch.best_switch_name() format.                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 29 Oct 2026   | Fixed buf in port_page() when in_port_display_tbl is None.                            |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '29 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.8'
 
 import datetime
 import collections
@@ -86,7 +90,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
 
     :param wb: Workbook object
     :type wb: class
-    :param tc: Table of context page. A link to this page is place in cell A1
+    :param tc: Table of context page. If not None, a link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
@@ -155,7 +159,7 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
             col = 1
             temp_l = [port_obj.r_get(brcdapi_util.stats_uri + '/' + statistic),
                       brcddb_fabric.best_fab_name(port_obj.r_switch_obj().r_fabric_obj()),
-                      brcddb_switch.best_switch_name(port_obj.r_switch_obj())]
+                      brcddb_switch.best_switch_name(port_obj)]
             for buf in temp_l:
                 excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
                 col += 1
@@ -182,11 +186,11 @@ def performance_dashboard(wb, tc, sheet_name, sheet_i, sheet_title, content):
 
 
 def _p_switch_name_case(port_obj, k, wwn):
-    return brcddb_switch.best_switch_name(port_obj.r_switch_obj(), False)
+    return brcddb_switch.best_switch_name(port_obj)
 
 
 def _p_switch_name_and_wwn_case(port_obj, k, wwn):
-    return brcddb_switch.best_switch_name(port_obj.r_switch_obj(), True)
+    return brcddb_switch.best_switch_name(port_obj, wwn=True)
 
 
 def _p_switch_wwn_case(port_obj, k, wwn):
@@ -202,9 +206,7 @@ def _p_port_desc_case(port_obj, k, wwn):
 
 
 def _p_switch_link_case(port_obj, k, wwn):
-    switch_obj = port_obj.r_switch_obj()
-    # return brcddb_switch.best_switch_name(port_obj.r_switch_obj()), None
-    return brcddb_switch.best_switch_name(switch_obj), switch_obj.r_get('report_app/hyperlink/switch')
+    return brcddb_switch.best_switch_name(port_obj), port_obj.r_switch_obj().r_get('report_app/hyperlink/switch')
 
 
 def _p_port_config_link_case(port_obj, k, wwn):
@@ -330,6 +332,11 @@ def _p_media_rspeed_case(port_obj, k, wwn):
         return None
 
 
+def _p_enabled_state_case(port_obj, k, wwn):
+    return 'Enabled' if port_obj.r_is_enabled() else 'Persistent Disabled' if port_obj.r_is_persistent_disable() \
+        else 'Disabled'
+
+
 def _p_operational_status_case(port_obj, k, wwn):
     return port_obj.r_status()
 
@@ -354,6 +361,7 @@ _port_case = {
     'media-rdp/media-distance': _p_media_distance_case,
     'media-rdp/media-speed-capability': _p_media_speed_case,
     'media-rdp/remote-media-speed-capability': _p_media_rspeed_case,
+    brcdapi_util.fc_enabled: _p_enabled_state_case,
     brcdapi_util.fc_op_status_str: _p_operational_status_case,
     brcdapi_util.fc_port_type_str: _p_port_type_case,
     'fibrechannel/speed': _p_port_speed_case,
@@ -386,7 +394,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
 
     :param wb: Workbook object
     :type wb: class
-    :param tc: I don't think this is used anymore but if present, it will take precedence over what in the port object
+    :param tc: Table of context page. If not None, a link to this page is place in cell A1
     :type tc: str, None
     :param sheet_name: Sheet (tab) name
     :type sheet_name: str
@@ -398,7 +406,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
     :type p_list: list, tuple
     :param in_display: Parameters to display. If None, default is brcddb.app_data.report_tables.port_config_tbl
     :type in_display: None, list, tuple
-    :param in_port_display_tbl: Display control table. If None, default is brcddb.report.report_tables.port_display_tbl
+    :param in_port_display_tbl: Display control table. If None, default is brcddb.report.report_tables.port_display_d
     :type in_port_display_tbl: dict, None
     :param login_flag: When True, include NPIV logins below the base port.
     :type login_flag: bool
@@ -425,7 +433,7 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
         brcdapi_log.exception(err_msg, echo=True)
         return None
     display = rt.Port.port_config_tbl if in_display is None else in_display
-    port_display_tbl = rt.Port.port_display_tbl if in_port_display_tbl is None else in_port_display_tbl
+    port_display_d = rt.Port.port_display_tbl if in_port_display_tbl is None else in_port_display_tbl
 
     # Create the worksheet
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
@@ -441,16 +449,16 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
     sheet.freeze_panes = sheet['A3']
     row, col = row+1, 1
     for k in display:
-        if k in port_display_tbl:
-            if 'dc' in port_display_tbl[k] and port_display_tbl[k]['dc'] is True:
+        if k in port_display_d:
+            if 'dc' in port_display_d[k] and port_display_d[k]['dc'] is True:
                 continue
-            col_width = port_display_tbl[k].get('c')
+            col_width = port_display_d[k].get('c')
             if isinstance(col_width, int):
                 sheet.column_dimensions[xl.get_column_letter(col)].width = col_width
-            buf = port_display_tbl[k]['d'] if port_display_tbl[k].get('d', False) else k
-            alignment = _align_wrap_vc if port_display_tbl[k].get('v', False) else _align_wrap
+            buf = port_display_d[k]['d'] if port_display_d[k].get('d', False) else k
+            alignment = _align_wrap_vc if port_display_d[k].get('v', False) else _align_wrap
         else:
-            brcdapi_log.exception('Item ' + k + ' not in port_display_tbl.', echo=True)
+            brcdapi_log.exception('Item ' + k + ' not in port_display_d.', echo=True)
             alignment = _align_wrap
             buf = k
         excel_util.cell_update(sheet, row, col, buf, font=_bold_font, align=alignment, border=_border_thin)
@@ -474,20 +482,25 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
         lwwn = None if len(login) == 0 else login[0]
         calc_font = report_utils.font_type(report_utils.combined_alert_objects(port_obj, lwwn))
         for k in display:
-            if k in port_display_tbl and 'dc' in port_display_tbl[k] and port_display_tbl[k]['dc'] is True:
+
+            # Does this port item get displayed?
+            port_display_k_d = port_display_d.get(k)
+            if not isinstance(port_display_k_d, dict) or port_display_k_d.get('dc', False):
                 continue
+
+            # Figure out how to display the data and update the worksheet
             if len(login) > 1:
                 addl_row.update({k: col})
-            alignment = _align_wrap_c if k in port_display_tbl and port_display_tbl[k].get('m', False) else _align_wrap
+            alignment = _align_wrap_c if port_display_k_d.get('m', False) else _align_wrap
             link = None
+            font = calc_font
             if k in _port_case:
-                font = calc_font
                 buf = _port_case[k](port_obj, k, lwwn)
             elif k in _port_link_case:
                 buf, link = _port_link_case[k](port_obj, k, lwwn)
-                font = calc_font if link is None else _link_font
-            elif k in port_display_tbl:
-                font = calc_font
+                if link is not None:
+                    font = _link_font
+            else:
                 v = port_obj.r_get(k)
                 if v is None:
                     v1 = ''
@@ -500,9 +513,6 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
                     buf = '\u221A' if v1 else ''
                 else:
                     buf = v1
-            else:
-                font = _std_font
-                buf = '' if port_obj.r_get(k) is None else str(port_obj.r_get(k))
             excel_util.cell_update(sheet, row, col, buf, font=font, align=alignment, border=_border_thin, link=link)
 
             col += 1
@@ -524,8 +534,16 @@ def port_page(wb, tc, sheet_name, sheet_i, sheet_title, p_list, in_display=None,
                                 else _port_case[k1](port_obj, k1, login[i])
                         else:
                             buf = port_obj.r_fabric_obj().r_get(k1)
-                    excel_util.cell_update(sheet, row, col, '' if buf is None else buf, font=font, align=_align_wrap,
-                                           border=_border_thin, link=link)
+                    excel_util.cell_update(
+                        sheet,
+                        row,
+                        col,
+                        '' if buf is None else buf,
+                        font=font,
+                        align=_align_wrap,
+                        border=_border_thin,
+                        link=link
+                    )
                 row += 1
 
     return sheet
@@ -589,7 +607,7 @@ def port_stats(wb, tc_page, sname, title, sheet_i, stats_l, time_format=None, su
     # Set up the column widths and add the title
     row, col = 1, 1
     for key in hdr_l:
-        sheet.column_dimensions[xl.get_column_letter(col)].width = rt.Port.port_display_tbl.get(key, dict(c=12))['c']
+        sheet.column_dimensions[xl.get_column_letter(col)].width = rt.Port.port_display_d.get(key, dict(c=12))['c']
         cell_map_d['col'][key.replace('fibrechannel-statistics/', '')] = col
         col += 1
     col = 1
@@ -606,10 +624,10 @@ def port_stats(wb, tc_page, sname, title, sheet_i, stats_l, time_format=None, su
             sheet,
             row,
             col,
-            rt.Port.port_display_tbl.get(key, dict(d=key))['d'],
+            rt.Port.port_display_d.get(key, dict(d=key))['d'],
             font=_bold_font,
             border=_border_thin,
-            align=_align_wrap_vc if rt.Port.port_display_tbl.get(key, dict()).get('v', False) else _align_wrap
+            align=_align_wrap_vc if rt.Port.port_display_d.get(key, dict()).get('v', False) else _align_wrap
         )
         col += 1
     sheet.freeze_panes = sheet['A3']

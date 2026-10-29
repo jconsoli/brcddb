@@ -32,8 +32,8 @@ These key/value pairs are used by add_contents() to determine what and how to ad
 +-----------+-----------------------+-------------------------------------------------------------------------------+
 | Key       | Type                  | Description                                                                   |
 +===========+=======================+===============================================================================+
-| a         | Function pointer      | Allows you to insert a column data from a function rather than a dictionary   |
-|           |                       | or hard coded values.                                                         |
+| a         | Function pointer      | Allows you to insert column data from a function rather than a dictionary or  |
+|           |                       | hard coded values.                                                            |
 +-----------+-----------------------+-------------------------------------------------------------------------------+
 | align     | xl_styles.Alignment,  | One of the align types from brcdapi.excel_util. The default is _align_wrap.   |
 |           | None                  | If explicitly set to None, the alignment for the cell is not set. In that     |
@@ -100,6 +100,8 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-------------------------------+-----------------------------------------------------------------------------------+
 | Method                        | Description                                                                       |
 +===============================+===================================================================================+
+| aboug_page                    | Inserts a standard "About" page in a workbook.                                    |
++-------------------------------+-----------------------------------------------------------------------------------+
 | add_content_defaults          | Adds the default values for font, align, and border to a list of contents for     |
 |                               | add_contents().                                                                   |
 +-------------------------------+-----------------------------------------------------------------------------------+
@@ -147,7 +149,7 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-------------------------------+-----------------------------------------------------------------------------------+
 | parse_sfp_file                | Parses Excel file with the new SFP rules. See sfp_rules_rx.xlsx                   |
 +-------------------------------+-----------------------------------------------------------------------------------+
-| parse_switch_file             | Parses Excel switch configuration Workbook.                                       |
+| parse_switch_file             | Parses Excel switch configuration Workbook used with switvch_config.py.           |
 +-------------------------------+-----------------------------------------------------------------------------------+
 | port_statistics               | Adds port statistics for the worksheet.                                           |
 +-------------------------------+-----------------------------------------------------------------------------------+
@@ -200,23 +202,29 @@ data was also added for fabrics with future plans to add port highlighting to th
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.1.2     | 10 Mar 2026   | Added more error checking and more user friendly error messages.                      |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.3     | 01 Aug 2026   | Added start/end and CLI commands for switch and chassis.                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.4     | 26 Oct 2026   | Added ability to process 'rh', row_height, in contents_l passed to add_contents()     |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.5     | 29 Oct 2026   | Somehow, import brcddb.util.iocp was removed. It's back.                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '10 Mar 2026'
+__date__ = '29 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.1.2'
+__version__ = '4.1.5'
 
 import collections
 import copy
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.formatting import Rule
 from openpyxl.styles.differential import DifferentialStyle
-import brcdapi.util as brcdapi_util
 import openpyxl.utils.cell as xl_util
+import brcdapi.util as brcdapi_util
 import fnmatch
 import brcdapi.log as brcdapi_log
 import brcdapi.gen_util as gen_util
@@ -228,6 +236,7 @@ import brcddb.brcddb_port as brcddb_port
 import brcddb.brcddb_fabric as brcddb_fabric
 import brcddb.brcddb_login as brcddb_login
 import brcddb.util.search as brcddb_search
+import brcddb.util.iocp as brcddb_iocp
 import brcddb.app_data.alert_tables as al_table
 import brcddb.app_data.report_tables as rt
 import brcddb.classes.alert as alert_class
@@ -236,7 +245,7 @@ import brcddb.brcddb_chassis as brcddb_chassis
 import brcddb.brcddb_switch as brcddb_switch
 import brcddb.report.zone as zone_report
 
-default_stats = 999999999
+default_stats = 999999999999999
 highlight_stats_dv = DataValidation(type='whole',
                                     operator='between',
                                     formula1=0,
@@ -246,7 +255,6 @@ highlight_stats_dv.errorTitle = 'Invalid Entry'
 highlight_stats_dv.error = 'Value must be an integer between 0 and ' + str(default_stats)
 highlight_stats_dv.showErrorMessage = True
 
-_MAX_FICON_PORT_NAME = 24
 _apt_policy_d = dict(EBR='exchange-based', DBR='device-based')
 
 # Below is for efficiency
@@ -313,6 +321,101 @@ _about_sheet_l = (
            'software described herein, neither does it convey any license under its patent rights nor the rights of '
            'others.'),
 )
+
+_enable_disable_d = {'Enable': 'enable', 'Disable': 'disable','Persistent Disable': 'persistent_disable'}
+_yes_no_d = dict(Yes=True, No=False)
+_reserve_d = dict(Reserve='reserve',Release='release')
+
+
+def _cli_to_list(cli):
+    """Converts CLI to a list.
+
+    :param cli: CLI string from workbook
+    :type cli: str, None
+    :return: List of CLI commands
+    :rtype: list
+    """
+
+    return [b for b in cli.replace('\r\n', '\n').split('\n') if len(b) > 0]
+
+"""
+Dictionary definitions for _conv_parameters(). Used in _parse_chassis_switch_sheet() and _parse_slot_sheet() to
+determine how to process worksheet entries.
+
++-------+-----------------------------------------------------------------------------------------------+
+| Key   | Description                                                                                   |
++=======+===============================================================================================+
+| k     | Key used in the dictionaries returned from _parse_slot_sheet(). IDK why I didn't just use the |
+|       | same key as is used in the API. That would have saved the trouble of needing a look up table, |
+|       | _switch_d_to_api, in switch_config.py but I'm not changing working code.                      |
++-------+-----------------------------------------------------------------------------------------------+
+| h     | If True, treat the cell value as a hex number and convert to a decimal int                    |
++-------+-----------------------------------------------------------------------------------------------+
+| i     | If True, convert the cell value to an int.                                                    |
++-------+-----------------------------------------------------------------------------------------------+
+| s     | If True, convert the cell value to a str                                                      |
++-------+-----------------------------------------------------------------------------------------------+
+| slot  | If True, prepend the slot number + '/' to the value. Used to convert ports to s/p notation    |
++-------+-----------------------------------------------------------------------------------------------+
+| p     | Fixed value length. "0"s are prepended to make the value this length. Used for creating FC    |
+|       | addresses and link addresses.                                                                 | 
++-------+-----------------------------------------------------------------------------------------------+
+| conv  | Pointer to the dictionary to convert cell context to a True/False boolean.                    |
++-------+-----------------------------------------------------------------------------------------------+
+"""
+_conv_parameters_d = {  # See table above
+    # Common to all worksheets
+    'CLI': dict(k='cli', h=False, i=False, s=True, slot=False, p=0, conv=_cli_to_list),
+    # Common to "Chassis" and "Switch_x" Worksheets
+    'Enable/Disable': dict(k='enable', h=False, i=False, s=False, slot=False, p=0, conv=_enable_disable_d),
+    # Common to "Switch_x" and "Slot x" worksheets
+    'Port Name': dict(k='port_name', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    # "Chassis" Worksheet
+    'Chassis Name': dict(k='chassis_name', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'FCR': dict(k='fcr', h=False, i=False, s=False, slot=False, p=0, conv=_enable_disable_d),
+    'Message Of The Day': dict(k='msg_of_day', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Shell Timeout': dict(k='shell_to', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Session Timeout': dict(k='session_to', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'TCP Timeout Level': dict(k='tcp_to', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Max REST Sessions': dict(k='max_rest', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Web Tools': dict(k='web_tools', h=False, i=False, s=False, slot=False, p=0, conv=_enable_disable_d),
+    'Configure Switches': dict(k='config_switches', h=False, i=False, s=False, slot=False, p=0, conv=_yes_no_d),
+    # "Switch_x" Worksheets
+    'Fabric ID (FID)': dict(k='fid', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Fabric Name': dict(k='fab_name', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Switch Name': dict(k='switch_name', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Domain ID (DID)': dict(k='did', h=True, i=False, s=False, slot=False, p=0, conv=None),
+    'Insistent DID': dict(k='insistent_did', h=False, i=False, s=False, slot=False, p=0, conv=_yes_no_d),
+    'Fabric Principal': dict(k='fab_principal', h=False, i=False, s=False, slot=False, p=0, conv=_yes_no_d),
+    'Fabric Principal Priority': dict(k='fab_priority', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Allow XISL': dict(k='xisl', h=False, i=False, s=False, slot=False, p=0, conv=_yes_no_d),
+    'Login Banner': dict(k='login_banner', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Switch Type': dict(k='switch_type', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Duplicate WWN': dict(k='dup_wwn', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Bind': dict(k='bind', h=False, i=False, s=False, slot=False, p=0, conv=_yes_no_d),
+    'Routing Policy': dict(k='routing_policy', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Port Name Format': dict(k='port_name_format', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Configure Ports': dict(k='config_ports', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Enable CUP': dict(k='cup', h=False, i=False, s=False, slot=False, p=0, conv=_yes_no_d),
+    'SCC': dict(k='scc', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'FICON Zone': dict(k='ficon_zone', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    # FICON Zone
+    # Ports, "Slot x" worksheets
+    'Port': dict(k='port', h=False, i=False, s=True, slot=True, p=0, conv=None),
+    'DID (Hex)': dict(k='did', h=True, i=False, s=True, slot=False, p=0, conv=None),
+    'Port Addr (Hex)': dict(k='port_addr', h=False, i=False, s=True, slot=False, p=2, conv=None),
+    'Index': dict(k='index', h=False, i=True, s=True, slot=False, p=0, conv=None),
+    'Link Addr': dict(k='link_addr', h=False, i=False, s=True, slot=False, p=4, conv=None),
+    'FID': dict(k='fid', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Start Enable': dict(k='start_enable', h=False, i=False, s=False, slot=False, p=0, conv=_enable_disable_d),
+    'End Enable': dict(k='end_enable', h=False, i=False, s=False, slot=False, p=0, conv=_enable_disable_d),
+    'Reserve': dict(k='reserve', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Attached Device': dict(k='desc', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'ICL Description': dict(k='desc', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Low Qos VC': dict(k='low_vc', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'Med Qos VC': dict(k='med_vc', h=False, i=False, s=False, slot=False, p=0, conv=None),
+    'High Qos VC': dict(k='high_vc', h=False, i=False, s=False, slot=False, p=0, conv=None),
+}
 
 
 class Found(Exception):
@@ -786,335 +889,144 @@ def find_headers(hdr_row_l, hdr_l=None, warn=False):
     return excel_util.find_headers(hdr_row_l, hdr_l=hdr_l, warn=warn)
 
 
-def _parse_chassis_sheet(sheet_d):
-    """Parses the "Chassis" worksheet from a switch configuration workbook into a dictionary. The key is the KPI. The
-    value is the content.
+def _convert_parameters(area, parameter):
+    """Converts worksheet cell values to machine-readable values.
+    
+    :param area: Used as key into _conv_parameters
+    :type area: str
+    :param parameter: Parameter to convert
+    :type parameter: None, str, int
+    :return error_l: List of errors messages
+    :rtype: list
+    :return return_key: Machine readable key for the area
+    :rtype return_key: str
+    :return return_v: parameter converted to a machine-readable format.
+    :rtype return_v: None, str, int, list
+    """
+    global _conv_parameters_d
+
+    # Initialize return values and conversion table
+    error_l = list()
+    return_key = None
+    return_v = None if isinstance(parameter, str) and len(parameter.replace(' ', '')) == 0 else parameter
+    control_d = _conv_parameters_d.get(area) if isinstance(area, str) else None
+    if not isinstance(control_d, dict):
+        return error_l, return_key, return_v  # I'm assuming the user added stuff to the workbook for documentation
+    return_key = control_d.get('k')
+    if not isinstance(return_key, str):
+        return error_l, return_key, return_v  # I'm assuming the user added stuff to the workbook for documentation
+    if return_v is None:
+        return error_l, return_key, return_v
+
+    # Modify return value
+    if control_d['s']:
+        return_v = str(return_v)
+    if control_d['h']:
+        temp_v = '0x' + str(return_v) if isinstance(return_v, int) else return_v
+        try:
+            return_v = int(temp_v, 16)
+        except ValueError:
+            error_l.append('Value for ' + k + ', ' + str(return_v) + ', is not a valid hex number.')
+    if control_d['i']:
+        if return_v != 'None':
+            try:
+                return_v = int(return_v)
+            except ValueError:
+                error_l.append('Value for ' + k + ', ' + str(return_v) + ', is not valid in ' + sheet_d['sheet'])
+    if callable (control_d['conv']):
+        return_v = control_d['conv'](return_v)
+    elif isinstance(control_d['conv'], dict):
+        return_v = control_d['conv'].get(return_v, False)
+    if control_d['p'] > 0:
+        return_v = gen_util.pad_string(return_v, control_d['p'], '0')
+
+    return error_l, return_key, return_v
+
+
+def _parse_chassis_switch_sheet(sheet_d):
+    """Parses the "Chassis" and "Switch_x" worksheets from a switch configuration workbook into a dictionary.
+
+    Return dictionaries in return_l
+
+    +-----------+-----------------------+---------------------------------------------------------------------------+
+    | Key       | type                  | Description.                                                              |
+    +===========+=======================+===========================================================================+
+    | key       | str                   | Simplified machine-readable key                                           |
+    +-----------+-----------------------+---------------------------------------------------------------------------+
+    | user_key  | str                   | User friendly key (Area) from worksheet. Used for error reporting.        |
+    +-----------+-----------------------+---------------------------------------------------------------------------+
+    | parameter | str, bool, int, float | Conditioned user entered parameter. See _convert_parameters()             |
+    +-----------+-----------------------+---------------------------------------------------------------------------+
+    | row       | int                   | 0 relative worksheet row number. Used for error reporting.                |
+    +-----------+-----------------------+---------------------------------------------------------------------------+
 
     :param sheet_d: Output from excel_util.read_workbook() for the Chassis worksheet
     :type sheet_d: dict
     :return error_l: Error messages. Empty if no error encountered
     :rtype error_l: list
-    :return: Dictionary for chassis.
-    :rtype: dict
+    :return return_l: List of dictionaries. See function header for details.
+    :rtype return_l: list
+    :return fid: Fabric ID. Only relavant for switch sheets.
+    :rtype fid: int, None
+    :return fid_row: 0 relative row number for FID. Used for error reporting.
+    :rtype fid_row: int
+    :return did: Domain ID. Only relavant for switch sheets.
+    :rtype did: int, None
+    :return did_row: 0 relative row number for FID. Used for error reporting.
+    :rtype did_row: int
     """
-    error_l, rd = list(), dict()
+    error_l, return_l, fid, fid_row, did, did_row = list(), list(), None, 0, None, 0
+
     al = sheet_d['al']
-    if len(al) < 2:
+    if len(al) < 2:  # The sheet is empty
+        return error_l, return_l
+
+    # Find the 'Area' and 'Parameter' columns and do some basic worksheet validation
+    col_d = excel_util.find_headers(al[0], ('Area', 'Parameter'))
+    for k, v in col_d.items():
+        if v is None:
+            error_l.append('Sheet ' + sheet_d['switch_info']['sheet_name'] + ' missing column ' + k)
+    if len(error_l) > 0:
         return error_l, rd
+    area_i, param_i = col_d['Area'], col_d['Parameter']
 
-    # Find the 'Area' and 'Parameter' columns
-    col_d = excel_util.find_headers(al[0], ('Area', 'Parameter'))
-    for k, v in col_d.items():
-        if v is None:
-            error_l.append('Sheet ' + sheet_d['switch_info']['sheet_name'] + ' missing column ' + k)
-    if len(error_l) > 0:
-        return error_l, None
-
-    # Add all the data to the return dictionary
-    area_i, content_d, working_key = col_d['Area'], None, None
+    # Add the dictionary to the return list
     for row in range(1, len(al)):
-        new_key, row_l = False, al[row]
-        for k in ('running', 'operations'):
-            if len(row_l[area_i]) > len(k) and row_l[area_i][0:len(k)] == k:
-                new_key, working_key, content_d = True, row_l[area_i], rd.get(working_key)
-                if content_d is None:
-                    content_d = dict()
-                    rd.update({working_key: content_d})
-                break
-        if new_key:
+
+        # Get the Area and Parameter
+        area, parameter = al[row][area_i], al[row][param_i]
+        if not isinstance(area, str) or parameter is None:
+            continue  # I'm assuming it's a blank row  of empty parameter cell
+        if isinstance(area, str) and len(area) > 0 and area[0] == '#':
             continue
-        if content_d is None:
-            error_l.append('Chassis sheet: Content found before a KPI was defined in row ' + str(row+1))
-            continue
-        val = row_l[col_d['Parameter']]
-        if val is None:
-            continue
-        content_d.update({row_l[area_i]: val})
 
-    return error_l, rd
+        # Add the data to the return list.
+        ml, area_key, return_v = _convert_parameters(area, parameter)
+        error_l.extend(ml)
+        if return_v is not None:
+            if area_key == 'fid':
+                fid, fid_row = return_v, row
+            elif area_key == 'did':
+                did, did_row = return_v, row
+            return_l.append(dict(key=area_key, user_key=area, parameter=return_v, row=row))
 
-
-# Case methods for _switch_d
-def _conv_add(error_l, obj_d, switch_d, val):
-    """Used in _switch_d to add a key/value pair to obj_d
-
-    :param error_l: List of error messages to append error messages to
-    :type error_l: list
-    :param obj_d: Object to update with Rest API key and values
-    :type obj_d: dict
-    :param switch_d: Dictionary in _switch_d
-    :type switch_d: dict
-    :param val: Value from the configuration workbook to add to key
-    :type val: None, int, float, str
-    :rtype: None
-    """
-    add_val = switch_d['d'] if val is None else val
-    if add_val is not None:
-        gen_util.add_to_obj(obj_d, switch_d['k'], add_val)
+    return error_l, return_l, fid, fid_row, did, did_row
 
 
-def _conv_port_name(error_l, obj_d, switch_d, val):
-    """Used in _switch_d to convert hex to decimal int. See _conv_add for parameter definitions"""
-    gen_util.add_to_obj(obj_d, 'switch_info/port_name', val)
-    port_name_mode = switch_d['d'] if not isinstance(val, str) else 'off' if val in ('open -n, ficon -n') else val
-    try:
-        _conv_add(error_l, obj_d, switch_d, port_name_mode)
-    except (ValueError, TypeError):
-        error_l.append('Value for ' + switch_d['k'] + ', ' + str(val) + ', is not a valid hex number.')
-
-
-def _conv_hex(error_l, obj_d, switch_d, val):
-    """Used in _switch_d to convert hex to decimal int. See _conv_add for parameter definitions"""
-    try:
-        _conv_add(error_l, obj_d, switch_d, int(val.replace('0x', ''), 16))
-    except (ValueError, TypeError):
-        error_l.append('Value for ' + switch_d['k'] + ', ' + str(val) + ', is not a valid hex number.')
-
-
-def _conv_yn_bool(error_l, obj_d, switch_d, val):
-    """Used in _switch_d to convert "yes" or "no" to a bool. See _conv_add for parameter definitions"""
-    add_val = switch_d['d'] if val is None else val
-    if isinstance(add_val, str):
-        add_val = True if add_val.lower() == 'yes' else False
-    try:
-        _conv_add(error_l, obj_d, switch_d, add_val)
-    except AttributeError:
-        error_l.append('Expected type bool or str for ' + switch_d['k'] + '. Received type ' + str(type(val)))
-
-
-def _conv_req_int(error_l, obj_d, switch_d, val):
-    """Used in _switch_d. An int type val is required. See _conv_add for parameter definitions"""
-    add_val = switch_d['d'] if val is None else val
-    if isinstance(add_val, int):
-        _conv_add(error_l, obj_d, switch_d, add_val)
-    else:
-        error_l.append('Expected type int for ' + switch_d['k'] + '. Received type ' + str(type(val)))
-
-
-def _conv_cup(error_l, obj_d, switch_d, val):
-    """Enable CUP. See _conv_add for parameter definitions"""
-    val_bool = True if isinstance(val, str) and val.lower() == 'yes' else False
-    if obj_d['switch_info']['switch_type'] == 'ficon':
-        _conv_add(error_l, obj_d, switch_d, val_bool)
-        if val_bool:
-            gen_util.add_to_obj(obj_d, 'running/brocade-ficon/cup/active-equal-saved-mode', True)
-            # At the time this was written, modifying mihpto was not supported in the API. It was GET only.
-            # gen_util.add_to_obj(obj_d, 'running/brocade-ficon/cup/mihpto', 180)
-    elif val_bool:
-        error_l.append('Enable CUP is only supported on "ficon" switch types. Sheet: ' + '')
-
-
-def _conv_routing_policy(error_l, obj_d, switch_d, val):
-    """Used in _switch_d. To determine the routing policy. See _conv_add for parameter definitions"""
-    global _apt_policy_d
-
-    try:
-        _conv_add(error_l, obj_d, switch_d, _apt_policy_d.get(val))
-    except (TypeError, ValueError):
-        _conv_add(error_l, obj_d, switch_d, 'default')
-
-
-def _conv_allow_xisl(error_l, obj_d, switch_d, val):
-    """Used in _switch_d. Determines if allow XISL should be set. See _conv_add for parameter definitions"""
-    if obj_d['switch_info']['switch_type'] != 'base':
-        _conv_yn_bool(error_l, obj_d, switch_d, val)
-
-
-""" _switch_d is used in _parse_switch_sheet() to determine what should be parsed out of the spreadsheet and how it
-should be interpreted. The key is the value in the cell in the "Area" column. The value is a dict as follows:
-    +-------+-------------------------------------------------------------------------------------------------------+
-    | key   | Description                                                                                           |
-    +=======+=======================================================================================================+
-    | k     | Rest API branch corresponding to "Area" in the switch configuration workbooks. At the time this was   |
-    |       | written, only running branches were included. This is because "operations" branches require special   |
-    |       | handling. There is also a special key "switch_info". Most of the information in switch_info is what   |
-    |       | is passed to the brcdapi.switch.py module which handles "operations" branch and other switch actions  |
-    |       | that require special handling.                                                                        | 
-    +-------+-------------------------------------------------------------------------------------------------------+
-    | d     | The default value to assign in the event the parameter is missing from the spreadsheet                |
-    +-------+-------------------------------------------------------------------------------------------------------+
-    | c     | Pointer to value conversion action.                                                                   |
-    +-------+-------------------------------------------------------------------------------------------------------+
-"""
-_switch_d = {  # See above for definitions. This table is used in _parse_switch_sheet()
-    'Fabric ID (FID)': dict(k='switch_info/fid', d=None, c=_conv_req_int),
-    'Fabric Name': dict(k='running/' + brcdapi_util.bfs_fab_user_name, d=None, c=_conv_add),
-    'Switch Name': dict(k='running/' + brcdapi_util.bfs_sw_user_name, d=None, c=_conv_add),
-    'Domain ID (DID)': dict(k='running/' + brcdapi_util.bfs_did, d=None, c=_conv_hex),
-    'Insistent DID': dict(k='running/' + brcdapi_util.bfc_idid, d=True, c=_conv_yn_bool),
-    'Fabric Principal Enable': dict(k='running/' + brcdapi_util.bfc_principal_en, d=False, c=_conv_yn_bool),
-    'Fabric Principal Priority': dict(k='running/' + brcdapi_util.bfc_principal_pri, d=None, c=_conv_add),
-    'Allow XISL': dict(k='running/' + brcdapi_util.bfc_xisl_en, d=False, c=_conv_allow_xisl),
-    'Enable Switch': dict(k='switch_info/enable_switch', d=False, c=_conv_yn_bool),
-    'Enable Ports': dict(k='switch_info/enable_ports', d=False, c=_conv_yn_bool),
-    'Login Banner': dict(k='running/' + brcdapi_util.bfs_banner, d=None, c=_conv_add),
-    'Switch Type': dict(k='switch_info/switch_type', d=None, c=_conv_add),
-    'Duplicate WWN': dict(k='running/' + brcdapi_util.bfc_fport_enforce_login, d=0, c=_conv_req_int),
-    'Bind': dict(k='switch_info/bind', d=False, c=_conv_yn_bool),
-    'Routing Policy': dict(k='running/' + brcdapi_util.bfs_adv_tuning, d=None, c=_conv_routing_policy),
-    'Port Name': dict(k='running/' + brcdapi_util.bfc_portname_mode, d=None, c=_conv_port_name),
-    'Port Name Format': dict(k='running/' + brcdapi_util.bfc_portname_format, d='S.T.I.A', c=_conv_add),
-    'Enable CUP': dict(k='running/' + brcdapi_util.ficon_cup_en, d=False, c=_conv_cup),
-    'Enable HTTPS Timeout': dict(k='switch_info/TBD', d=True, c=_conv_yn_bool),
-}
-
-
-def _parse_switch_sheet(sheet_d):
-    """Parses a "Switch_x" worksheet from one of the witch configuration worksheets and returns a dictionary of Rest API
-    branch and leaf names. The values are what to send to the switch. Also contains a dictionary whose key is
-
-    +---------------+-------+-------------------------------------------------------------------------------+
-    | Key           | type  | Value Description                                                             |
-    +===============+=======+===============================================================================+
-    | switch_info   | dict  | See switch_info below                                                         |
-    +---------------+-------+-------------------------------------------------------------------------------+
-    | err_msgs      | list  | Although no longer used by this module, the list is created and left empty    |
-    |               |       | because other modules may use it and expect this key to be present.           |
-    +---------------+-------+-------------------------------------------------------------------------------+
-    | port_d        | dict  | Key is port in s/p notation. Value is a dict as read from the Slot x sheets   |
-    +---------------+-------+-------------------------------------------------------------------------------+
-    | running       | dict  | Branch and leaves in Rest API format for the running branch                   |
-    +---------------+-------+-------------------------------------------------------------------------------+
-    | operations    | dict  | Branch and leaves in Rest API format for the operations branch. As of         |
-    |               |       | 29 Dec 2022 there was nothing to put in here so the branch was not present.   |
-    +---------------+-------+-------------------------------------------------------------------------------+
-
-    "switch_info" defined as follows:
-
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | key           | type      | Description                                                                       |
-    +===============+===========+===================================================================================+
-    | bind          | bool      | If True, bind the port addresses.                                                 |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | enable_ports  | bool      | If True, enable the ports when done.                                              |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | enable_switch | bool      | If True, enable the switch when done.                                             |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | fid           | int       | Fabric ID                                                                         |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | sheet_name    | str       | Sheet name from switch configuration workbook                                     |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | switch_type   | str       | base, ficon, or open                                                              |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | port_name     | str       | Port Name from switch configuration workbook                                      |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-
-    :param sheet_d: Output from excel_util.read_workbook() for the Chassis worksheet
-    :type sheet_d: dict
-    :return error_l: List of error messages. Empty if no error encountered
-    :rtype error_l: list
-    :return: Dictionary for switch. None if an error was encountered.
-    :rtype: dict, None
-    """
-    global _switch_d
-
-    # Find the 'Area' and 'Parameter' columns
-    error_l, rd, al = list(), dict(switch_info=dict(), port_d=dict(), err_msgs=list()), sheet_d['al']
-    col_d = excel_util.find_headers(al[0], ('Area', 'Parameter'))
-    for k, v in col_d.items():
-        if v is None:
-            error_l.append('Sheet ' + sheet_d['switch_info']['sheet_name'] + ' missing column ' + k)
-    if len(error_l) > 0:
-        brcdapi_log.log(error_l, echo=True)
-        return None
-
-    # Add and validate all the data from the worksheet and add it to the return dictionary, rd
-    for row_l in al[1:]:  # Opps. I forgot I needed to determine the switch type before checking other parameters
-        if row_l[col_d['Area']] == 'Switch Type':
-            switch_d = _switch_d.get(row_l[col_d['Area']])
-            if isinstance(switch_d, dict):  # error_l, k, val, def_val
-                switch_d['c'](error_l, rd, switch_d, row_l[col_d['Parameter']])
-            break
-    for row_l in al[1:]:
-        switch_d = _switch_d.get(row_l[col_d['Area']])
-        if isinstance(switch_d, dict):  # error_l, k, val, def_val
-            switch_d['c'](error_l, rd, switch_d, row_l[col_d['Parameter']])
-        else:
-            error_l.append('Invalid key "' + row_l[col_d['Area']] + '" sheet: ' + sheet_d['switch_info']['sheet_name'])
-
-    # If it's a ficon switch, in order delivery and DLS needs to be set
-    if rd['switch_info']['switch_type'] == 'ficon':
-        gen_util.add_to_obj(rd, 'running/' + brcdapi_util.bfs_dls, 'two-hop-lossless-dls')
-
-    return error_l, rd
-
-
-"""
-+-------+-----------------------------------------------------------------------------------------------+
-| k     | Key used in the dictionaries returned from _parse_slot_sheet(). IDK why I didn't just use the |
-|       | same key as is used in the API. That would have saved the trouble of needing a look up table, |
-|       | _switch_d_to_api, in switch_config.py but I'm not changing working code.                      |
-+-------+-----------------------------------------------------------------------------------------------+
-| h     | If True, treat the cell value as a hex number and convert to a decimal int                    |
-+-------+-----------------------------------------------------------------------------------------------+
-| i     | If True, convert the cell value to an int.                                                    |
-+-------+-----------------------------------------------------------------------------------------------+
-| s     | If True, convert the cell value to a str                                                      |
-+-------+-----------------------------------------------------------------------------------------------+
-| slot  | If True, prepend the slot number + '/' to the value. Used to convert ports to s/p notation    |
-+-------+-----------------------------------------------------------------------------------------------+
-| p     | When the length of the cell value is less than that specified by p, 0s are prepended to make  |
-|       | the value this length. Used for creating FC addresses.                                        | 
-+-------+-----------------------------------------------------------------------------------------------+
-| pn    | When True, check the port naming convention and adjust the port name accordingly.             |
-+-------+-----------------------------------------------------------------------------------------------+
-"""
-_slot_d_find = {  # See table above
-    'Port': dict(k='port', h=False, i=False, s=True, slot=True, p=0, pn=False),
-    'DID (Hex)': dict(k='did', h=True, i=False, s=True, slot=False, p=0, pn=False),
-    'Port Addr (Hex)': dict(k='port_addr', h=False, i=False, s=True, slot=False, p=2, pn=False),
-    'Index': dict(k='index', h=False, i=True, s=True, slot=False, p=0, pn=False),
-    'Link Addr': dict(k='link_addr', h=False, i=False, s=True, slot=False, p=4, pn=False),
-    'FID': dict(k='fid', h=False, i=False, s=False, slot=False, p=0, pn=False),
-    'CLI': dict(k='cli', h=False, i=False, s=False, slot=False, p=0, pn=False),
-    'Attached Device': dict(k='desc', h=False, i=False, s=False, slot=False, p=0, pn=False),
-    'ICL Description': dict(k='desc', h=False, i=False, s=False, slot=False, p=0, pn=False),
-    'Port Name': dict(k='port_name', h=False, i=False, s=False, slot=False, p=0, pn=True),
-    'Low Qos VC': dict(k='low_vc', h=False, i=False, s=False, slot=False, p=0, pn=False),
-    'Med Qos VC': dict(k='med_vc', h=False, i=False, s=False, slot=False, p=0, pn=False),
-    'High Qos VC': dict(k='high_vc', h=False, i=False, s=False, slot=False, p=0, pn=False),
-}
-
-
-def _parse_slot_sheet(sheet_d, port_name_d):
+def _parse_slot_sheet(sheet_d, chassis_d):
     """Parses a "Slot x" worksheet from a configuration workbook into a dictionary. The key is the port number in s/p
-    notation. The value for each port dictionary is as follows:
+    notation.
 
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | key           | type      | Description                                                                       |
-    +===============+===========+===================================================================================+
-    | fid           | int       | Fabric ID as a decimal.                                                           |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | did           | int       | Domain ID. Although read from the workbook as a str in Hex, it is returned as a   |
-    |               |           | decimal int                                                                       |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | port_addr     | str       | Port address in hex as read from the sheet (no leading 0x). Padded to 2 places.   |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | index         | int       | Port index                                                                        |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | link_addr     | str       | Link address in hex as read from the sheet (no leading 0x)                        |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | desc          | str       | Attached Device or ICL Description                                                |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | low_vc        | int       | Low Qos VC                                                                        |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | med_vc        | int       | Medium Qos VC                                                                     |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | high_vc       | int       | High Qos VC                                                                       |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-
-    :param sheet_d: Output from excel_util.read_workbook() for the Chassis worksheet
+    :param sheet_d: Raw data read from the workbook. See _conv_parameters_d for details.
     :type sheet_d: dict
-    :param port_name_d: Key is the FID as an int. Value is the port naming convention
-    :type port_name_d: dict()
+    :param chassis_d: See "chassis_d" in parse_switch_file() for details
+    :type chassis_d: dict
     :return error_l: List of error messages. Empty if no error encountered
     :rtype error_l: list
-    :return: Dictionary for switch. None if an error was encountered.
-    :rtype: dict, None
     """
-    global _slot_d_find, _MAX_FICON_PORT_NAME
+    global _conv_parameters_d
 
-    error_l, rd, al, buf, slot = list(), dict(), sheet_d['al'], '', ''
+    error_l, al, buf, slot = list(), sheet_d['al'], '', ''
 
     # Find the slot number
     for buf in al[0]:
@@ -1126,7 +1038,7 @@ def _parse_slot_sheet(sheet_d, port_name_d):
     i, hdr_l, col_d_l = 0, al[1], [dict(), dict()]
     for col in range(0, len(hdr_l)):
         try:
-            r_key = _slot_d_find[hdr_l[col]]['k']
+            r_key = _conv_parameters_d[hdr_l[col]]['k']
             if r_key in col_d_l[i]:
                 i += 1  # A repeat means we're starting the second column of ports
                 if i > len(col_d_l):
@@ -1138,7 +1050,6 @@ def _parse_slot_sheet(sheet_d, port_name_d):
 
     # Add the data from the worksheet
     for row in range(3, len(al)):
-
         if al[row][col_d_l[0]['port']] is None:
             break  # If the port is None, we reached the end of the workbook
 
@@ -1146,167 +1057,223 @@ def _parse_slot_sheet(sheet_d, port_name_d):
             if len(col_d_l[i]) == 0:
                 break
 
-            # Build the port dict and add to the return dict
-            pd = dict()
-            for k, d in _slot_d_find.items():
-                r_key = _slot_d_find[k]['k']
+            # Build the port map dict and add it to chassis_d
+            port_d = dict(sheet=sheet_d['sheet'])
+            for area, control_d in _conv_parameters_d.items():
+                r_key = control_d['k']
                 if r_key in col_d_l[i]:
-                    v = str(al[row][col_d_l[i][r_key]]) if d['s'] else al[row][col_d_l[i][r_key]]
-                    if d['h']:
-                        try:
-                            v = int(v, 16)
-                        except ValueError:
-                            error_l.append('Value for ' + k + ', ' + str(v) + ', is not a valid hex number.')
-                    if d['i']:
-                        if v != 'None':
-                            try:
-                                v = int(v)
-                            except ValueError:
-                                error_l.append('Value for ' + k + ', ' + str(v) + ', is not valid in '+sheet_d['sheet'])
-                    if d['pn']:
-                        try:
-                            port_name = port_name_d[pd['fid']]
-                            if port_name in ('open -n', 'ficon -n'):
-                                if isinstance(v, str):
-                                    if port_name == 'ficon -n' and len(v) > _MAX_FICON_PORT_NAME:
-                                        buf = 'The port name, ' + v + ', for port ' + str(pd.get('port')) + ' is ' + \
-                                              str(len(v)) + '. The maximum supported FICON Port name length is ' + \
-                                              str(_MAX_FICON_PORT_NAME)
-                                        error_l.append(buf)
-                                        v = v[0: _MAX_FICON_PORT_NAME]
-                                else:
-                                    v = ''
-                        except KeyError:
-                            pass  # We're not configuring this FID
+                    ml, r_key, return_v = _convert_parameters(area, al[row][col_d_l[i][r_key]])
+                    error_l.extend(ml)
+                    if isinstance(return_v, list) and isinstance(port_d.get(r_key), list):
+                        port_d[r_key].extend(return_v)
+                    else:
+                        port_d[r_key] = return_v
+                    if r_key == 'port':
+                        port_d['row'] = row
+                        port_d['port_key'] = slot + return_v
+            chassis_d['port_d'][port_d['port_key']] = port_d
 
-                    if isinstance(v, str):
-                        while len(v) < d['p']:
-                            v = '0' + v
-                    v = None if isinstance(v, str) and v == 'None' else slot + v if d['slot'] else v
-                    pd.update({r_key: v})
-            rd.update({pd['port']: pd})
-
-    # Return the slot dict or None if there was an error
-    return error_l, rd
+    return error_l
 
 
 def parse_switch_file(file):
-    """Parses Excel switch configuration Workbook.
+    """Parses Excel switch configuration Workbook. The dictionary in the return lists is as follows:
+
+    IMPORTANT NOTE: The "Type" column in the Sphinx documentation below refers to the value type from the "Parameter"
+                    cell associated with the "Area". The value may also be type None if no parameter data was entered.
+
+    chassis_d
+
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | Key           | Type  | Description                                                                           |
+    +===============+=======+=======================================================================================+
+    | port_d        | dict  | Key: Port number in s/p notation. Value: See "port_d" below.                          |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | data_l        | list  | List of dictionaries representing the "Chassis" worksheet. Each dictionary has the    |
+    |               |       | following:                                                                            |
+    |               |       | Key           Value                                                                   |
+    |               |       | ___           _____                                                                   |
+    |               |       | key           User key converted to a machine key. See _conv_parameters_d.            |
+    |               |       | user_key      The user key as read from the "Area" column                             |
+    |               |       | parameter     Parameter as read from the "Parameter" column.                          |
+    |               |       | row           0 relative row number. Used for error eporting.                         |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | sheet         | str   | Sheet name                                                                            |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | switch_d      | dict  | Key: FID as an integer. Value: See "sheet_d" below.                                   |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+
+    switch_d
+
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | Key           | Type  | Description                                                                           |
+    +===============+=======+=======================================================================================+
+    | sheet         | str   | Sheet name                                                                            |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | data_l        | list  | List of dictionaries representing the "Switch_x" worksheet. Each dictionary has the   |
+    |               |       | following (same as chassis_d['data_l']:                                               |
+    |               |       | Key           Value                                                                   |
+    |               |       | ___           _____                                                                   |
+    |               |       | key           User key converted to a machine key. See _conv_parameters_d.            |
+    |               |       | user_key      The user key as read from the "Area" column                             |
+    |               |       | parameter     Parameter as read from the "Parameter" column.                          |
+    |               |       | row           0 relative row number. Used for error eporting.                         |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | did           | int   | Domain ID                                                                             |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | did_row       | int   | 0 relative sheet row number where "Domain ID (DID)" was found. Used for error         |
+    |               |       | reporting.                                                                            |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | fid           | int   | Fabric ID                                                                             |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | fid_row       | int   | 0 relative sheet row number where "Fabric ID (FID)" was found. Used for error         |
+    |               |       | reporting.                                                                            |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | ge_port_l     | list  | List of GE ports in s/p notation that belong to this switch.  See port_d.             |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | row           | int   | 0 relative sheet row number associated with dictionary. Used for error reporting.     |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+
+    port_d - Filled in by _parse_slot_sheet().
+
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | Key           | Type  | Description                                                                           |
+    +===============+=======+=======================================================================================+
+    | cli           | list  | List of CLI commands from the parameter column associated with Area "CLI".            |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | port_name     | str   | Parameter associated with Area "Port Name".                                           |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | fid           | int   | Parameter associated with Area "FID".                                                 |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | did           | int   | Parameter associated with Area "DID (Hex)".                                           |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | end_enable    | int   | Parameter associated with Area "End Enable".                                          |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | index         | int   | Parameter associated with Area "Index".                                               |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | link_addr     | int   | Parameter associated with Area "Link Addr".                                           |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | port          | int   | Parameter associated with Area "Port".                                                |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | port_addr     | str   | Parameter associated with Area "Port Addr (Hex)".                                     |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | port_key      | str   | Port number in s/p notation. Intended for looking up the port object in ChassisObj    |
+    |               |       | and SwitchObj                                                                         |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | reserve       | str   | Parameter associated with Area "Reserve".                                             |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | row           | int   | 0 relative sheet row number associated with dictionary. Used for error reporting.     |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | sheet         | str   | Sheet name                                                                            |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | start_enable  | str   | Parameter associated with Area "Start Enable".                                        |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | low_vc        | int   | Parameter associated with Area "Low Qos VC".                                          |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | med_vc        | int   | Parameter associated with Area "Med Qos VC".                                          |
+    +---------------+-------+---------------------------------------------------------------------------------------+
+    | high_vc       | int   | Parameter associated with Area "High Qos VC".                                         |
+    +---------------+-------+---------------------------------------------------------------------------------------+
 
     :param file: Path and name of Excel Workbook with switch configuration definitions
     :type file: str
     :return error_l: List of errors. Empty list if no errors found
     :rtype error_l: list
-    :return chassis_d: Dictionary of chassis parameters. None if error reding workbook
-    :rtype chassis_d: dict, None
-    :return switch_l: List of logical switch dictionaries as described below.
-    :rtype switch_l: list
-
-    Note: This started as something very different. If I had to do it over again, I would have used the FOS API
-    mnemonics for these values.
-
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | key           | type      | Description                                                                       |
-    +===============+===========+===================================================================================+
-    | banner        | None, str | Login banner. Not set if None.                                                    |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | bind          | bool      | If True, bind the addresses to the ports.                                         |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | did           | int       | Although read from the workbook as a str in Hex, it is returned as a decimal int  |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | dup_wwn       | int       | 0 - First login takes precedence.                                                 |
-    |               |           | 1 - Second FLOGI and FDISC takes precedence.                                      |
-    |               |           | 2 - First FLOGI takes precedence. Second FDISC takes precedence                   |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | enable_ports  | bool      | If True, enable the ports after configuration is complete.                        |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | enable_switch | bool      | If True, enable the switch after configuration is complete.                       |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | fab_name      | None, str | Fabric name. Not set if None                                                      |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | port_name     | None, str | User friendly port name                                                           |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | ports         | dict      | Key is the port number and value is a dictionary as follows:                      |
-    |               |           |  Key          Type    Value                                                       |
-    |               |           |  did          int     The hexadecimal DID converted to decimal.                   |
-    |               |           |  port_addr    str     The hexadecimal port address (middle byte of the FC address)|
-    |               |           |  index        int     The port index                                              |
-    |               |           |  link_addr    str     FICON link address in hex                                   |
-    |               |           |  fid          int     Fabric ID                                                   |
-    |               |           |  ad           str,None    Attached device description. None if left blank.        |
-    |               |           |  low_vc       int     VC for QOSL zone                                            |
-    |               |           |  med_vc       int     VC for QOSM zone                                            |
-    |               |           |  high_vc      int     VC for QOSH zone                                            |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | sheet_name    | str       | Name of sheet in Workbook.                                                        |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | switch_name   | None, str | Switch name. Not set if None                                                      |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
-    | xisl          | bool      | If True, base switch usage is allowed.                                            |
-    +---------------+-----------+-----------------------------------------------------------------------------------+
+    :return chassis_d: Dictionary as described above.
+    :rtype chassis_d: dict
     """
-    chassis_d, port_d, port_name_d, rd = None, dict(), None, dict()
+    switch_d = dict()
+
+    chassis_d = dict(switch_d=switch_d, data_l=list(), port_d=dict())
 
     # Load the workbook
     skip_l = ('About', 'Summary', 'Sheet', 'Instructions', 'Slot_x_Terms', 'CLI_Bind', 'lists', 'VC')
-    error_l, sheet_l = excel_util.read_workbook(file, dm=3, skip_sheets=skip_l)
+    error_l, sheet_l = excel_util.read_workbook(file, dm=3, skip_sheets=skip_l, hidden=False)
     if len(error_l) > 0:
-        return error_l, chassis_d, list()
+        return error_l, chassis_d
 
     # Parse the "Chassis", "Sheet_x", and "Slot x" worksheets
     for sheet_d in sheet_l:
         buf = file + ' does not look like a valid switch configuration workbook. Use X7-8_Switch_Configuration.xlsx '
         buf += 'as an example.'
+
         try:
             title = sheet_d['sheet']
             if fnmatch.fnmatch(title, 'Chassis*'):
-                ml, chassis_d = _parse_chassis_sheet(sheet_d)
+                chassis_d['sheet'] = title
+                ml, data_l, fid, fid_row, did, did_row = _parse_chassis_switch_sheet(sheet_d)
                 error_l.extend(ml)
+                chassis_d['data_l'] = data_l
+
             elif fnmatch.fnmatch(title, 'Switch*'):
-                ml, d = _parse_switch_sheet(sheet_d)
-                error_l.extend(ml)
-                gen_util.add_to_obj(d, 'switch_info/sheet_name', title)
-                fid = d['switch_info']['fid']
-                if fid in rd:
-                    error_l.append('Duplicate FID, ' + str(fid) + '. Appears in ' + title + ' and ' +
-                                   rd[fid]['switch_info']['sheet_name'])
+                ml, data_l, fid, fid_row, did, did_row = _parse_chassis_switch_sheet(sheet_d)
+
+                # Is the FID valid?
+                if not isinstance(fid, int) or fid < 1 or fid > 128:
+                    buf = 'Invalid FID for sheet: ' + title + ', row: ' + str(fid_row+1) + '. FIDs must be an integer '
+                    buf += 'in the range of 1-128.'
+                    ml.append(buf)
+                else:  # Is there a duplicate FID?
+                    existing_sheet_d = switch_d.get(fid)
+                    if existing_sheet_d is not None:
+                        buf = 'Duplicate logical switches with the same FID, ' + str(fid) + '. Sheet: '
+                        buf += existing_sheet_d['sheet'] + ', Row: ' + str(existing_sheet_d['fid_row']+1) + ' and '
+                        buf += 'Sheet: ' + title + ' Row: ' + str(fid_row+1)
+                        ml.append(buf)
+
+                # Is the DID valid?
+                if not isinstance(did, int) or did < 0 or did > 239:
+                    buf = 'Invalid DID for sheet: ' + title + ', row: ' + str(did_row+1) + '. DIDs must be entered as '
+                    buf += 'a hex number in the range of 0x01-0xEF.'
+                    ml.append(buf)
+                if len(ml) > 0:
+                    error_l.extend(ml)
                 else:
-                    rd.update({fid: d})
+                    switch_d[fid] = dict(
+                        sheet=title,
+                        data_l=data_l,
+                        port_l=list(),
+                        ge_port_l=list(),
+                        fid=fid,
+                        fid_row=fid_row,
+                        did=did,
+                        did_row=did_row,
+                    )
+
             elif fnmatch.fnmatch(title, 'Slot ?*'):
-                if not isinstance(port_name_d, dict):
-                    # This could have been more elegant. I forgot that some port naming modes want all ports not
-                    # explicitly named to be set to an empty string. Furthermore, ficon port names need to be truncated
-                    # to a maximum of 24 characters, so I jammed this in and made a hack in _parse_slot_sheet() to set
-                    # the names correctly.
-                    port_name_d = dict()
-                    for fid, temp_switch_d in rd.items():
-                        port_name_d.update({fid: temp_switch_d['switch_info']['port_name']})
-                ml, d = _parse_slot_sheet(sheet_d, port_name_d)
-                error_l.extend(ml)
-                port_d.update(d)
+                error_l.extend(_parse_slot_sheet(sheet_d, chassis_d))
+
         except (TypeError, ValueError, IndexError):
             error_l.append(buf)
             break
 
-    # Add all the ports to the switch in the return dictionary, rd. I did it this way in case someone rearranged the
-    # sheets such that a "Slot x" worksheet came before the corresponding "Switch x" worksheet.
-    for k, d in port_d.items():
-        switch_d = rd.get(d['fid'])
-        if isinstance(switch_d, dict):
-            try:
-                if switch_d['switch_info']['switch_type'] == 'ficon' and int(d['port_addr'], 16) > 253:
-                    ml = ['Skipping FID: ' + str(d['fid']) + ', Port: ' + d['port'] + ' Address: ' + d['port_addr'],
-                          'Addresses greater than 0xFD are not supported in a ficon switch.']
-                    brcdapi_log.log(ml, echo=True)
-                    continue
-            except TypeError:
-                pass  # It's a GE port
-            except KeyError:
-                pass  # It doesn't have a port address. Typically, ICL ports or virtual ports
+    return error_l, chassis_d
 
-            switch_d['port_d'].update({k: d})
 
-    return error_l, chassis_d, rd.values()
+def empty_port_d():
+    """Used when a port is added after calling parse_switch_file().
+
+    :return: See "port_d" in parse_switch_file()
+    :rtype: dict
+    """
+    return dict(
+        cli=None,
+        port_name=None,
+        fid=0,
+        did=0,
+        end_enable=None,
+        index=None,
+        link_addr='Unknown',
+        port=-1,
+        port_addr='Unknown',
+        port_key='Unknown',
+        row=0,
+        sheet='Unknown',
+        start_enable=None,
+        low_vc=0,
+        med_vc=0,
+        high_vc=0,
+    )
 
 
 #####################################################################################
@@ -1335,7 +1302,7 @@ def span_to_list(span):
 # inserted in the comments cell for the associated URI.
 _alert_d = {
     brcdapi_util.bfc_idid: {al_table.ALERT_NUM.SWITCH_IDID: True},
-    brcdapi_util.bfc_fport_enforce_login_str: {al_table.ALERT_NUM.HANDLE_DUP_WWN: True},
+    brcdapi_util.bfc_fport_enforce_login: {al_table.ALERT_NUM.HANDLE_DUP_WWN: True},
 }
 # alert_font_d is used to determine the font
 alert_font_d = {
@@ -1343,13 +1310,6 @@ alert_font_d = {
     alert_class.ALERT_SEV.WARN: _warn_font,
     alert_class.ALERT_SEV.ERROR: _error_font,
 }
-_p_display_d = {  # Used to override the parameter header in brcddb.app_data.report_tables.Switch.switch_display_tbl
-    brcdapi_util.bfls_base_sw_en: dict(b='Switch Type', p='Base'),
-    brcdapi_util.bfls_def_sw_status: dict(b='Switch Type', p='Default'),
-    brcdapi_util.bfls_ficon_mode_en: dict(b='Switch Type', p='FICON'),
-    '_open_switch': dict(b='Switch Type', p='Open'),
-}
-
 
 """The sheet and cell location of the conditional highlighting parameters has to be stored in the switch or chassis
 object. Rather than hard code it in _conditional_highlight_l, the list entries are determined in
@@ -1371,7 +1331,7 @@ conditional_highlight(). The key is the header. The value is a dictionary as fol
 
 Formatting is always: font=_std_font, align=_align_wrap_r, border=_border_thin. The fill color is dynamically determined
 based on the port type and if there are any errors."""
-_default_stats = 999999999
+_default_stats = 999999999999
 _conditional_test_0_d = collections.OrderedDict()
 _conditional_test_0_d['Discarded Frames'] = dict(
     default=_default_stats,
@@ -1742,35 +1702,32 @@ def cell_content(obj, col_d, old_bool=False):
     :return: List of dictionaries with the comments, parameter, and setting values.
     :rtype: list
     """
-    global _p_display_d, _std_font, _align_wrap_r, _border_thin, _lookup_d
+    global _std_font, _align_wrap_r, _border_thin, _lookup_d
 
     comment_l, font = alert_eval(obj, col_d)
-    key, span_l = col_d['key'], span_to_list(col_d.get('span'))
+    span_l = span_to_list(col_d.get('span'))
+    key = col_d['key']
+    value = col_d.get('val', obj.r_get(key))
+
+    # Determine the cell content
+    if old_bool:  # I think this is obsolete by now.
+        value = bool(value)
+    elif isinstance(value, bool):
+        value = str(value)
+    elif isinstance(value, list):
+        value = '\n'.join(value)
 
     try:
-        value = _p_display_d[key]['p']
+        parameter = _lookup_d[brcddb_class_util.get_simple_class_type(obj)].get(key)
+    except TypeError:
+        parameter = 'Invalid object: ' + str(type(obj))
+        brcdapi_log.exception(parameter, echo=True)
     except KeyError:
-        value = obj.r_get(key)
-        if old_bool:
-            value = bool(value)
-        if isinstance(value, bool):
-            value = str(value)
-    if isinstance(value, list):
-        value = '\n'.join(value)
-    try:
-        parameter = _p_display_d[key]['b']
-    except KeyError:
-        try:
-            parameter = _lookup_d[brcddb_class_util.get_simple_class_type(obj)].get(key)
-        except TypeError:
-            parameter = 'Invalid object: ' + str(type(obj))
-            brcdapi_log.exception(parameter, echo=True)
-        except KeyError:
-            parameter = 'Invalid object type: ' + brcddb_class_util.get_simple_class_type(obj)
-            brcdapi_log.exception(
-                [parameter, ' Supported types are:', '\n'.join([str(k) for k in _lookup_d.keys()])],
-                echo=True
-            )
+        parameter = 'Invalid object type: ' + brcddb_class_util.get_simple_class_type(obj)
+        brcdapi_log.exception(
+            [parameter, ' Supported types are:', '\n'.join([str(k) for k in _lookup_d.keys()])],
+            echo=True
+        )
 
     return add_content_defaults(
         [
@@ -1837,14 +1794,9 @@ def seconds_to_days(obj, col_d):
     :return: List of dictionaries with the comments, parameter, and setting values.
     :rtype: list
     """
-    global _p_display_d
-
     key, align, border, span_l = col_d['key'], col_d.get('align'), col_d.get('border'), span_to_list(col_d.get('span'))
     comment_l, font = alert_eval(obj, col_d)
-    try:
-        parameter = _p_display_d[key]['b']
-    except KeyError:
-        parameter = rt.Switch.switch_display_tbl.get(key)
+    parameter = rt.Switch.switch_display_tbl.get(key)
     x = obj.r_get(key)
     value = int(x / 86400 + 0.5) if isinstance(x, int) else None
     return [
@@ -1869,16 +1821,12 @@ def list_to_str(obj, col_d):
 
     comment_l, font = alert_eval(obj, col_d)
     key, align, border, span_l = col_d['key'], col_d.get('align'), col_d.get('border'), span_to_list(col_d.get('span'))
-    try:
-        parameter = _p_display_d[key]['b']
-    except KeyError:
-        parameter = rt.Switch.switch_display_tbl.get(key)
     sl = obj.r_get(key)
     value = None if sl is None else '\n'.join(sl)
     return [
         dict(buf=None if len(comment_l) == 0 else '\n'.join(comment_l),
              font=font, align=align, border=border, span=span_l[0]),
-        dict(buf=parameter, font=font, align=_align_wrap, border=border, span=span_l[1]),
+        dict(buf=rt.Switch.switch_display_tbl.get(key), font=font, align=_align_wrap, border=border, span=span_l[1]),
         dict(buf=value, font=font, align=align, border=border, span=span_l[2]),
     ]
 
@@ -1888,7 +1836,9 @@ def add_contents(obj, contents_l):
 
     :param obj: brcddb object.
     :type obj: ProjectObj, FabricObj, SwitchObj, ChassisObj
-    :param contents_l: List of dictionaries defining the contents. See brcddb.report.switch._contents for definition
+    :param contents_l: List of dictionaries defining the cell contents (passed to brcdapi.excel_util.cell_update). The
+                       dictionaries may also contain the key 'rh', whose value is the row height. If 'rh' is defined in
+                       multiple dictionaries for the row, the maximum value is used for the row height.
     :type contents_l: list
     """
     global _yellow_fill
@@ -1903,11 +1853,14 @@ def add_contents(obj, contents_l):
     # Add the contents
     for row_item in contents_l:
         for row_l in row_item(obj, None) if callable(row_item) else [row_item]:
+            row_height_l = list()
             for col_item_d in row_l:
                 action = col_item_d.get('a')
                 col_l = action(obj, col_item_d) if callable(action) else [col_item_d]
                 for col_d in col_l:
                     key, buf, buf_item = col_d.get('key', None), None, col_d.get('buf', None)
+                    if isinstance(col_item_d.get('rh'), (int, float)):
+                        row_height_l.append(col_item_d.get('rh'))
                     if callable(buf_item):
                         buf = buf_item(obj, col_d)
                     elif key is not None:
@@ -1965,6 +1918,10 @@ def add_contents(obj, contents_l):
                             end_column=col + span - 1)
                     col += span
 
+            # Set the row height.
+            if len(row_height_l) > 0:
+                sheet.row_dimensions[sheet_d['row']].height = max(row_height_l)
+
             sheet_d['row'], col = sheet_d['row'] + 1, 1
 
 
@@ -1975,8 +1932,8 @@ def about_page(wb, sheet_i, sheet_name, file_name, version, description, tc=None
     :type wb: class
     :param sheet_i: Sheet index where page is to be placed. Typically, 0. Default is 0
     :type sheet_i: int, None
-    :param sheet_name: Sheet (tab) name
-    :type sheet_name: str
+    :param sheet_name: Sheet (tab) name. If None, the name defaults to "About"
+    :type sheet_name: None, str
     :param description: Workbook description. May be a string or list of strings
     :type description: str,list,tuple
     :param tc: Table of context page. A link to this page is place in cell A1
@@ -1985,7 +1942,7 @@ def about_page(wb, sheet_i, sheet_name, file_name, version, description, tc=None
     global _std_font
 
     # Add an "about" sheet
-    sheet = wb.create_sheet(index=sheet_i, title=sheet_name)
+    sheet = wb.create_sheet(index=sheet_i, title='About' if sheet_name is None else sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.column_dimensions['A'].width = 80
 
@@ -2168,7 +2125,7 @@ def groups(proj_obj, group_file):
 
     # Read the group definition file.
     if group_file is not None:  # Group group_file
-        el, worksheet_data_l = excel_util.read_workbook(group_file, dm=3, sheets='parameters')
+        el, worksheet_data_l = excel_util.read_workbook(group_file, dm=3, sheets='parameters', hidden=False)
         if len(el) > 0:
             return group_d, el
         try:

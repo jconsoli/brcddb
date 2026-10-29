@@ -58,16 +58,17 @@ not fully thought this out yet.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.7     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.8     | 29 Oct 2026   | Removed deprecated enforce-login.                                                     |
 +-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '29 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.7'
+__version__ = '4.0.8'
 
 import openpyxl.utils.cell as xl
 import copy
@@ -206,12 +207,7 @@ def _active_maps(switch_obj, col_d):
 def _switch_type(switch_obj, col_d):
     """Returns a list of columns to display for the switch type. See _active_maps() for parameters"""
     r_col_d = col_d.copy()
-    try:
-        for k in (brcdapi_util.bfls_base_sw_en, brcdapi_util.bfls_def_sw_status, brcdapi_util.bfls_ficon_mode_en):
-            if switch_obj.r_get(k, False):
-                raise Found
-    except Found:
-        r_col_d.update(key=k)
+    r_col_d['val'] = brcddb_switch.switch_type(switch_obj)
 
     return report_utils.cell_content(switch_obj, r_col_d)
 
@@ -286,7 +282,7 @@ _contents = [  # Search for **add_contents()** in brcddb.report.utils for an exp
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfs_op_status_str),
     ],
     [  # Switch Type, Access Gateway Mode
-        dict(a=_switch_type, span=_cell_span_l, key='_open_switch'),
+        dict(a=_switch_type, span=_cell_span_l, key='_SWITCH_TYPE', val='Unknown'),
         dict(font=None, align=None, border=None),
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfs_ag_mode_str),
     ],
@@ -303,7 +299,7 @@ _contents = [  # Search for **add_contents()** in brcddb.report.utils for an exp
     [
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfc_free_fdisc),
         dict(font=None, align=None, border=None),
-        dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfc_fport_enforce_login_str),
+        dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfc_fport_enforce_login),
     ],
     [
         dict(a=report_utils.cell_content, span=_cell_span_l, key=brcdapi_util.bfc_stage_interval),
@@ -581,11 +577,14 @@ def port_summary(switch_obj):
     global _extra_columns, _std_font, _bold_font, _align_wrap_c, _align_wrap, _border_thin, _PORT_SUM_C
     global _common_default_d
 
-    # Get a list of each port parameter type
-    port_d = collections.OrderedDict()  # Key is the header. Value is the list of port numbers
+    # Get a list of each port parameter type. Key is the sub-header. Value is a dictionary as follows:
+    # l     List of port numbers
+    # a     Function to call to determine the value
+    # rh    Row height, if applicable
+    port_d = collections.OrderedDict()  # Key: header. Value: dict. l: list of port numbers
     port_d['All'] = dict(l=list(),a=_all_ports)
-    port_d['Enabled Logins'] = dict(l=list(),a=_enabled_logins)
-    port_d['Enabled No Logins'] = dict(l=list(),a=_enabled_no_logins)
+    port_d['Enabled Logins'] = dict(l=list(),a=_enabled_logins, rh=30)
+    port_d['Enabled No Logins'] = dict(l=list(),a=_enabled_no_logins, rh=30)
     port_d['Disabled'] = dict(l=list(),a=_disabled)
     port_d['E-Port'] = dict(l=list(),a=_e_port)
     port_d['F-Port'] = dict(l=list(),a=_f_port)
@@ -594,7 +593,7 @@ def port_summary(switch_obj):
     port_d['FC4 Server'] = dict(l=list(),a=_fc4_initiator)
     port_d['Mixed FC4'] = dict(l=list(),a=_fc4_mixed)
     port_d['Other FC4'] = dict(l=list(),a=_all_ports)
-    for port_obj in switch_obj.r_port_objects():
+    for port_obj in switch_obj.r_port_objects():  # Fill in the list of ports
         for hdr, d in port_d.items():
             d['a'](port_obj, d['l'])
 
@@ -607,8 +606,12 @@ def port_summary(switch_obj):
     ]
     # Add the sub-headers
     row_l = list()
-    for hdr in [str(k) for k in port_d.keys()]:
-        row_l.append(dict(buf=hdr, font=_bold_font, align=_align_wrap_c, border=_border_thin, span=_PORT_SUM_C))
+    # for hdr, d in [str(k) for k in port_d.items()]:
+    for hdr, d in port_d.items():
+        temp_d = dict(buf=str(hdr), font=_bold_font, align=_align_wrap_c, border=_border_thin, span=_PORT_SUM_C)
+        if isinstance(d.get('rh'), (int, float)):
+            temp_d['rh'] = d['rh']
+        row_l.append(temp_d)
     content_l.append(row_l)
     # Update the worksheet
     report_utils.add_contents(switch_obj, content_l)
@@ -675,7 +678,7 @@ def switch_page(wb, tc, sheet_name, sheet_i, sheet_title, switch_obj, in_display
         sheet,
         sheet_d['row'],
         col,
-        brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True, fid=True),
+        brcddb_switch.best_switch_name(switch_obj, wwn=True, did=True, did_hex=True, fid=True),
         font=_hdr1_font,
         align=_align_wrap_c
     )

@@ -39,15 +39,17 @@ details.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 01 Aug 2026   | Use switch_obj.r_fid(). Removed depracated API branches.                              |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '01 Aug 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -61,6 +63,16 @@ import brcddb.app_data.alert_tables as al
 import brcddb.classes.util as brcddb_class_util
 import brcddb.util.search as brcddb_search
 
+_std_font = excel_fonts.font_type('std')
+_bold_font = excel_fonts.font_type('bold')
+_link_font = excel_fonts.font_type('link')
+_hdr2_font = excel_fonts.font_type('hdr_2')
+_hdr1_font = excel_fonts.font_type('hdr_1')
+_align_wrap = excel_fonts.align_type('wrap')
+_align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
+_align_wrap_c = excel_fonts.align_type('wrap_center')
+_border_thin = excel_fonts.border_type('thin')
+
 _hdr = collections.OrderedDict()
 # Key is the column header and value is the width
 _hdr['Name'] = 30
@@ -68,6 +80,13 @@ _hdr['WWN'] = 22
 _hdr['DID'] = 12
 _hdr['Fabric ID'] = 12
 _hdr['Firmware'] = 22
+_hdr_align = {
+    'Name': _align_wrap,
+    'WWN': _align_wrap,
+    'DID': _align_wrap_c,
+    'Fabric ID': _align_wrap_c,
+    'Firmware': _align_wrap_c,
+}
 _zone_key_conv = {
     'cfg-action': 'Configuration actions',
     'cfg-name': 'Effective Configuration',
@@ -79,15 +98,6 @@ _zone_key_conv = {
     'transaction-token': 'Transaction token',
     'default-zone-access': 'All Access',
 }
-_std_font = excel_fonts.font_type('std')
-_bold_font = excel_fonts.font_type('bold')
-_link_font = excel_fonts.font_type('link')
-_hdr2_font = excel_fonts.font_type('hdr_2')
-_hdr1_font = excel_fonts.font_type('hdr_1')
-_align_wrap = excel_fonts.align_type('wrap')
-_align_wrap_vc = excel_fonts.align_type('wrap_vert_center')
-_align_wrap_c = excel_fonts.align_type('wrap_center')
-_border_thin = excel_fonts.border_type('thin')
 
 
 def _setup_worksheet(wb, tc, sheet_i, sheet_name, sheet_title):
@@ -110,11 +120,13 @@ def _setup_worksheet(wb, tc, sheet_i, sheet_name, sheet_title):
     """
     global _hdr, _link_font, _hdr1_font
 
-    # Create the worksheet, add the headers, and set up the column widths
+    # Create the worksheet
     sheet = wb.create_sheet(index=0 if sheet_i is None else sheet_i, title=sheet_name)
     sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
     sheet.page_setup.orientation = sheet.ORIENTATION_LANDSCAPE
     row = col = 1
+
+    # Add the "Contents" link and the sheet title.
     if isinstance(tc, str):
         excel_util.cell_update(sheet, row, col, 'Contents', font=_link_font, link=tc)
         col += 1
@@ -122,7 +134,7 @@ def _setup_worksheet(wb, tc, sheet_i, sheet_name, sheet_title):
     sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
     sheet.freeze_panes = sheet['A2']
 
-    # Set the column width
+    # Set the column widths
     col = 1
     for k, v in _hdr.items():
         sheet.column_dimensions[xl.get_column_letter(col)].width = v
@@ -143,12 +155,12 @@ def _fabric_summary(sheet, row, fabric_obj):
     :return: Next row number
     :rtype: int
     """
-    global _hdr, _std_font, _border_thin, _bold_font, _link_font
+    global _hdr, _hdr_align, _std_font, _border_thin, _bold_font, _link_font
 
     # Add the headers
     col = 1
     for k in _hdr.keys():
-        excel_util.cell_update(sheet, row, col, k, font=_bold_font, align=_align_wrap, border=_border_thin)
+        excel_util.cell_update(sheet, row, col, k, font=_bold_font, align=_hdr_align[k], border=_border_thin)
         col += 1
     row += 1
 
@@ -156,38 +168,71 @@ def _fabric_summary(sheet, row, fabric_obj):
     for switch_obj in fabric_obj.r_switch_objects():
         col = 1
 
-        # Switch name
-        buf = brcddb_switch.best_switch_name(switch_obj, False)
-        if switch_obj.r_is_principal():
-            buf = '*' + buf
-        link = switch_obj.r_get('report_app/hyperlink/switch')
-        font = _std_font if link is None else _link_font
-        excel_util.cell_update(sheet, row, col, buf, font=font, align=_align_wrap, border=_border_thin, link=link)
-        col += 1
+        # IDK why I didn't put this in a table instead of all this if/else stuff, but I'm not fixing working code
+        for k in _hdr.keys():
 
-        # Switch WWN
-        excel_util.cell_update(sheet, row, col, switch_obj.r_obj_key(), font=_std_font, align=_align_wrap,
-                               border=_border_thin)
-        col += 1
+            if k == 'Name':  # Switch name
+                buf = brcddb_switch.best_switch_name(switch_obj, False)
+                if switch_obj.r_is_principal():
+                    buf = '*' + buf
+                link = switch_obj.r_get('report_app/hyperlink/switch')
+                font = _std_font if link is None else _link_font
+                excel_util.cell_update(
+                    sheet,
+                    row,
+                    col,
+                    buf,
+                    font=font,
+                    align=_hdr_align[k],
+                    border=_border_thin,
+                    link=link
+                )
+                col += 1
 
-        # Switch DID
-        buf = switch_obj.r_get(brcdapi_util.bfs_did)
-        if buf is None:
-            buf = switch_obj.r_get('brocade-fabric/fabric-switch/domain-id')
-        excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
-        col += 1
+            elif k == 'WWN':  # Switch WWN
+                excel_util.cell_update(
+                    sheet,
+                    row,
+                    col,
+                    switch_obj.r_obj_key(),
+                    font=_std_font,
+                    align=_hdr_align[k],
+                    border=_border_thin
+                )
+                col += 1
 
-        # Switch FID
-        excel_util.cell_update(sheet, row, col, brcddb_switch.switch_fid(switch_obj), font=_std_font,
-                               align=_align_wrap, border=_border_thin)
-        col += 1
+            elif k == 'DID':  # Switch DID
+                buf = switch_obj.r_get(brcdapi_util.bfs_did, 0)
+                did_hex = hex(buf).upper().replace('X', 'x')
+                if len(did_hex) == 3:
+                    did_hex = did_hex.replace('0x', '0x0')
+                buf = str(buf) + ' (' + did_hex + ')'
+                excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_hdr_align[k], border=_border_thin)
+                col += 1
 
-        # Firmware version
-        buf = switch_obj.r_get(brcdapi_util.bfs_fw_version)
-        if buf is None:
-            buf = switch_obj.r_get(brcdapi_util.bf_fw_version)
-        excel_util.cell_update(sheet, row, col, buf, font=_std_font, align=_align_wrap, border=_border_thin)
-        row += 1
+            elif k == 'Fabric ID':  # Fabric ID
+                excel_util.cell_update(
+                    sheet,
+                    row,
+                    col,
+                    switch_obj.r_fid(),
+                    font=_std_font,
+                    align=_hdr_align[k],
+                    border=_border_thin
+                )
+                col += 1
+
+            elif k == 'Firmware':  # Firmware
+                excel_util.cell_update(
+                    sheet,
+                    row,
+                    col,
+                    switch_obj.r_get(brcdapi_util.bfs_fw_version),
+                    font=_std_font,
+                    align=_hdr_align[k],
+                    border=_border_thin
+                )
+                row += 1
 
     # Principal switch footnote
     col = 1
@@ -413,7 +458,7 @@ def _zone_configuration(sheet, row, fabric_obj):
 
     # Zone configuration summary
     if obj is not None:
-        row, col = row+2, 1
+        row, col = row+1, 1
         sheet.merge_cells(start_row=row, start_column=col, end_row=row, end_column=len(_hdr))
         excel_util.cell_update(sheet, row, col, 'Zone Configuration Summary', font=_bold_font)
         ec_obj = fabric_obj.r_get('brocade-zone/effective-configuration')

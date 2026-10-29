@@ -43,15 +43,17 @@ Creates an iocp page to be added to an Excel Workbook
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.6     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.7     | 01 Aug 2026   | Modified to use new brcddb_switch.best_switch_name() format.                          |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '01 Aug 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.6'
+__version__ = '4.0.7'
 
 import collections
 import openpyxl.utils.cell as xl
@@ -149,7 +151,7 @@ def _cu_number(port_obj, chpid_obj, link_addr=None):
 
 def _switch_case(port_obj, chpid_obj, link_addr=None):
     """Returns the switch name associated with the port. See _null_case() for parameter definitions"""
-    return '' if port_obj is None else brcddb_switch.best_switch_name(port_obj.r_switch_obj())
+    return '' if port_obj is None else brcddb_switch.best_switch_name(port_obj)
 
 
 def _index_case(port_obj, chpid_obj, link_addr=None):
