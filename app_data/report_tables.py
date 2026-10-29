@@ -22,30 +22,30 @@ information in here that is no longer used.
 
 **Important Classes**
 
-+---------------+-----------------------+-----------------------------------------------------------------------+
+All of these clases are used to determine how to display data in the report by brcddb.apps.report() and various
+supporting libraries in brcddb.report.
+
++---------------+-----------------------+---------------------------------------------------------------------------+
 | Class         | Sub-class             | Description                                                               |
-+===============+=======================+=======================================================================+
-| Chassis       | chassis_display_tbl   | Determines what fields to display and the column header. Used with        |
++===============+=======================+===========================================================================+
+| Chassis       | chassis_display_tbl   | Used with brcddb.report.chassis.chassis_page().                           |
++---------------+-----------------------+---------------------------------------------------------------------------+
+| Switch        | switch_display_tbl    | Used with brcddb.report.switch.switch_page().                             |
++---------------+-----------------------+---------------------------------------------------------------------------+
+| Port          | port_display_tbl      | Used with brcddb.report.port.port_page().                                 |
++---------------+-----------------------+---------------------------------------------------------------------------+
+| Port          | port_config_tbl       | Tailored for port configurations. Used with brcddb.report.port.port_page()|
++---------------+-----------------------+---------------------------------------------------------------------------+
+| Port          | port_stats_tbl        | Tailored for port statistics. Used with                                   |
 |               |                       | brcddb.report.chassis.chassis_page().                                     |
-+---------------+-----------------------+-----------------------------------------------------------------------+
-| Switch        | switch_display_tbl    | Determines what fields to display and the column header. Used with        |
-|               |                       | brcddb.report.switch.switch_page().                                       |
-+---------------+-----------------------+-----------------------------------------------------------------------+
-| Port          | port_display_tbl      | Determines how data is to be displayed. Used with                         |
-|               |                       | brcddb.report.port.port_page().                                           |
-+---------------+-----------------------+-----------------------------------------------------------------------+
-| Port          | port_config_tbl       | Determines what fields to display. Tailored for port configurations. Used |
-|               |                       | with brcddb.report.chassis.chassis_page()                                 |
-+---------------+-----------------------+-----------------------------------------------------------------------+
-| Port          | port_stats_tbl        | Determines what fields to display. Tailored for port statistics. Used     |
-|               |                       | with brcddb.report.chassis.chassis_page().                                |
-+---------------+-----------------------+-----------------------------------------------------------------------+
-| Port          | port_stats1_tbl       | Determines what fields to display. Tailored for port statistics. from a   |
-|               |                       | single port.                                                              |
-+---------------+-----------------------+-----------------------------------------------------------------------+
-| Port          | port_sfp_tbl          | Determines what fields to display. Tailored for SFPs. Used with           |
-|               |                       | brcddb.report.chassis.chassis_page()                                      |
-+---------------+-----------------------+-----------------------------------------------------------------------+
++---------------+-----------------------+---------------------------------------------------------------------------+
+| Port          | port_stats1_tbl       | Tailored for port statistics. from a single port.                         |
++---------------+-----------------------+---------------------------------------------------------------------------+
+| Port          | port_sfp_tbl          | Tailored for SFPs. Used with brcddb.report.chassis.chassis_page()         |
++---------------+-----------------------+---------------------------------------------------------------------------+
+| Port          | port_sfp_find_tbl     | Tailored for nodefind.py.                                                 |
++---------------+-----------------------+---------------------------------------------------------------------------+
+
 
 **Version Control**
 
@@ -74,15 +74,19 @@ information in here that is no longer used.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.9     | 20 Feb 2026   | Added 'fibrechannel-statistics/link-level-interrupts'                                 |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.0     | 01 Aug 2026   | Removed deprecated enforce-login                                                      |
++-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.1     | 29 Oct 2026   | Added port_sfp_find_tbl. Added brocade-fdmi/hba/serial-number to port_display_tbl.    |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '29 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.9'
+__version__ = '4.1.1'
 
 import brcdapi.util as brcdapi_util
 
@@ -201,10 +205,13 @@ class Switch:
         # '_SWITCH_NAME_AND_WWN': 'Switch',
         # '_SWITCH_WWN': 'Switch',
         '_SWITCH_ACTIVE_MAPS_POLICY_NAME': 'Active MAPS Policy',
+        '_SWITCH_TYPE': 'Switch Type',
         # Status Flags
-        brcdapi_util.bfls_base_sw_en: 'Base Switch',
+        brcdapi_util.bfls_base_sw_en.replace('-v2', ''): 'Base Switch',  # 9.1 & below
+        brcdapi_util.bfls_base_sw_en: 'Base Switch',  # 9.2 & above
         brcdapi_util.bfls_def_sw_status: 'Default Switch',
-        brcdapi_util.bfls_ficon_mode_en: 'FICON Switch',
+        brcdapi_util.bfls_ficon_mode_en.replace('-v2', ''): 'FICON Switch',  # 9.1 & below
+        brcdapi_util.bfls_ficon_mode_en: 'FICON Switch',  # 9.2 & above
         # Configuration
         brcdapi_util.bfs_banner: 'Banner',
         brcdapi_util.bc_user_name: 'Chassis',
@@ -257,13 +264,13 @@ class Switch:
         brcdapi_util.bfc_max_logins: 'Maximum switch logins',
         brcdapi_util.bfc_max_flogi_rate: 'Maximum FLOGI rate',
         brcdapi_util.bfc_stage_interval: 'F-Port enable rate (msec)',
-        brcdapi_util.bfc_fport_enforce_login: 'Duplicate WWN handling',  # Deprecated
-        brcdapi_util.bfc_fport_enforce_login_str: 'Duplicate WWN handling',
+        brcdapi_util.bfc_fport_enforce_login: 'Duplicate WWN handling',
         brcdapi_util.bfc_free_fdisc: 'Maximum FDISC logins before staging',
         brcdapi_util.bfc_max_flogi_rate_port: 'Maximum FLOGI rate (logins/sec)',
         # Flags
         brcdapi_util.bfs_enabled_state: 'Switch Enabled',
-        brcdapi_util.bfls_isl_enabled: 'Logical ISL (XISL) Enabled',
+        brcdapi_util.bfls_isl_enabled.replace('-v2', ''): 'Logical ISL (XISL) Enabled',  # 9.1 & below
+        brcdapi_util.bfls_isl_enabled: 'Logical ISL (XISL) Enabled',  # 9.2 & above
         brcdapi_util.bfs_principal: 'Fabric Principal',
         brcdapi_util.bfc_port_id_mode: 'Persistent WWN PID Mode',
         brcdapi_util.bfc_idid: 'Insistent Domain ID',
@@ -479,7 +486,7 @@ class Port:
         'fibrechannel/fec-enabled': dict(v=True, m=True, c=5, d='FEC Enabled'),
         'fibrechannel/fec-active': dict(v=True, m=True, c=5, d='FEC Active'),
         'fibrechannel/g-port-locked': dict(v=True, m=True, c=5, d='G-Port Locked'),
-        brcdapi_util.fc_enabled: dict(v=True, m=True, c=5, d='Enabled'),
+        brcdapi_util.fc_enabled: dict(m=True, c=10, d='Enabled State'),
         'fibrechannel/isl-ready-mode-enabled': dict(v=True, m=True, c=5, d='ISL Ready Mode Enabled'),
         'fibrechannel/mirror-port-enabled': dict(v=True, m=True, c=5, d='Mirror Port Enabled'),
         'fibrechannel/n-port-enabled': dict(v=True, m=True, c=5, d='N-Port Enabled'),
@@ -626,6 +633,8 @@ class Port:
         'rnid/plant': dict(c=8, d='Plant'),
         'rnid/sequence-number': dict(c=16, d='S/N'),
         'rnid/tag': dict(c=8, d='Tag'),
+        # FDMI
+        brcdapi_util.fdmi_node_sn: dict(c=16, d='FDMI S/N')
     }
 
     port_config_tbl = (
@@ -633,14 +642,14 @@ class Port:
         '_SWITCH_LINK',
         '_PORT_NUMBER',
         brcdapi_util.fc_index,
+        brcdapi_util.fc_enabled,
+        brcdapi_util.fc_op_status_str,
+        brcdapi_util.fc_state,
         brcdapi_util.fc_user_name,
         '_ALIAS',
         brcdapi_util.fc_fcid_hex,
         brcdapi_util.fc_port_type_str,
         brcdapi_util.sfp_wave,
-        brcdapi_util.fc_enabled,
-        brcdapi_util.fc_op_status_str,
-        brcdapi_util.fc_state,
         brcdapi_util.fc_chip_instance,
         '_BEST_DESC',
         brcdapi_util.fc_eport_credit,
@@ -909,6 +918,33 @@ class Port:
         '_NAME_SERVER_PORT',
         '_FDMI_NODE',
         '_FDMI_PORT',
+    )
+    port_sfp_find_tbl = (
+        '_PORT_COMMENTS',
+        '_SWITCH_LINK',
+        '_PORT_NUMBER',
+        brcdapi_util.fc_fcid_hex,
+        brcdapi_util.fc_port_type_str,
+        brcdapi_util.fc_op_status_str,
+        brcdapi_util.sfp_sn,
+        'media-rdp/remote-optical-product-data/serial-number',
+        '_ALIAS',
+        brcdapi_util.fdmi_node_sn,
+        '_BEST_DESC',
+        'rnid/type-number',
+        'rnid/model-number',
+        'rnid/sequence-number',
+        'rnid/tag',
+        'media-rdp/identifier',
+        'media-rdp/remote-identifier',
+        'media-rdp/date-code',
+        'media-rdp/remote-optical-product-data/date-code',
+        brcdapi_util.sfp_vendor,
+        'media-rdp/remote-optical-product-data/vendor-name',
+        brcdapi_util.sfp_pn,
+        'media-rdp/remote-optical-product-data/part-number',
+        'media-rdp/vendor-revision',
+        'media-rdp/remote-optical-product-data/vendor-revision',
     )
 
     
