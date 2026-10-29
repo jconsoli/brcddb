@@ -28,7 +28,7 @@ Login level utilities.
 | login_best_node_desc  | Finds the first descriptor for what's attached to the port. See module header for details |
 +-----------------------+-------------------------------------------------------------------------------------------+
 | login_best_port_desc  | Finds the first descriptor for this login using the FDMI port descriptor, name server,    |
-|   `                   | and FDMI node descriptor.                                                                 |
+|                       | and FDMI node descriptor.                                                                 |
 +-----------------------+-------------------------------------------------------------------------------------------+
 | best_login_name       | Returns the alias, WWN, or d,i for the name parameter                                     |
 +-----------------------+-------------------------------------------------------------------------------------------+
@@ -54,15 +54,17 @@ Login level utilities.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.5     | 20 Feb 2026   | Updated copyright notice.                                                             |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.0.6     | 29 Oct 2026   | Added serial number option to fdmi_node_name() and login_best_node_desc().            |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2024, 2025, 2026 Jack Consoli'
-__date__ = '20 Feb 2026'
+__date__ = '29 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.5'
+__version__ = '4.0.6'
 
 import brcdapi.util as brcdapi_util
 import brcdapi.gen_util as gen_util
@@ -70,19 +72,23 @@ import brcdapi.gen_util as gen_util
 _MIN_SYMB_LEN = 10
 
 
-def fdmi_node_name(fdmi_obj, wwn):
+def fdmi_node_name(fdmi_obj, wwn, sn=False):
     """Returns the FDMI node symbolic name
 
     :param fdmi_obj: Login Object
     :type fdmi_obj: brcddb.classes.login.FdmiNodeObj
     :param wwn: WWN
     :type wwn: str
-    :return: Node name
+    :param sn: If True, Include the HBA serial number
+    :type sn: bool
+    :return: Node name. None if FDMI data is not present.
     :rtype: str, None
     """
     if fdmi_obj is not None and isinstance(wwn, str):
         buf = fdmi_obj.r_get('brocade-fdmi/hba/node-symbolic-name')
         if isinstance(buf, str) and len(buf) < _MIN_SYMB_LEN:
+            if sn:  # I'm assuming that if "node-symbolic-name" isn't present, neither is "serial-number"
+                buf += ' S/N: ' + fdmi_obj.r_get('brocade-fdmi/hba/serial-number', 'Unknown')
             return buf
     return None
 
@@ -98,16 +104,19 @@ def ns_node_name(login_obj):
     try:
         return login_obj.r_get(brcdapi_util.bns_node_symbol)
     except AttributeError:
-        return None
+        pass
+    return None
 
 
-def login_best_node_desc(login_obj):
+def login_best_node_desc(login_obj, sn=False):
     """Finds the first descriptor for what's attached to the port in this order:
         1   FDMI  Node (HBA) descriptor
         2   Name server node descriptor
 
     :param login_obj: Login Object
     :type login_obj: brcddb.classes.login.login_obj
+    :param sn: If True, Include the HBA serial number
+    :type sn: bool
     :return: desc
     :rtype: str
     """
@@ -118,7 +127,7 @@ def login_best_node_desc(login_obj):
     wwn = login_obj.r_obj_key()
 
     # Try FDMI node (HBA) data
-    buf = fdmi_node_name(fab_obj.r_fdmi_node_obj(wwn), wwn)
+    buf = fdmi_node_name(fab_obj.r_fdmi_node_obj(wwn), wwn, sn)
     if buf is not None:
         if len(buf) < _MIN_SYMB_LEN:
             maybe = buf

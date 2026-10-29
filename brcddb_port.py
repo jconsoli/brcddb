@@ -66,15 +66,17 @@ Methods and tables to support the class ChassisObj.
 +-----------+---------------+---------------------------------------------------------------------------------------+
 | 4.0.9     | 26 Oct 2026   | Add option to include additional switch and port information in port_best_desc()      |
 +-----------+---------------+---------------------------------------------------------------------------------------+
+| 4.1.0     | 29 Oct 2026   | Added serial number option to port_best_desc().                                       |
++-----------+---------------+---------------------------------------------------------------------------------------+
 """
 __author__ = 'Jack Consoli'
 __copyright__ = 'Copyright 2023, 2024, 2025, 2026 Jack Consoli'
-__date__ = '26 Oct 2026'
+__date__ = '29 Oct 2026'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'jack_consoli@yahoo.com'
 __maintainer__ = 'Jack Consoli'
 __status__ = 'Released'
-__version__ = '4.0.9'
+__version__ = '4.1.0'
 
 import brcdapi.log as brcdapi_log
 import brcdapi.util as brcdapi_util
@@ -92,7 +94,16 @@ from brcddb.classes.port import PortObj
 _rnid_keys = ('manufacturer', 'model-number', 'sequence-number', 'tag', 'flags')
 
 
-def port_best_desc(port_obj, switch_name=False, fid=False, did=False, did_hex=False, port_num=False, port_name=False):
+def port_best_desc(
+        port_obj,
+        switch_name=False,
+        fid=False,
+        did=False,
+        did_hex=False,
+        port_num=False,
+        port_name=False,
+        sn=False
+):
     """Finds the first descriptor for what's attached to the port in this order:
         1   RNID data if RNID data is present
         2   If E-Port, the upstream switch & port
@@ -115,6 +126,8 @@ def port_best_desc(port_obj, switch_name=False, fid=False, did=False, did_hex=Fa
     :type port_num: bool
     :param port_name: If True, description include the port name in the returned description
     :type port_name: bool
+    :param sn: If True, Include the serial number in the description.
+    :type sn: bool
     :return: Port description
     :rtype: str
     """
@@ -167,7 +180,7 @@ def port_best_desc(port_obj, switch_name=False, fid=False, did=False, did_hex=Fa
     login_obj = fab_obj.r_login_obj(wwn_list[0])
     if login_obj is None:
         return r_desc
-    buf = brcddb_login.login_best_node_desc(login_obj)
+    buf = brcddb_login.login_best_node_desc(login_obj, sn=sn)
     r_desc += ' ' + buf if len(buf) > 2 else brcddb_login.login_best_port_desc(login_obj)
 
     return r_desc
